@@ -51,6 +51,21 @@ def test_new_prd_auto_increment_id(repo_with_init):
     assert f"document_id: {repo_prefix}-PRD-002" in content
 
 
+def test_new_refuses_symlink_escape(tmp_path: Path):
+    InitRepositoryUseCase(str(tmp_path)).execute()
+
+    outside = tmp_path / "outside-docs"
+    outside.mkdir(parents=True, exist_ok=True)
+
+    real_docs = tmp_path / "docs"
+    real_docs.rename(tmp_path / "docs-real")
+    real_docs.symlink_to(outside, target_is_directory=True)
+
+    use_case = NewDocumentUseCase(str(tmp_path))
+    with pytest.raises(ValueError):
+        use_case.execute("ADR", "Symlink Escape")
+
+
 def test_new_fdd_uses_template(repo_with_init):
     use_case = NewDocumentUseCase(str(repo_with_init))
 

@@ -63,3 +63,15 @@ def test_init_idempotent(empty_repo):
     use_case.execute()
 
     assert (empty_repo / "docops.config.yaml").exists()
+
+
+def test_init_refuses_symlink_escape(tmp_path: Path):
+    outside = tmp_path / "outside"
+    outside.mkdir(parents=True, exist_ok=True)
+
+    # If a repo contains a symlinked docs root, init must refuse to write outside the repo.
+    (tmp_path / "docs").symlink_to(outside, target_is_directory=True)
+
+    use_case = InitRepositoryUseCase(str(tmp_path))
+    with pytest.raises(ValueError):
+        use_case.execute()

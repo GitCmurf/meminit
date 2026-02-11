@@ -7,8 +7,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import frontmatter
 
-from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
+from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
+from meminit.core.services.safe_fs import ensure_safe_write_path
 
 
 _DOC_ID_LINE_RE = re.compile(r"^(> \*\*Document ID:\*\* )(.+?)(\s*)$", re.IGNORECASE)
@@ -161,6 +162,7 @@ class MigrateIdsUseCase:
 
                 if not dry_run:
                     post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
+                    ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
                     path.write_text(frontmatter.dumps(post), encoding="utf-8")
 
         return IdMigrationReport(dry_run=dry_run, actions=actions, skipped_files=sorted(set(skipped)))

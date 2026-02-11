@@ -5,6 +5,7 @@ from typing import Mapping, Optional
 import yaml
 
 from meminit.core.services.org_profiles import resolve_org_profile
+from meminit.core.services.safe_fs import ensure_safe_write_path
 
 _FALLBACK_SCHEMA_JSON = b"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -85,10 +86,13 @@ class InitRepositoryUseCase:
         ]
 
         for d in dirs:
-            (self.docs_dir / d).mkdir(parents=True, exist_ok=True)
+            target_dir = self.docs_dir / d
+            ensure_safe_write_path(root_dir=self.root_dir, target_path=target_dir)
+            target_dir.mkdir(parents=True, exist_ok=True)
 
         # 2. Create docops.config.yaml
         config_path = self.root_dir / "docops.config.yaml"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=config_path)
         if not config_path.exists():
             repo_prefix = self._derive_repo_prefix(self.root_dir.name)
             docs_root = "docs"
@@ -152,17 +156,20 @@ class InitRepositoryUseCase:
             template_bytes = dict(_FALLBACK_TEMPLATES)
 
         schema_path = gov_dir / "metadata.schema.json"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=schema_path)
         if not schema_path.exists():
             schema_path.write_bytes(schema_bytes)
 
         for rel, content in template_bytes.items():
             dest = gov_dir / rel
+            ensure_safe_write_path(root_dir=self.root_dir, target_path=dest)
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(content)
 
         # 4. Create AGENTS.md
         agents_path = self.root_dir / "AGENTS.md"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_path)
         if not agents_path.exists():
             repo_prefix = self._load_repo_prefix_from_config()
             agents_content = self._load_agents_template()

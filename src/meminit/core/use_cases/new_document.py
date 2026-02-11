@@ -7,6 +7,7 @@ import frontmatter
 import yaml
 
 from meminit.core.services.repo_config import RepoConfig, load_repo_layout
+from meminit.core.services.safe_fs import ensure_safe_write_path
 
 
 class NewDocumentUseCase:
@@ -29,6 +30,7 @@ class NewDocumentUseCase:
             raise ValueError(f"Unknown document type: {doc_type}. Valid types: {valid}")
 
         target_dir = ns.docs_dir / expected_subdir
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
         # ID Generation
@@ -37,6 +39,7 @@ class NewDocumentUseCase:
         # Filename Generation
         filename = self._generate_filename(doc_id, title)
         target_path = target_dir / filename
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
 
         # Template Loading
         content = self._load_template(normalized_type, title, doc_id, ns)

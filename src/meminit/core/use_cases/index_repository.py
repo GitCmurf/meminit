@@ -10,6 +10,7 @@ import frontmatter
 
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
 from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.safe_fs import ensure_safe_write_path
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class IndexRepositoryUseCase:
             raise FileNotFoundError("No configured docs roots exist on disk; cannot build index.")
 
         index_path = self._layout.index_file
+        ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
 
         entries: List[Dict[str, Any]] = []
