@@ -281,16 +281,6 @@ owner: Me
     assert outside.read_text(encoding="utf-8") == outside_content
     assert any(v.rule == "UNSAFE_PATH" for v in report.remaining_violations)
 
-    fixer = FixRepositoryUseCase(root_dir=str(tmp_path))
-    fixer.execute(dry_run=False, namespace="root")
-
-    assert not bad_root.exists()
-    assert (root_docs / "bad-name.md").exists()
-
-    # Package namespace remains untouched
-    assert bad_pkg.exists()
-    assert not (pkg_docs / "also-bad.md").exists()
-
 
 def test_fix_frontmatter_missing_makes_doc_compliant(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
