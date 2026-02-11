@@ -1,3 +1,3 @@
-include src/meminit/core/assets/**/*
+recursive-include src/meminit/core/assets *
 global-exclude *.pyc
 global-exclude __pycache__
