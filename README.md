@@ -21,6 +21,20 @@ ignore docs entirely.
 documentation — so your docs stay machine-readable, policy-compliant, and in
 sync with your code.
 
+### Built for the Agentic Age
+
+Meminit is designed to work *with* AI coding agents, not just alongside them:
+
+- **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without
+  guessing filenames.
+- **JSON Schema-validated frontmatter** gives agents structured metadata they
+  can parse and trust.
+- **`meminit init` scaffolds an `AGENTS.md`** — a ready-made agentic coding
+  rules file that teaches agents how to create, validate, and maintain governed
+  docs in your repo.
+- **Ships with a Codex/Claude-compatible skill** (`.codex/skills/meminit-docops/`)
+  that agents can load to run the full DocOps workflow autonomously.
+
 ## What It Does
 
 - **Scaffold a governed docs tree in seconds** — `meminit init`
@@ -77,6 +91,25 @@ meminit fix --dry-run   # preview auto-fixes
 ```
 
 Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
+
+### Coming from `adr-tools`?
+
+Meminit extends the ideas pioneered by
+[adr-tools](https://github.com/npryce/adr-tools) — lightweight, plain-text
+Architecture Decision Records — and generalizes them to *all* governed document
+types (PRDs, FDDs, specs, runbooks, and more).
+
+Your muscle memory still works:
+
+```bash
+meminit adr new "Use Postgres for persistence"
+```
+
+Under the hood you get structured governance, JSON Schema validation, stable
+IDs, and cross-platform Python — no Bash required.
+
+> **Note:** Meminit is an independent project licensed under Apache 2.0. It was
+> developed without reference to `adr-tools` source code (which is GPL-3.0).
 
 ## Key Concepts
 
