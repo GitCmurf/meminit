@@ -1,67 +1,136 @@
 # Meminit
 
-DocOps for the Agentic Age: governed docs, compliance checks, and automation.
+**DocOps for the Agentic Age:** governed docs, compliance checks, and automation.
 
 ![CI](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/github/license/GitCmurf/meminit)
+![Python](https://img.shields.io/badge/python-≥3.11-blue)
+![Status](https://img.shields.io/badge/status-alpha-orange)
 
-## What it does
+<!-- TODO: add a terminal GIF or screenshot here, e.g. via asciinema or charmbracelet/vhs -->
 
-Meminit helps teams keep documentation **governed**, **consistent**, and **toolable**:
+## Why Meminit?
 
-- Scaffolds a standard `docs/` tree and DocOps configuration (`meminit init`)
-- Creates governed documents with stable IDs (`meminit new`)
-- Enforces repo rules in CI / pre-commit (`meminit doctor`, `meminit check`)
-- Auto-fixes common violations (`meminit fix`, dry-run by default)
-- Builds an index for stable ID → path resolution (`meminit index`, `meminit resolve`)
+Documentation in modern, AI-assisted codebases drifts fast. Docs lose their
+governance metadata, go stale, break naming conventions, and fall out of sync
+with the code they describe. Manual reviews don't scale, and most linting tools
+ignore docs entirely.
 
-See the project vision: `MEMINIT-STRAT-001` at `docs/02-strategy/strat-001-project-meminit-vision.md`.
+**Meminit fixes that.** It is a CLI that scaffolds, governs, and validates
+documentation — so your docs stay machine-readable, policy-compliant, and in
+sync with your code.
+
+## What It Does
+
+- **Scaffold a governed docs tree in seconds** — `meminit init`
+- **Create documents with stable, traceable IDs** — `meminit new`
+- **Enforce repo rules in CI and pre-commit** — `meminit doctor`, `meminit check`
+- **Auto-fix common violations** (dry-run by default) — `meminit fix`
+- **Build an index for stable ID → path resolution** — `meminit index`, `meminit resolve`
+
+See the full project vision:
+[MEMINIT-STRAT-001](docs/02-strategy/strat-001-project-meminit-vision.md).
 
 ## Quickstart
 
+### Prerequisites
+
+- Python ≥ 3.11
+- [pipx](https://pipx.pypa.io/) (recommended) or pip
+
 ### Install
 
-Meminit is not published on PyPI yet. Install from GitHub (or a local checkout):
+Meminit is not published on PyPI yet. Install from GitHub (or a local
+checkout):
 
 ```bash
+# Via pipx (recommended)
 pipx install git+https://github.com/GitCmurf/meminit.git@main
+
+# Or from a local clone
+git clone https://github.com/GitCmurf/meminit.git
+cd meminit
+pip install -e .
+```
+
+Verify the installation:
+
+```bash
+meminit --version
 ```
 
 ### New repository (greenfield)
 
 ```bash
-meminit init
-meminit new ADR "My Decision"
-meminit check
+meminit init        # scaffold docs/ tree and config
+meminit new ADR "My Decision"   # create a governed document
+meminit check       # validate everything
 ```
 
-Runbook: `docs/60-runbooks/runbook-002-greenfield-repo.md`.
+Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
 
-### Existing repository (migration / brownfield)
+### Existing repository (brownfield)
 
 ```bash
-meminit doctor
-meminit scan
-meminit check
-meminit fix --dry-run
+meminit doctor      # diagnose current state
+meminit scan        # discover existing docs
+meminit check       # validate against rules
+meminit fix --dry-run   # preview auto-fixes
 ```
 
-Runbook: `docs/60-runbooks/runbook-003-existing-repo-migration.md`.
+Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
 
-## Documentation
+## How It Works
 
-- Org setup: `docs/60-runbooks/runbook-001-org-setup.md`
-- CI/CD enforcement: `docs/60-runbooks/runbook-004-ci-cd-enforcement.md`
-- Compliance specs: `docs/20-specs/spec-003-compliance-checker.md`
+Meminit follows a simple loop: **scaffold → author → check → fix → index**.
 
-## Security
+1. `meminit init` creates a standard `docs/` directory tree and a
+   `docops.config.yaml` that defines your project's naming conventions,
+   namespaces, and templates.
+2. Authors create governed documents via `meminit new`, which stamps each file
+   with YAML frontmatter (stable ID, type, status, dates).
+3. `meminit check` and `meminit doctor` validate every doc against the
+   project's governance rules — in CI, in pre-commit hooks, or on demand.
+4. `meminit fix` auto-corrects common violations (dry-run first, so nothing
+   changes until you say so).
+5. `meminit index` builds a lookup table from stable IDs to file paths, making
+   docs machine-resolvable.
 
-- Security policy: `SECURITY.md`
-- Pre-public checklist: `MEMINIT-GOV-003` at `docs/00-governance/gov-003-security-practices.md`
+## 📖 Documentation
 
-## Contributing
+**Governance & Runbooks**
 
-Start with `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
+- [Org setup](docs/60-runbooks/runbook-001-org-setup.md)
+- [Greenfield repo](docs/60-runbooks/runbook-002-greenfield-repo.md)
+- [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md)
+- [CI/CD enforcement](docs/60-runbooks/runbook-004-ci-cd-enforcement.md)
 
-## License
+**Specs & Decisions**
 
-Apache License 2.0 (see `LICENSE`).
+- [Compliance checker spec](docs/20-specs/spec-003-compliance-checker.md)
+- [Architecture decisions](docs/45-adr/)
+
+Browse the full [docs/](docs/) tree for governance, specs, ADRs, feature
+designs, and runbooks.
+
+## Project Status
+
+> **Alpha (v0.1.0)** — the CLI is functional and under active development. It
+> is not yet published on PyPI. Expect breaking changes before v1.0.
+
+## 🔒 Security
+
+- Security policy: [SECURITY.md](SECURITY.md)
+- Pre-public checklist: [MEMINIT-GOV-003](docs/00-governance/gov-003-security-practices.md)
+
+## 🤝 Contributing
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+Found a bug or have an idea?
+[Open an issue](https://github.com/GitCmurf/meminit/issues).
+
+## 📝 License
+
+Apache License 2.0 — see [LICENSE](LICENSE).

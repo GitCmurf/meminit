@@ -82,6 +82,7 @@ NoCommit-*
 *_temp.*
 *.temp
 *.temp.*
+*.bak
 *.tmp
 *.tmp.*
 
