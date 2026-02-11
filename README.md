@@ -2,12 +2,13 @@
 
 **DocOps for the Agentic Age:** governed docs, compliance checks, and automation.
 
-![CI](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/github/license/GitCmurf/meminit)
+[![CI](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml/badge.svg)](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/GitCmurf/meminit)](LICENSE)
 ![Python](https://img.shields.io/badge/python-≥3.11-blue)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
-<!-- TODO: add a terminal GIF or screenshot here, e.g. via asciinema or charmbracelet/vhs -->
+**Quick links:** [Docs](docs/) · [Runbooks](docs/60-runbooks/) · [Issues](https://github.com/GitCmurf/meminit/issues) ·
+[Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 ## Why Meminit?
 
@@ -46,6 +47,7 @@ checkout):
 ```bash
 # Via pipx (recommended)
 pipx install git+https://github.com/GitCmurf/meminit.git@main
+meminit --version
 
 # Or from a local clone
 git clone https://github.com/GitCmurf/meminit.git
@@ -53,11 +55,7 @@ cd meminit
 pip install -e .
 ```
 
-Verify the installation:
-
-```bash
-meminit --version
-```
+Note: `@main` is the latest development version. Use a tagged release once tags are published.
 
 ### New repository (greenfield)
 
@@ -80,6 +78,25 @@ meminit fix --dry-run   # preview auto-fixes
 
 Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
 
+## Key Concepts
+
+- **Governed docs**: Markdown with required YAML frontmatter, validated by JSON Schema.
+- **Stable IDs**: documents are referenced by `REPO-TYPE-SEQ` identifiers (e.g., `MEMINIT-ADR-001`), not filenames.
+- **Namespaces**: support monorepos by defining multiple governed doc roots.
+
+Example frontmatter (simplified):
+
+```yaml
+document_id: MEMINIT-ADR-001
+type: ADR
+title: Use Apache-2.0 License
+status: Approved
+version: 1.0
+last_updated: 2025-12-30
+owner: Repo Maintainers
+docops_version: 2.0
+```
+
 ## How It Works
 
 Meminit follows a simple loop: **scaffold → author → check → fix → index**.
@@ -96,7 +113,7 @@ Meminit follows a simple loop: **scaffold → author → check → fix → index
 5. `meminit index` builds a lookup table from stable IDs to file paths, making
    docs machine-resolvable.
 
-## 📖 Documentation
+## Documentation
 
 **Governance & Runbooks**
 
@@ -113,17 +130,52 @@ Meminit follows a simple loop: **scaffold → author → check → fix → index
 Browse the full [docs/](docs/) tree for governance, specs, ADRs, feature
 designs, and runbooks.
 
+## Getting Help
+
+- Ask questions / report bugs: [GitHub Issues](https://github.com/GitCmurf/meminit/issues)
+- Security issues: see [SECURITY.md](SECURITY.md)
+- Contact: `maintainers@meminit.io`
+
+## Roadmap & Changelog
+
+- Roadmap: [MEMINIT-PLAN-003](docs/05-planning/plan-003-roadmap.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+
 ## Project Status
 
 > **Alpha (v0.1.0)** — the CLI is functional and under active development. It
 > is not yet published on PyPI. Expect breaking changes before v1.0.
 
-## 🔒 Security
+## Non-goals
+
+Meminit is intentionally narrow in scope:
+
+- Not a documentation CMS (we govern Markdown in git)
+- Not a project management tool
+- No Node.js requirement for the core CLI (a `package.json` may exist for adjacent tooling)
+
+## Automation
+
+- **Pre-commit**: `meminit install-precommit` can install a local `meminit check` hook into `.pre-commit-config.yaml`.
+- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running `meminit doctor` and `meminit check`.
+
+## Security
 
 - Security policy: [SECURITY.md](SECURITY.md)
 - Pre-public checklist: [MEMINIT-GOV-003](docs/00-governance/gov-003-security-practices.md)
 
-## 🤝 Contributing
+## Development
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+meminit doctor --root .
+meminit check --root .
+```
+
+## Contributing
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
@@ -131,6 +183,6 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md) and
 Found a bug or have an idea?
 [Open an issue](https://github.com/GitCmurf/meminit/issues).
 
-## 📝 License
+## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
