@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meminit"
+version = "0.1.0"
+description = "DocOps for the Agentic Age: governed docs, compliance checks, and automation."
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["docops", "documentation", "governance", "compliance", "automation"]
+authors = [
+  { name = "Colin Farmer", email = "maintainers@meminit.io" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "rich>=13.0",
+    "jsonschema>=4.0",
+    "python-frontmatter>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+meminit = "meminit.cli.main:cli"
+
+[project.urls]
+Repository = "https://github.com/GitCmurf/meminit"
+Issues = "https://github.com/GitCmurf/meminit/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"meminit.core.assets" = ["**/*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra -q --cov=meminit"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = false
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [".git", "__pycache__", "build", "dist", ".venv"]
+pythonpath = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+src_paths = ["src", "tests"]

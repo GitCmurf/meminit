@@ -1,0 +1,49 @@
+# All agents have their own gitignore override files
+# This file sets general rules for all agents
+# copy-paste or sym link to the agent's own dot-files
+
+# Version control
+# version 0.1
+## 2025-11-23
+## added negations for AI working files, including: Chat, Prompt, Context, Feedback
+
+# Google
+# .aiexclude
+# .geminiignore
+
+# OpenAI
+# ?
+
+# other agents/frameworks
+
+# Always see all documentation
+# ============================
+!docs/
+!*.md
+
+# Negations from .gitignore
+# =========================
+
+# Temporary files and directories
+
+!scratch/
+!WIP/
+!WIP-*
+
+
+# Block common secret patterns
+*.env
+.env*
+secret
+password
+credentials/
+
+## Explicit safe-directory negations for AI agents
+## Do not unblock .env or other secrets here.
+
+# Only unblock specific safe directories (Explicit Whitelist)
+!src/
+!tests/
+!scripts/
+
+## consider blocking some AIs from seeing other AI's work, if they have a habit of 'looking over their shoulder'

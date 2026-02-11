@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meminit.io/schemas/adr.compliance.json",
+  "title": "Meminit ADR Body Compliance Rules",
+  "type": "object",
+  "required": [
+    "document_id",
+    "heading_pattern",
+    "required_sections",
+    "status_values",
+    "supersession_rules"
+  ],
+  "properties": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,10}-ADR-\\d{3}$"
+    },
+    "heading_pattern": {
+      "type": "string",
+      "description": "Regex that the first H1 must match",
+      "pattern": "^# [A-Z]{3,10}-ADR-\\d{3}: .+"
+    },
+    "required_sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["order", "title", "canonical"],
+        "properties": {
+          "order": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string" },
+          "canonical": { "type": "string" },
+          "aliases": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "minItems": 10
+    },
+    "status_values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 4
+    },
+    "supersession_rules": {
+      "type": "object",
+      "required": ["requires_link_when_superseded"],
+      "properties": {
+        "requires_link_when_superseded": { "type": "boolean" },
+        "field_names": {
+          "type": "object",
+          "properties": {
+            "supersedes": { "type": "string" },
+            "superseded_by": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "document_id": "MEMINIT-ADR-001",
+      "heading_pattern": "^# [A-Z]{3,10}-ADR-\\d{3}: .+",
+      "required_sections": [
+        {
+          "order": 1,
+          "title": "Context & Problem Statement",
+          "canonical": "context",
+          "aliases": ["context", "problem statement"]
+        },
+        { "order": 2, "title": "Decision Drivers", "canonical": "drivers" },
+        { "order": 3, "title": "Options Considered", "canonical": "options" },
+        { "order": 4, "title": "Decision Outcome", "canonical": "decision" },
+        { "order": 5, "title": "Consequences", "canonical": "consequences" },
+        {
+          "order": 6,
+          "title": "Implementation Notes",
+          "canonical": "implementation"
+        },
+        {
+          "order": 7,
+          "title": "Validation & Compliance",
+          "canonical": "validation"
+        },
+        {
+          "order": 8,
+          "title": "Alternatives Rejected",
+          "canonical": "alternatives"
+        },
+        { "order": 9, "title": "Supersession", "canonical": "supersession" },
+        { "order": 10, "title": "Notes for Agents", "canonical": "agents" }
+      ],
+      "status_values": ["Draft", "In Review", "Approved", "Superseded"],
+      "supersession_rules": {
+        "requires_link_when_superseded": true,
+        "field_names": {
+          "supersedes": "Supersedes",
+          "superseded_by": "Superseded by"
+        }
+      }
+    }
+  ]
+}

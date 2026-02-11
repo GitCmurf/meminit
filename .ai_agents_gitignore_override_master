@@ -1,0 +1,65 @@
+# All agents have their own gitignore override files
+# This file sets general rules for all agents
+# copy-paste or sym link to the agent's own dot-files
+
+# Version control
+# version 0.1
+## 2025-11-23
+## added negations for AI working files, including: Chat, Prompt, Context, Feedback
+
+# Google
+# .aiexclude
+# .geminiignore
+
+# OpenAI
+# ?
+
+# other agents/frameworks
+
+# Always see all documentation
+# ============================
+!docs/
+!*.md
+
+# Negations from .gitignore
+# =========================
+
+# Temporary files and directories
+!*temp-*
+!*temp_*
+!*WIP-*
+!*NoCommit-*
+!*-temp*
+!*_temp*
+!*.temp
+!*.temp*
+!*.tmp
+!*.tmp*
+!temp/
+!tmp/
+
+!scratch/
+!WIP/
+
+!*Chat*
+!*chat*
+!*Prompt*
+!*prompt*
+!*Context*
+!*context*
+!*Feedback*
+!*feedback*
+
+
+## Negated 'secrets' rules that AI agents can see
+
+### ===================== ###
+### Do not unblock *.env* and other secrets that should not go to external APIs!
+### ===================== ###
+
+!*Commit*/
+!*commit*/
+!*Local*/
+!*local*/
+
+## consider blocking some AIs from seeing other AI's work, if they have a habit of 'looking over their shoulder' (GPT-5-Pro, in particular)

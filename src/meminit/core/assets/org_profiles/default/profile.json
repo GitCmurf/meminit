@@ -1,0 +1,14 @@
+{
+  "profile_name": "default",
+  "profile_version": "0.1",
+  "docops_version": "2.0",
+  "files": [
+    "metadata.schema.json",
+    "templates/template-001-adr.md",
+    "templates/template-001-fdd.md",
+    "templates/template-001-prd.md",
+    "org_docs/org-gov-001-constitution.md",
+    "org_docs/org-gov-002-metadata-schema.md"
+  ]
+}
+

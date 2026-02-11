@@ -1,0 +1,120 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# venv
+.venv
+venv/
+venv.bak/
+
+# Node/TypeScript
+node_modules/
+jspm_packages/
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+.env.test
+.env.production
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.project
+.settings/
+.classpath
+
+# Testing and Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Agents and coding assistants
+.qodo/
+#.specify/
+
+# Temporary files and directories
+temp-*
+temp_*
+WIP-*
+NoCommit-*
+*-temp.*
+*_temp.*
+*.temp
+*.temp.*
+*.tmp
+*.tmp.*
+
+temp/
+tmp/
+scratch/
+WIP/
+WIP-*/
+docs/**/WIP-*
+__Local__Do_Not_Commit/
+coderabbit-review-*.txt
+coderabbit_*review*.txt
+
+# Secrets
+.env
+.env.local
+.env*
+!.env.example
+env/
+ENV/
+env.bak/
+# Personal (GitCmurf)
+CMF/
+CMF-*/
+Personal/
+personal/
+Secrets/
+secrets/
+Secret/
+
+# Workflow-specific
+*_commit/
+*_local/
+.aws/
+.ssh/
+credentials/
+creds/*/

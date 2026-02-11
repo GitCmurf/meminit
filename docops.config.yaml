@@ -1,0 +1,21 @@
+docops_version: "2.0"
+project_name: Meminit
+repo_prefix: MEMINIT
+schema_path: docs/00-governance/metadata.schema.json
+
+# Monorepo-style namespaces: Meminit’s repo includes both repo-local docs (MEMINIT-*)
+# and organisation-level governance docs (ORG-*). Namespaces keep prefix enforcement
+# deterministic without moving to a separate repository.
+namespaces:
+  - name: meminit
+    repo_prefix: MEMINIT
+    docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+    type_directories:
+      GOV: .
+templates:
+  adr: docs/00-governance/templates/template-001-adr.md
+  fdd: docs/00-governance/templates/template-001-fdd.md
+  prd: docs/00-governance/templates/template-001-prd.md

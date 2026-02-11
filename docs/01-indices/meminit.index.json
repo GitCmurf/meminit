@@ -1,0 +1,374 @@
+{
+  "output_schema_version": "1.0",
+  "index_version": "0.1",
+  "generated_at": "2025-12-29T14:17:48.407570+00:00",
+  "namespaces": [
+    {
+      "namespace": "default",
+      "docs_root": "docs",
+      "repo_prefix": "MEMINIT"
+    }
+  ],
+  "documents": [
+    {
+      "document_id": "MEMINIT-ADR-001",
+      "path": "docs/45-adr/adr-001-use-python-for-meminit-cli.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Use Python for Meminit CLI",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-002",
+      "path": "docs/45-adr/adr-002-adopt-clean-architecture-for-core-logic.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Adopt Clean Architecture for core logic",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-003",
+      "path": "docs/45-adr/adr-003-validate-yaml-frontmatter-with-json-schema.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Validate YAML frontmatter with JSON Schema",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-004",
+      "path": "docs/45-adr/adr-004-use-immutable-repo-type-seq-document-ids.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Use immutable REPO-TYPE-SEQ document IDs",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-005",
+      "path": "docs/45-adr/adr-005-define-compliance-checking-rules-and-severities.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Define compliance checking rules and severities",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-006",
+      "path": "docs/45-adr/adr-006-design-auto-fix-workflow-dry-run-by-default.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Design auto-fix workflow (dry-run by default)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-007",
+      "path": "docs/45-adr/adr-007-define-link-checking-scope-paths-fragments.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Define link checking scope (paths, fragments)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-008",
+      "path": "docs/45-adr/adr-008-exclude-governance-templates-from-compliance-scanning.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Exclude governance templates from compliance scanning",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-009",
+      "path": "docs/45-adr/adr-009-add-minimal-repo-configuration-for-brownfield-adoption.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Add Minimal Repo Configuration For Brownfield Adoption",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-ADR-010",
+      "path": "docs/45-adr/adr-010-use-apache-20-license.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Use Apache-2.0 License",
+      "status": "Approved"
+    },
+    {
+      "document_id": "MEMINIT-ADR-011",
+      "path": "docs/45-adr/adr-011-support-monorepo-namespaces.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Support Monorepo Namespaces",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-DESIGN-001",
+      "path": "docs/30-design/design-001-compliance-architecture.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "DESIGN",
+      "title": "Compliance Checker Architecture",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-001",
+      "path": "docs/50-fdd/fdd-001-compliance-checker-meminit-check.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Compliance Checker (meminit check)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-002",
+      "path": "docs/50-fdd/fdd-002-auto-remediation-meminit-fix.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Auto-Remediation (meminit fix)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-003",
+      "path": "docs/50-fdd/fdd-003-repository-scaffolding-meminit-init.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Repository Scaffolding (meminit init)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-004",
+      "path": "docs/50-fdd/fdd-004-document-factory-meminit-new.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Document Factory (meminit new)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-005",
+      "path": "docs/50-fdd/fdd-005-repository-scan.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Repository Scan (meminit scan)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-006",
+      "path": "docs/50-fdd/fdd-006-precommit-installer.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Pre-commit Installer (meminit install-precommit)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-007",
+      "path": "docs/50-fdd/fdd-007-index-resolution.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-FDD-008",
+      "path": "docs/50-fdd/fdd-008-id-migration.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "ID Migration Assistant (meminit migrate-ids)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-GOV-001",
+      "path": "docs/00-governance/gov-001-document-standards.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "GOV",
+      "title": "Repository Document Standards",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-GOV-002",
+      "path": "docs/00-governance/gov-002-versioning-practices.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "governance",
+      "title": "Versioning Practices (Operational Guide)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-GOV-003",
+      "path": "docs/00-governance/gov-003-security-practices.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "governance",
+      "title": "Public Repository Security Practices",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-GOV-004",
+      "path": "docs/00-governance/gov-004-writing-style-guide.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "GOV",
+      "title": "Writing Style Guide",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-001",
+      "path": "docs/05-planning/plan-001-mvp-tasklist.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "MVP Tasklist",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-002",
+      "path": "docs/05-planning/plan-002-compliance-testing.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "DocOps Compliance Testing Suite",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-003",
+      "path": "docs/05-planning/plan-003-roadmap.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "Project Roadmap",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-PRD-001",
+      "path": "docs/10-prd/prd-001-meminit-tooling-ecosystem.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "PRD",
+      "title": "Meminit Tooling Ecosystem PRD",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-001",
+      "path": "docs/60-runbooks/runbook-001-org-setup.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "Organization DocOps Setup",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-002",
+      "path": "docs/60-runbooks/runbook-002-greenfield-repo.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "Greenfield Repository Setup",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-003",
+      "path": "docs/60-runbooks/runbook-003-existing-repo-migration.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "Existing Repository Migration",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-004",
+      "path": "docs/60-runbooks/runbook-004-ci-cd-enforcement.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "CI/CD Enforcement for Meminit Compliance",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-005",
+      "path": "docs/60-runbooks/runbook-005-brownfield-repo-migration.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "Brownfield Repository Migration (Adopt Meminit)",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-RUNBOOK-006",
+      "path": "docs/60-runbooks/runbook-006-codex-skills-setup.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "RUNBOOK",
+      "title": "Codex Skills Setup for Meminit",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-SPEC-001",
+      "path": "docs/20-specs/spec-001-architecture.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "SPEC",
+      "title": "Meminit Architecture",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-SPEC-002",
+      "path": "docs/20-specs/spec-002-tech-stack.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "SPEC",
+      "title": "Meminit Tech Stack",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-SPEC-003",
+      "path": "docs/20-specs/spec-003-compliance-checker.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "SPEC",
+      "title": "Compliance Checker Specification",
+      "status": "Draft"
+    },
+    {
+      "document_id": "MEMINIT-STRAT-001",
+      "path": "docs/02-strategy/strat-001-project-meminit-vision.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "STRAT",
+      "title": "Project Meminit Vision",
+      "status": "Draft"
+    },
+    {
+      "document_id": "ORG-GOV-001",
+      "path": "docs/00-governance/org-gov-001-constitution.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "GOV",
+      "title": "DocOps Constitution",
+      "status": "Draft"
+    },
+    {
+      "document_id": "ORG-GOV-002",
+      "path": "docs/00-governance/org-gov-002-metadata-schema.md",
+      "namespace": "default",
+      "repo_prefix": "MEMINIT",
+      "type": "GOV",
+      "title": "Metadata Schema v2.0",
+      "status": "Draft"
+    }
+  ]
+}
