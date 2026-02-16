@@ -31,7 +31,11 @@ def test_install_precommit_appends_to_existing_config(tmp_path):
     config_path = tmp_path / ".pre-commit-config.yaml"
     config_path.write_text(
         yaml.safe_dump(
-            {"repos": [{"repo": "https://example.com/other", "rev": "v1", "hooks": []}]},
+            {
+                "repos": [
+                    {"repo": "https://example.com/other", "rev": "v1", "hooks": []}
+                ]
+            },
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -56,7 +60,11 @@ def test_install_precommit_respects_existing_hook(tmp_path):
                     {
                         "repo": "local",
                         "hooks": [
-                            {"id": HOOK_ID, "entry": "meminit check --root .", "language": "system"}
+                            {
+                                "id": HOOK_ID,
+                                "entry": "meminit check --root .",
+                                "language": "system",
+                            }
                         ],
                     }
                 ]
@@ -73,7 +81,9 @@ def test_install_precommit_respects_existing_hook(tmp_path):
 
 
 def test_install_precommit_uses_custom_docs_root(tmp_path):
-    (tmp_path / "docops.config.yaml").write_text("docs_root: documentation\n", encoding="utf-8")
+    (tmp_path / "docops.config.yaml").write_text(
+        "docs_root: documentation\n", encoding="utf-8"
+    )
     use_case = InstallPrecommitUseCase(str(tmp_path))
     result = use_case.execute()
     assert result.status == "created"
@@ -84,6 +94,8 @@ def test_install_precommit_uses_custom_docs_root(tmp_path):
 
 
 def test_install_precommit_refuses_symlink_escape(tmp_path: Path):
+    from meminit.core.services.error_codes import ErrorCode, MeminitError
+
     repo_root = tmp_path / "repo"
     repo_root.mkdir(parents=True, exist_ok=True)
 
@@ -93,5 +105,6 @@ def test_install_precommit_refuses_symlink_escape(tmp_path: Path):
     (repo_root / ".pre-commit-config.yaml").symlink_to(outside)
 
     use_case = InstallPrecommitUseCase(str(repo_root))
-    with pytest.raises(ValueError):
+    with pytest.raises(MeminitError) as exc_info:
         use_case.execute()
+    assert exc_info.value.code == ErrorCode.PATH_ESCAPE

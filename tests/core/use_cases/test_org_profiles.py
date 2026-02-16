@@ -21,7 +21,9 @@ def _xdg_env(tmp_path: Path) -> dict[str, str]:
 
 def test_org_install_dry_run_does_not_write(tmp_path: Path):
     env = _xdg_env(tmp_path)
-    report = InstallOrgProfileUseCase(env=env).execute(profile_name="default", dry_run=True)
+    report = InstallOrgProfileUseCase(env=env).execute(
+        profile_name="default", dry_run=True
+    )
     assert report.dry_run is True
     assert report.installed is False
     assert not (Path(report.target_dir) / "profile.json").exists()
@@ -66,11 +68,19 @@ def test_org_profile_resolution_prefers_global_when_present(tmp_path: Path):
         ],
     }
     (root / "profile.json").write_text(json.dumps(manifest), encoding="utf-8")
-    (root / "metadata.schema.json").write_text(json.dumps({"$schema": "GLOBAL"}), encoding="utf-8")
+    (root / "metadata.schema.json").write_text(
+        json.dumps({"$schema": "GLOBAL"}), encoding="utf-8"
+    )
     (root / "templates").mkdir(parents=True, exist_ok=True)
-    (root / "templates/template-001-adr.md").write_text("ADR TEMPLATE (GLOBAL)\n", encoding="utf-8")
-    (root / "templates/template-001-fdd.md").write_text("FDD TEMPLATE (GLOBAL)\n", encoding="utf-8")
-    (root / "templates/template-001-prd.md").write_text("PRD TEMPLATE (GLOBAL)\n", encoding="utf-8")
+    (root / "templates/template-001-adr.md").write_text(
+        "ADR TEMPLATE (GLOBAL)\n", encoding="utf-8"
+    )
+    (root / "templates/template-001-fdd.md").write_text(
+        "FDD TEMPLATE (GLOBAL)\n", encoding="utf-8"
+    )
+    (root / "templates/template-001-prd.md").write_text(
+        "PRD TEMPLATE (GLOBAL)\n", encoding="utf-8"
+    )
 
     profile = resolve_org_profile(profile_name="default", env=env, prefer_global=True)
     assert profile.source == "global"
@@ -87,23 +97,36 @@ def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Pa
     repo_root = tmp_path / "repo"
     repo_root.mkdir(parents=True, exist_ok=True)
 
-    dry = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default", dry_run=True)
+    dry = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=True
+    )
     assert dry.dry_run is True
     assert not (repo_root / "docs/00-governance/metadata.schema.json").exists()
 
-    applied = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default", dry_run=False)
+    applied = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=False
+    )
     assert applied.dry_run is False
     assert (repo_root / "docs/00-governance/metadata.schema.json").exists()
     assert (repo_root / ".meminit/org-profile.lock.json").exists()
 
-    config = yaml.safe_load((repo_root / "docops.config.yaml").read_text(encoding="utf-8"))
+    config = yaml.safe_load(
+        (repo_root / "docops.config.yaml").read_text(encoding="utf-8")
+    )
     assert config.get("schema_path") == "docs/00-governance/metadata.schema.json"
-    assert any(isinstance(ns, dict) and ns.get("repo_prefix") == "ORG" for ns in (config.get("namespaces") or []))
+    assert any(
+        isinstance(ns, dict) and ns.get("repo_prefix") == "ORG"
+        for ns in (config.get("namespaces") or [])
+    )
 
-    refused = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default", dry_run=False)
+    refused = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=False
+    )
     assert "refusing" in refused.message.lower()
 
-    forced = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default", dry_run=False, force=True)
+    forced = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=False, force=True
+    )
     assert forced.dry_run is False
 
 
@@ -113,9 +136,13 @@ def test_org_status_reports_lock_matches_current_profile(tmp_path: Path):
 
     repo_root = tmp_path / "repo"
     repo_root.mkdir(parents=True, exist_ok=True)
-    VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default", dry_run=False)
+    VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=False
+    )
 
-    report = OrgStatusUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default")
+    report = OrgStatusUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default"
+    )
     assert report.global_installed is True
     assert report.repo_lock_present is True
     assert report.current_profile_source == "global"
@@ -140,11 +167,19 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
         ],
     }
     (root / "profile.json").write_text(json.dumps(manifest), encoding="utf-8")
-    (root / "metadata.schema.json").write_text(json.dumps({"$schema": "FROM_GLOBAL"}), encoding="utf-8")
+    (root / "metadata.schema.json").write_text(
+        json.dumps({"$schema": "FROM_GLOBAL"}), encoding="utf-8"
+    )
     (root / "templates").mkdir(parents=True, exist_ok=True)
-    (root / "templates/template-001-adr.md").write_text("ADR TEMPLATE\n", encoding="utf-8")
-    (root / "templates/template-001-fdd.md").write_text("FDD TEMPLATE\n", encoding="utf-8")
-    (root / "templates/template-001-prd.md").write_text("PRD TEMPLATE\n", encoding="utf-8")
+    (root / "templates/template-001-adr.md").write_text(
+        "ADR TEMPLATE\n", encoding="utf-8"
+    )
+    (root / "templates/template-001-fdd.md").write_text(
+        "FDD TEMPLATE\n", encoding="utf-8"
+    )
+    (root / "templates/template-001-prd.md").write_text(
+        "PRD TEMPLATE\n", encoding="utf-8"
+    )
 
     repo_root = tmp_path / "new-repo"
     repo_root.mkdir(parents=True, exist_ok=True)
@@ -157,6 +192,7 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
 
 def test_org_vendor_refuses_symlink_escape(tmp_path: Path):
     import pytest
+    from meminit.core.services.error_codes import ErrorCode, MeminitError
 
     env = _xdg_env(tmp_path)
     InstallOrgProfileUseCase(env=env).execute(profile_name="default", dry_run=False)
@@ -168,7 +204,8 @@ def test_org_vendor_refuses_symlink_escape(tmp_path: Path):
     outside_docs.mkdir(parents=True, exist_ok=True)
     (repo_root / "docs").symlink_to(outside_docs, target_is_directory=True)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(MeminitError) as exc_info:
         VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
             profile_name="default", dry_run=False
         )
+    assert exc_info.value.code == ErrorCode.PATH_ESCAPE

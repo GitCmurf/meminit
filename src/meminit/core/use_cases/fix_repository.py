@@ -10,7 +10,8 @@ import frontmatter
 from meminit.core.domain.entities import FixAction, FixReport, Severity, Violation
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
 from meminit.core.services.repo_config import RepoConfig, load_repo_layout
-from meminit.core.services.safe_fs import UnsafePathError, ensure_safe_write_path
+from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 
@@ -61,7 +62,10 @@ class FixRepositoryUseCase:
             for v in violations:
                 p = self.root_dir / v.file
                 ns_for_path = self._layout.namespace_for_path(p)
-                if ns_for_path and ns_for_path.namespace.lower() == target_ns.namespace.lower():
+                if (
+                    ns_for_path
+                    and ns_for_path.namespace.lower() == target_ns.namespace.lower()
+                ):
                     filtered.append(v)
             violations = filtered
 
@@ -76,7 +80,9 @@ class FixRepositoryUseCase:
 
         return report
 
-    def _process_renames(self, violations: List[Violation], report: FixReport, dry_run: bool):
+    def _process_renames(
+        self, violations: List[Violation], report: FixReport, dry_run: bool
+    ):
         for v in violations:
             src_path = self.root_dir / v.file
             new_path = self._compute_renamed_path(src_path)
@@ -85,17 +91,19 @@ class FixRepositoryUseCase:
             try:
                 ensure_safe_write_path(root_dir=self.root_dir, target_path=src_path)
                 ensure_safe_write_path(root_dir=self.root_dir, target_path=new_path)
-            except UnsafePathError as exc:
-                report.remaining_violations.append(
-                    Violation(
-                        file=v.file,
-                        line=0,
-                        rule="UNSAFE_PATH",
-                        message=str(exc),
-                        severity=Severity.ERROR,
+            except MeminitError as exc:
+                if exc.code == ErrorCode.PATH_ESCAPE:
+                    report.remaining_violations.append(
+                        Violation(
+                            file=v.file,
+                            line=0,
+                            rule="UNSAFE_PATH",
+                            message=exc.message,
+                            severity=Severity.ERROR,
+                        )
                     )
-                )
-                continue
+                    continue
+                raise
 
             if not dry_run:
                 try:
@@ -122,7 +130,9 @@ class FixRepositoryUseCase:
                 )
                 report.fixed_violations.append(action)
 
-    def _process_content_fixes(self, violations: List[Violation], report: FixReport, dry_run: bool):
+    def _process_content_fixes(
+        self, violations: List[Violation], report: FixReport, dry_run: bool
+    ):
         file_map = self._group_and_locate_files(violations, report)
 
         for path, file_violations in file_map.items():
@@ -133,7 +143,11 @@ class FixRepositoryUseCase:
     ) -> Dict[Path, List[Violation]]:
         file_map = {}
         for v in violations:
-            if v.rule not in ["SCHEMA_VALIDATION", "SCHEMA_MISSING", "FRONTMATTER_MISSING"]:
+            if v.rule not in [
+                "SCHEMA_VALIDATION",
+                "SCHEMA_MISSING",
+                "FRONTMATTER_MISSING",
+            ]:
                 report.remaining_violations.append(v)
                 continue
 
@@ -148,7 +162,9 @@ class FixRepositoryUseCase:
 
         return file_map
 
-    def _resolve_target_path(self, violation: Violation, report: FixReport) -> Optional[Path]:
+    def _resolve_target_path(
+        self, violation: Violation, report: FixReport
+    ) -> Optional[Path]:
         target_path = self.root_dir / violation.file
 
         if target_path.exists():
@@ -200,17 +216,19 @@ class FixRepositoryUseCase:
             if modified and not dry_run:
                 try:
                     ensure_safe_write_path(root_dir=self.root_dir, target_path=path)
-                except UnsafePathError as exc:
-                    report.remaining_violations.append(
-                        Violation(
-                            file=rel_path,
-                            line=0,
-                            rule="UNSAFE_PATH",
-                            message=str(exc),
-                            severity=Severity.ERROR,
+                except MeminitError as exc:
+                    if exc.code == ErrorCode.PATH_ESCAPE:
+                        report.remaining_violations.append(
+                            Violation(
+                                file=rel_path,
+                                line=0,
+                                rule="UNSAFE_PATH",
+                                message=exc.message,
+                                severity=Severity.ERROR,
+                            )
                         )
-                    )
-                    return
+                        return
+                    raise
 
                 post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
                 content = frontmatter.dumps(post)
@@ -222,7 +240,12 @@ class FixRepositoryUseCase:
             report.remaining_violations.extend(violations)
 
     def _apply_single_fix(
-        self, violation: Violation, post: Any, rel_path: str, report: FixReport, ns: RepoConfig
+        self,
+        violation: Violation,
+        post: Any,
+        rel_path: str,
+        report: FixReport,
+        ns: RepoConfig,
     ) -> bool:
         # Match based on rule + specific field if available
         if violation.rule == "SCHEMA_VALIDATION":
@@ -247,7 +270,9 @@ class FixRepositoryUseCase:
 
             if self._is_schema_compliant(post.metadata, ns):
                 action = FixAction(
-                    rel_path, "Add frontmatter", "Initialized required frontmatter fields"
+                    rel_path,
+                    "Add frontmatter",
+                    "Initialized required frontmatter fields",
                 )
                 report.fixed_violations.append(action)
                 report.fixed_violations.extend(actions)
@@ -265,7 +290,10 @@ class FixRepositoryUseCase:
             report.fixed_violations.append(action)
             modified = True
 
-        if "docops_version" in violation.message and "docops_version" not in post.metadata:
+        if (
+            "docops_version" in violation.message
+            and "docops_version" not in post.metadata
+        ):
             post.metadata["docops_version"] = str(ns.docops_version or "2.0")
             action = FixAction(rel_path, "Update docops_version", "Set to 2.0")
             report.fixed_violations.append(action)
@@ -283,7 +311,9 @@ class FixRepositoryUseCase:
             actions.append(FixAction(rel_path, "Update docops_version", "Set to 2.0"))
         if "last_updated" not in post.metadata:
             post.metadata["last_updated"] = date.today().isoformat()
-            actions.append(FixAction(rel_path, "Update last_updated", "Set to today's date"))
+            actions.append(
+                FixAction(rel_path, "Update last_updated", "Set to today's date")
+            )
         if "status" not in post.metadata:
             post.metadata["status"] = "Draft"
             actions.append(FixAction(rel_path, "Set status", "Set to Draft"))
@@ -303,13 +333,17 @@ class FixRepositoryUseCase:
         if "title" not in post.metadata:
             post.metadata["title"] = inferred_title
             actions.append(
-                FixAction(rel_path, "Set title", "Inferred from first heading or filename")
+                FixAction(
+                    rel_path, "Set title", "Inferred from first heading or filename"
+                )
             )
 
         if "document_id" not in post.metadata:
             new_id = self._generate_unique_document_id(inferred_type, ns)
             post.metadata["document_id"] = new_id
-            actions.append(FixAction(rel_path, "Set document_id", "Generated a new unique ID"))
+            actions.append(
+                FixAction(rel_path, "Set document_id", "Generated a new unique ID")
+            )
 
         return actions
 
@@ -358,7 +392,9 @@ class FixRepositoryUseCase:
         self._schema_validators[key] = v
         return v
 
-    def _normalize_metadata_for_schema(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_metadata_for_schema(
+        self, metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
         # Keep in sync with checker normalization to avoid YAML scalar false positives.
         return normalize_yaml_scalar_footguns(metadata)
 
@@ -389,7 +425,9 @@ class FixRepositoryUseCase:
         repo_prefix = ns.repo_prefix
         id_type = self._id_type_segment(doc_type)
 
-        pattern = re.compile(rf"^{re.escape(repo_prefix)}-{re.escape(id_type)}-(\d{{3}})$")
+        pattern = re.compile(
+            rf"^{re.escape(repo_prefix)}-{re.escape(id_type)}-(\d{{3}})$"
+        )
         max_seq = 0
         for existing in self._existing_document_ids:
             match = pattern.match(existing)

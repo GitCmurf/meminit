@@ -1,11 +1,15 @@
 import json
+import os
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from meminit.core.domain.entities import FixReport, Violation
+from meminit.core.domain.entities import FixReport, NewDocumentParams, Violation
+from meminit.core.services.error_codes import ErrorCode, MeminitError, error_to_dict
+from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
@@ -25,9 +29,42 @@ from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
 console = Console()
 
 
+def complete_document_types(ctx, param, incomplete: str):
+    """Shell completion for document types (F8.2)."""
+    from meminit.core.services.repo_config import load_repo_layout
+
+    root = ctx.params.get("root", ".")
+    root_path = Path(root).resolve()
+
+    try:
+        layout = load_repo_layout(str(root_path))
+        ns = layout.default_namespace()
+        if ns:
+            types = sorted(ns.type_directories.keys())
+            return [t for t in types if t.startswith(incomplete.upper())]
+    except Exception:
+        pass
+    return []
+
+
 def _json_payload(payload: dict) -> str:
-    enriched = {"output_schema_version": OUTPUT_SCHEMA_VERSION, **payload}
-    return json.dumps(enriched, indent=2)
+    """Generate single-line JSON output with run_id (N5)."""
+    enriched = {
+        "output_schema_version": OUTPUT_SCHEMA_VERSION,
+        "run_id": get_current_run_id(),
+        **payload,
+    }
+    return json.dumps(enriched, separators=(",", ":"))
+
+
+def _error_payload(
+    code: ErrorCode, message: str, details: Optional[dict[str, Any]] = None
+) -> str:
+    """Generate JSON error envelope per F1.3/F1.5."""
+    error_obj: dict[str, Any] = {"code": code.value, "message": message}
+    if details is not None:
+        error_obj["details"] = details
+    return _json_payload({"success": False, "error": error_obj})
 
 
 def _md_escape(value: object) -> str:
@@ -43,18 +80,47 @@ def _md_table(headers: list[str], rows: list[list[object]]) -> str:
 
 
 def validate_root_path(root_path: Path, format: str = "text") -> None:
+    """Validate root path exists and is a directory.
+
+    Raises SystemExit with proper error envelope for JSON format.
+    """
     if root_path.exists() and root_path.is_dir():
         return
 
     if not root_path.exists():
         msg = f"Path does not exist: {root_path}"
+        details = {"path": str(root_path), "reason": "not_found"}
     else:
         msg = f"Path is not a directory: {root_path}"
+        details = {"path": str(root_path), "reason": "not_directory"}
 
     if format == "json":
-        click.echo(_json_payload({"status": "error", "message": msg}))
+        click.echo(_error_payload(ErrorCode.CONFIG_MISSING, msg, details))
     elif format == "md":
-        click.echo(f"# Meminit Error\n\n- {msg}\n")
+        click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
+    else:
+        console.print(f"[bold red]Error: {msg}[/bold red]")
+    raise SystemExit(1)
+
+
+def validate_initialized(root_path: Path, format: str = "text") -> None:
+    """Validate that the repo is initialized with meminit (F9.1).
+
+    Raises SystemExit with CONFIG_MISSING error if neither docs/ nor docops.config.yaml exists.
+    """
+    docs_dir = root_path / "docs"
+    config_file = root_path / "docops.config.yaml"
+
+    if docs_dir.exists() or config_file.exists():
+        return
+
+    msg = "Repository not initialized. Run 'meminit init' first."
+    details = {"hint": "meminit init"}
+
+    if format == "json":
+        click.echo(_error_payload(ErrorCode.CONFIG_MISSING, msg, details))
+    elif format == "md":
+        click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
     else:
         console.print(f"[bold red]Error: {msg}[/bold red]")
     raise SystemExit(1)
@@ -76,48 +142,192 @@ def cli():
 
 
 @cli.command()
+@click.argument("paths", nargs=-1, required=False)
 @click.option("--root", default=".", help="Root directory of the repository")
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
-def check(root, format):
+@click.option("--quiet", is_flag=True, default=False, help="Only show failures")
+@click.option("--strict", is_flag=True, default=False, help="Treat warnings as errors")
+def check(root, format, quiet, strict, paths):
     """Run compliance checks on the repository."""
-    if format == "text":
+    EX_DATAERR = 65
+
+    if format == "text" and not quiet:
         console.print("[bold blue]Meminit Compliance Check[/bold blue]")
 
     root_path = Path(root).resolve()
     validate_root_path(root_path, format=format)
+    validate_initialized(root_path, format=format)
 
-    if format == "text":
+    if paths:
+        try:
+            use_case = CheckRepositoryUseCase(root_dir=str(root_path))
+            result = use_case.execute_targeted(list(paths), strict=strict)
+        except MeminitError as e:
+            if format == "json":
+                click.echo(_error_payload(e.code, e.message, e.details))
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                )
+            else:
+                console.print(
+                    f"[bold red]Error during compliance check: {e.message}[/bold red]"
+                )
+            raise SystemExit(1)
+        except Exception as e:
+            if format == "json":
+                click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+                )
+            else:
+                console.print(
+                    f"[bold red]Error during compliance check: {e}[/bold red]"
+                )
+            raise SystemExit(1)
+
+        if format == "json":
+            data: Dict[str, Any] = {
+                "success": result.success,
+                "files_checked": result.files_checked,
+                "files_passed": result.files_passed,
+                "files_failed": result.files_failed,
+                "violations": result.violations,
+            }
+            if result.warnings:
+                data["warnings"] = result.warnings
+            click.echo(_json_payload(data))
+            exit(0 if result.success else EX_DATAERR)
+
+        if format == "md":
+            lines = [
+                "# Meminit Compliance Check",
+                "",
+                f"- Status: {'success' if result.success else 'failed'}",
+                f"- Files checked: {result.files_checked}",
+                f"- Files passed: {result.files_passed}",
+                f"- Files failed: {result.files_failed}",
+                "",
+            ]
+            if result.violations:
+                lines.append("## Violations\n")
+                for item in result.violations:
+                    lines.append(f"### {item['path']}\n")
+                    for v in item["violations"]:
+                        lines.append(f"- [{v['code']}] {v['message']}")
+                        if v.get("line"):
+                            lines[-1] += f" (line {v['line']})"
+                    lines.append("")
+            if result.warnings:
+                lines.append("## Warnings\n")
+                for item in result.warnings:
+                    lines.append(f"### {item['path']}\n")
+                    for w in item["warnings"]:
+                        lines.append(f"- [{w['code']}] {w['message']}")
+                        if w.get("line"):
+                            lines[-1] += f" (line {w['line']})"
+                    lines.append("")
+            click.echo("\n".join(lines))
+            exit(0 if result.success else EX_DATAERR)
+
+        if not quiet:
+            console.print(f"Files checked: {result.files_checked}")
+            console.print(f"Files passed: {result.files_passed}")
+            console.print(f"Files failed: {result.files_failed}")
+
+        if result.violations:
+            table = Table(title="Violations")
+            table.add_column("File")
+            table.add_column("Code", style="cyan")
+            table.add_column("Line")
+            table.add_column("Message", overflow="fold")
+            for item in result.violations:
+                for v in item["violations"]:
+                    table.add_row(
+                        item["path"],
+                        v["code"],
+                        str(v.get("line", 0)),
+                        v["message"],
+                    )
+            console.print(table)
+
+        if result.warnings and not quiet:
+            table = Table(title="Warnings")
+            table.add_column("File")
+            table.add_column("Code", style="cyan")
+            table.add_column("Line")
+            table.add_column("Message", overflow="fold")
+            for item in result.warnings:
+                for w in item["warnings"]:
+                    table.add_row(
+                        item["path"],
+                        w["code"],
+                        str(w.get("line", 0)),
+                        w["message"],
+                    )
+            console.print(table)
+
+        if result.success:
+            if not quiet:
+                console.print("[bold green]Success! All files passed.[/bold green]")
+            exit(0)
+        else:
+            if not quiet:
+                console.print(
+                    f"[bold red]Found violations in {result.files_failed} file(s).[/bold red]"
+                )
+            exit(EX_DATAERR)
+
+    if format == "text" and not quiet:
         console.print(f"Scanning root: {root_path}")
 
     try:
         use_case = CheckRepositoryUseCase(root_dir=str(root_path))
         violations = use_case.execute()
-    except Exception as e:
+    except MeminitError as e:
         if format == "json":
-            click.echo(_json_payload({"status": "error", "message": str(e)}))
+            click.echo(_error_payload(e.code, e.message, e.details))
         elif format == "md":
             click.echo(
-                f"# Meminit Compliance Check\n\n- Status: error\n- Message: {_md_escape(e)}\n"
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+            )
+        else:
+            console.print(
+                f"[bold red]Error during compliance check: {e.message}[/bold red]"
+            )
+        raise SystemExit(1)
+    except Exception as e:
+        if format == "json":
+            click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
+        elif format == "md":
+            click.echo(
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
             )
         else:
             console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-        exit(1)
+        raise SystemExit(1)
 
     if not violations:
         if format == "json":
-            click.echo(_json_payload({"status": "success", "violations": []}))
+            click.echo(_json_payload({"success": True, "violations": []}))
             return
         if format == "md":
-            click.echo("# Meminit Compliance Check\n\n- Status: success\n- Violations: 0\n")
+            click.echo(
+                "# Meminit Compliance Check\n\n- Status: success\n- Violations: 0\n"
+            )
             return
         console.print("[bold green]Success! No violations found.[/bold green]")
         return
 
     if format == "json":
-        data = {
-            "status": "failed",
+        data: Dict[str, Any] = {
+            "success": False,
             "violations": [
                 {
                     "file": v.file,
@@ -130,10 +340,13 @@ def check(root, format):
             ],
         }
         click.echo(_json_payload(data))
-        exit(1)
+        exit(EX_DATAERR)
 
     if format == "md":
-        rows = [[get_severity_value(v), v.rule, v.file, v.line, v.message] for v in violations]
+        rows = [
+            [get_severity_value(v), v.rule, v.file, v.line, v.message]
+            for v in violations
+        ]
         click.echo(
             "# Meminit Compliance Check\n\n"
             f"- Status: failed\n- Violations: {len(violations)}\n\n"
@@ -141,7 +354,7 @@ def check(root, format):
             + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
             + "\n"
         )
-        raise SystemExit(1)
+        raise SystemExit(EX_DATAERR)
 
     table = Table(title="Compliance Violations")
     table.add_column("Severity")
@@ -160,16 +373,21 @@ def check(root, format):
         )
     console.print(table)
     console.print(f"\n[bold red]Found {len(violations)} violations.[/bold red]")
-    exit(1)
+    exit(EX_DATAERR)
 
 
 @cli.command()
 @click.option("--root", default=".", help="Root directory of the repository")
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 @click.option(
-    "--strict/--no-strict", default=False, help="Treat warnings as errors (exit non-zero)"
+    "--strict/--no-strict",
+    default=False,
+    help="Treat warnings as errors (exit non-zero)",
 )
 def doctor(root, format, strict):
     """Self-check: verify meminit can operate in this repository."""
@@ -182,12 +400,14 @@ def doctor(root, format, strict):
     errors = [
         i
         for i in issues
-        if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "error"
+        if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+        == "error"
     ]
     warnings = [
         i
         for i in issues
-        if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "warning"
+        if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+        == "warning"
     ]
 
     exit_code = 0
@@ -263,7 +483,9 @@ def doctor(root, format, strict):
     table.add_column("Message", overflow="fold")
 
     for v in issues:
-        severity_val = v.severity.value if hasattr(v.severity, "value") else str(v.severity)
+        severity_val = (
+            v.severity.value if hasattr(v.severity, "value") else str(v.severity)
+        )
         severity_color = "red" if severity_val == "error" else "yellow"
         table.add_row(
             f"[{severity_color}]{severity_val}[/{severity_color}]",
@@ -274,7 +496,9 @@ def doctor(root, format, strict):
 
     console.print(table)
     if errors:
-        console.print(f"\n[bold red]{len(errors)} error(s), {len(warnings)} warning(s).[/bold red]")
+        console.print(
+            f"\n[bold red]{len(errors)} error(s), {len(warnings)} warning(s).[/bold red]"
+        )
     else:
         console.print(f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]")
 
@@ -283,9 +507,13 @@ def doctor(root, format, strict):
 
 @cli.command()
 @click.option("--root", default=".", help="Root directory of the repository")
-@click.option("--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files")
 @click.option(
-    "--namespace", default=None, help="Limit fixes to a single namespace (monorepo safety)"
+    "--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files"
+)
+@click.option(
+    "--namespace",
+    default=None,
+    help="Limit fixes to a single namespace (monorepo safety)",
 )
 def fix(root, dry_run, namespace):
     """Automatically fix common compliance violations."""
@@ -315,9 +543,13 @@ def fix(root, dry_run, namespace):
             table.add_row(action.file, action.action, action.description)
 
         console.print(table)
-        console.print(f"\n[bold green]Applied {len(report.fixed_violations)} fixes.[/bold green]")
+        console.print(
+            f"\n[bold green]Applied {len(report.fixed_violations)} fixes.[/bold green]"
+        )
     else:
-        console.print("[yellow]No auto-fixes available for current violations.[/yellow]")
+        console.print(
+            "[yellow]No auto-fixes available for current violations.[/yellow]"
+        )
 
     # Print remaining
     if report.remaining_violations:
@@ -328,7 +560,7 @@ def fix(root, dry_run, namespace):
         for v in report.remaining_violations[:5]:
             console.print(f"- {v.file}: {v.message}")
         if len(report.remaining_violations) > 5:
-            console.print(f"... and {len(report.remaining_violations)-5} more.")
+            console.print(f"... and {len(report.remaining_violations) - 5} more.")
         console.print("\nRun [bold]meminit check[/bold] for full details.")
         raise SystemExit(1)
 
@@ -344,7 +576,10 @@ def fix(root, dry_run, namespace):
     help="Optional path to write JSON report",
 )
 @click.option(
-    "--format", type=click.Choice(["json", "text", "md"]), default="json", help="Output format"
+    "--format",
+    type=click.Choice(["json", "text", "md"]),
+    default="json",
+    help="Output format",
 )
 def scan(root, output, format):
     """Scan a repository and suggest a DocOps migration plan (read-only)."""
@@ -388,7 +623,14 @@ def scan(root, output, format):
                     "## Configured Namespaces",
                     "",
                     _md_table(
-                        ["Namespace", "Docs Root", "Repo Prefix", "Exists", "Governed .md"], rows
+                        [
+                            "Namespace",
+                            "Docs Root",
+                            "Repo Prefix",
+                            "Exists",
+                            "Governed .md",
+                        ],
+                        rows,
                     ),
                     "",
                 ]
@@ -414,7 +656,9 @@ def scan(root, output, format):
                 ]
             )
         if report.suggested_type_directories:
-            rows = [[k, v] for k, v in sorted(report.suggested_type_directories.items())]
+            rows = [
+                [k, v] for k, v in sorted(report.suggested_type_directories.items())
+            ]
             lines.extend(
                 [
                     "## Suggested `type_directories` overrides",
@@ -424,7 +668,10 @@ def scan(root, output, format):
                 ]
             )
         if report.ambiguous_types:
-            rows = [[k, ", ".join(sorted(v))] for k, v in sorted(report.ambiguous_types.items())]
+            rows = [
+                [k, ", ".join(sorted(v))]
+                for k, v in sorted(report.ambiguous_types.items())
+            ]
             lines.extend(
                 [
                     "## Ambiguous Types (manual decision required)",
@@ -522,7 +769,9 @@ def scan(root, output, format):
             if not isinstance(ns, dict):
                 continue
             table.add_row(
-                str(ns.get("name")), str(ns.get("docs_root")), str(ns.get("repo_prefix_suggestion"))
+                str(ns.get("name")),
+                str(ns.get("docs_root")),
+                str(ns.get("repo_prefix_suggestion")),
             )
         console.print(table)
     for note in report.notes:
@@ -547,15 +796,22 @@ def install_precommit(root):
         console.print("[yellow]meminit pre-commit hook already installed.[/yellow]")
         return
     if result.status == "created":
-        console.print(f"[bold green]Created {result.config_path} with meminit hook.[/bold green]")
+        console.print(
+            f"[bold green]Created {result.config_path} with meminit hook.[/bold green]"
+        )
         return
-    console.print(f"[bold green]Updated {result.config_path} with meminit hook.[/bold green]")
+    console.print(
+        f"[bold green]Updated {result.config_path} with meminit hook.[/bold green]"
+    )
 
 
 @cli.command()
 @click.option("--root", default=".", help="Root directory of the repository")
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 def index(root, format):
     """Build or update the repository index artifact."""
@@ -569,7 +825,9 @@ def index(root, format):
         if format == "json":
             click.echo(_json_payload({"status": "error", "message": str(exc)}))
         elif format == "md":
-            click.echo(f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n")
+            click.echo(
+                f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n"
+            )
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
@@ -680,14 +938,19 @@ def link(document_id, root):
 
 @cli.command("migrate-ids")
 @click.option("--root", default=".", help="Root directory of the repository")
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview changes without writing files")
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview changes without writing files"
+)
 @click.option(
     "--rewrite-references/--no-rewrite-references",
     default=False,
     help="Rewrite old IDs in document bodies",
 )
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 @click.option(
     "--output",
@@ -702,12 +965,16 @@ def migrate_ids(root, dry_run, rewrite_references, format, output):
 
     use_case = MigrateIdsUseCase(root_dir=str(root_path))
     try:
-        report = use_case.execute(dry_run=dry_run, rewrite_references=rewrite_references)
+        report = use_case.execute(
+            dry_run=dry_run, rewrite_references=rewrite_references
+        )
     except Exception as exc:
         if format == "json":
             click.echo(_json_payload({"status": "error", "message": str(exc)}))
         elif format == "md":
-            click.echo(f"# Meminit ID Migration\n\n- Status: error\n- Message: {_md_escape(exc)}\n")
+            click.echo(
+                f"# Meminit ID Migration\n\n- Status: error\n- Message: {_md_escape(exc)}\n"
+            )
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
@@ -759,7 +1026,9 @@ def init(root):
     use_case = InitRepositoryUseCase(str(root_path))
     try:
         use_case.execute()
-        console.print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
+        console.print(
+            f"[bold green]Initialized DocOps repository at {root}[/bold green]"
+        )
         console.print("- Created directory structure (docs/)")
         console.print("- Created docops.config.yaml")
         console.print("- Created AGENTS.md")
@@ -769,30 +1038,362 @@ def init(root):
 
 
 @cli.command(name="new")
-@click.argument("doc_type")
-@click.argument("title")
+@click.argument("doc_type", required=False, shell_complete=complete_document_types)
+@click.argument("title", required=False)
 @click.option("--root", default=".", help="Root directory of the repository")
-@click.option("--namespace", default=None, help="Namespace to create the doc in (monorepo mode)")
-def new_doc(doc_type, title, root, namespace):
+@click.option(
+    "--namespace", default=None, help="Namespace to create the doc in (monorepo mode)"
+)
+@click.option("--owner", default=None, help="Set owner frontmatter field")
+@click.option("--area", default=None, help="Set area frontmatter field")
+@click.option("--description", default=None, help="Set description frontmatter field")
+@click.option("--status", default="Draft", help="Set status (default: Draft)")
+@click.option("--keywords", multiple=True, help="Set keywords (repeatable)")
+@click.option("--related-ids", multiple=True, help="Set related_ids (repeatable)")
+@click.option(
+    "--id",
+    "document_id",
+    default=None,
+    help="Specify exact document ID (deterministic mode)",
+)
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Preview without writing file"
+)
+@click.option(
+    "--verbose", is_flag=True, default=False, help="Output decision reasoning"
+)
+@click.option(
+    "--list-types", is_flag=True, default=False, help="List valid document types"
+)
+@click.option(
+    "--edit", is_flag=True, default=False, help="Open in editor after creation"
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    help="Output format",
+)
+@click.option(
+    "--interactive",
+    is_flag=True,
+    default=False,
+    help="Interactive mode (prompts for missing fields)",
+)
+def new_doc(
+    doc_type,
+    title,
+    root,
+    namespace,
+    owner,
+    area,
+    description,
+    status,
+    keywords,
+    related_ids,
+    document_id,
+    dry_run,
+    verbose,
+    list_types,
+    edit,
+    output_format,
+    interactive,
+):
     """Create a new document of TYPE with TITLE.
 
     Supported types: ADR, PRD, FDD, etc.
     """
-    root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
-    # Implicit init check? Or just fail if no docs dir? UseCase handles path creation.
+    if interactive and output_format == "json":
+        if output_format == "json":
+            click.echo(
+                _json_payload(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
+                            "message": "--interactive and --format json are incompatible",
+                        },
+                    }
+                )
+            )
+        else:
+            console.print(
+                "[bold red][ERROR INVALID_FLAG_COMBINATION] --interactive and --format json are incompatible[/bold red]"
+            )
+        raise SystemExit(os.EX_USAGE)
 
-    # Simple alias handling for adr-tools compatibility (e.g. `meminit new adr ...`)
+    if edit and (dry_run or output_format == "json"):
+        if output_format == "json":
+            click.echo(
+                _json_payload(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
+                            "message": "--edit is incompatible with --dry-run and --format json",
+                        },
+                    }
+                )
+            )
+        else:
+            console.print(
+                "[bold red][ERROR INVALID_FLAG_COMBINATION] --edit is incompatible with --dry-run and --format json[/bold red]"
+            )
+        raise SystemExit(os.EX_USAGE)
+
+    if list_types and (doc_type or title):
+        if output_format == "json":
+            click.echo(
+                _json_payload(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
+                            "message": "--list-types cannot be combined with TYPE or TITLE arguments",
+                        },
+                    }
+                )
+            )
+        else:
+            console.print(
+                "[bold red][ERROR INVALID_FLAG_COMBINATION] --list-types cannot be combined with TYPE or TITLE arguments[/bold red]"
+            )
+        raise SystemExit(os.EX_USAGE)
+
+    if list_types:
+        root_path = Path(root).resolve()
+        validate_root_path(root_path, format=output_format)
+        use_case = NewDocumentUseCase(str(root_path))
+        ns = use_case._layout.default_namespace()
+        types_list = []
+        for t, directory in sorted(ns.type_directories.items()):
+            types_list.append({"type": t, "directory": f"{ns.docs_root}/{directory}"})
+        if output_format == "json":
+            click.echo(
+                _json_payload(
+                    {
+                        "success": True,
+                        "types": types_list,
+                    }
+                )
+            )
+        else:
+            console.print("[bold blue]Valid Document Types:[/bold blue]")
+            for item in types_list:
+                console.print(f"  {item['type']:10} → {item['directory']}")
+        return
+
+    if interactive:
+        root_path = Path(root).resolve()
+        validate_root_path(root_path, format=output_format)
+        use_case = NewDocumentUseCase(str(root_path))
+        ns = use_case._layout.default_namespace()
+        valid_types = sorted(ns.type_directories.keys())
+        if not doc_type:
+            doc_type = click.prompt("Document type", type=click.Choice(valid_types))
+        if not title:
+            title = click.prompt("Document title")
+        if not owner:
+            owner = click.prompt(
+                "Owner (optional)", default="__TBD__", show_default=True
+            )
+        if not area:
+            area = click.prompt("Area (optional)", default="", show_default=False)
+        if not description:
+            description = click.prompt(
+                "Description (optional)", default="", show_default=False
+            )
+
+    if not doc_type or not title:
+        if output_format == "json":
+            click.echo(
+                _json_payload(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
+                            "message": "TYPE and TITLE are required unless --list-types is specified",
+                        },
+                    }
+                )
+            )
+        else:
+            console.print("[bold red]Error: TYPE and TITLE are required.[/bold red]")
+            console.print("Usage: meminit new <TYPE> <TITLE>")
+        raise SystemExit(os.EX_USAGE)
+
+    root_path = Path(root).resolve()
+    validate_root_path(root_path, format=output_format)
+    validate_initialized(root_path, format=output_format)
+
     if doc_type.lower() == "adr":
         doc_type = "ADR"
 
+    if related_ids:
+        seen = set()
+        unique_related_ids = []
+        for rid in related_ids:
+            if rid not in seen:
+                seen.add(rid)
+                unique_related_ids.append(rid)
+        related_ids = unique_related_ids
+
+    params = NewDocumentParams(
+        doc_type=doc_type,
+        title=title,
+        namespace=namespace,
+        owner=owner,
+        area=area,
+        description=description,
+        status=status,
+        keywords=list(keywords) if keywords else None,
+        related_ids=list(related_ids) if related_ids else None,
+        document_id=document_id,
+        dry_run=dry_run,
+        verbose=verbose,
+    )
+
     use_case = NewDocumentUseCase(str(root_path))
-    try:
-        path = use_case.execute(doc_type, title, namespace=namespace)
-        console.print(f"[bold green]Created {doc_type}: {path}[/bold green]")
-    except Exception as e:
-        console.print(f"[bold red]Error creating document: {e}[/bold red]")
-        exit(1)
+    result = use_case.execute_with_params(params)
+
+    if not result.success:
+        if output_format == "json":
+            if isinstance(result.error, MeminitError):
+                click.echo(
+                    _json_payload(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": result.error.code.value,
+                                "message": result.error.message,
+                                "details": result.error.details,
+                            },
+                        }
+                    )
+                )
+            else:
+                click.echo(
+                    _json_payload(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "UNKNOWN_ERROR",
+                                "message": str(result.error)
+                                if result.error
+                                else "Unknown error",
+                            },
+                        }
+                    )
+                )
+        else:
+            if isinstance(result.error, MeminitError):
+                console.print(
+                    f"[bold red][ERROR {result.error.code.value}] {result.error.message}[/bold red]"
+                )
+            else:
+                console.print(
+                    f"[bold red]Error creating document: {result.error}[/bold red]"
+                )
+
+        if isinstance(result.error, MeminitError):
+            if result.error.code in (
+                ErrorCode.UNKNOWN_TYPE,
+                ErrorCode.UNKNOWN_NAMESPACE,
+                ErrorCode.INVALID_STATUS,
+                ErrorCode.INVALID_RELATED_ID,
+                ErrorCode.INVALID_ID_FORMAT,
+                ErrorCode.INVALID_FLAG_COMBINATION,
+            ):
+                raise SystemExit(os.EX_DATAERR)
+            if result.error.code in (ErrorCode.DUPLICATE_ID, ErrorCode.FILE_EXISTS):
+                raise SystemExit(os.EX_CANTCREAT)
+        raise SystemExit(os.EX_DATAERR)
+
+    if output_format == "json":
+        if result.reasoning and verbose:
+            import sys
+
+            for entry in result.reasoning:
+                sys.stderr.write(f"# {entry['decision']}: {entry['value']}")
+                if "source" in entry:
+                    sys.stderr.write(f" (source: {entry['source']})")
+                elif "method" in entry:
+                    sys.stderr.write(f" (method: {entry['method']})")
+                sys.stderr.write("\n")
+            sys.stderr.flush()
+        response = {
+            "success": True,
+            "path": str(result.path.relative_to(root_path)) if result.path else None,
+            "document_id": result.document_id,
+            "type": result.doc_type,
+            "title": result.title,
+            "status": result.status,
+            "version": result.version,
+            "owner": result.owner,
+            "area": result.area,
+            "last_updated": result.last_updated,
+            "docops_version": result.docops_version,
+            "description": result.description,
+            "keywords": result.keywords or [],
+            "related_ids": result.related_ids or [],
+        }
+        if dry_run:
+            response["dry_run"] = True
+            response["would_create"] = {
+                "path": response["path"],
+                "document_id": response["document_id"],
+                "type": response["type"],
+                "title": response["title"],
+            }
+        click.echo(_json_payload(response))
+    else:
+        if dry_run:
+            console.print(
+                f"[bold yellow]Would create {result.doc_type}: {result.path}[/bold yellow]"
+            )
+            if verbose:
+                console.print(f"  ID: {result.document_id}")
+                console.print(f"  Status: {result.status}")
+                console.print(f"  Owner: {result.owner}")
+                if result.area:
+                    console.print(f"  Area: {result.area}")
+        else:
+            console.print(
+                f"[bold green]Created {result.doc_type}: {result.path}[/bold green]"
+            )
+            if verbose:
+                console.print(f"  ID: {result.document_id}")
+                console.print(f"  Status: {result.status}")
+                console.print(f"  Owner: {result.owner}")
+                if result.area:
+                    console.print(f"  Area: {result.area}")
+
+        if verbose and result.reasoning:
+            for entry in result.reasoning:
+                source_info = entry.get("source") or entry.get("method")
+                if source_info:
+                    console.print(
+                        f"  [dim]{entry['decision']}: {entry['value']} ({source_info})[/dim]"
+                    )
+                else:
+                    console.print(f"  [dim]{entry['decision']}: {entry['value']}[/dim]")
+
+    if edit and not dry_run and result.path:
+        editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+        if editor:
+            import subprocess
+
+            try:
+                subprocess.run([editor, str(result.path)], check=False)
+            except Exception as e:
+                console.print(
+                    f"[bold yellow]Warning: Could not open editor: {e}[/bold yellow]"
+                )
+        else:
+            console.print(
+                "[bold yellow]Warning: No EDITOR or VISUAL environment variable set, skipping editor launch.[/bold yellow]"
+            )
 
 
 @cli.group()
@@ -804,7 +1405,9 @@ def adr():
 @adr.command(name="new")
 @click.argument("title")
 @click.option("--root", default=".", help="Root directory of the repository")
-@click.option("--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)")
+@click.option(
+    "--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)"
+)
 def adr_new(title, root, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
     root_path = Path(root).resolve()
@@ -826,10 +1429,17 @@ def org():
 
 @org.command("install")
 @click.option("--profile", default="default", help="Org profile name to install")
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths")
-@click.option("--force/--no-force", default=False, help="Overwrite an existing installed profile")
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths"
+)
+@click.option(
+    "--force/--no-force", default=False, help="Overwrite an existing installed profile"
+)
+@click.option(
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 def org_install(profile, dry_run, force, format):
     """Install the packaged org profile into XDG user data directories."""
@@ -858,9 +1468,13 @@ def org_install(profile, dry_run, force, format):
 @org.command("vendor")
 @click.option("--root", default=".", help="Root directory of the repository")
 @click.option("--profile", default="default", help="Org profile name to vendor")
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing files")
 @click.option(
-    "--force/--no-force", default=False, help="Overwrite an existing lock and update vendored files"
+    "--dry-run/--no-dry-run", default=True, help="Preview without writing files"
+)
+@click.option(
+    "--force/--no-force",
+    default=False,
+    help="Overwrite an existing lock and update vendored files",
 )
 @click.option(
     "--include-org-docs/--no-include-org-docs",
@@ -868,7 +1482,10 @@ def org_install(profile, dry_run, force, format):
     help="Vendor ORG governance markdown docs too",
 )
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 def org_vendor(root, profile, dry_run, force, include_org_docs, format):
     """Vendor (copy + pin) org standards into a repo to prevent unintentional drift."""
@@ -915,7 +1532,10 @@ def org_vendor(root, profile, dry_run, force, include_org_docs, format):
 @click.option("--root", default=".", help="Root directory of the repository")
 @click.option("--profile", default="default", help="Org profile name")
 @click.option(
-    "--format", type=click.Choice(["text", "json", "md"]), default="text", help="Output format"
+    "--format",
+    type=click.Choice(["text", "json", "md"]),
+    default="text",
+    help="Output format",
 )
 def org_status(root, profile, format):
     """Show org profile install + repo lock status (drift visibility)."""
@@ -942,6 +1562,8 @@ def org_status(root, profile, format):
     console.print(f"Root: {root_path}")
     console.print(f"Profile: {profile}")
     console.print(f"Global installed: {report.global_installed} ({report.global_dir})")
-    console.print(f"Repo lock present: {report.repo_lock_present} ({report.repo_lock_path})")
+    console.print(
+        f"Repo lock present: {report.repo_lock_present} ({report.repo_lock_path})"
+    )
     console.print(f"Current source: {report.current_profile_source}")
     console.print(f"Lock matches current: {report.repo_lock_matches_current}")

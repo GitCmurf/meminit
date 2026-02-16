@@ -40,5 +40,8 @@ def normalize_yaml_scalar_footguns(metadata: Dict[str, Any]) -> Dict[str, Any]:
         if key in normalized:
             normalized[key] = _coerce_float_int_to_version_string(normalized.get(key))
 
-    return normalized
+    for key in list(normalized.keys()):
+        if key.endswith("_version") and key not in ("version", "docops_version"):
+            normalized[key] = _coerce_float_int_to_version_string(normalized.get(key))
 
+    return normalized

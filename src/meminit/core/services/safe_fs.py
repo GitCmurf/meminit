@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
+
 
 class UnsafePathError(ValueError):
+    """Legacy exception - retained for backward compatibility.
+
+    New code should catch MeminitError with code PATH_ESCAPE instead.
+    """
+
     pass
 
 
@@ -18,6 +25,9 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
 
     This is a best-effort guard against "symlink escape" attacks when running
     meminit on untrusted repositories.
+
+    Raises:
+        MeminitError: with code PATH_ESCAPE if the path is unsafe.
     """
     root_dir = Path(root_dir).resolve()
     target_path = Path(target_path)
@@ -26,23 +36,31 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
         resolved = target_path.resolve()
         resolved.relative_to(root_dir)
     except Exception as exc:
-        raise UnsafePathError(
-            f"Refusing to write '{target_path}': resolves outside repository root '{root_dir}'."
+        raise MeminitError(
+            code=ErrorCode.PATH_ESCAPE,
+            message=f"Path '{target_path}' escapes repository root '{root_dir}'",
+            details={"target_path": str(target_path), "root_dir": str(root_dir)},
         ) from exc
 
     try:
         rel = target_path.relative_to(root_dir)
     except Exception:
-        # If target_path is not under root_dir syntactically, it is unsafe even if resolution passed.
-        raise UnsafePathError(
-            f"Refusing to write '{target_path}': path is not under repository root '{root_dir}'."
+        raise MeminitError(
+            code=ErrorCode.PATH_ESCAPE,
+            message=f"Path '{target_path}' is not under repository root '{root_dir}'",
+            details={"target_path": str(target_path), "root_dir": str(root_dir)},
         )
 
     current = root_dir
     for part in rel.parts:
         current = current / part
         if current.is_symlink():
-            raise UnsafePathError(
-                f"Refusing to write '{target_path}': path component '{current}' is a symlink."
+            raise MeminitError(
+                code=ErrorCode.PATH_ESCAPE,
+                message=f"Path '{target_path}' contains symlink component '{current}'",
+                details={
+                    "target_path": str(target_path),
+                    "symlink_component": str(current),
+                    "root_dir": str(root_dir),
+                },
             )
-
