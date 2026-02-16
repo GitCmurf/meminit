@@ -13,7 +13,7 @@ import yaml
 
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.observability import log_event
+from meminit.core.services.observability import log_operation, get_current_run_id
 from meminit.core.services.repo_config import (
     RepoConfig,
     load_repo_config,
@@ -68,6 +68,7 @@ class NewDocumentUseCase:
                 description=params.description,
                 keywords=params.keywords,
                 related_ids=params.related_ids,
+                superseded_by=params.superseded_by,
                 dry_run=params.dry_run,
                 error=e,
             )
@@ -82,12 +83,49 @@ class NewDocumentUseCase:
                 description=params.description,
                 keywords=params.keywords,
                 related_ids=params.related_ids,
+                superseded_by=params.superseded_by,
                 dry_run=params.dry_run,
                 error=e,
             )
 
     def _execute_internal(self, params: NewDocumentParams) -> NewDocumentResult:
         reasoning: List[Dict[str, Any]] = [] if params.verbose else []
+
+        with log_operation(
+            operation="document_create",
+            details={"doc_type": params.doc_type, "title": params.title},
+            run_id=get_current_run_id(),
+        ) as ctx:
+            return self._execute_internal_impl(params, reasoning, ctx)
+
+    def _execute_internal_impl(
+        self,
+        params: NewDocumentParams,
+        reasoning: List[Dict[str, Any]],
+        ctx: Dict[str, Any],
+    ) -> NewDocumentResult:
+        if params.related_ids:
+            seen = set()
+            unique_related_ids = []
+            for rid in params.related_ids:
+                if rid not in seen:
+                    seen.add(rid)
+                    unique_related_ids.append(rid)
+            params = NewDocumentParams(
+                doc_type=params.doc_type,
+                title=params.title,
+                namespace=params.namespace,
+                owner=params.owner,
+                area=params.area,
+                description=params.description,
+                status=params.status,
+                keywords=params.keywords,
+                related_ids=unique_related_ids if unique_related_ids else None,
+                superseded_by=params.superseded_by,
+                document_id=params.document_id,
+                dry_run=params.dry_run,
+                verbose=params.verbose,
+            )
 
         if params.status not in ALLOWED_STATUSES:
             raise MeminitError(
@@ -96,12 +134,23 @@ class NewDocumentUseCase:
                 details={"status": params.status, "allowed": ALLOWED_STATUSES},
             )
 
-        if params.status == "Superseded" and not params.related_ids:
+        if params.status == "Superseded" and not params.superseded_by:
             warnings.warn(
-                "Document status is 'Superseded' but no related_ids provided. "
-                "Consider adding the superseding document ID to related_ids.",
+                "Document status is 'Superseded'. "
+                "Consider adding 'superseded_by' field to indicate the replacement document.",
                 UserWarning,
             )
+
+        if params.superseded_by:
+            if not RELATED_ID_PATTERN.match(params.superseded_by):
+                raise MeminitError(
+                    code=ErrorCode.INVALID_RELATED_ID,
+                    message=f"Invalid superseded_by '{params.superseded_by}'. Must match pattern: ^[A-Z]{{3,10}}-[A-Z]{{3,10}}-\\d{{3}}$",
+                    details={
+                        "superseded_by": params.superseded_by,
+                        "pattern": "^[A-Z]{3,10}-[A-Z]{3,10}-\\d{3}$",
+                    },
+                )
 
         if params.related_ids:
             for rid in params.related_ids:
@@ -214,6 +263,7 @@ class NewDocumentUseCase:
                         description=params.description,
                         keywords=params.keywords,
                         related_ids=params.related_ids,
+                        superseded_by=params.superseded_by,
                     )
                     if params.verbose:
                         template_path_str = ns.templates.get(normalized_type.lower())
@@ -227,6 +277,8 @@ class NewDocumentUseCase:
                             }
                         )
                     if existing_content == content:
+                        ctx["details"]["document_id"] = doc_id
+                        ctx["details"]["path"] = str(target_path)
                         return NewDocumentResult(
                             success=True,
                             path=target_path,
@@ -242,6 +294,7 @@ class NewDocumentUseCase:
                             description=params.description,
                             keywords=params.keywords,
                             related_ids=params.related_ids,
+                            superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
                             reasoning=reasoning if params.verbose else None,
                         )
@@ -293,6 +346,7 @@ class NewDocumentUseCase:
                 description=params.description,
                 keywords=params.keywords,
                 related_ids=params.related_ids,
+                superseded_by=params.superseded_by,
             )
             if params.verbose:
                 template_path_str = ns.templates.get(normalized_type.lower())
@@ -322,12 +376,11 @@ class NewDocumentUseCase:
                             "validation_message": violation.message,
                         },
                     )
-            elif params.verbose:
-                reasoning.append(
-                    {
-                        "decision": "schema_validation_skipped",
-                        "value": "Schema file not available",
-                    }
+            else:
+                raise MeminitError(
+                    code=ErrorCode.SCHEMA_INVALID,
+                    message=f"Schema file not available: {ns.schema_file}",
+                    details={"schema_path": str(ns.schema_file)},
                 )
 
             for required_field in ["document_id", "type", "title", "status", "owner"]:
@@ -342,6 +395,8 @@ class NewDocumentUseCase:
                     )
 
             if params.dry_run:
+                ctx["details"]["document_id"] = doc_id
+                ctx["details"]["path"] = str(target_path)
                 return NewDocumentResult(
                     success=True,
                     path=target_path,
@@ -357,6 +412,7 @@ class NewDocumentUseCase:
                     description=params.description,
                     keywords=params.keywords,
                     related_ids=params.related_ids,
+                    superseded_by=params.superseded_by,
                     dry_run=True,
                     content=content,
                     reasoning=reasoning if params.verbose else None,
@@ -395,6 +451,8 @@ class NewDocumentUseCase:
                         ) + f" Temp file removal failed: {ce}"
                 if isinstance(e, MeminitError):
                     if cleanup_error_msg:
+                        if e.details is None:
+                            e.details = {}
                         e.details["cleanup_error"] = cleanup_error_msg.strip()
                     raise
                 details = {"original_error": str(e)}
@@ -406,16 +464,8 @@ class NewDocumentUseCase:
                     details=details,
                 ) from e
 
-            log_event(
-                operation="document_created",
-                success=True,
-                details={
-                    "document_id": doc_id,
-                    "doc_type": normalized_type,
-                    "path": str(target_path),
-                    "dry_run": False,
-                },
-            )
+            ctx["details"]["document_id"] = doc_id
+            ctx["details"]["path"] = str(target_path)
             return NewDocumentResult(
                 success=True,
                 path=target_path,
@@ -431,6 +481,7 @@ class NewDocumentUseCase:
                 description=params.description,
                 keywords=params.keywords,
                 related_ids=params.related_ids,
+                superseded_by=params.superseded_by,
                 dry_run=False,
                 reasoning=reasoning if params.verbose else None,
             )
@@ -694,6 +745,7 @@ class NewDocumentUseCase:
         description: Optional[str] = None,
         keywords: Optional[List[str]] = None,
         related_ids: Optional[List[str]] = None,
+        superseded_by: Optional[str] = None,
         strict: bool = False,
     ) -> str:
         template_path_str = ns.templates.get(doc_type.lower())
@@ -745,6 +797,8 @@ class NewDocumentUseCase:
             generated_metadata["keywords"] = keywords
         if related_ids is not None:
             generated_metadata["related_ids"] = related_ids
+        if superseded_by is not None:
+            generated_metadata["superseded_by"] = superseded_by
 
         for key, value in list(template_frontmatter.items()):
             if isinstance(value, str):

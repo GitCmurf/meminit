@@ -96,7 +96,21 @@ class CheckRepositoryUseCase:
         not_found_patterns: List[str] = []
 
         for pattern in paths:
-            if Path(pattern).is_absolute():
+            pattern_path = Path(pattern)
+            if pattern_path.is_absolute():
+                candidate = pattern_path
+            else:
+                candidate = self.root_dir / pattern_path
+            try:
+                candidate.resolve().relative_to(self.root_dir.resolve())
+            except (ValueError, OSError):
+                raise MeminitError(
+                    code=ErrorCode.PATH_ESCAPE,
+                    message=f"Path '{pattern}' is outside repository root",
+                    details={"path": pattern},
+                )
+
+            if pattern_path.is_absolute():
                 matches = glob.glob(pattern, recursive=True)
             else:
                 matches = glob.glob(str(self.root_dir / pattern), recursive=True)
@@ -133,11 +147,13 @@ class CheckRepositoryUseCase:
         warnings_by_file: Dict[str, Dict[str, Any]] = {}
         files_passed = 0
         files_failed = 0
+        checked_paths: List[str] = []
 
         existing_ids: Set[str] = set()
 
         for pattern in not_found_patterns:
             path_str = pattern
+            checked_paths.append(path_str)
             violations_by_file[path_str] = {
                 "path": path_str,
                 "violations": [
@@ -161,6 +177,7 @@ class CheckRepositoryUseCase:
                 )
 
             rel_path = str(file_path.relative_to(self.root_dir))
+            checked_paths.append(rel_path)
 
             ns = self._layout.namespace_for_path(file_path)
             if ns is None:
@@ -243,6 +260,7 @@ class CheckRepositoryUseCase:
             files_failed=files_failed,
             violations=all_violations,
             warnings=all_warnings,
+            checked_paths=sorted(checked_paths),
         )
 
     def _extract_document_id(self, path: Path) -> Optional[str]:

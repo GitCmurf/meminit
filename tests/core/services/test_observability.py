@@ -1,4 +1,5 @@
 import os
+import re
 
 import pytest
 
@@ -6,9 +7,10 @@ from meminit.core.services.observability import (
     get_current_run_id,
     get_log_format,
     get_run_id,
-    is_debug_enabled,
     log_event,
+    log_operation,
 )
+from meminit.core.services.error_codes import MeminitError, ErrorCode
 
 
 class TestObservability:
@@ -35,20 +37,6 @@ class TestObservability:
         monkeypatch.setenv("MEMINIT_LOG_FORMAT", "text")
         assert get_log_format() == "text"
 
-    def test_is_debug_enabled_default(self, monkeypatch):
-        monkeypatch.delenv("MEMINIT_DEBUG", raising=False)
-        assert is_debug_enabled() is False
-
-    def test_is_debug_enabled_true_values(self, monkeypatch):
-        for val in ("1", "true", "True", "TRUE", "yes", "Yes", "YES"):
-            monkeypatch.setenv("MEMINIT_DEBUG", val)
-            assert is_debug_enabled() is True
-
-    def test_is_debug_enabled_false_values(self, monkeypatch):
-        for val in ("0", "false", "no", "", "random"):
-            monkeypatch.setenv("MEMINIT_DEBUG", val)
-            assert is_debug_enabled() is False
-
     def test_get_current_run_id_returns_same_id(self, monkeypatch):
         import meminit.core.services.observability as obs
 
@@ -58,40 +46,44 @@ class TestObservability:
         id2 = get_current_run_id()
         assert id1 == id2
 
-    def test_log_event_no_output_when_disabled(self, monkeypatch, capsys):
-        monkeypatch.delenv("MEMINIT_DEBUG", raising=False)
-        log_event("test_event", {"key": "value"})
-        captured = capsys.readouterr()
-        assert captured.out == ""
-
     def test_log_event_json_format(self, monkeypatch, capsys):
         import json
 
-        monkeypatch.setenv("MEMINIT_DEBUG", "1")
         monkeypatch.setenv("MEMINIT_LOG_FORMAT", "json")
-        log_event("test_event", {"key": "value"})
+        log_event("test_event", True, details={"key": "value"})
         captured = capsys.readouterr()
-        entry = json.loads(captured.out.strip())
-        assert entry["event"] == "test_event"
-        assert entry["data"]["key"] == "value"
+        entry = json.loads(captured.err.strip())
+        assert entry["operation"] == "test_event"
+        assert entry["details"]["key"] == "value"
         assert "timestamp" in entry
         assert "run_id" in entry
 
     def test_log_event_text_format(self, monkeypatch, capsys):
-        monkeypatch.setenv("MEMINIT_DEBUG", "1")
         monkeypatch.setenv("MEMINIT_LOG_FORMAT", "text")
-        log_event("test_event", {"key": "value"})
+        log_event("test_event", True, details={"key": "value"})
         captured = capsys.readouterr()
-        assert "[test_event]:" in captured.out or "test_event:" in captured.out
-        assert "key=value" in captured.out
+        assert "test_event" in captured.err
+        assert "OK" in captured.err
+        assert '"key": "value"' in captured.err
 
-    def test_log_event_without_data(self, monkeypatch, capsys):
+    def test_log_event_without_details(self, monkeypatch, capsys):
         import json
 
-        monkeypatch.setenv("MEMINIT_DEBUG", "1")
         monkeypatch.setenv("MEMINIT_LOG_FORMAT", "json")
-        log_event("simple_event")
+        log_event("simple_event", True)
         captured = capsys.readouterr()
-        entry = json.loads(captured.out.strip())
-        assert entry["event"] == "simple_event"
-        assert "data" not in entry
+        entry = json.loads(captured.err.strip())
+        assert entry["operation"] == "simple_event"
+        assert "details" not in entry
+
+    def test_log_operation_includes_duration_on_failure(self, capsys):
+        """N5.2: Failure logs must include duration_ms and error_code."""
+        with pytest.raises(MeminitError):
+            with log_operation("test_op"):
+                raise MeminitError(code=ErrorCode.INVALID_STATUS, message="Test error")
+
+        captured = capsys.readouterr()
+        assert "test_op" in captured.err
+        assert "FAILED" in captured.err
+        assert "INVALID_STATUS" in captured.err
+        assert re.search(r"\(\d+\.\d+ms\)", captured.err)

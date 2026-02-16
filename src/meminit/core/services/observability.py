@@ -80,7 +80,7 @@ def log_event(
     if get_log_format() == "json":
         _write_stderr(json.dumps(entry, separators=(",", ":")))
     else:
-        parts = [f"[{entry['run_id']}", entry["timestamp"], operation]
+        parts = [f"[{entry['run_id']}]", entry["timestamp"], operation]
         parts.append("OK" if success else "FAILED")
         if duration_ms is not None:
             parts.append(f"({duration_ms:.2f}ms)")
@@ -100,9 +100,9 @@ def log_operation(
     """Context manager to log an operation with timing.
 
     Usage:
-        with log_operation("document_create", {"doc_type": "ADR"}) as ctx:
-            # ... do work ...
-            ctx["document_id"] = doc_id  # Add details
+        with log_operation("document_create") as ctx:
+            ctx["details"]["doc_type"] = "ADR"
+            ctx["details"]["document_id"] = doc_id
         # Automatically logs success/failure with duration
 
     Yields a dict that can be modified to add details to the log entry.

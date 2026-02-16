@@ -9,7 +9,7 @@ from rich.table import Table
 
 from meminit.core.domain.entities import FixReport, NewDocumentParams, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError, error_to_dict
-from meminit.core.services.observability import get_current_run_id
+from meminit.core.services.observability import log_operation, get_current_run_id
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
@@ -104,18 +104,25 @@ def validate_root_path(root_path: Path, format: str = "text") -> None:
 
 
 def validate_initialized(root_path: Path, format: str = "text") -> None:
-    """Validate that the repo is initialized with meminit (F9.1).
+    """Validate that the repo is initialized with meminit config (F9.1).
 
-    Raises SystemExit with CONFIG_MISSING error if neither docs/ nor docops.config.yaml exists.
+    Per PRD F9.1, docops.config.yaml MUST exist for the repo to be considered initialized.
+    The docs/ directory is a secondary indicator but not sufficient alone.
+
+    Raises SystemExit with CONFIG_MISSING error if:
+    - docops.config.yaml does not exist
     """
-    docs_dir = root_path / "docs"
     config_file = root_path / "docops.config.yaml"
 
-    if docs_dir.exists() or config_file.exists():
+    if config_file.exists():
         return
 
-    msg = "Repository not initialized. Run 'meminit init' first."
-    details = {"hint": "meminit init"}
+    msg = "Repository not initialized: missing docops.config.yaml. Run 'meminit init' first."
+    details = {
+        "hint": "meminit init",
+        "root": str(root_path),
+        "missing_file": "docops.config.yaml",
+    }
 
     if format == "json":
         click.echo(_error_payload(ErrorCode.CONFIG_MISSING, msg, details))
@@ -164,33 +171,40 @@ def check(root, format, quiet, strict, paths):
     validate_initialized(root_path, format=format)
 
     if paths:
-        try:
-            use_case = CheckRepositoryUseCase(root_dir=str(root_path))
-            result = use_case.execute_targeted(list(paths), strict=strict)
-        except MeminitError as e:
-            if format == "json":
-                click.echo(_error_payload(e.code, e.message, e.details))
-            elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
-                )
-            else:
-                console.print(
-                    f"[bold red]Error during compliance check: {e.message}[/bold red]"
-                )
-            raise SystemExit(1)
-        except Exception as e:
-            if format == "json":
-                click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
-            elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
-                )
-            else:
-                console.print(
-                    f"[bold red]Error during compliance check: {e}[/bold red]"
-                )
-            raise SystemExit(1)
+        with log_operation(
+            operation="check_targeted",
+            details={"paths": list(paths), "strict": strict},
+            run_id=get_current_run_id(),
+        ) as _check_ctx:
+            try:
+                use_case = CheckRepositoryUseCase(root_dir=str(root_path))
+                result = use_case.execute_targeted(list(paths), strict=strict)
+                _check_ctx["details"]["files_checked"] = result.files_checked
+                _check_ctx["details"]["files_failed"] = result.files_failed
+            except MeminitError as e:
+                if format == "json":
+                    click.echo(_error_payload(e.code, e.message, e.details))
+                elif format == "md":
+                    click.echo(
+                        f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                    )
+                else:
+                    console.print(
+                        f"[bold red]Error during compliance check: {e.message}[/bold red]"
+                    )
+                raise SystemExit(1)
+            except Exception as e:
+                if format == "json":
+                    click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
+                elif format == "md":
+                    click.echo(
+                        f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+                    )
+                else:
+                    console.print(
+                        f"[bold red]Error during compliance check: {e}[/bold red]"
+                    )
+                raise SystemExit(1)
 
         if format == "json":
             data: Dict[str, Any] = {
@@ -287,31 +301,39 @@ def check(root, format, quiet, strict, paths):
     if format == "text" and not quiet:
         console.print(f"Scanning root: {root_path}")
 
-    try:
-        use_case = CheckRepositoryUseCase(root_dir=str(root_path))
-        violations = use_case.execute()
-    except MeminitError as e:
-        if format == "json":
-            click.echo(_error_payload(e.code, e.message, e.details))
-        elif format == "md":
-            click.echo(
-                f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
-            )
-        else:
-            console.print(
-                f"[bold red]Error during compliance check: {e.message}[/bold red]"
-            )
-        raise SystemExit(1)
-    except Exception as e:
-        if format == "json":
-            click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
-        elif format == "md":
-            click.echo(
-                f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
-            )
-        else:
-            console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-        raise SystemExit(1)
+    with log_operation(
+        operation="check_full",
+        details={"root": str(root_path)},
+        run_id=get_current_run_id(),
+    ) as _check_ctx:
+        try:
+            use_case = CheckRepositoryUseCase(root_dir=str(root_path))
+            violations = use_case.execute()
+            _check_ctx["details"]["violations_count"] = len(violations)
+        except MeminitError as e:
+            if format == "json":
+                click.echo(_error_payload(e.code, e.message, e.details))
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                )
+            else:
+                console.print(
+                    f"[bold red]Error during compliance check: {e.message}[/bold red]"
+                )
+            raise SystemExit(1)
+        except Exception as e:
+            if format == "json":
+                click.echo(_error_payload(ErrorCode.UNKNOWN_ERROR, str(e)))
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+                )
+            else:
+                console.print(
+                    f"[bold red]Error during compliance check: {e}[/bold red]"
+                )
+            raise SystemExit(1)
 
     if not violations:
         if format == "json":

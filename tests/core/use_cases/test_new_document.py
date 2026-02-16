@@ -18,16 +18,46 @@ def repo_with_init(tmp_path):
     return tmp_path
 
 
+SCHEMA_JSON = """{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meminit.io/schemas/metadata.schema.json",
+  "title": "Test Schema",
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "owner"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "area": { "type": "string" },
+    "description": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "related_ids": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+"""
+
+
 @pytest.fixture
 def repo_with_config_and_template(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
         "# ADR: {title}\n\n## Context\n"
     )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
     (tmp_path / "docops.config.yaml").write_text(
         """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/adr.md
 type_directories:
@@ -604,11 +634,15 @@ def test_new_adr_template_angle_bracket_placeholders(tmp_path):
     template.write_text(
         "# <REPO>-ADR-<SEQ>: <Decision Title>\n\n- Date: <YYYY-MM-DD>\n- Owner: <Team or Person>\n"
     )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     (tmp_path / "docops.config.yaml").write_text(
         """project_name: Meminit
 repo_prefix: MEMINIT
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/custom-adr.md
 """
@@ -628,11 +662,15 @@ def test_new_uses_uppercase_template_key(tmp_path):
     template.write_text(
         "# ADR: {title}\n\n## Custom Template Marker\n", encoding="utf-8"
     )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     (tmp_path / "docops.config.yaml").write_text(
         """project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   ADR: docs/00-governance/templates/custom-adr.md
 """,
@@ -663,11 +701,15 @@ def test_new_uses_configured_type_directory(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md").write_text(
         "# ADR: {title}\n"
     )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     (tmp_path / "docops.config.yaml").write_text(
         """project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 docs_root: docs
 type_directories:
   ADR: adrs
@@ -694,6 +736,9 @@ def test_new_title_slug_fallback_when_empty(repo_with_init):
 
 def test_new_can_target_namespace(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
     (tmp_path / "packages" / "phyla" / "docs").mkdir(parents=True)
 
     (tmp_path / "docops.config.yaml").write_text(
@@ -737,10 +782,14 @@ class TestVisibleMetadataBlock:
 """,
             encoding="utf-8",
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/adr.md
 type_directories:
@@ -830,10 +879,14 @@ area: TemplateArea
 """,
             encoding="utf-8",
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   prd: docs/00-governance/templates/prd.md
 type_directories:
@@ -886,10 +939,14 @@ custom_owner: "<Team or Person>"
 """,
             encoding="utf-8",
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   fdd: docs/00-governance/templates/fdd.md
 type_directories:
@@ -921,10 +978,14 @@ class TestFileLocking:
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
             "# ADR: {title}\n"
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/adr.md
 type_directories:

@@ -583,3 +583,32 @@ docops_version: 2.0
             assert exc_info.value.code == ErrorCode.PATH_ESCAPE
         finally:
             outside_file.unlink()
+
+    def test_execute_targeted_relative_path_escape_is_fatal(
+        self, repo_for_targeted_check
+    ):
+        """F10.4: Relative path escapes must raise PATH_ESCAPE."""
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.execute_targeted(["../outside.md"])
+
+        assert exc_info.value.code == ErrorCode.PATH_ESCAPE
+
+    def test_strict_mode_promotes_outside_docs_root_to_error(
+        self, repo_for_targeted_check
+    ):
+        """F10.5: --strict should promote OUTSIDE_DOCS_ROOT to error."""
+        outside_file = repo_for_targeted_check / "outside.md"
+        outside_file.write_text("---\ndocument_id: TEST-ADR-001\n---\n# Test\n")
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+
+        result = use_case.execute_targeted(["outside.md"], strict=False)
+        assert result.success
+        assert len(result.warnings) == 1
+        assert result.warnings[0]["warnings"][0]["code"] == "OUTSIDE_DOCS_ROOT"
+
+        result = use_case.execute_targeted(["outside.md"], strict=True)
+        assert not result.success
+        assert len(result.violations) == 1
+        assert result.violations[0]["violations"][0]["code"] == "OUTSIDE_DOCS_ROOT"

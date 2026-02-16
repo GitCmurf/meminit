@@ -14,6 +14,19 @@ class UnsafePathError(ValueError):
     pass
 
 
+class MeminitPathEscapeError(MeminitError, UnsafePathError):
+    """Error for path escape that is catchable as both MeminitError and UnsafePathError.
+
+    This ensures backward compatibility: existing code that catches UnsafePathError
+    will still work, while new code can catch MeminitError with code PATH_ESCAPE.
+    """
+
+    def __init__(self, message: str, details: dict | None = None):
+        super().__init__(
+            code=ErrorCode.PATH_ESCAPE, message=message, details=details or {}
+        )
+
+
 def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
     """
     Ensure a target path is safe to write within a repository root.
@@ -27,7 +40,8 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
     meminit on untrusted repositories.
 
     Raises:
-        MeminitError: with code PATH_ESCAPE if the path is unsafe.
+        MeminitPathEscapeError: which is both MeminitError (code PATH_ESCAPE)
+                                and UnsafePathError for backward compatibility.
     """
     root_dir = Path(root_dir).resolve()
     target_path = Path(target_path)
@@ -36,27 +50,24 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
         resolved = target_path.resolve()
         resolved.relative_to(root_dir)
     except Exception as exc:
-        raise MeminitError(
-            code=ErrorCode.PATH_ESCAPE,
+        raise MeminitPathEscapeError(
             message=f"Path '{target_path}' escapes repository root '{root_dir}'",
             details={"target_path": str(target_path), "root_dir": str(root_dir)},
         ) from exc
 
     try:
         rel = target_path.relative_to(root_dir)
-    except Exception:
-        raise MeminitError(
-            code=ErrorCode.PATH_ESCAPE,
+    except Exception as exc:
+        raise MeminitPathEscapeError(
             message=f"Path '{target_path}' is not under repository root '{root_dir}'",
             details={"target_path": str(target_path), "root_dir": str(root_dir)},
-        )
+        ) from exc
 
     current = root_dir
     for part in rel.parts:
         current = current / part
         if current.is_symlink():
-            raise MeminitError(
-                code=ErrorCode.PATH_ESCAPE,
+            raise MeminitPathEscapeError(
                 message=f"Path '{target_path}' contains symlink component '{current}'",
                 details={
                     "target_path": str(target_path),

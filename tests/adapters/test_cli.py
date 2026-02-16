@@ -213,10 +213,34 @@ class TestCliNewJsonOutput:
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
             "# ADR: {title}\n"
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "area": { "type": "string" },
+    "description": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "related_ids": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": "string" }
+  }
+}
+""".strip()
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/adr.md
 type_directories:
@@ -242,7 +266,9 @@ type_directories:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
 
         assert data["output_schema_version"] == "1.0"
         assert data["success"] is True
@@ -283,7 +309,9 @@ type_directories:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
 
         assert data["success"] is True
         assert data["owner"] == "TestOwner"
@@ -308,7 +336,9 @@ type_directories:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output)
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
 
         assert data["output_schema_version"] == "1.0"
         assert data["success"] is False
@@ -384,10 +414,34 @@ class TestCliNewDryRun:
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
             "# ADR: {title}\n"
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "area": { "type": "string" },
+    "description": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "related_ids": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": "string" }
+  }
+}
+""".strip()
+        )
         (tmp_path / "docops.config.yaml").write_text(
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 templates:
   adr: docs/00-governance/templates/adr.md
 type_directories:
@@ -434,7 +488,9 @@ type_directories:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
 
         assert data["output_schema_version"] == "1.0"
         assert data["success"] is True
@@ -463,7 +519,9 @@ type_directories:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
 
         assert data["owner"] == "TestOwner"
         assert data["area"] == "Backend"
@@ -617,13 +675,13 @@ docops_version: 2.0
             ],
         )
 
-        assert result.exit_code == 65
-        data = json.loads(result.output)
+        assert result.exit_code != 0
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        data = json.loads(json_line)
         assert data["success"] is False
-        assert data["files_checked"] == 1
-        assert data["files_failed"] == 1
-        assert len(data["violations"]) == 1
-        assert data["violations"][0]["violations"][0]["code"] == "FILE_NOT_FOUND"
+        assert "error" in data
+        assert data["error"]["code"] == "FILE_NOT_FOUND"
 
 
 class TestCliFlagIncompatibilities:
@@ -813,3 +871,219 @@ docops_version: 2.0
         )
 
         assert "\n" not in result.output.strip()
+
+
+class TestCliSinglePathNotFound:
+    """Tests for F10.6: Single missing path should return error envelope."""
+
+    @pytest.fixture
+    def repo_for_single_path_check(self, tmp_path):
+        gov = tmp_path / "docs" / "00-governance"
+        gov.mkdir(parents=True)
+        (gov / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  }
+}
+""".strip()
+        )
+
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+type_directories:
+  ADR: 45-adr
+"""
+        )
+
+        adr_dir = tmp_path / "docs" / "45-adr"
+        adr_dir.mkdir(parents=True)
+
+        return tmp_path
+
+    def test_single_path_not_found_returns_error_envelope(
+        self, repo_for_single_path_check
+    ):
+        """F10.6: Single missing path should return error envelope."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "docs/45-adr/nonexistent.md",
+                "--root",
+                str(repo_for_single_path_check),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert "error" in data
+        assert data["error"]["code"] == "FILE_NOT_FOUND"
+
+
+class TestCliAbsolutePathEscape:
+    """Tests for F10.4: Absolute paths outside root should return PATH_ESCAPE."""
+
+    @pytest.fixture
+    def repo_for_path_escape_check(self, tmp_path):
+        gov = tmp_path / "docs" / "00-governance"
+        gov.mkdir(parents=True)
+        (gov / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  }
+}
+""".strip()
+        )
+
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+type_directories:
+  ADR: 45-adr
+"""
+        )
+
+        adr_dir = tmp_path / "docs" / "45-adr"
+        adr_dir.mkdir(parents=True)
+
+        return tmp_path
+
+    def test_absolute_path_outside_root_returns_path_escape(
+        self, repo_for_path_escape_check
+    ):
+        """F10.4: Absolute path outside root should return PATH_ESCAPE error."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "/nonexistent/path.md",
+                "--root",
+                str(repo_for_path_escape_check),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert "error" in data
+        assert data["error"]["code"] == "PATH_ESCAPE"
+
+
+def test_config_missing_when_docs_exists_but_no_config(tmp_path):
+    """F9.1: CONFIG_MISSING when docops.config.yaml is missing even if docs/ exists."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "test.md").write_text("# Test")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+
+
+class TestCliVerboseJsonStderr:
+    """Tests for F3.3: Verbose reasoning should go to stderr with --format json."""
+
+    @pytest.fixture
+    def repo_for_verbose_json(self, tmp_path):
+        (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+        (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
+            "# ADR: {title}\n"
+        )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  }
+}
+""".strip()
+        )
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+templates:
+  adr: docs/00-governance/templates/adr.md
+type_directories:
+  ADR: 45-adr
+"""
+        )
+        (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+        return tmp_path
+
+    def test_verbose_json_routes_reasoning_to_stderr(self, repo_for_verbose_json):
+        """F3.3: Verbose reasoning should go to stderr with --format json."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "ADR",
+                "Test",
+                "--root",
+                str(repo_for_verbose_json),
+                "--dry-run",
+                "--verbose",
+                "--format",
+                "json",
+            ],
+            catch_exceptions=False,
+        )
+
+        lines = result.output.strip().split("\n")
+        json_line = lines[-1]
+        stderr_output = "\n".join(lines[:-1])
+
+        data = json.loads(json_line)
+        assert "reasoning" not in data
+        assert data["success"] is True
+
+        assert (
+            "directory_selected" in stderr_output or "owner_resolved" in stderr_output
+        )

@@ -79,6 +79,8 @@ class NewDocumentParams:
         keywords: Optional list of keywords for search and categorization.
         related_ids: Optional list of related document IDs (must match pattern
             ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$).
+        superseded_by: Optional document ID that supersedes this document (must match
+            pattern ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$). Required when status is 'Superseded'.
         document_id: Optional explicit document ID. If provided, must match the
             doc_type in its type segment.
         dry_run: If True, validates and returns result without writing the file.
@@ -94,6 +96,7 @@ class NewDocumentParams:
     status: str = "Draft"
     keywords: Optional[List[str]] = None
     related_ids: Optional[List[str]] = None
+    superseded_by: Optional[str] = None
     document_id: Optional[str] = None
     dry_run: bool = False
     verbose: bool = False
@@ -118,6 +121,7 @@ class NewDocumentResult:
         description: Optional description, if provided.
         keywords: Optional keywords list, if provided.
         related_ids: Optional related document IDs, if provided.
+        superseded_by: Optional document ID that supersedes this document, if provided.
         dry_run: True if this was a dry_run (no file written).
         content: The full document content (only populated in dry_run mode).
         error: Exception or MeminitError if success is False, None otherwise.
@@ -138,6 +142,7 @@ class NewDocumentResult:
     description: Optional[str] = None
     keywords: Optional[List[str]] = None
     related_ids: Optional[List[str]] = None
+    superseded_by: Optional[str] = None
     dry_run: bool = False
     content: Optional[str] = None
     error: Optional[Any] = None
@@ -158,6 +163,7 @@ class CheckResult:
             Each entry contains 'path' and 'violations' keys.
         warnings: List of warning-level issues, grouped by file path.
             Each entry contains 'path' and 'warnings' keys.
+        checked_paths: List of all checked file paths (relative to root).
     """
 
     success: bool
@@ -166,3 +172,4 @@ class CheckResult:
     files_failed: int
     violations: List[Dict[str, Any]] = field(default_factory=list)
     warnings: List[Dict[str, Any]] = field(default_factory=list)
+    checked_paths: List[str] = field(default_factory=list)
