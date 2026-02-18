@@ -12,6 +12,8 @@ format defined in F1.3 of the PRD.
 from enum import Enum
 from typing import Any, Dict, Optional
 
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
+
 
 class ErrorCode(str, Enum):
     """CLI-wide error code enumeration.
@@ -99,7 +101,7 @@ def error_to_dict(error: MeminitError) -> Dict[str, Any]:
     structured error envelope contract:
 
     {
-        "output_schema_version": "1.0",
+        "output_schema_version": OUTPUT_SCHEMA_VERSION,
         "success": false,
         "error": {
             "code": "<ERROR_CODE>",
@@ -122,10 +124,10 @@ def error_to_dict(error: MeminitError) -> Dict[str, Any]:
         ...     details={"valid_types": ["ADR", "PRD"]}
         ... )
         >>> error_to_dict(error)
-        {'output_schema_version': '1.0', 'success': False, 'error': {'code': 'UNKNOWN_TYPE', 'message': 'Unknown document type: XYZ', 'details': {'valid_types': ['ADR', 'PRD']}}}
+        {'output_schema_version': '2.0', 'success': False, 'error': {'code': 'UNKNOWN_TYPE', 'message': 'Unknown document type: XYZ', 'details': {'valid_types': ['ADR', 'PRD']}}}
     """
     result: Dict[str, Any] = {
-        "output_schema_version": "1.0",
+        "output_schema_version": OUTPUT_SCHEMA_VERSION,
         "success": False,
         "error": {
             "code": error.code.value,

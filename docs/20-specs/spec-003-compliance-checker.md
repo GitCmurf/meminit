@@ -39,7 +39,7 @@ The `meminit check` command is the primary enforcement mechanism for DocOps stan
   - `type_directories` (type → expected folder mapping used for directory warnings)
 - If missing, `meminit check` fails with `CONFIG_MISSING` using the standard
   error envelope for the selected output format.
-  - **JSON:** `{"output_schema_version":"1.0","success":false,"error":{"code":"CONFIG_MISSING","message":"Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.","details":{"missing_file":"docops.config.yaml"}}}`
+  - **JSON:** `{"output_schema_version":"2.0","success":false,"error":{"code":"CONFIG_MISSING","message":"Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.","details":{"missing_file":"docops.config.yaml"}}}`
   - **Text:** `[ERROR CONFIG_MISSING] Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.`
   - **Markdown:** `# Meminit Error` with `Code: CONFIG_MISSING` and the message.
 - `format`: Output format (`text`, `json`, or `md`).
@@ -65,7 +65,7 @@ Single-path missing file example (JSON):
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": false,
   "error": {
     "code": "FILE_NOT_FOUND",
@@ -80,11 +80,18 @@ with `code: FILE_NOT_FOUND` (not a top-level error envelope). Example:
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": false,
-  "files_checked": 2,
+  "files_checked": 0,
   "files_passed": 0,
-  "files_failed": 2,
+  "files_failed": 0,
+  "missing_paths_count": 2,
+  "schema_failures_count": 0,
+  "warnings_count": 0,
+  "violations_count": 2,
+  "files_with_warnings": 0,
+  "files_outside_docs_root_count": 0,
+  "checked_paths_count": 2,
   "violations": [
     {
       "path": "docs/missing-1.md",
@@ -102,9 +109,14 @@ with `code: FILE_NOT_FOUND` (not a top-level error envelope). Example:
 }
 ```
 
-`files_checked` counts all validated documents **plus** any missing PATHS
-(`FILE_NOT_FOUND`) and any repository-level schema failures (e.g.,
-`SCHEMA_MISSING`) reported as violations.
+Counter semantics:
+
+- `files_checked`: existing markdown files actually parsed and validated.
+- `files_failed`: only existing files with error-level findings.
+- `missing_paths_count`: unresolved targeted path arguments.
+- `schema_failures_count`: repository-level schema failures.
+- `violations_count`: all emitted violations (including repository-level and missing-path).
+- `success`: false if file-level failures, missing paths, or schema failures exist, or strict mode promotes warnings.
 
 ## 3. Validation Rules
 
@@ -158,7 +170,8 @@ warnings include:
 - `DIRECTORY_MATCH` (document type not in expected directory)
 
 When `--strict` is set, **all warnings are promoted to errors**: they are counted
-in `files_failed`, included in `violations`, and cause a non-zero exit.
+in `files_failed`, included in `violations`, and cause a non-zero exit. The
+`warnings_count` value therefore reflects post-promotion warnings.
 
 ## 4. Output Format
 
@@ -169,11 +182,18 @@ field to select the correct parsing logic.
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": false,
   "files_checked": 1,
   "files_passed": 0,
   "files_failed": 1,
+  "missing_paths_count": 0,
+  "schema_failures_count": 0,
+  "warnings_count": 0,
+  "violations_count": 1,
+  "files_with_warnings": 0,
+  "files_outside_docs_root_count": 0,
+  "checked_paths_count": 1,
   "violations": [
     {
       "path": "docs/00-governance/bad-doc.md",
@@ -193,11 +213,18 @@ Repository-level schema failure example (JSON):
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": false,
   "files_checked": 1,
-  "files_passed": 0,
-  "files_failed": 1,
+  "files_passed": 1,
+  "files_failed": 0,
+  "missing_paths_count": 0,
+  "schema_failures_count": 1,
+  "warnings_count": 0,
+  "violations_count": 1,
+  "files_with_warnings": 0,
+  "files_outside_docs_root_count": 0,
+  "checked_paths_count": 2,
   "violations": [
     {
       "path": "docs/00-governance/metadata.schema.json",
@@ -218,11 +245,18 @@ an optional integer `line`.
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": true,
   "files_checked": 1,
   "files_passed": 1,
   "files_failed": 0,
+  "missing_paths_count": 0,
+  "schema_failures_count": 0,
+  "warnings_count": 1,
+  "violations_count": 0,
+  "files_with_warnings": 1,
+  "files_outside_docs_root_count": 1,
+  "checked_paths_count": 1,
   "violations": [],
   "warnings": [
     {

@@ -155,11 +155,20 @@ class CheckResult:
     """Result of a repository compliance check.
 
     Attributes:
-        success: True if all checked files passed (no errors). Warnings do not
-            affect success status.
-        files_checked: Total number of markdown files that were validated.
+        success: True if no fatal condition exists after applying strict-mode
+            rules. Fatal conditions include file-level failures, missing paths,
+            and repository-level schema failures.
+        files_checked: Number of existing markdown files that were parsed and
+            validated.
         files_passed: Number of files with no errors (may have warnings).
         files_failed: Number of files with one or more error-level violations.
+        missing_paths_count: Number of unresolved path patterns in targeted mode.
+        schema_failures_count: Number of repository-level schema failures.
+        warnings_count: Total warning issue count across all files.
+        violations_count: Total error/violation issue count across all files.
+        files_with_warnings: Number of files that have one or more warnings.
+        files_outside_docs_root_count: Count of OUTSIDE_DOCS_ROOT findings.
+        checked_paths_count: Count of unique checked paths emitted in reporting.
         violations: List of error-level violations, grouped by file path.
             Each entry contains 'path' and 'violations' keys.
         warnings: List of warning-level issues, grouped by file path.
@@ -171,6 +180,13 @@ class CheckResult:
     files_checked: int
     files_passed: int
     files_failed: int
+    missing_paths_count: int = 0
+    schema_failures_count: int = 0
+    warnings_count: int = 0
+    violations_count: int = 0
+    files_with_warnings: int = 0
+    files_outside_docs_root_count: int = 0
+    checked_paths_count: int = 0
     violations: List[Dict[str, Any]] = field(default_factory=list)
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     checked_paths: List[str] = field(default_factory=list)

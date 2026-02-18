@@ -3,7 +3,7 @@ document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
 status: Draft
-version: "0.2"
+version: "0.3"
 last_updated: 2026-02-18
 owner: Product Team
 docops_version: "2.0"
@@ -26,7 +26,7 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-004
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.3
 > **Last Updated:** 2026-02-18
 > **Type:** SPEC
 > **Area:** Agentic Integration
@@ -149,7 +149,7 @@ Each command MUST populate `data` with at least the fields listed below.
 
 | Command | Required `data` fields | Type |
 | --- | --- | --- |
-| `check` | `files_checked`, `files_passed`, `files_failed` | integers |
+| `check` | `files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count` | integers |
 | `fix` | `fixed`, `remaining`, `dry_run` | integers, boolean |
 | `scan` | `report` | object |
 | `new` | `document_id`, `path`, `type`, `title` | strings |
@@ -161,6 +161,19 @@ Each command MUST populate `data` with at least the fields listed below.
 | `context` | `repo_prefix`, `docops_version`, `docs_root`, `namespaces`, `schema_path`, `index_path` | strings, array |
 
 Plain English: The `data` object has a minimum shape for every command.
+
+### 8.1 `check` Counter Semantics
+
+For `command: check`, these counter semantics are normative:
+
+- `files_checked` counts existing markdown files that were actually parsed and validated.
+- `files_failed` counts only file-level failures among existing files.
+- `missing_paths_count` counts unresolved path arguments in targeted mode.
+- `schema_failures_count` counts repository-level schema failures (for example `SCHEMA_MISSING`, `SCHEMA_INVALID`).
+- `violations_count` counts all emitted violations, including repository-level and missing-path violations.
+- `success` is `false` if any file-level failures, missing paths, or schema failures exist, or when strict mode promotes warnings.
+
+Plain English: `files_checked` is now strictly file-validation count, and repository-level failures are tracked separately.
 
 ## 9. Determinism Rules
 
@@ -184,12 +197,13 @@ Plain English: If the output format changes in a breaking way, the version chang
 
 ## 11. JSON Schema (Normative)
 
-The following schema defines the required shape of the output envelope for contract conformance.
+The canonical schema for this contract version is `docs/20-specs/agent-output.schema.v2.json`.
+The inline schema below is a representative excerpt.
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Meminit Output Envelope v1",
+  "title": "Meminit Output Envelope v2",
   "type": "object",
   "required": [
     "output_schema_version",
@@ -274,13 +288,13 @@ Plain English: This schema is what agents and tests should validate against.
 ### 12.1 Success Example
 
 ```json
-{"output_schema_version":"1.0","success":true,"command":"check","run_id":"20260218-1f2c3a","root":"/repo","data":{"files_checked":42,"files_passed":41,"files_failed":1},"warnings":[],"violations":[{"code":"SCHEMA_INVALID","message":"Missing required field: owner","path":"docs/10-prd/prd-007-sample.md","line":5,"severity":"error"}],"advice":[]}
+{"output_schema_version":"2.0","success":false,"command":"check","run_id":"20260218-1f2c3a","root":"/repo","files_checked":42,"files_passed":41,"files_failed":1,"missing_paths_count":0,"schema_failures_count":1,"warnings_count":0,"violations_count":2,"files_with_warnings":0,"files_outside_docs_root_count":0,"checked_paths_count":43,"warnings":[],"violations":[{"path":"docs/00-governance/metadata.schema.json","violations":[{"code":"SCHEMA_INVALID","message":"Schema is invalid","line":0}]},{"path":"docs/10-prd/prd-007-sample.md","violations":[{"code":"MISSING_FIELD","message":"Missing required field: owner","line":5}]}],"advice":[]}
 ```
 
 ### 12.2 Error Example
 
 ```json
-{"output_schema_version":"1.0","success":false,"command":"new","run_id":"20260218-1f2c3a","root":"/repo","error":{"code":"UNKNOWN_TYPE","message":"Unknown document type: XYZ","details":{"valid_types":["ADR","PRD","FDD"]}}}
+{"output_schema_version":"2.0","success":false,"command":"new","run_id":"20260218-1f2c3a","root":"/repo","error":{"code":"UNKNOWN_TYPE","message":"Unknown document type: XYZ","details":{"valid_types":["ADR","PRD","FDD"]}}}
 ```
 
 ## 13. Compliance Checklist

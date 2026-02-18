@@ -147,6 +147,7 @@ class CheckRepositoryUseCase:
         files_passed = 0
         files_failed = 0
         schema_failures = 0
+        files_outside_docs_root_count = 0
         checked_paths: List[str] = []
 
         existing_ids: Set[str] = set()
@@ -170,7 +171,6 @@ class CheckRepositoryUseCase:
                         }
                     ],
                 }
-                files_failed += 1
                 schema_failures += 1
 
         for pattern in not_found_patterns:
@@ -185,7 +185,6 @@ class CheckRepositoryUseCase:
                     }
                 ],
             }
-            files_failed += 1
 
         for file_path in unique_files:
             try:
@@ -203,6 +202,7 @@ class CheckRepositoryUseCase:
 
             ns = self._layout.namespace_for_path(file_path)
             if ns is None:
+                files_outside_docs_root_count += 1
                 if strict:
                     violations_by_file[rel_path] = {
                         "path": rel_path,
@@ -274,18 +274,164 @@ class CheckRepositoryUseCase:
 
         all_violations = sorted(violations_by_file.values(), key=lambda x: x["path"])
         all_warnings = sorted(warnings_by_file.values(), key=lambda x: x["path"])
+        warnings_count = self._count_grouped_issues(all_warnings, "warnings")
+        violations_count = self._count_grouped_issues(all_violations, "violations")
+        checked_paths_sorted = sorted(set(checked_paths))
 
-        success = files_failed == 0 and not (strict and all_warnings)
+        success = (
+            files_failed == 0
+            and len(not_found_patterns) == 0
+            and schema_failures == 0
+            and not (strict and warnings_count > 0)
+        )
 
         return CheckResult(
             success=success,
-            files_checked=len(unique_files) + len(not_found_patterns) + schema_failures,
+            files_checked=len(unique_files),
             files_passed=files_passed,
             files_failed=files_failed,
+            missing_paths_count=len(not_found_patterns),
+            schema_failures_count=schema_failures,
+            warnings_count=warnings_count,
+            violations_count=violations_count,
+            files_with_warnings=len(all_warnings),
+            files_outside_docs_root_count=files_outside_docs_root_count,
+            checked_paths_count=len(checked_paths_sorted),
             violations=all_violations,
             warnings=all_warnings,
-            checked_paths=sorted(checked_paths),
+            checked_paths=checked_paths_sorted,
         )
+
+    def execute_full_summary(self, strict: bool = False) -> CheckResult:
+        """Validate all governed docs and return aggregate counters for JSON reporting."""
+        violations_by_file: Dict[str, Dict[str, Any]] = {}
+        warnings_by_file: Dict[str, Dict[str, Any]] = {}
+        existing_ids: Set[str] = set()
+        schema_issues_seen: set[str] = set()
+        files_passed = 0
+        files_failed = 0
+        checked_paths: List[str] = []
+        files_checked = 0
+        schema_failures = 0
+        repo_level_failures = 0
+
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
+                path_str = f"{ns.docs_root}/"
+                checked_paths.append(path_str)
+                violations_by_file[path_str] = {
+                    "path": path_str,
+                    "violations": [
+                        {
+                            "code": "REPO_STRUCTURE",
+                            "message": f"Docs root '{ns.docs_root}/' missing for namespace '{ns.namespace}'",
+                            "line": 0,
+                        }
+                    ],
+                }
+                repo_level_failures += 1
+                continue
+
+            schema_validator = SchemaValidator(str(ns.schema_file))
+            schema_issue = schema_validator.repository_violation()
+            if schema_issue and ns.schema_path not in schema_issues_seen:
+                schema_issues_seen.add(ns.schema_path)
+                schema_issue.file = ns.schema_path
+                path_str = ns.schema_path
+                checked_paths.append(path_str)
+                violations_by_file[path_str] = {
+                    "path": path_str,
+                    "violations": [
+                        {
+                            "code": schema_issue.rule,
+                            "message": schema_issue.message,
+                            "line": schema_issue.line,
+                        }
+                    ],
+                }
+                schema_failures += 1
+                repo_level_failures += 1
+
+            for path in ns.docs_dir.rglob("*.md"):
+                owner = self._layout.namespace_for_path(path)
+                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                    continue
+                if ns.is_excluded(path):
+                    continue
+
+                files_checked += 1
+                rel_path = str(path.relative_to(self.root_dir))
+                checked_paths.append(rel_path)
+                file_violations = self._process_document(
+                    path, existing_ids, ns, schema_validator
+                )
+
+                document_id = self._extract_document_id(path)
+                errors = [v for v in file_violations if v.severity == Severity.ERROR]
+                warnings = [
+                    v for v in file_violations if v.severity == Severity.WARNING
+                ]
+                if strict and warnings:
+                    errors = list(file_violations)
+                    warnings = []
+
+                if errors:
+                    files_failed += 1
+                    entry: Dict[str, Any] = {
+                        "path": rel_path,
+                        "violations": [
+                            {"code": v.rule, "message": v.message, "line": v.line}
+                            for v in errors
+                        ],
+                    }
+                    if document_id:
+                        entry["document_id"] = document_id
+                    violations_by_file[rel_path] = entry
+                else:
+                    files_passed += 1
+
+                if warnings:
+                    warnings_by_file[rel_path] = {
+                        "path": rel_path,
+                        "warnings": [
+                            {"code": v.rule, "message": v.message, "line": v.line}
+                            for v in warnings
+                        ],
+                    }
+
+        all_violations = sorted(violations_by_file.values(), key=lambda x: x["path"])
+        all_warnings = sorted(warnings_by_file.values(), key=lambda x: x["path"])
+        warnings_count = self._count_grouped_issues(all_warnings, "warnings")
+        violations_count = self._count_grouped_issues(all_violations, "violations")
+        checked_paths_sorted = sorted(set(checked_paths))
+
+        success = (
+            files_failed == 0
+            and repo_level_failures == 0
+            and not (strict and warnings_count > 0)
+        )
+
+        return CheckResult(
+            success=success,
+            files_checked=files_checked,
+            files_passed=files_passed,
+            files_failed=files_failed,
+            missing_paths_count=0,
+            schema_failures_count=schema_failures,
+            warnings_count=warnings_count,
+            violations_count=violations_count,
+            files_with_warnings=len(all_warnings),
+            files_outside_docs_root_count=0,
+            checked_paths_count=len(checked_paths_sorted),
+            violations=all_violations,
+            warnings=all_warnings,
+            checked_paths=checked_paths_sorted,
+        )
+
+    def _count_grouped_issues(
+        self, grouped: List[Dict[str, Any]], key: str
+    ) -> int:
+        return sum(len(item.get(key, [])) for item in grouped)
 
     def _extract_document_id(self, path: Path) -> Optional[str]:
         """Extract document_id from a file's frontmatter.

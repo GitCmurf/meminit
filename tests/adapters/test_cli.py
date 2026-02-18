@@ -7,8 +7,15 @@ import pytest
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
-from meminit.core.domain.entities import CheckResult, Severity, Violation
+from meminit.core.domain.entities import CheckResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+
+
+def runner_no_mixed_stderr() -> CliRunner:
+    kwargs = {}
+    if "mix_stderr" in inspect.signature(CliRunner).parameters:
+        kwargs["mix_stderr"] = False
+    return CliRunner(**kwargs)
 
 
 def test_cli_version():
@@ -21,7 +28,15 @@ def test_cli_version():
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_clean(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = []
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["check"])
@@ -33,9 +48,23 @@ def test_cli_check_clean(mock_use_case):
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_text(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = [
-        Violation("docs/bad.md", 1, "TEST_RULE", "Bad Thing", Severity.ERROR)
-    ]
+    instance.execute_full_summary.return_value = CheckResult(
+        success=False,
+        files_checked=1,
+        files_passed=0,
+        files_failed=1,
+        violations=[
+            {
+                "path": "docs/bad.md",
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
+            }
+        ],
+        warnings=[],
+        checked_paths=["docs/bad.md"],
+        violations_count=1,
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["check"])
@@ -50,39 +79,69 @@ def test_cli_check_violations_text(mock_use_case):
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_json(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = [
-        Violation("docs/bad.md", 1, "TEST_RULE", "Bad Thing", Severity.ERROR)
-    ]
+    instance.execute_full_summary.return_value = CheckResult(
+        success=False,
+        files_checked=1,
+        files_passed=0,
+        files_failed=1,
+        violations=[
+            {
+                "path": "docs/bad.md",
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
+            }
+        ],
+        warnings=[],
+        checked_paths=["docs/bad.md"],
+        violations_count=1,
+    )
 
-    runner = CliRunner()
+    runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, ["check", "--format", "json"])
 
     assert result.exit_code == 65
     try:
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
     except json.JSONDecodeError:
         pytest.fail(f"Output is not valid JSON: {result.output}")
 
     assert data["success"] is False
-    assert data["output_schema_version"] == "1.0"
+    assert data["output_schema_version"] == "2.0"
+    assert data["files_checked"] == 1
+    assert data["violations_count"] == 1
     assert len(data["violations"]) == 1
-    assert data["violations"][0]["severity"] == "error"
-    assert data["violations"][0]["file"] == "docs/bad.md"
+    assert data["violations"][0]["path"] == "docs/bad.md"
+    assert data["violations"][0]["violations"][0]["code"] == "TEST_RULE"
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_md(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = [
-        Violation("docs/bad.md", 1, "TEST_RULE", "Bad Thing", Severity.ERROR)
-    ]
+    instance.execute_full_summary.return_value = CheckResult(
+        success=False,
+        files_checked=1,
+        files_passed=0,
+        files_failed=1,
+        violations=[
+            {
+                "path": "docs/bad.md",
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
+            }
+        ],
+        warnings=[],
+        checked_paths=["docs/bad.md"],
+        violations_count=1,
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["check", "--format", "md"])
 
     assert result.exit_code == 65
     assert "# Meminit Compliance Check" in result.output
-    assert "## Violations" in result.output
+    assert "## Findings" in result.output
     assert "TEST_RULE" in result.output
     assert "docs/bad.md" in result.output
 
@@ -90,9 +149,24 @@ def test_cli_check_violations_md(mock_use_case):
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_warnings_non_strict(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = [
-        Violation("docs/warn.md", 0, "WARN_RULE", "Needs attention", Severity.WARNING)
-    ]
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=1,
+        files_passed=1,
+        files_failed=0,
+        violations=[],
+        warnings=[
+            {
+                "path": "docs/warn.md",
+                "warnings": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
+                ],
+            }
+        ],
+        checked_paths=["docs/warn.md"],
+        warnings_count=1,
+        files_with_warnings=1,
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["check"])
@@ -105,9 +179,23 @@ def test_cli_check_warnings_non_strict(mock_use_case):
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_warnings_strict(mock_use_case):
     instance = mock_use_case.return_value
-    instance.execute.return_value = [
-        Violation("docs/warn.md", 0, "WARN_RULE", "Needs attention", Severity.WARNING)
-    ]
+    instance.execute_full_summary.return_value = CheckResult(
+        success=False,
+        files_checked=1,
+        files_passed=0,
+        files_failed=1,
+        violations=[
+            {
+                "path": "docs/warn.md",
+                "violations": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
+                ],
+            }
+        ],
+        warnings=[],
+        checked_paths=["docs/warn.md"],
+        violations_count=1,
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["check", "--strict"])
@@ -125,7 +213,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["output_schema_version"] == "1.0"
+    assert data["output_schema_version"] == "2.0"
 
 
 @patch("meminit.cli.main.ScanRepositoryUseCase")
@@ -230,7 +318,7 @@ def test_cli_index_json_contract(tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["status"] == "ok"
-    assert data["output_schema_version"] == "1.0"
+    assert data["output_schema_version"] == "2.0"
     assert data["report"]["document_count"] == 1
 
 
@@ -303,7 +391,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
         assert "path" in data
         assert data["document_id"] == "TEST-ADR-001"
@@ -373,7 +461,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
@@ -419,7 +507,7 @@ type_directories:
         assert result.exit_code == 0
         data = json.loads(result.output)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
         assert "types" in data
 
@@ -525,7 +613,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
         assert data["dry_run"] is True
         assert "would_create" in data
@@ -631,7 +719,7 @@ docops_version: 2.0
         return tmp_path
 
     def test_check_single_file_json(self, repo_for_targeted_check):
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -645,13 +733,17 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
         assert data["files_checked"] == 1
         assert data["files_passed"] == 1
         assert data["files_failed"] == 0
+        assert data["missing_paths_count"] == 0
+        assert data["schema_failures_count"] == 0
+        assert data["violations_count"] == 0
+        assert data["warnings_count"] == 0
 
     def test_check_multiple_files_text_summary(self, repo_for_targeted_check):
         runner = CliRunner()
@@ -666,13 +758,13 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 65
-        assert "Checking 2 files..." in result.output
+        assert "Checking 2 existing files..." in result.output
         assert "OK docs/45-adr/adr-001-valid.md" in result.output
         assert "FAIL docs/45-adr/adr-002-invalid.md" in result.output
         assert "[ID_REGEX]" in result.output
 
     def test_check_multiple_files_json(self, repo_for_targeted_check):
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -687,15 +779,16 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 65
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
 
         assert data["success"] is False
         assert data["files_checked"] == 2
         assert data["files_failed"] == 1
+        assert data["violations_count"] >= 1
         assert len(data["violations"]) == 1
 
     def test_check_glob_pattern_json(self, repo_for_targeted_check):
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -708,9 +801,10 @@ docops_version: 2.0
             ],
         )
 
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
         assert data["files_checked"] == 2
         assert data["files_failed"] == 1
+        assert data["missing_paths_count"] == 0
 
     def test_check_file_not_found_json(self, repo_for_targeted_check):
         runner = CliRunner()
@@ -890,7 +984,7 @@ docops_version: 2.0
 
     def test_json_output_is_single_line(self, repo_for_json_check):
         """Per F1.2, JSON output must be single-line."""
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -904,11 +998,12 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 0
-        assert "\n" not in result.output.strip()
+        json_line = result.output.strip().splitlines()[-1]
+        assert "\n" not in json_line
 
     def test_json_output_error_is_single_line(self, repo_for_json_check):
         """Per F1.2, JSON error output must be single-line."""
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [

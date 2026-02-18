@@ -478,6 +478,10 @@ docops_version: 2.0
         assert result.files_checked == 1
         assert result.files_passed == 1
         assert result.files_failed == 0
+        assert result.missing_paths_count == 0
+        assert result.schema_failures_count == 0
+        assert result.violations_count == 0
+        assert result.warnings_count == 0
         assert result.violations == []
 
     def test_execute_targeted_with_invalid_file(self, repo_for_targeted_check):
@@ -488,6 +492,7 @@ docops_version: 2.0
         assert result.files_checked == 1
         assert result.files_passed == 0
         assert result.files_failed == 1
+        assert result.violations_count >= 1
         assert len(result.violations) == 1
         assert "adr-002-invalid.md" in result.violations[0]["path"]
 
@@ -498,6 +503,7 @@ docops_version: 2.0
         assert result.files_checked == 2
         assert result.files_failed == 1
         assert result.files_passed == 1
+        assert result.missing_paths_count == 0
 
     def test_execute_targeted_with_multiple_files(self, repo_for_targeted_check):
         use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
@@ -512,6 +518,7 @@ docops_version: 2.0
         assert result.files_checked == 2
         assert result.files_passed == 2
         assert result.files_failed == 0
+        assert result.checked_paths_count == 2
 
     def test_execute_targeted_missing_file_reports_file_not_found(
         self, repo_for_targeted_check
@@ -535,6 +542,8 @@ docops_version: 2.0
         assert result.success is True
         assert result.files_checked == 1
         assert result.files_passed == 1
+        assert result.files_outside_docs_root_count == 1
+        assert result.files_with_warnings == 1
         assert len(result.warnings) == 1
         assert "OUTSIDE_DOCS_ROOT" in result.warnings[0]["warnings"][0]["code"]
 
@@ -569,8 +578,10 @@ docops_version: 2.0
         result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])
 
         assert result.success is False
-        assert result.files_checked == 2
-        assert result.files_failed == 1
+        assert result.files_checked == 1
+        assert result.files_failed == 0
+        assert result.schema_failures_count == 1
+        assert result.violations_count >= 1
         assert any(
             v["violations"][0]["code"] == "SCHEMA_MISSING"
             for v in result.violations
@@ -584,6 +595,13 @@ docops_version: 2.0
         assert hasattr(result, "files_checked")
         assert hasattr(result, "files_passed")
         assert hasattr(result, "files_failed")
+        assert hasattr(result, "missing_paths_count")
+        assert hasattr(result, "schema_failures_count")
+        assert hasattr(result, "warnings_count")
+        assert hasattr(result, "violations_count")
+        assert hasattr(result, "files_with_warnings")
+        assert hasattr(result, "files_outside_docs_root_count")
+        assert hasattr(result, "checked_paths_count")
         assert hasattr(result, "violations")
         assert hasattr(result, "warnings")
 
@@ -603,6 +621,7 @@ docops_version: 2.0
 
         assert result.files_checked == 3
         assert result.files_failed == 1
+        assert result.checked_paths_count == 3
 
     def test_execute_targeted_path_escape_is_fatal(self, repo_for_targeted_check):
         """Per F10.5, PATH_ESCAPE should raise MeminitError, not per-file violation."""
@@ -645,8 +664,22 @@ docops_version: 2.0
         assert result.success
         assert len(result.warnings) == 1
         assert result.warnings[0]["warnings"][0]["code"] == "OUTSIDE_DOCS_ROOT"
+        assert result.files_outside_docs_root_count == 1
 
         result = use_case.execute_targeted(["outside.md"], strict=True)
         assert not result.success
         assert len(result.violations) == 1
         assert result.violations[0]["violations"][0]["code"] == "OUTSIDE_DOCS_ROOT"
+        assert result.files_outside_docs_root_count == 1
+
+    def test_execute_full_summary_includes_v2_counters(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_full_summary(strict=False)
+
+        assert result.files_checked == 3
+        assert result.files_passed == 2
+        assert result.files_failed == 1
+        assert result.missing_paths_count == 0
+        assert result.schema_failures_count == 0
+        assert result.violations_count >= 1
+        assert result.checked_paths_count >= 3

@@ -104,7 +104,7 @@ namespaces:
     index_path = tmp_path / ".meminit" / "meminit.index.json"
     assert report.index_path == index_path
     payload = json.loads(index_path.read_text(encoding="utf-8"))
-    assert payload["output_schema_version"] == "1.0"
+    assert payload["output_schema_version"] == "2.0"
     assert {d["namespace"] for d in payload["documents"]} == {"root", "phyla"}
 
     resolved = ResolveDocumentUseCase(str(tmp_path)).execute("PHYLA-ADR-001")

@@ -208,6 +208,8 @@ def check(root, format, quiet, strict, paths):
                 result = use_case.execute_targeted(list(paths), strict=strict)
                 _check_ctx["details"]["files_checked"] = result.files_checked
                 _check_ctx["details"]["files_failed"] = result.files_failed
+                _check_ctx["details"]["violations_count"] = result.violations_count
+                _check_ctx["details"]["warnings_count"] = result.warnings_count
             except MeminitError as e:
                 if format == "json":
                     click.echo(_error_payload(e.code, e.message, e.details))
@@ -239,10 +241,16 @@ def check(root, format, quiet, strict, paths):
                 "files_checked": result.files_checked,
                 "files_passed": result.files_passed,
                 "files_failed": result.files_failed,
+                "missing_paths_count": result.missing_paths_count,
+                "schema_failures_count": result.schema_failures_count,
+                "warnings_count": result.warnings_count,
+                "violations_count": result.violations_count,
+                "files_with_warnings": result.files_with_warnings,
+                "files_outside_docs_root_count": result.files_outside_docs_root_count,
+                "checked_paths_count": result.checked_paths_count,
                 "violations": result.violations,
+                "warnings": _flatten_warning_groups(result.warnings),
             }
-            if result.warnings:
-                data["warnings"] = _flatten_warning_groups(result.warnings)
             click.echo(_json_payload(data))
             exit(0 if result.success else EX_DATAERR)
 
@@ -254,6 +262,10 @@ def check(root, format, quiet, strict, paths):
                 f"- Files checked: {result.files_checked}",
                 f"- Files passed: {result.files_passed}",
                 f"- Files failed: {result.files_failed}",
+                f"- Missing paths: {result.missing_paths_count}",
+                f"- Schema failures: {result.schema_failures_count}",
+                f"- Warnings: {result.warnings_count}",
+                f"- Violations: {result.violations_count}",
                 "",
             ]
             if result.violations:
@@ -296,7 +308,7 @@ def check(root, format, quiet, strict, paths):
             exit(0 if result.success else EX_DATAERR)
 
         label = "file" if result.files_checked == 1 else "files"
-        console.print(f"Checking {result.files_checked} {label}...")
+        console.print(f"Checking {result.files_checked} existing {label}...")
         for path in result.checked_paths:
             if path in violations_by_path:
                 console.print(f"FAIL {path}")
@@ -316,13 +328,18 @@ def check(root, format, quiet, strict, paths):
                 continue
             console.print(f"OK {path}")
 
-        if result.files_failed:
+        if result.violations_count:
             verb = "has" if result.files_failed == 1 else "have"
             console.print(
-                f"{result.files_failed} of {result.files_checked} {label} {verb} violations."
+                f"{result.files_failed} of {result.files_checked} existing {label} {verb} file-level violations."
+            )
+            console.print(
+                f"Total violations: {result.violations_count} (schema failures: {result.schema_failures_count}, missing paths: {result.missing_paths_count})."
             )
         else:
             console.print("No violations found.")
+        if result.warnings_count and not strict:
+            console.print(f"Warnings: {result.warnings_count}.")
         exit(0 if result.success else EX_DATAERR)
 
     if format == "text" and not quiet:
@@ -335,8 +352,11 @@ def check(root, format, quiet, strict, paths):
     ) as _check_ctx:
         try:
             use_case = CheckRepositoryUseCase(root_dir=str(root_path))
-            violations = use_case.execute()
-            _check_ctx["details"]["violations_count"] = len(violations)
+            result = use_case.execute_full_summary(strict=strict)
+            _check_ctx["details"]["files_checked"] = result.files_checked
+            _check_ctx["details"]["files_failed"] = result.files_failed
+            _check_ctx["details"]["violations_count"] = result.violations_count
+            _check_ctx["details"]["warnings_count"] = result.warnings_count
         except MeminitError as e:
             if format == "json":
                 click.echo(_error_payload(e.code, e.message, e.details))
@@ -362,19 +382,32 @@ def check(root, format, quiet, strict, paths):
                 )
             raise SystemExit(1)
 
-    errors = [v for v in violations if get_severity_value(v) == "error"]
-    warnings = [v for v in violations if get_severity_value(v) == "warning"]
-    has_errors = bool(errors)
-    has_warnings = bool(warnings)
-    fail = has_errors or (strict and has_warnings)
-
-    if not violations:
+    if result.violations_count == 0 and result.warnings_count == 0:
         if format == "json":
-            click.echo(_json_payload({"success": True, "violations": []}))
+            click.echo(
+                _json_payload(
+                    {
+                        "success": True,
+                        "files_checked": result.files_checked,
+                        "files_passed": result.files_passed,
+                        "files_failed": result.files_failed,
+                        "missing_paths_count": result.missing_paths_count,
+                        "schema_failures_count": result.schema_failures_count,
+                        "warnings_count": result.warnings_count,
+                        "violations_count": result.violations_count,
+                        "files_with_warnings": result.files_with_warnings,
+                        "files_outside_docs_root_count": result.files_outside_docs_root_count,
+                        "checked_paths_count": result.checked_paths_count,
+                        "violations": [],
+                        "warnings": [],
+                    }
+                )
+            )
             return
         if format == "md":
             click.echo(
-                "# Meminit Compliance Check\n\n- Status: success\n- Violations: 0\n"
+                "# Meminit Compliance Check\n\n- Status: success\n- Files checked: "
+                f"{result.files_checked}\n- Violations: 0\n- Warnings: 0\n"
             )
             return
         console.print("[bold green]Success! No violations found.[/bold green]")
@@ -382,60 +415,78 @@ def check(root, format, quiet, strict, paths):
 
     if format == "json":
         data: Dict[str, Any] = {
-            "success": not fail,
-            "violations": [
-                {
-                    "file": v.file,
-                    "line": v.line,
-                    "rule": v.rule,
-                    "message": v.message,
-                    "severity": get_severity_value(v),
-                }
-                for v in violations
-            ],
+            "success": result.success,
+            "files_checked": result.files_checked,
+            "files_passed": result.files_passed,
+            "files_failed": result.files_failed,
+            "missing_paths_count": result.missing_paths_count,
+            "schema_failures_count": result.schema_failures_count,
+            "warnings_count": result.warnings_count,
+            "violations_count": result.violations_count,
+            "files_with_warnings": result.files_with_warnings,
+            "files_outside_docs_root_count": result.files_outside_docs_root_count,
+            "checked_paths_count": result.checked_paths_count,
+            "violations": result.violations,
+            "warnings": _flatten_warning_groups(result.warnings),
         }
         click.echo(_json_payload(data))
-        exit(EX_DATAERR if fail else 0)
+        exit(EX_DATAERR if not result.success else 0)
 
     if format == "md":
-        rows = [
-            [get_severity_value(v), v.rule, v.file, v.line, v.message]
-            for v in violations
-        ]
-        status = "failed" if fail else ("warn" if has_warnings else "success")
-        count_label = "Violations" if fail else "Warnings"
-        section_title = "Violations" if fail else "Warnings"
+        status = "failed" if not result.success else "success"
+        rows: list[list[object]] = []
+        for item in result.violations:
+            path = item.get("path")
+            for v in item.get("violations", []):
+                rows.append(["error", v.get("code"), path, v.get("line"), v.get("message")])
+        for item in result.warnings:
+            path = item.get("path")
+            for w in item.get("warnings", []):
+                rows.append(
+                    ["warning", w.get("code"), path, w.get("line"), w.get("message")]
+                )
         click.echo(
             "# Meminit Compliance Check\n\n"
-            f"- Status: {status}\n- {count_label}: {len(violations)}\n\n"
-            f"## {section_title}\n\n"
+            f"- Status: {status}\n- Files checked: {result.files_checked}\n"
+            f"- Violations: {result.violations_count}\n- Warnings: {result.warnings_count}\n\n"
+            "## Findings\n\n"
             + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
             + "\n"
         )
-        raise SystemExit(EX_DATAERR if fail else 0)
+        raise SystemExit(EX_DATAERR if not result.success else 0)
 
-    table_title = "Compliance Violations" if fail else "Compliance Warnings"
+    table_title = (
+        "Compliance Violations" if result.violations_count else "Compliance Warnings"
+    )
     table = Table(title=table_title)
     table.add_column("Severity")
     table.add_column("Rule", style="cyan")
     table.add_column("File")
     table.add_column("Message", overflow="fold")
 
-    for v in violations:
-        severity_val = get_severity_value(v)
-        severity_color = "red" if severity_val == "error" else "yellow"
-        table.add_row(
-            f"[{severity_color}]{severity_val}[/{severity_color}]",
-            v.rule,
-            f"{v.file}:{v.line}",
-            v.message,
-        )
+    for item in result.violations:
+        for v in item.get("violations", []):
+            table.add_row(
+                "[red]error[/red]",
+                str(v.get("code")),
+                f"{item.get('path')}:{v.get('line', 0)}",
+                str(v.get("message")),
+            )
+    for item in result.warnings:
+        for w in item.get("warnings", []):
+            table.add_row(
+                "[yellow]warning[/yellow]",
+                str(w.get("code")),
+                f"{item.get('path')}:{w.get('line', 0)}",
+                str(w.get("message")),
+            )
     console.print(table)
-    if fail:
-        count = len(errors) + (len(warnings) if strict else 0)
-        console.print(f"\n[bold red]Found {count} violations.[/bold red]")
+    if not result.success:
+        console.print(
+            f"\n[bold red]Found {result.violations_count} violations across {result.files_checked} checked files.[/bold red]"
+        )
         exit(EX_DATAERR)
-    console.print(f"\n[bold yellow]Found {len(warnings)} warning(s).[/bold yellow]")
+    console.print(f"\n[bold yellow]Found {result.warnings_count} warning(s).[/bold yellow]")
     exit(0)
 
 
