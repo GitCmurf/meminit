@@ -1,6 +1,6 @@
-import fcntl
 import os
 import re
+import sys
 import tempfile
 import time
 import warnings
@@ -13,7 +13,11 @@ import yaml
 
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.observability import log_operation, get_current_run_id
+from meminit.core.services.observability import (
+    log_operation,
+    get_current_run_id,
+    log_debug,
+)
 from meminit.core.services.repo_config import (
     RepoConfig,
     load_repo_config,
@@ -23,6 +27,10 @@ from meminit.core.services.metadata_normalization import normalize_yaml_scalar_f
 from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 
+try:
+    import fcntl  # type: ignore
+except ImportError:  # pragma: no cover - Windows or unsupported platforms
+    fcntl = None
 
 ALLOWED_STATUSES = ["Draft", "In Review", "Approved", "Superseded"]
 RELATED_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
@@ -89,7 +97,7 @@ class NewDocumentUseCase:
             )
 
     def _execute_internal(self, params: NewDocumentParams) -> NewDocumentResult:
-        reasoning: List[Dict[str, Any]] = [] if params.verbose else []
+        reasoning: Optional[List[Dict[str, Any]]] = [] if params.verbose else None
 
         with log_operation(
             operation="document_create",
@@ -101,7 +109,7 @@ class NewDocumentUseCase:
     def _execute_internal_impl(
         self,
         params: NewDocumentParams,
-        reasoning: List[Dict[str, Any]],
+        reasoning: Optional[List[Dict[str, Any]]],
         ctx: Dict[str, Any],
     ) -> NewDocumentResult:
         if params.related_ids:
@@ -190,7 +198,7 @@ class NewDocumentUseCase:
         target_dir = ns.docs_dir / expected_subdir
         ensure_safe_write_path(root_dir=self.root_dir, target_path=target_dir)
 
-        if params.verbose:
+        if reasoning is not None:
             reasoning.append(
                 {
                     "decision": "directory_selected",
@@ -226,7 +234,7 @@ class NewDocumentUseCase:
                     )
                 doc_id = params.document_id
 
-                if params.verbose:
+                if reasoning is not None:
                     reasoning.append(
                         {
                             "decision": "id_allocated",
@@ -239,12 +247,33 @@ class NewDocumentUseCase:
                 target_path = target_dir / filename
                 ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
 
+                # Lock is per target type directory; deterministic IDs are validated
+                # against the type segment, so concurrent creates in other directories
+                # cannot legitimately produce the same document_id.
+                existing_path = self._find_existing_document_id(doc_id, ns)
+                if existing_path is not None:
+                    existing_resolved = existing_path.resolve()
+                    target_resolved = target_path.resolve()
+                    if existing_resolved != target_resolved:
+                        raise MeminitError(
+                            code=ErrorCode.DUPLICATE_ID,
+                            message=(
+                                f"Document ID already exists: {doc_id} "
+                                f"at {existing_path}"
+                            ),
+                            details={
+                                "document_id": doc_id,
+                                "existing_path": str(existing_path),
+                                "target_path": str(target_path),
+                            },
+                        )
+
                 if target_path.exists():
                     existing_content = target_path.read_text(encoding="utf-8")
                     owner, owner_source = self._resolve_owner_with_source(
                         params.owner, ns
                     )
-                    if params.verbose:
+                    if reasoning is not None:
                         reasoning.append(
                             {
                                 "decision": "owner_resolved",
@@ -265,7 +294,7 @@ class NewDocumentUseCase:
                         related_ids=params.related_ids,
                         superseded_by=params.superseded_by,
                     )
-                    if params.verbose:
+                    if reasoning is not None:
                         template_path_str = ns.templates.get(normalized_type.lower())
                         template_name = (
                             template_path_str if template_path_str else "default"
@@ -276,7 +305,14 @@ class NewDocumentUseCase:
                                 "value": template_name,
                             }
                         )
-                    if existing_content == content:
+                    post = frontmatter.loads(content)
+                    actual_metadata = dict(post.metadata or {})
+                    self._validate_generated_metadata(actual_metadata, ns)
+
+                    idempotent_last_updated = self._idempotent_last_updated(
+                        existing_content, post, content
+                    )
+                    if idempotent_last_updated is not None:
                         ctx["details"]["document_id"] = doc_id
                         ctx["details"]["path"] = str(target_path)
                         return NewDocumentResult(
@@ -289,14 +325,14 @@ class NewDocumentUseCase:
                             version="0.1",
                             owner=owner,
                             area=params.area,
-                            last_updated=date.today().isoformat(),
+                            last_updated=idempotent_last_updated,
                             docops_version=str(ns.docops_version or "2.0"),
                             description=params.description,
                             keywords=params.keywords,
                             related_ids=params.related_ids,
                             superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
-                            reasoning=reasoning if params.verbose else None,
+                            reasoning=reasoning,
                         )
                     raise MeminitError(
                         code=ErrorCode.FILE_EXISTS,
@@ -306,7 +342,7 @@ class NewDocumentUseCase:
             else:
                 doc_id = self._generate_id(normalized_type, target_dir, ns)
 
-                if params.verbose:
+                if reasoning is not None:
                     reasoning.append(
                         {
                             "decision": "id_allocated",
@@ -327,7 +363,7 @@ class NewDocumentUseCase:
                     )
 
             owner, owner_source = self._resolve_owner_with_source(params.owner, ns)
-            if params.verbose:
+            if reasoning is not None:
                 reasoning.append(
                     {
                         "decision": "owner_resolved",
@@ -348,7 +384,7 @@ class NewDocumentUseCase:
                 related_ids=params.related_ids,
                 superseded_by=params.superseded_by,
             )
-            if params.verbose:
+            if reasoning is not None:
                 template_path_str = ns.templates.get(normalized_type.lower())
                 template_name = template_path_str if template_path_str else "default"
                 reasoning.append(
@@ -359,40 +395,8 @@ class NewDocumentUseCase:
                 )
 
             post = frontmatter.loads(content)
-            actual_metadata = dict(post.metadata)
-
-            schema_validator = SchemaValidator(str(ns.schema_file))
-            if schema_validator.is_ready():
-                normalized = normalize_yaml_scalar_footguns(actual_metadata)
-
-                violation = schema_validator.validate_data(normalized)
-                if violation:
-                    raise MeminitError(
-                        code=ErrorCode.SCHEMA_INVALID,
-                        message=f"Generated document fails schema validation: {violation.message}",
-                        details={
-                            "field": violation.rule,
-                            "value": actual_metadata.get(violation.rule),
-                            "validation_message": violation.message,
-                        },
-                    )
-            else:
-                raise MeminitError(
-                    code=ErrorCode.SCHEMA_INVALID,
-                    message=f"Schema file not available: {ns.schema_file}",
-                    details={"schema_path": str(ns.schema_file)},
-                )
-
-            for required_field in ["document_id", "type", "title", "status", "owner"]:
-                value = actual_metadata.get(required_field)
-                if value is None or (isinstance(value, str) and value.strip() == ""):
-                    if value == "__TBD__" and required_field == "owner":
-                        continue
-                    raise MeminitError(
-                        code=ErrorCode.SCHEMA_INVALID,
-                        message=f"Required field '{required_field}' is empty or missing",
-                        details={"field": required_field, "value": str(value)},
-                    )
+            actual_metadata = dict(post.metadata or {})
+            self._validate_generated_metadata(actual_metadata, ns)
 
             if params.dry_run:
                 ctx["details"]["document_id"] = doc_id
@@ -415,7 +419,7 @@ class NewDocumentUseCase:
                     superseded_by=params.superseded_by,
                     dry_run=True,
                     content=content,
-                    reasoning=reasoning if params.verbose else None,
+                    reasoning=reasoning,
                 )
 
             temp_path_str = None
@@ -483,7 +487,7 @@ class NewDocumentUseCase:
                 related_ids=params.related_ids,
                 superseded_by=params.superseded_by,
                 dry_run=False,
-                reasoning=reasoning if params.verbose else None,
+                reasoning=reasoning,
             )
         finally:
             if lock_file:
@@ -563,10 +567,85 @@ class NewDocumentUseCase:
         config_path = self.root_dir / "docops.config.yaml"
         if config_path.exists():
             try:
-                return yaml.safe_load(config_path.read_text()) or {}
+                return (
+                    yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+                )
             except Exception:
                 return None
         return None
+
+    def _validate_generated_metadata(
+        self, metadata: Dict[str, Any], ns: RepoConfig
+    ) -> None:
+        """Validate generated metadata against schema and required fields."""
+        schema_validator = SchemaValidator(str(ns.schema_file))
+        if schema_validator.is_ready():
+            normalized = normalize_yaml_scalar_footguns(metadata)
+            violation = schema_validator.validate_data(normalized)
+            if violation:
+                raise MeminitError(
+                    code=ErrorCode.SCHEMA_INVALID,
+                    message=f"Generated document fails schema validation: {violation.message}",
+                    details={
+                        "field": violation.rule,
+                        "value": metadata.get(violation.rule),
+                        "validation_message": violation.message,
+                    },
+                )
+        else:
+            raise MeminitError(
+                code=ErrorCode.SCHEMA_INVALID,
+                message=f"Schema file not available: {ns.schema_file}",
+                details={"schema_path": str(ns.schema_file)},
+            )
+
+        for required_field in ["document_id", "type", "title", "status", "owner"]:
+            value = metadata.get(required_field)
+            if required_field == "owner" and value == "__TBD__":
+                continue
+            if value is None or (isinstance(value, str) and value.strip() == ""):
+                raise MeminitError(
+                    code=ErrorCode.SCHEMA_INVALID,
+                    message=f"Required field '{required_field}' is empty or missing",
+                    details={"field": required_field, "value": str(value)},
+                )
+
+    def _idempotent_last_updated(
+        self, existing_content: str, generated_post: Any, generated_content: str
+    ) -> Optional[str]:
+        """Return last_updated for idempotent matches, or None when not idempotent."""
+        if existing_content == generated_content:
+            generated_meta = dict(getattr(generated_post, "metadata", {}) or {})
+            normalized_meta = normalize_yaml_scalar_footguns(generated_meta)
+            return self._coerce_last_updated(normalized_meta.get("last_updated"))
+
+        try:
+            existing_post = frontmatter.loads(existing_content)
+        except Exception:
+            return None
+
+        if existing_post.content != generated_post.content:
+            return None
+
+        existing_meta = normalize_yaml_scalar_footguns(
+            dict(existing_post.metadata or {})
+        )
+        generated_meta = normalize_yaml_scalar_footguns(
+            dict(getattr(generated_post, "metadata", {}) or {})
+        )
+        existing_last_updated = existing_meta.get("last_updated")
+        generated_last_updated = generated_meta.get("last_updated")
+        existing_meta.pop("last_updated", None)
+        generated_meta.pop("last_updated", None)
+        if existing_meta != generated_meta:
+            return None
+        return self._coerce_last_updated(existing_last_updated or generated_last_updated)
+
+    def _coerce_last_updated(self, value: Any) -> str:
+        """Return a normalized last_updated string or today's date as fallback."""
+        if isinstance(value, str) and value.strip():
+            return value
+        return date.today().isoformat()
 
     def _get_lock_timeout_ms(self) -> int:
         """Get the lock acquisition timeout in milliseconds.
@@ -592,6 +671,12 @@ class NewDocumentUseCase:
         Raises:
             MeminitError: with LOCK_TIMEOUT if lock cannot be acquired
         """
+        if fcntl is None:
+            raise MeminitError(
+                code=ErrorCode.UNKNOWN_ERROR,
+                message="File locking is unsupported on this platform (requires Unix fcntl)",
+                details={"platform": sys.platform},
+            )
         lock_path = target_dir / ".meminit.lock"
         target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -599,11 +684,17 @@ class NewDocumentUseCase:
         start_time = time.monotonic()
 
         while True:
+            lock_file = None
             try:
                 lock_file = open(lock_path, "w")
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 return lock_file
             except (IOError, OSError):
+                if lock_file:
+                    try:
+                        lock_file.close()
+                    except Exception:
+                        pass
                 elapsed_ms = (time.monotonic() - start_time) * 1000
                 if elapsed_ms >= timeout_ms:
                     raise MeminitError(
@@ -620,7 +711,8 @@ class NewDocumentUseCase:
         """Release the lock file."""
         if lock_file:
             try:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                if fcntl is not None:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
                 lock_file.close()
             except Exception:
                 pass
@@ -642,17 +734,48 @@ class NewDocumentUseCase:
             return "GOV"
         return t
 
+    def get_available_types(
+        self, namespace: Optional[str] = None
+    ) -> List[Dict[str, str]]:
+        """Return available document types and directories for a namespace."""
+        ns = (
+            self._layout.get_namespace(namespace)
+            if namespace
+            else self._layout.default_namespace()
+        )
+        if ns is None:
+            valid = [n.namespace for n in self._layout.namespaces]
+            raise MeminitError(
+                code=ErrorCode.UNKNOWN_NAMESPACE,
+                message=f"Unknown namespace: {namespace}. Valid namespaces: {valid}",
+                details={"namespace": namespace, "valid": valid},
+            )
+
+        types_list: List[Dict[str, str]] = []
+        for doc_type, directory in sorted(ns.type_directories.items()):
+            dir_path = f"{ns.docs_root}/{directory}"
+            if not dir_path.endswith("/"):
+                dir_path += "/"
+            types_list.append({"type": doc_type, "directory": dir_path})
+        return types_list
+
+    def get_valid_types(self, namespace: Optional[str] = None) -> List[str]:
+        """Return sorted valid document types for a namespace."""
+        return [item["type"] for item in self.get_available_types(namespace)]
+
     def _generate_id(self, doc_type: str, target_dir: Path, ns: RepoConfig) -> str:
         repo_prefix = ns.repo_prefix
         id_type = self._id_type_segment(doc_type)
 
         max_id = 0
+        scanned_files = 0
         regex = re.compile(rf"^{re.escape(id_type.lower())}-(\d{{3}})-", re.IGNORECASE)
         frontmatter_regex = re.compile(
             rf"^[A-Z]{{3,10}}-{re.escape(id_type)}-(\d{{3}})$", re.IGNORECASE
         )
 
         for p in target_dir.glob("*.md"):
+            scanned_files += 1
             match = regex.match(p.name)
             if match:
                 num = int(match.group(1))
@@ -676,7 +799,34 @@ class NewDocumentUseCase:
                         max_id = num
 
         next_id = max_id + 1
+        log_debug(
+            operation="debug.id_generation",
+            details={
+                "doc_type": doc_type,
+                "target_dir": str(target_dir),
+                "scanned_files": scanned_files,
+                "max_id": max_id,
+                "next_id": next_id,
+            },
+        )
         return f"{repo_prefix}-{id_type}-{next_id:03d}"
+
+    def _find_existing_document_id(
+        self, doc_id: str, ns: RepoConfig
+    ) -> Optional[Path]:
+        """Find an existing document path by document_id within the namespace docs root."""
+        for path in ns.docs_dir.rglob("*.md"):
+            if ns.is_excluded(path):
+                continue
+            try:
+                post = frontmatter.load(str(path))
+            except Exception:
+                continue
+            metadata = post.metadata or {}
+            existing_id = metadata.get("document_id")
+            if isinstance(existing_id, str) and existing_id.strip() == doc_id:
+                return path
+        return None
 
     def _generate_filename(self, doc_id: str, title: str) -> str:
         """Generate a filesystem-safe filename for a document.
@@ -751,17 +901,28 @@ class NewDocumentUseCase:
         template_path_str = ns.templates.get(doc_type.lower())
         template_content = ""
         template_frontmatter: Dict[str, Any] = {}
+        template_path: Optional[Path] = None
+        template_found = False
 
         if template_path_str:
             template_path = self.root_dir / template_path_str
             if template_path.exists():
                 template_content = template_path.read_text(encoding="utf-8")
+                template_found = True
             elif strict:
                 raise MeminitError(
                     code=ErrorCode.TEMPLATE_NOT_FOUND,
                     message=f"Template not found for type '{doc_type}': {template_path}",
                     details={"doc_type": doc_type, "template_path": str(template_path)},
                 )
+        log_debug(
+            operation="debug.template_resolution",
+            details={
+                "doc_type": doc_type,
+                "template_path": str(template_path) if template_path else None,
+                "template_found": template_found,
+            },
+        )
 
         body = template_content
         if body.strip().startswith("---"):
@@ -775,6 +936,13 @@ class NewDocumentUseCase:
 
         if not body.strip():
             body = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
+            log_debug(
+                operation="debug.template_resolution",
+                details={
+                    "doc_type": doc_type,
+                    "fallback": "default_skeleton",
+                },
+            )
 
         docops_version = str(ns.docops_version or "2.0")
 
@@ -928,11 +1096,10 @@ class NewDocumentUseCase:
             Content with all placeholders replaced.
         """
         parts = doc_id.split("-")
-        repo_prefix = (
-            parts[0]
-            if len(parts) >= 1
-            else self._layout.default_namespace().repo_prefix
-        )
+        default_ns = self._layout.default_namespace()
+        repo_prefix = parts[0] if len(parts) >= 1 else ""
+        if not repo_prefix and default_ns:
+            repo_prefix = default_ns.repo_prefix
         seq = parts[-1] if len(parts) >= 3 else "001"
 
         today = date.today().isoformat()

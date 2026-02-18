@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-003
 owner: Product Team
 approvers: GitCmurf
 status: Draft
-version: 0.2
-last_updated: 2025-12-22
+version: 0.4
+last_updated: 2026-02-18
 title: Project Roadmap
 type: PLAN
 docops_version: 2.0
@@ -16,7 +16,7 @@ docops_version: 2.0
 > **Owner:** Product Team
 > **Approvers:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.4
 > **Type:** Planning
 
 # Meminit Development Roadmap
@@ -26,24 +26,26 @@ If this roadmap and the vision diverge, the roadmap wins for sequencing and the 
 
 ## Idea catcher (not yet sequenced or properly specified)
 
+Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
+
 ### 2025-11-27
 
 - [ ] make a prettified README suitable as a public GitHub intro
-  - [x] copy write text
+  - [x] write copy text
   - [ ] use the project logo? simplify for favicon?
   - [ ] some form of intro graphic or GIF/video
 - [x] public release
 - [ ] wiki for project (use GitHub native?)
   - GitHub Projects space?
-- [ ] tests with Google Code Wiki after first push
+- [ ] tests with project wiki (specify platform) after first push
 - integration of GitHub actions CI/CD and PR auto-reviewers (CodeRabbit, Qodo, Greptile, ??)
   - [x] Greptile set up to review PR
-  - [?] CI/CD
+  - [ ] CI/CD - PR auto-reviewer integration
   - [ ] other?
 - [ ] instructions for machine use (what to go into AGENTS.md? what to refer to? what to output for `--help` flags or similar: CLI best practices)
   - [ ] review/improve AGENTS.md
-  - [ ] review/improve meminit skill
-- maximum backward compatibility with `adr-tools` without unintentionally importing GPL terms (CLI option matching ok? need a config setting for full compatibility? smooth aliasing? or an interpretation layer--could also allow orgs to alias existing tools?)
+  - [ ] review/improve meminit skills.md
+- [ ] maximum backward compatibility with `adr-tools` without unintentionally importing GPL terms (CLI option matching ok? need a config setting for full compatibility? smooth aliasing? or an interpretation layer--could also allow orgs to alias existing tools?)
   - [x] implemented
   - [ ] make a note about aliasing
   - [ ] need to check behaviour

@@ -1,4 +1,5 @@
 import json
+import inspect
 import os
 from unittest.mock import MagicMock, patch
 
@@ -84,6 +85,35 @@ def test_cli_check_violations_md(mock_use_case):
     assert "## Violations" in result.output
     assert "TEST_RULE" in result.output
     assert "docs/bad.md" in result.output
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_warnings_non_strict(mock_use_case):
+    instance = mock_use_case.return_value
+    instance.execute.return_value = [
+        Violation("docs/warn.md", 0, "WARN_RULE", "Needs attention", Severity.WARNING)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check"])
+
+    assert result.exit_code == 0
+    assert "Compliance Warnings" in result.output
+    assert "warning" in result.output.lower()
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_warnings_strict(mock_use_case):
+    instance = mock_use_case.return_value
+    instance.execute.return_value = [
+        Violation("docs/warn.md", 0, "WARN_RULE", "Needs attention", Severity.WARNING)
+    ]
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--strict"])
+
+    assert result.exit_code == 65
+    assert "Compliance Violations" in result.output
 
 
 def test_cli_scan_invalid_root_json_contract(tmp_path):
@@ -251,7 +281,10 @@ type_directories:
         return tmp_path
 
     def test_new_format_json_output(self, repo_for_new):
-        runner = CliRunner()
+        runner_kwargs = {}
+        if "mix_stderr" in inspect.signature(CliRunner).parameters:
+            runner_kwargs["mix_stderr"] = False
+        runner = CliRunner(**runner_kwargs)
         result = runner.invoke(
             cli,
             [
@@ -619,6 +652,24 @@ docops_version: 2.0
         assert data["files_checked"] == 1
         assert data["files_passed"] == 1
         assert data["files_failed"] == 0
+
+    def test_check_multiple_files_text_summary(self, repo_for_targeted_check):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "docs/45-adr/*.md",
+                "--root",
+                str(repo_for_targeted_check),
+            ],
+        )
+
+        assert result.exit_code == 65
+        assert "Checking 2 files..." in result.output
+        assert "OK docs/45-adr/adr-001-valid.md" in result.output
+        assert "FAIL docs/45-adr/adr-002-invalid.md" in result.output
+        assert "[ID_REGEX]" in result.output
 
     def test_check_multiple_files_json(self, repo_for_targeted_check):
         runner = CliRunner()
@@ -1076,14 +1127,15 @@ type_directories:
             catch_exceptions=False,
         )
 
-        lines = result.output.strip().split("\n")
-        json_line = lines[-1]
-        stderr_output = "\n".join(lines[:-1])
-
-        data = json.loads(json_line)
+        lines = [line for line in result.output.splitlines() if line.strip()]
+        json_index = next(
+            i for i, line in enumerate(lines) if line.lstrip().startswith("{")
+        )
+        data = json.loads(lines[json_index])
+        stderr_output = result.stderr if getattr(result, "stderr", None) else ""
+        if not stderr_output:
+            stderr_output = "\n".join(lines[:json_index] + lines[json_index + 1 :])
         assert "reasoning" not in data
         assert data["success"] is True
 
-        assert (
-            "directory_selected" in stderr_output or "owner_resolved" in stderr_output
-        )
+        assert "directory_selected" in stderr_output or "owner_resolved" in stderr_output

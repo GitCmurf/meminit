@@ -64,7 +64,7 @@ class TestObservability:
         captured = capsys.readouterr()
         assert "test_event" in captured.err
         assert "OK" in captured.err
-        assert '"key": "value"' in captured.err
+        assert re.search(r'"key"\s*:\s*"value"', captured.err)
 
     def test_log_event_without_details(self, monkeypatch, capsys):
         import json
@@ -76,8 +76,9 @@ class TestObservability:
         assert entry["operation"] == "simple_event"
         assert "details" not in entry
 
-    def test_log_operation_includes_duration_on_failure(self, capsys):
+    def test_log_operation_includes_duration_on_failure(self, monkeypatch, capsys):
         """N5.2: Failure logs must include duration_ms and error_code."""
+        monkeypatch.setenv("MEMINIT_LOG_FORMAT", "text")
         with pytest.raises(MeminitError):
             with log_operation("test_op"):
                 raise MeminitError(code=ErrorCode.INVALID_STATUS, message="Test error")

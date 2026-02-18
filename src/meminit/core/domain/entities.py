@@ -80,7 +80,8 @@ class NewDocumentParams:
         related_ids: Optional list of related document IDs (must match pattern
             ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$).
         superseded_by: Optional document ID that supersedes this document (must match
-            pattern ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$). Required when status is 'Superseded'.
+            pattern ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$). Recommended when status is
+            'Superseded' (CLI warns if missing).
         document_id: Optional explicit document ID. If provided, must match the
             doc_type in its type segment.
         dry_run: If True, validates and returns result without writing the file.

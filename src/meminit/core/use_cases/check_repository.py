@@ -1,5 +1,4 @@
 import glob
-import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -90,10 +89,10 @@ class CheckRepositoryUseCase:
             MeminitError: If a path escapes the repository root (PATH_ESCAPE)
                           If single path not found (FILE_NOT_FOUND)
         """
-        EX_DATAERR = 65
-
         all_files: List[Path] = []
         not_found_patterns: List[str] = []
+        schema_issues_seen: Set[str] = set()
+        schema_validators: Dict[str, SchemaValidator] = {}
 
         for pattern in paths:
             pattern_path = Path(pattern)
@@ -147,9 +146,32 @@ class CheckRepositoryUseCase:
         warnings_by_file: Dict[str, Dict[str, Any]] = {}
         files_passed = 0
         files_failed = 0
+        schema_failures = 0
         checked_paths: List[str] = []
 
         existing_ids: Set[str] = set()
+
+        for ns in self._layout.namespaces:
+            schema_validator = SchemaValidator(str(ns.schema_file))
+            schema_validators[ns.schema_path] = schema_validator
+            schema_issue = schema_validator.repository_violation()
+            if schema_issue and ns.schema_path not in schema_issues_seen:
+                schema_issues_seen.add(ns.schema_path)
+                schema_issue.file = ns.schema_path
+                path_str = schema_issue.file
+                checked_paths.append(path_str)
+                violations_by_file[path_str] = {
+                    "path": path_str,
+                    "violations": [
+                        {
+                            "code": schema_issue.rule,
+                            "message": schema_issue.message,
+                            "line": schema_issue.line,
+                        }
+                    ],
+                }
+                files_failed += 1
+                schema_failures += 1
 
         for pattern in not_found_patterns:
             path_str = pattern
@@ -205,7 +227,9 @@ class CheckRepositoryUseCase:
                     files_passed += 1
                 continue
 
-            schema_validator = SchemaValidator(str(ns.schema_file))
+            schema_validator = schema_validators.get(ns.schema_path) or SchemaValidator(
+                str(ns.schema_file)
+            )
             file_violations = self._process_document(
                 file_path, existing_ids, ns, schema_validator
             )
@@ -255,7 +279,7 @@ class CheckRepositoryUseCase:
 
         return CheckResult(
             success=success,
-            files_checked=len(unique_files) + len(not_found_patterns),
+            files_checked=len(unique_files) + len(not_found_patterns) + schema_failures,
             files_passed=files_passed,
             files_failed=files_failed,
             violations=all_violations,

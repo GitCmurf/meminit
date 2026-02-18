@@ -280,6 +280,7 @@ owner: Me
     # Critical: the outside file must not be modified.
     assert outside.read_text(encoding="utf-8") == outside_content
     assert any(v.rule == "UNSAFE_PATH" for v in report.remaining_violations)
+    assert not any("Bad Name.md" in a.file for a in report.fixed_violations)
 
 
 def test_fix_frontmatter_missing_makes_doc_compliant(tmp_path):

@@ -50,9 +50,9 @@ def complete_document_types(ctx, param, incomplete: str):
 def _json_payload(payload: dict) -> str:
     """Generate single-line JSON output with run_id (N5)."""
     enriched = {
+        **payload,
         "output_schema_version": OUTPUT_SCHEMA_VERSION,
         "run_id": get_current_run_id(),
-        **payload,
     }
     return json.dumps(enriched, separators=(",", ":"))
 
@@ -79,6 +79,22 @@ def _md_table(headers: list[str], rows: list[list[object]]) -> str:
     return "\n".join([head, sep, *body])
 
 
+def _flatten_warning_groups(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    flat: list[dict[str, Any]] = []
+    for item in warnings:
+        path = item.get("path")
+        for warning in item.get("warnings", []):
+            entry: Dict[str, Any] = {
+                "code": warning.get("code"),
+                "path": path,
+                "message": warning.get("message"),
+            }
+            if "line" in warning and warning.get("line") is not None:
+                entry["line"] = warning.get("line")
+            flat.append(entry)
+    return flat
+
+
 def validate_root_path(root_path: Path, format: str = "text") -> None:
     """Validate root path exists and is a directory.
 
@@ -99,7 +115,7 @@ def validate_root_path(root_path: Path, format: str = "text") -> None:
     elif format == "md":
         click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
     else:
-        console.print(f"[bold red]Error: {msg}[/bold red]")
+        console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
     raise SystemExit(1)
 
 
@@ -129,7 +145,7 @@ def validate_initialized(root_path: Path, format: str = "text") -> None:
     elif format == "md":
         click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
     else:
-        console.print(f"[bold red]Error: {msg}[/bold red]")
+        console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
     raise SystemExit(1)
 
 
@@ -155,15 +171,26 @@ def cli():
     "--format",
     type=click.Choice(["text", "json", "md"]),
     default="text",
-    help="Output format",
+    help="Output format (text|json|md)",
 )
-@click.option("--quiet", is_flag=True, default=False, help="Only show failures")
-@click.option("--strict", is_flag=True, default=False, help="Treat warnings as errors")
+@click.option(
+    "--quiet", is_flag=True, default=False, help="Only show failures (text output)"
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Treat warnings as errors (e.g., outside docs_root)",
+)
 def check(root, format, quiet, strict, paths):
-    """Run compliance checks on the repository."""
+    """Run compliance checks on the repository or specified PATHS.
+
+    PATHS may be relative, absolute, or glob patterns. If omitted, all governed
+    docs under the configured docs_root are checked.
+    """
     EX_DATAERR = 65
 
-    if format == "text" and not quiet:
+    if format == "text" and not quiet and not paths:
         console.print("[bold blue]Meminit Compliance Check[/bold blue]")
 
     root_path = Path(root).resolve()
@@ -215,7 +242,7 @@ def check(root, format, quiet, strict, paths):
                 "violations": result.violations,
             }
             if result.warnings:
-                data["warnings"] = result.warnings
+                data["warnings"] = _flatten_warning_groups(result.warnings)
             click.echo(_json_payload(data))
             exit(0 if result.success else EX_DATAERR)
 
@@ -250,53 +277,53 @@ def check(root, format, quiet, strict, paths):
             click.echo("\n".join(lines))
             exit(0 if result.success else EX_DATAERR)
 
-        if not quiet:
-            console.print(f"Files checked: {result.files_checked}")
-            console.print(f"Files passed: {result.files_passed}")
-            console.print(f"Files failed: {result.files_failed}")
+        violations_by_path = {
+            item["path"]: item["violations"] for item in result.violations
+        }
+        warnings_by_path = {
+            item["path"]: item["warnings"] for item in result.warnings
+        }
 
-        if result.violations:
-            table = Table(title="Violations")
-            table.add_column("File")
-            table.add_column("Code", style="cyan")
-            table.add_column("Line")
-            table.add_column("Message", overflow="fold")
-            for item in result.violations:
-                for v in item["violations"]:
-                    table.add_row(
-                        item["path"],
-                        v["code"],
-                        str(v.get("line", 0)),
-                        v["message"],
+        if quiet:
+            for path in sorted(violations_by_path.keys()):
+                for v in violations_by_path[path]:
+                    line_info = (
+                        f" (line {v['line']})" if v.get("line") is not None else ""
                     )
-            console.print(table)
-
-        if result.warnings and not quiet:
-            table = Table(title="Warnings")
-            table.add_column("File")
-            table.add_column("Code", style="cyan")
-            table.add_column("Line")
-            table.add_column("Message", overflow="fold")
-            for item in result.warnings:
-                for w in item["warnings"]:
-                    table.add_row(
-                        item["path"],
-                        w["code"],
-                        str(w.get("line", 0)),
-                        w["message"],
+                    console.print(
+                        f"FAIL {path}: [{v['code']}] {v['message']}{line_info}"
                     )
-            console.print(table)
+            exit(0 if result.success else EX_DATAERR)
 
-        if result.success:
-            if not quiet:
-                console.print("[bold green]Success! All files passed.[/bold green]")
-            exit(0)
+        label = "file" if result.files_checked == 1 else "files"
+        console.print(f"Checking {result.files_checked} {label}...")
+        for path in result.checked_paths:
+            if path in violations_by_path:
+                console.print(f"FAIL {path}")
+                for v in violations_by_path[path]:
+                    line_info = (
+                        f" (line {v['line']})" if v.get("line") is not None else ""
+                    )
+                    console.print(f"  - [{v['code']}] {v['message']}{line_info}")
+                continue
+            if path in warnings_by_path:
+                console.print(f"WARN {path}")
+                for w in warnings_by_path[path]:
+                    line_info = (
+                        f" (line {w['line']})" if w.get("line") is not None else ""
+                    )
+                    console.print(f"  - [{w['code']}] {w['message']}{line_info}")
+                continue
+            console.print(f"OK {path}")
+
+        if result.files_failed:
+            verb = "has" if result.files_failed == 1 else "have"
+            console.print(
+                f"{result.files_failed} of {result.files_checked} {label} {verb} violations."
+            )
         else:
-            if not quiet:
-                console.print(
-                    f"[bold red]Found violations in {result.files_failed} file(s).[/bold red]"
-                )
-            exit(EX_DATAERR)
+            console.print("No violations found.")
+        exit(0 if result.success else EX_DATAERR)
 
     if format == "text" and not quiet:
         console.print(f"Scanning root: {root_path}")
@@ -335,6 +362,12 @@ def check(root, format, quiet, strict, paths):
                 )
             raise SystemExit(1)
 
+    errors = [v for v in violations if get_severity_value(v) == "error"]
+    warnings = [v for v in violations if get_severity_value(v) == "warning"]
+    has_errors = bool(errors)
+    has_warnings = bool(warnings)
+    fail = has_errors or (strict and has_warnings)
+
     if not violations:
         if format == "json":
             click.echo(_json_payload({"success": True, "violations": []}))
@@ -349,7 +382,7 @@ def check(root, format, quiet, strict, paths):
 
     if format == "json":
         data: Dict[str, Any] = {
-            "success": False,
+            "success": not fail,
             "violations": [
                 {
                     "file": v.file,
@@ -362,23 +395,27 @@ def check(root, format, quiet, strict, paths):
             ],
         }
         click.echo(_json_payload(data))
-        exit(EX_DATAERR)
+        exit(EX_DATAERR if fail else 0)
 
     if format == "md":
         rows = [
             [get_severity_value(v), v.rule, v.file, v.line, v.message]
             for v in violations
         ]
+        status = "failed" if fail else ("warn" if has_warnings else "success")
+        count_label = "Violations" if fail else "Warnings"
+        section_title = "Violations" if fail else "Warnings"
         click.echo(
             "# Meminit Compliance Check\n\n"
-            f"- Status: failed\n- Violations: {len(violations)}\n\n"
-            "## Violations\n\n"
+            f"- Status: {status}\n- {count_label}: {len(violations)}\n\n"
+            f"## {section_title}\n\n"
             + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
             + "\n"
         )
-        raise SystemExit(EX_DATAERR)
+        raise SystemExit(EX_DATAERR if fail else 0)
 
-    table = Table(title="Compliance Violations")
+    table_title = "Compliance Violations" if fail else "Compliance Warnings"
+    table = Table(title=table_title)
     table.add_column("Severity")
     table.add_column("Rule", style="cyan")
     table.add_column("File")
@@ -394,8 +431,12 @@ def check(root, format, quiet, strict, paths):
             v.message,
         )
     console.print(table)
-    console.print(f"\n[bold red]Found {len(violations)} violations.[/bold red]")
-    exit(EX_DATAERR)
+    if fail:
+        count = len(errors) + (len(warnings) if strict else 0)
+        console.print(f"\n[bold red]Found {count} violations.[/bold red]")
+        exit(EX_DATAERR)
+    console.print(f"\n[bold yellow]Found {len(warnings)} warning(s).[/bold yellow]")
+    exit(0)
 
 
 @cli.command()
@@ -1069,39 +1110,56 @@ def init(root):
 @click.option("--owner", default=None, help="Set owner frontmatter field")
 @click.option("--area", default=None, help="Set area frontmatter field")
 @click.option("--description", default=None, help="Set description frontmatter field")
-@click.option("--status", default="Draft", help="Set status (default: Draft)")
+@click.option(
+    "--status",
+    default="Draft",
+    help="Set status (Draft|In Review|Approved|Superseded)",
+)
 @click.option("--keywords", multiple=True, help="Set keywords (repeatable)")
-@click.option("--related-ids", multiple=True, help="Set related_ids (repeatable)")
+@click.option(
+    "--related-ids",
+    multiple=True,
+    help="Set related_ids (repeatable, REPO-TYPE-SEQ)",
+)
 @click.option(
     "--id",
     "document_id",
     default=None,
-    help="Specify exact document ID (deterministic mode)",
+    help="Specify exact document ID (REPO-TYPE-SEQ; deterministic mode)",
 )
 @click.option(
-    "--dry-run", is_flag=True, default=False, help="Preview without writing file"
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Preview without writing file (JSON includes would_create)",
 )
 @click.option(
-    "--verbose", is_flag=True, default=False, help="Output decision reasoning"
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Output decision reasoning (stderr for JSON)",
 )
 @click.option(
     "--list-types", is_flag=True, default=False, help="List valid document types"
 )
 @click.option(
-    "--edit", is_flag=True, default=False, help="Open in editor after creation"
+    "--edit",
+    is_flag=True,
+    default=False,
+    help="Open in editor after creation (no --dry-run/--format json)",
 )
 @click.option(
     "--format",
     "output_format",
     type=click.Choice(["text", "json"]),
     default="text",
-    help="Output format",
+    help="Output format (text|json; JSON is single-line)",
 )
 @click.option(
     "--interactive",
     is_flag=True,
     default=False,
-    help="Interactive mode (prompts for missing fields)",
+    help="Interactive prompts for missing fields (no --format json)",
 )
 def new_doc(
     doc_type,
@@ -1124,25 +1182,21 @@ def new_doc(
 ):
     """Create a new document of TYPE with TITLE.
 
-    Supported types: ADR, PRD, FDD, etc.
+    Without --id, this allocates the next sequence and is non-idempotent.
+    Use --list-types to discover valid types and --format json for agents.
     """
     if interactive and output_format == "json":
-        if output_format == "json":
-            click.echo(
-                _json_payload(
-                    {
-                        "success": False,
-                        "error": {
-                            "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
-                            "message": "--interactive and --format json are incompatible",
-                        },
-                    }
-                )
+        click.echo(
+            _json_payload(
+                {
+                    "success": False,
+                    "error": {
+                        "code": ErrorCode.INVALID_FLAG_COMBINATION.value,
+                        "message": "--interactive and --format json are incompatible",
+                    },
+                }
             )
-        else:
-            console.print(
-                "[bold red][ERROR INVALID_FLAG_COMBINATION] --interactive and --format json are incompatible[/bold red]"
-            )
+        )
         raise SystemExit(os.EX_USAGE)
 
     if edit and (dry_run or output_format == "json"):
@@ -1186,11 +1240,16 @@ def new_doc(
     if list_types:
         root_path = Path(root).resolve()
         validate_root_path(root_path, format=output_format)
+        validate_initialized(root_path, format=output_format)
         use_case = NewDocumentUseCase(str(root_path))
-        ns = use_case._layout.default_namespace()
-        types_list = []
-        for t, directory in sorted(ns.type_directories.items()):
-            types_list.append({"type": t, "directory": f"{ns.docs_root}/{directory}"})
+        try:
+            types_list = use_case.get_available_types(namespace)
+        except MeminitError as exc:
+            if output_format == "json":
+                click.echo(_error_payload(exc.code, exc.message, exc.details))
+            else:
+                console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
+            raise SystemExit(os.EX_USAGE)
         if output_format == "json":
             click.echo(
                 _json_payload(
@@ -1210,8 +1269,14 @@ def new_doc(
         root_path = Path(root).resolve()
         validate_root_path(root_path, format=output_format)
         use_case = NewDocumentUseCase(str(root_path))
-        ns = use_case._layout.default_namespace()
-        valid_types = sorted(ns.type_directories.keys())
+        try:
+            valid_types = use_case.get_valid_types(namespace)
+        except MeminitError as exc:
+            if output_format == "json":
+                click.echo(_error_payload(exc.code, exc.message, exc.details))
+            else:
+                console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
+            raise SystemExit(os.EX_USAGE)
         if not doc_type:
             doc_type = click.prompt("Document type", type=click.Choice(valid_types))
         if not title:

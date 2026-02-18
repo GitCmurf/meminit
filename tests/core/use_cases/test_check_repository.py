@@ -538,6 +538,44 @@ docops_version: 2.0
         assert len(result.warnings) == 1
         assert "OUTSIDE_DOCS_ROOT" in result.warnings[0]["warnings"][0]["code"]
 
+    def test_execute_targeted_reports_schema_missing(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+type_directories:
+  ADR: 45-adr
+"""
+        )
+
+        adr_dir = tmp_path / "docs" / "45-adr"
+        adr_dir.mkdir(parents=True)
+        (adr_dir / "adr-001-valid.md").write_text(
+            """---
+document_id: TEST-ADR-001
+type: ADR
+title: Valid Doc
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Valid
+"""
+        )
+
+        use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+        result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])
+
+        assert result.success is False
+        assert result.files_checked == 2
+        assert result.files_failed == 1
+        assert any(
+            v["violations"][0]["code"] == "SCHEMA_MISSING"
+            for v in result.violations
+        )
+
     def test_check_result_structure(self, repo_for_targeted_check):
         use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
         result = use_case.execute_targeted(["docs/45-adr/adr-002-invalid.md"])

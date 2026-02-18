@@ -1,7 +1,12 @@
 from pathlib import Path
+import re
+import sys
 from unittest.mock import MagicMock, patch
 
-import fcntl
+try:
+    import fcntl  # type: ignore
+except ImportError:  # pragma: no cover - non-POSIX platforms
+    fcntl = None
 import frontmatter
 import pytest
 import yaml
@@ -280,6 +285,7 @@ class TestOwnerResolutionChain:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 default_owner: ConfigOwner
 templates:
   adr: docs/00-governance/templates/adr.md
@@ -311,6 +317,7 @@ type_directories:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
 default_owner: ConfigOwner
 templates:
   adr: docs/00-governance/templates/adr.md
@@ -359,7 +366,9 @@ class TestDeterministicIdMode:
         assert "PRD" in result.error.message
         assert "ADR" in result.error.message
 
-    def test_id_flag_with_existing_id_raises_error(self, repo_with_config_and_template):
+    def test_id_flag_with_existing_id_allows_idempotent_create(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
 
         params1 = NewDocumentParams(
@@ -373,6 +382,36 @@ class TestDeterministicIdMode:
         )
         result2 = use_case.execute_with_params(params2)
         assert result2.success is True
+
+    def test_id_flag_allows_last_updated_differences(
+        self, repo_with_config_and_template
+    ):
+        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
+
+        params1 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-004"
+        )
+        result1 = use_case.execute_with_params(params1)
+        assert result1.success is True
+
+        doc_path = (
+            repo_with_config_and_template / "docs" / "45-adr" / "adr-004-same-title.md"
+        )
+        content = doc_path.read_text(encoding="utf-8")
+        updated = re.sub(
+            r"last_updated: ['\"]?\d{4}-\d{2}-\d{2}['\"]?",
+            "last_updated: '2020-01-01'",
+            content,
+            count=1,
+        )
+        doc_path.write_text(updated, encoding="utf-8")
+
+        params2 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-004"
+        )
+        result2 = use_case.execute_with_params(params2)
+        assert result2.success is True
+        assert result2.last_updated == "2020-01-01"
 
     def test_id_flag_with_existing_id_different_content_raises_error(
         self, repo_with_config_and_template
@@ -397,6 +436,28 @@ class TestDeterministicIdMode:
         result2 = use_case.execute_with_params(params2)
         assert result2.success is False
         assert result2.error.code == ErrorCode.FILE_EXISTS
+
+    def test_id_flag_with_existing_id_different_title_raises_duplicate(
+        self, repo_with_config_and_template
+    ):
+        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
+
+        params1 = NewDocumentParams(
+            doc_type="ADR",
+            title="Old Title",
+            document_id="TEST-ADR-003",
+        )
+        result1 = use_case.execute_with_params(params1)
+        assert result1.success is True
+
+        params2 = NewDocumentParams(
+            doc_type="ADR",
+            title="New Title",
+            document_id="TEST-ADR-003",
+        )
+        result2 = use_case.execute_with_params(params2)
+        assert result2.success is False
+        assert result2.error.code == ErrorCode.DUPLICATE_ID
 
     def test_id_flag_with_invalid_format_raises_error(
         self, repo_with_config_and_template
@@ -969,6 +1030,7 @@ type_directories:
         assert post.metadata.get("custom_owner") == "DevTeam"
 
 
+@pytest.mark.skipif(fcntl is None or sys.platform == "win32", reason="fcntl not available on Windows")
 class TestFileLocking:
     """Tests for N7: File Locking for Concurrency Safety"""
 
@@ -1028,20 +1090,19 @@ type_directories:
         target_dir.mkdir(parents=True, exist_ok=True)
         lock_path = target_dir / ".meminit.lock"
 
-        lock_file = open(lock_path, "w")
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
-        try:
-            with patch.dict("os.environ", {"MEMINIT_LOCK_TIMEOUT_MS": "100"}):
-                params = NewDocumentParams(doc_type="ADR", title="Lock Test")
-                result = use_case.execute_with_params(params)
+            try:
+                with patch.dict("os.environ", {"MEMINIT_LOCK_TIMEOUT_MS": "100"}):
+                    params = NewDocumentParams(doc_type="ADR", title="Lock Test")
+                    result = use_case.execute_with_params(params)
 
-                assert result.success is False
-                assert result.error.code == ErrorCode.LOCK_TIMEOUT
-                assert "Could not acquire lock" in result.error.message
-        finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-            lock_file.close()
+                    assert result.success is False
+                    assert result.error.code == ErrorCode.LOCK_TIMEOUT
+                    assert "Could not acquire lock" in result.error.message
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def test_dry_run_does_not_acquire_lock(self, repo_for_locking):
         use_case = NewDocumentUseCase(str(repo_for_locking))

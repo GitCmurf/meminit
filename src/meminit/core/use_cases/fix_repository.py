@@ -206,6 +206,8 @@ class FixRepositoryUseCase:
             post = frontmatter.load(path)
             modified = False
             rel_path = str(path.relative_to(self.root_dir))
+            fixed_start = len(report.fixed_violations)
+            remaining_start = len(report.remaining_violations)
 
             for v in violations:
                 if self._apply_single_fix(v, post, rel_path, report, ns):
@@ -218,6 +220,9 @@ class FixRepositoryUseCase:
                     ensure_safe_write_path(root_dir=self.root_dir, target_path=path)
                 except MeminitError as exc:
                     if exc.code == ErrorCode.PATH_ESCAPE:
+                        del report.fixed_violations[fixed_start:]
+                        del report.remaining_violations[remaining_start:]
+                        report.remaining_violations.extend(violations)
                         report.remaining_violations.append(
                             Violation(
                                 file=rel_path,

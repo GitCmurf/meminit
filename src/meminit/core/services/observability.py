@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Generator
 
+from meminit.core.services.error_codes import MeminitError, ErrorCode
 
 _current_run_id: Optional[str] = None
 
@@ -38,6 +39,30 @@ def get_log_format() -> str:
     return os.environ.get("MEMINIT_LOG_FORMAT", "text")
 
 
+def is_debug_enabled() -> bool:
+    """Return True when trace-level debug logging is enabled."""
+    return os.environ.get("MEMINIT_DEBUG") == "1"
+
+
+def log_debug(
+    operation: str,
+    details: Optional[Dict[str, Any]] = None,
+    run_id: Optional[str] = None,
+    duration_ms: Optional[float] = None,
+) -> None:
+    """Emit a trace-level debug log when MEMINIT_DEBUG=1."""
+    if not is_debug_enabled():
+        return
+    log_event(
+        operation=operation,
+        success=True,
+        duration_ms=duration_ms,
+        details=details,
+        run_id=run_id,
+        level="debug",
+    )
+
+
 def _write_stderr(message: str) -> None:
     """Write message to stderr (never stdout)."""
     print(message, file=sys.stderr, flush=True)
@@ -50,6 +75,7 @@ def log_event(
     error_code: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
     run_id: Optional[str] = None,
+    level: Optional[str] = None,
 ) -> None:
     """Log an operation event to stderr.
 
@@ -60,6 +86,8 @@ def log_event(
         error_code: Error code if operation failed (optional)
         details: Additional details (optional)
         run_id: Run ID (uses current if not provided)
+        level: Optional log level/severity tag (e.g., "debug", "info", "warning", "error").
+            When provided, it is included in both JSON and text logs.
     """
     entry: Dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -68,8 +96,13 @@ def log_event(
         "success": success,
     }
 
+    if level:
+        entry["level"] = level
+
+    rounded_duration: Optional[float] = None
     if duration_ms is not None:
-        entry["duration_ms"] = round(duration_ms, 2)
+        rounded_duration = round(duration_ms, 2)
+        entry["duration_ms"] = rounded_duration
 
     if error_code:
         entry["error_code"] = error_code
@@ -78,16 +111,18 @@ def log_event(
         entry["details"] = details
 
     if get_log_format() == "json":
-        _write_stderr(json.dumps(entry, separators=(",", ":")))
+        _write_stderr(json.dumps(entry, separators=(",", ":"), default=str))
     else:
         parts = [f"[{entry['run_id']}]", entry["timestamp"], operation]
+        if level:
+            parts.append(f"[{level}]")
         parts.append("OK" if success else "FAILED")
-        if duration_ms is not None:
-            parts.append(f"({duration_ms:.2f}ms)")
+        if rounded_duration is not None:
+            parts.append(f"({rounded_duration:.2f}ms)")
         if error_code:
             parts.append(f"[{error_code}]")
         if details:
-            parts.append(json.dumps(details))
+            parts.append(json.dumps(details, default=str))
         _write_stderr(" ".join(parts))
 
 
@@ -123,10 +158,10 @@ def log_operation(
         )
     except Exception as e:
         duration_ms = (time.monotonic() - start_time) * 1000
-        from meminit.core.services.error_codes import MeminitError
-
         if isinstance(e, MeminitError):
             error_code = e.code.value
+        else:
+            error_code = ErrorCode.UNKNOWN_ERROR.value
         log_event(
             operation=operation,
             success=False,

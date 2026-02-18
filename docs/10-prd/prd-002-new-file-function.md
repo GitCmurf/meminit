@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-002
 type: PRD
 title: "Enhanced Document Factory (meminit new)"
 status: Draft
-version: "0.11"
-last_updated: 2026-02-13
+version: "0.12"
+last_updated: 2026-02-17
 owner: GitCmurf
 docops_version: "2.0"
 area: CLI
@@ -17,8 +17,8 @@ area: CLI
 > **Document ID:** MEMINIT-PRD-002
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.11
-> **Last Updated:** 2026-02-13
+> **Version:** 0.12
+> **Last Updated:** 2026-02-17
 > **Type:** PRD
 
 ## 1. Executive Summary
@@ -29,6 +29,9 @@ This PRD defines requirements for enhancing and hardening the `meminit new` comm
 2. **Agentic AI coding assistants** creating documentation synchronously with code
 
 The current implementation provides basic functionality but lacks the observability, error recovery, and structured output required for production-grade agent integration. It also lacks the interactive features that would improve human developer experience.
+
+Concurrency features in this PRD rely on Unix-only file locking (`fcntl`/`O_EXCL`);
+Windows support is out of scope for PRD-002.
 
 ---
 
@@ -402,7 +405,7 @@ class ErrorCode(str, Enum):
 
 **F2.5** `--keywords <word>` flag MUST be repeatable and set `keywords` array. Each flag occurrence accepts exactly one value (e.g., `--keywords cache --keywords redis --keywords performance`).
 
-**F2.6** `--related-ids <id>` flag MUST be repeatable and set `related_ids` array. Each flag occurrence accepts exactly one ID. MUST validate ID format (`^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$`). Referenced documents are NOT required to exist (agents may create documents in planned order with forward references). Duplicate values SHOULD be de-duplicated while preserving first-seen order.
+**F2.6** `--related-ids <id>` flag MUST be repeatable and set `related_ids` array. Each flag occurrence accepts exactly one ID. MUST validate ID format (`^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$`), which implies a 3-digit sequence and therefore a 000–999 limit per type. Referenced documents are NOT required to exist (agents may create documents in planned order with forward references). Duplicate values SHOULD be de-duplicated while preserving first-seen order.
 
 **F2.7** All flag-set values MUST be validated against `metadata.schema.json`.
 
@@ -575,9 +578,9 @@ class ErrorCode(str, Enum):
 
 #### N6. Idempotency (Infrastructure Requirement)
 
-**N6.1** `meminit new --id <id>` with the same ID MUST be idempotent: if the target file already exists with byte-identical content, the command MUST return success (exit code 0) and the same JSON output as a fresh creation. If the file exists but content differs, the command MUST error with `FILE_EXISTS`. This reconciles with F9.1: `FILE_EXISTS` applies only when content differs.
+**N6.1** `meminit new --id <id>` with the same ID MUST be idempotent: if the target file already exists with content identical **except for `last_updated`**, the command MUST return success (exit code 0). If the file exists but any other content differs, the command MUST error with `FILE_EXISTS`. This reconciles with F9.1: `FILE_EXISTS` applies only when content differs beyond `last_updated`.
 
-> **Note:** Since `last_updated` is date-granular (`YYYY-MM-DD`), the byte-identical comparison holds for same-day re-runs. Cross-day re-runs with the same `--id` will differ in `last_updated` and correctly return `FILE_EXISTS`. Agents requiring cross-day idempotency SHOULD check for file existence before invoking `meminit new`.
+> **Note:** Idempotency checks ignore `last_updated` differences; when returning success for an existing file, the command SHOULD preserve the file’s existing `last_updated` value in its output.
 
 **N6.2** `meminit new --dry-run` MUST be idempotent (no side effects).
 
@@ -594,7 +597,7 @@ class ErrorCode(str, Enum):
 - Prefer `O_EXCL` (exclusive create) for file writes
 - Or use directory-level locking via `fcntl.flock()` (stdlib, Unix-only)
 
-> **Note — Dependency:** This PRD uses stdlib-only approaches (`O_EXCL`, `fcntl.flock()`) to avoid new runtime dependencies. Windows portability is out of scope for this PRD. If Windows support is needed in future, `portalocker` may be introduced as an optional dependency in a separate PRD.
+> **Note — Dependency:** This PRD uses stdlib-only approaches (`O_EXCL`, `fcntl.flock()`) to avoid new runtime dependencies. Windows portability is out of scope for this PRD; on Windows, `meminit new` is unsupported and may fail due to missing `fcntl`. **Recommended future behavior:** fail fast with a clear, user-facing error indicating unsupported platform. If Windows support is needed later, `portalocker` may be introduced as an optional dependency in a separate PRD.
 
 **N7.3** On lock acquisition failure, MUST error with `LOCK_TIMEOUT` code (not silent failure or race condition).
 
@@ -755,7 +758,10 @@ Priority: Companion work for create-then-validate agent loops
 
 ## 11. Extension: `meminit check` Targeted File Validation
 
-> **Scope Note:** This section specifies enhancements to `meminit check` (a separate command from `meminit new`). These requirements (F10.x) are included here as companion work because they directly support the create-then-validate workflow (Section 7.2). Implementation MAY be tracked as a separate work item.
+**Scope:** This section is **IN SCOPE** for PRD-002 and MUST be implemented as
+part of Phase 4. The F10.x requirements are included in the Implementation
+Readiness Gate (Section 15) because they directly support the create-then-validate
+workflow (Section 7.2).
 
 ### 11.1 Problem Statement
 
@@ -946,6 +952,7 @@ $ meminit check docs/45-adr/*.md docs/10-prd/*.md --quiet
 - Web UI or API server
 - Database-backed document storage
 - Real-time collaboration features
+- Expanding ID sequences beyond three digits (more than 999 documents per type)
 
 ---
 
@@ -954,6 +961,12 @@ $ meminit check docs/45-adr/*.md docs/10-prd/*.md --quiet
 - Existing: `click`, `pyyaml`, `python-frontmatter`, `rich`
 - No new runtime dependencies required (concurrency uses stdlib `fcntl`/`O_EXCL`)
 - Test dependencies may need `pytest-json-report` for structured test output
+
+### 13.1 Platform Support
+
+- Concurrency features (N7) require Unix-like systems (Linux, macOS).
+- Windows support is out of scope for PRD-002; `meminit new` is unsupported on
+  Windows and may fail due to missing `fcntl`.
 
 ---
 
@@ -995,3 +1008,4 @@ Engineering handoff is approved only when all gate criteria pass:
 | 0.9     | 2026-02-13 | Codex (GPT-5)  | Added explicit incompatibility rules for `--edit` with `--dry-run` and `--format json` (F8.5), and clarified editor launch behavior on success vs failure.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 0.10    | 2026-02-13 | Augment Agent  | Final contract consistency and completeness pass (5 findings: 3 Substantive, 2 Minor). Fixed F10.6 error example to nest `path` under `error.details` (aligning with F1.4 rule — same class as v0.7 Finding 1). Added comprehensive check envelope conventions note after F10.7: documented fatal-error vs per-file-violation response shape distinction, `violations`/`warnings` collection conventions, and coexistence semantics. Fixed §11.6 all-pass example to include `files_failed:0` (matching F10.7 contract). Added F1.5 cross-reference to F3.3 for `--verbose` + `--format json` stderr routing. |
 | 0.11    | 2026-02-13 | Codex (GPT-5)  | Clarified F10.6 and F10.7 missing-file handling: single-path uses error envelope; multi-path reports `FILE_NOT_FOUND` as per-file violations with `document_id` null/omitted. |
+| 0.12    | 2026-02-17 | Codex (GPT-5)  | Tightened idempotency semantics to ignore `last_updated` differences for `--id`, clarified Section 11 scope as in-scope for PRD-002, documented platform support constraints (Unix-only concurrency), and explicitly noted the 3-digit ID sequence limit in F2.6/Out of Scope. |
