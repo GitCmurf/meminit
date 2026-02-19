@@ -1,5 +1,5 @@
-import json
 import inspect
+import json
 import os
 from unittest.mock import MagicMock, patch
 
@@ -56,9 +56,7 @@ def test_cli_check_violations_text(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -87,9 +85,7 @@ def test_cli_check_violations_json(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -126,9 +122,7 @@ def test_cli_check_violations_md(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -158,9 +152,7 @@ def test_cli_check_warnings_non_strict(mock_use_case):
         warnings=[
             {
                 "path": "docs/warn.md",
-                "warnings": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
-                ],
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
             }
         ],
         checked_paths=["docs/warn.md"],
@@ -187,9 +179,7 @@ def test_cli_check_warnings_strict(mock_use_case):
         violations=[
             {
                 "path": "docs/warn.md",
-                "violations": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
-                ],
+                "violations": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
             }
         ],
         warnings=[],
@@ -213,7 +203,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "1.0"
 
 
 @patch("meminit.cli.main.ScanRepositoryUseCase")
@@ -318,7 +308,7 @@ def test_cli_index_json_contract(tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["status"] == "ok"
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "1.0"
     assert data["report"]["document_count"] == 1
 
 
@@ -391,7 +381,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "1.0"
         assert data["success"] is True
         assert "path" in data
         assert data["document_id"] == "TEST-ADR-001"
@@ -461,7 +451,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "1.0"
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
@@ -507,7 +497,7 @@ type_directories:
         assert result.exit_code == 0
         data = json.loads(result.output)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "1.0"
         assert data["success"] is True
         assert "types" in data
 
@@ -613,7 +603,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "1.0"
         assert data["success"] is True
         assert data["dry_run"] is True
         assert "would_create" in data
@@ -1059,9 +1049,7 @@ type_directories:
 
         return tmp_path
 
-    def test_single_path_not_found_returns_error_envelope(
-        self, repo_for_single_path_check
-    ):
+    def test_single_path_not_found_returns_error_envelope(self, repo_for_single_path_check):
         """F10.6: Single missing path should return error envelope."""
         runner = CliRunner()
         result = runner.invoke(
@@ -1123,9 +1111,7 @@ type_directories:
 
         return tmp_path
 
-    def test_absolute_path_outside_root_returns_path_escape(
-        self, repo_for_path_escape_check
-    ):
+    def test_absolute_path_outside_root_returns_path_escape(self, repo_for_path_escape_check):
         """F10.4: Absolute path outside root should return PATH_ESCAPE error."""
         runner = CliRunner()
         result = runner.invoke(
@@ -1153,9 +1139,7 @@ def test_config_missing_when_docs_exists_but_no_config(tmp_path):
     (tmp_path / "docs" / "test.md").write_text("# Test")
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -1223,9 +1207,7 @@ type_directories:
         )
 
         lines = [line for line in result.output.splitlines() if line.strip()]
-        json_index = next(
-            i for i, line in enumerate(lines) if line.lstrip().startswith("{")
-        )
+        json_index = next(i for i, line in enumerate(lines) if line.lstrip().startswith("{"))
         data = json.loads(lines[json_index])
         stderr_output = result.stderr if getattr(result, "stderr", None) else ""
         if not stderr_output:

@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-002
 type: PRD
 title: "Enhanced Document Factory (meminit new)"
 status: Draft
-version: "0.12"
-last_updated: 2026-02-17
+version: "0.13"
+last_updated: 2026-02-19
 owner: GitCmurf
 docops_version: "2.0"
 area: CLI
@@ -17,8 +17,8 @@ area: CLI
 > **Document ID:** MEMINIT-PRD-002
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.12
-> **Last Updated:** 2026-02-17
+> **Version:** 0.13
+> **Last Updated:** 2026-02-19
 > **Type:** PRD
 
 ## 1. Executive Summary
@@ -275,6 +275,12 @@ result = client.new_document(
 JSON output MUST include a schema version for forward compatibility.
 
 > **Note — Field Naming:** The existing codebase uses `output_schema_version` (see `output_contracts.py`). This PRD adopts the same field name for consistency. All new JSON output MUST use `output_schema_version`, not `schema_version`.
+
+Schema versions are command-scoped during phased rollout:
+
+- `meminit new` responses use `output_schema_version: "1.0"`.
+- `meminit check` responses use `output_schema_version: "2.0"`.
+- Other commands remain on `1.0` until explicitly migrated.
 
 ```json
 {
@@ -742,17 +748,17 @@ Priority: Companion work for create-then-validate agent loops
 
 ## 10. Success Metrics
 
-| Metric                      | Target                                                                                       |
-| --------------------------- | -------------------------------------------------------------------------------------------- |
-| Agent creation completeness | 100% of F2 metadata fields settable via flags and reflected in JSON output                   |
-| JSON contract reliability   | 100% of success/error responses validate against `output_schema_version: 1.0` contract tests |
-| Dry-run safety              | 0 filesystem writes in `--dry-run` mode across integration tests                             |
-| Type discoverability        | Human can list valid types/directories with one command (`meminit new --list-types`)         |
-| Human workflow efficiency   | Human can create, open, and start editing in <= 10 seconds on local machine                  |
-| Governance compliance       | 100% of generated documents pass `meminit check` in integration tests                        |
-| Error contract quality      | 100% of failure paths emit stable machine-parseable `error.code`                             |
-| New-path test coverage      | >= 90% line coverage for new/modified `meminit new` code paths                               |
-| Concurrency correctness     | 0 duplicate IDs across stress test with >= 20 concurrent `meminit new` invocations           |
+| Metric                      | Target                                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Agent creation completeness | 100% of F2 metadata fields settable via flags and reflected in JSON output                                     |
+| JSON contract reliability   | 100% of success/error responses validate against the command-appropriate schema (`new`: `1.0`, `check`: `2.0`) |
+| Dry-run safety              | 0 filesystem writes in `--dry-run` mode across integration tests                                               |
+| Type discoverability        | Human can list valid types/directories with one command (`meminit new --list-types`)                           |
+| Human workflow efficiency   | Human can create, open, and start editing in <= 10 seconds on local machine                                    |
+| Governance compliance       | 100% of generated documents pass `meminit check` in integration tests                                          |
+| Error contract quality      | 100% of failure paths emit stable machine-parseable `error.code`                                               |
+| New-path test coverage      | >= 90% line coverage for new/modified `meminit new` code paths                                                 |
+| Concurrency correctness     | 0 duplicate IDs across stress test with >= 20 concurrent `meminit new` invocations                             |
 
 ---
 
@@ -814,16 +820,16 @@ meminit check file1.md file2.md        # Validate multiple specific files
 
 ```bash
 $ meminit check README.md --format json
-{"output_schema_version":"1.0","success":true,"warnings":[{"code":"OUTSIDE_DOCS_ROOT","path":"README.md","message":"File is outside configured docs_root"}]}
+{"success":true,"files_checked":1,"files_passed":1,"files_failed":0,"missing_paths_count":0,"schema_failures_count":0,"warnings_count":1,"violations_count":0,"files_with_warnings":1,"files_outside_docs_root_count":1,"checked_paths_count":1,"violations":[],"warnings":[{"code":"OUTSIDE_DOCS_ROOT","path":"README.md","message":"File 'README.md' is outside configured docs root"}],"output_schema_version":"2.0","run_id":"c1715dbc"}
 ```
 
-> **Note:** The `warnings` array is present only when warnings exist; it is omitted (not empty) on clean runs. Each warning object MUST include `code`, `path`, and `message`.
+> **Note:** For v2 check result payloads, the `warnings` array is always present. It is empty (`[]`) on clean runs. Each warning object MUST include `code`, `path`, and `message`.
 
 **F10.6** Non-existent files MUST be reported:
 
 ```bash
 $ meminit check docs/nonexistent.md --format json
-{"output_schema_version":"1.0","success":false,"error":{"code":"FILE_NOT_FOUND","message":"File not found: docs/nonexistent.md","details":{"path":"docs/nonexistent.md"}}}
+{"success":false,"error":{"code":"FILE_NOT_FOUND","message":"File not found: docs/nonexistent.md","details":{"path":"docs/nonexistent.md"}},"output_schema_version":"2.0","run_id":"1490e8c5"}
 ```
 
 > **Note:** For a single-path invocation, the error envelope above MUST be used. For multi-path invocations, each missing file MUST be reported as a per-file violation (see F10.7), with `code: FILE_NOT_FOUND` and `document_id: null` (or omitted).
@@ -832,11 +838,19 @@ $ meminit check docs/nonexistent.md --format json
 
 ```json
 {
-  "output_schema_version": "1.0",
+  "output_schema_version": "2.0",
   "success": false,
+  "run_id": "a1b2c3d4",
   "files_checked": 3,
   "files_passed": 2,
   "files_failed": 1,
+  "missing_paths_count": 0,
+  "schema_failures_count": 0,
+  "warnings_count": 0,
+  "violations_count": 1,
+  "files_with_warnings": 0,
+  "files_outside_docs_root_count": 0,
+  "checked_paths_count": 3,
   "violations": [
     {
       "path": "docs/45-adr/adr-003.md",
@@ -849,16 +863,31 @@ $ meminit check docs/nonexistent.md --format json
         }
       ]
     }
-  ]
+  ],
+  "warnings": []
 }
 ```
+
+> **Field definitions for F10.7 payload:**
+>
+> - `run_id`: correlation identifier for the CLI invocation.
+> - `files_checked`: count of existing markdown files actually parsed and validated.
+> - `files_passed`: count of checked files with no error-level violations.
+> - `files_failed`: count of checked files with error-level violations.
+> - `missing_paths_count`: count of unresolved path arguments in targeted mode.
+> - `schema_failures_count`: count of repository-level schema failures (`SCHEMA_MISSING` / `SCHEMA_INVALID`).
+> - `warnings_count`: total warning count after strict-mode promotion.
+> - `violations_count`: total violations count (file-level + repository-level + missing-path).
+> - `files_with_warnings`: count of files that emitted one or more warnings.
+> - `files_outside_docs_root_count`: count of checked files outside configured `docs_root`.
+> - `checked_paths_count`: count of resolved path arguments considered by the targeted run.
 
 > **Semantics:** `success` is `true` only when all checked files pass validation (i.e., `files_failed == 0`). The exit code mirrors this: `EX_OK` (0) for all-pass, `EX_DATAERR` (65) when violations are found.
 
 > **Envelope conventions for `meminit check --format json`:**
 >
 > - **Fatal errors** (e.g., `CONFIG_MISSING`, `PATH_ESCAPE`) that prevent any validation return the standard error envelope: `{output_schema_version, success: false, error: {code, message, details}}` — same shape as F10.6. Per-file errors (e.g., `FILE_NOT_FOUND` for one file in a multi-file invocation) are reported as per-file violations within the result shape above; the F10.6 flat error shape is reserved for errors that prevent the command from running at all.
-> - **Collection conventions:** The `violations` array is always present (empty `[]` when all files pass). The `warnings` array is present only when warnings exist; it is omitted on clean runs (see F10.5 note).
+> - **Collection conventions:** The `violations` and `warnings` arrays are always present in check result payloads. Each is `[]` when no findings of that kind exist.
 > - **Coexistence:** When a check run produces both warnings and violations, both arrays appear in the response. `success` reflects violations only — warnings do not affect `success` (unless `--strict` promotes them to errors per F10.5).
 > - **Missing files:** When a missing file is reported as a per-file violation, `document_id` MUST be `null` (or omitted), and the violation code MUST be `FILE_NOT_FOUND`.
 
@@ -876,6 +905,12 @@ Checking 3 files...
 1 of 3 files have violations.
 ```
 
+**F10.9** Markdown output (`--format md`) MUST provide:
+
+- A summary section with status and aggregate counts.
+- A findings section grouped by file path.
+- Rule code + message (and line when available) per finding.
+
 ### 11.3 CLI Signature
 
 ```bash
@@ -887,7 +922,7 @@ Arguments:
 
 Options:
   --root PATH        Repository root directory [default: .]
-  --format FORMAT    Output format: text, json [default: text]
+  --format FORMAT    Output format: text, json, md [default: text]
   --strict           Treat warnings as errors
   --quiet            Only show failures (exit code indicates pass/fail)
 ```
@@ -924,7 +959,7 @@ $ meminit new ADR "Use Redis" --format json
 {"output_schema_version":"1.0","success":true,"path":"docs/45-adr/adr-042-use-redis.md",...}
 
 $ meminit check docs/45-adr/adr-042-use-redis.md --format json
-{"output_schema_version":"1.0","success":true,"files_checked":1,"files_passed":1,"files_failed":0,"violations":[]}
+{"success":true,"files_checked":1,"files_passed":1,"files_failed":0,"missing_paths_count":0,"schema_failures_count":0,"warnings_count":0,"violations_count":0,"files_with_warnings":0,"files_outside_docs_root_count":0,"checked_paths_count":1,"violations":[],"warnings":[],"output_schema_version":"2.0","run_id":"2f9ba157"}
 ```
 
 **Human iterating on a specific document:**
@@ -1007,5 +1042,6 @@ Engineering handoff is approved only when all gate criteria pass:
 | 0.8     | 2026-02-13 | Codex (GPT-5)  | Robustness cleanup. Made PATH_ESCAPE a shared error code, specified PATH_ESCAPE for check path safety (F10.4), and expanded Section 11.5 to include shared error codes relevant to `meminit check` (CONFIG_MISSING, INVALID_FLAG_COMBINATION, PATH_ESCAPE).                                                                                                                                                                                                                                                                                                                                                   |
 | 0.9     | 2026-02-13 | Codex (GPT-5)  | Added explicit incompatibility rules for `--edit` with `--dry-run` and `--format json` (F8.5), and clarified editor launch behavior on success vs failure.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 0.10    | 2026-02-13 | Augment Agent  | Final contract consistency and completeness pass (5 findings: 3 Substantive, 2 Minor). Fixed F10.6 error example to nest `path` under `error.details` (aligning with F1.4 rule — same class as v0.7 Finding 1). Added comprehensive check envelope conventions note after F10.7: documented fatal-error vs per-file-violation response shape distinction, `violations`/`warnings` collection conventions, and coexistence semantics. Fixed §11.6 all-pass example to include `files_failed:0` (matching F10.7 contract). Added F1.5 cross-reference to F3.3 for `--verbose` + `--format json` stderr routing. |
-| 0.11    | 2026-02-13 | Codex (GPT-5)  | Clarified F10.6 and F10.7 missing-file handling: single-path uses error envelope; multi-path reports `FILE_NOT_FOUND` as per-file violations with `document_id` null/omitted. |
-| 0.12    | 2026-02-17 | Codex (GPT-5)  | Tightened idempotency semantics to ignore `last_updated` differences for `--id`, clarified Section 11 scope as in-scope for PRD-002, documented platform support constraints (Unix-only concurrency), and explicitly noted the 3-digit ID sequence limit in F2.6/Out of Scope. |
+| 0.11    | 2026-02-13 | Codex (GPT-5)  | Clarified F10.6 and F10.7 missing-file handling: single-path uses error envelope; multi-path reports `FILE_NOT_FOUND` as per-file violations with `document_id` null/omitted.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 0.12    | 2026-02-17 | Codex (GPT-5)  | Tightened idempotency semantics to ignore `last_updated` differences for `--id`, clarified Section 11 scope as in-scope for PRD-002, documented platform support constraints (Unix-only concurrency), and explicitly noted the 3-digit ID sequence limit in F2.6/Out of Scope.                                                                                                                                                                                                                                                                                                                                |
+| 0.13    | 2026-02-19 | Codex (GPT-5)  | Updated `meminit check` examples/contract notes to align with v2 output semantics: `output_schema_version: 2.0`, explicit counter fields, `run_id`, and stable `warnings`/`violations` arrays in result payloads.                                                                                                                                                                                                                                                                                                                                                                                             |

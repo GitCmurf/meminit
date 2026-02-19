@@ -2,8 +2,8 @@
 document_id: MEMINIT-SPEC-003
 owner: DocOps Working Group
 status: Draft
-version: 0.9
-last_updated: 2026-02-18
+version: 1.0
+last_updated: 2026-02-19
 title: Compliance Checker Specification
 type: SPEC
 docops_version: 2.0
@@ -14,7 +14,7 @@ docops_version: 2.0
 > **Document ID:** MEMINIT-SPEC-003
 > **Owner:** DocOps Working Group
 > **Status:** Draft
-> **Version:** 0.9
+> **Version:** 1.0
 > **Type:** SPEC
 
 # Compliance Checker Specification
@@ -39,7 +39,7 @@ The `meminit check` command is the primary enforcement mechanism for DocOps stan
   - `type_directories` (type → expected folder mapping used for directory warnings)
 - If missing, `meminit check` fails with `CONFIG_MISSING` using the standard
   error envelope for the selected output format.
-  - **JSON:** `{"output_schema_version":"2.0","success":false,"error":{"code":"CONFIG_MISSING","message":"Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.","details":{"missing_file":"docops.config.yaml"}}}`
+  - **JSON:** `{"output_schema_version":"2.0","success":false,"error":{"code":"CONFIG_MISSING","message":"Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.","details":{"missing_file":"docops.config.yaml"}},"run_id":"a1b2c3d4"}`
   - **Text:** `[ERROR CONFIG_MISSING] Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.`
   - **Markdown:** `# Meminit Error` with `Code: CONFIG_MISSING` and the message.
 - `format`: Output format (`text`, `json`, or `md`).
@@ -67,6 +67,7 @@ Single-path missing file example (JSON):
 {
   "output_schema_version": "2.0",
   "success": false,
+  "run_id": "a1b2c3d4",
   "error": {
     "code": "FILE_NOT_FOUND",
     "message": "File not found: docs/missing.md",
@@ -82,6 +83,7 @@ with `code: FILE_NOT_FOUND` (not a top-level error envelope). Example:
 {
   "output_schema_version": "2.0",
   "success": false,
+  "run_id": "a1b2c3d4",
   "files_checked": 0,
   "files_passed": 0,
   "files_failed": 0,
@@ -92,17 +94,24 @@ with `code: FILE_NOT_FOUND` (not a top-level error envelope). Example:
   "files_with_warnings": 0,
   "files_outside_docs_root_count": 0,
   "checked_paths_count": 2,
+  "warnings": [],
   "violations": [
     {
       "path": "docs/missing-1.md",
       "violations": [
-        { "code": "FILE_NOT_FOUND", "message": "File not found: docs/missing-1.md" }
+        {
+          "code": "FILE_NOT_FOUND",
+          "message": "File not found: docs/missing-1.md"
+        }
       ]
     },
     {
       "path": "docs/missing-2.md",
       "violations": [
-        { "code": "FILE_NOT_FOUND", "message": "File not found: docs/missing-2.md" }
+        {
+          "code": "FILE_NOT_FOUND",
+          "message": "File not found: docs/missing-2.md"
+        }
       ]
     }
   ]
@@ -184,6 +193,7 @@ field to select the correct parsing logic.
 {
   "output_schema_version": "2.0",
   "success": false,
+  "run_id": "a1b2c3d4",
   "files_checked": 1,
   "files_passed": 0,
   "files_failed": 1,
@@ -194,6 +204,7 @@ field to select the correct parsing logic.
   "files_with_warnings": 0,
   "files_outside_docs_root_count": 0,
   "checked_paths_count": 1,
+  "warnings": [],
   "violations": [
     {
       "path": "docs/00-governance/bad-doc.md",
@@ -215,6 +226,7 @@ Repository-level schema failure example (JSON):
 {
   "output_schema_version": "2.0",
   "success": false,
+  "run_id": "a1b2c3d4",
   "files_checked": 1,
   "files_passed": 1,
   "files_failed": 0,
@@ -225,6 +237,7 @@ Repository-level schema failure example (JSON):
   "files_with_warnings": 0,
   "files_outside_docs_root_count": 0,
   "checked_paths_count": 2,
+  "warnings": [],
   "violations": [
     {
       "path": "docs/00-governance/metadata.schema.json",
@@ -239,14 +252,15 @@ Repository-level schema failure example (JSON):
 }
 ```
 
-When warnings are present, `warnings` is emitted as a flat array. Each warning
-object includes required fields `code`, `path`, and `message`, and may include
-an optional integer `line`.
+`warnings` is emitted as a flat array in check result payloads (empty `[]` when
+no warnings). Each warning object includes required fields `code`, `path`, and
+`message`, and may include an optional integer `line`.
 
 ```json
 {
   "output_schema_version": "2.0",
   "success": true,
+  "run_id": "a1b2c3d4",
   "files_checked": 1,
   "files_passed": 1,
   "files_failed": 0,

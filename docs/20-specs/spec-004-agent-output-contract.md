@@ -3,12 +3,12 @@ document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
 status: Draft
-version: "0.3"
-last_updated: 2026-02-18
+version: "0.4"
+last_updated: 2026-02-19
 owner: Product Team
 docops_version: "2.0"
 area: Agentic Integration
-description: "Normative JSON output contract and error envelope for all meminit CLI commands."
+description: "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check)."
 keywords:
   - agent
   - output
@@ -26,8 +26,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-004
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-02-18
+> **Version:** 0.4
+> **Last Updated:** 2026-02-19
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -35,21 +35,24 @@ related_ids:
 
 ## 1. Purpose
 
-This document defines the normative JSON output contract for all Meminit CLI commands when `--format json` is used. It specifies the output envelope, error envelope, field semantics, determinism rules, and minimum required payloads per command.
+This document defines the normative JSON output contract for v2-migrated Meminit CLI commands when `--format json` is used (currently `check`). It specifies the output envelope, error envelope, field semantics, determinism rules, and minimum required payloads per command.
 
 Plain English: This is the single source of truth for what agents can rely on when they parse Meminit output.
 
 ## 2. Scope
 
 In scope:
-- JSON output for all CLI commands.
+
+- JSON output for v2-migrated CLI commands (currently `check`).
 - Error envelope and error code usage.
 - Determinism and ordering rules for stable machine parsing.
 
 Out of scope:
+
 - Human-readable text or markdown output.
 - Logging and telemetry formats.
 - Runbook workflows.
+- Full normative definition of legacy v1 envelopes for non-migrated commands (covered by `docs/20-specs/agent-output.schema.v1.json`).
 
 ## 3. Terminology and Conventions
 
@@ -64,23 +67,33 @@ Plain English: When this spec says MUST, the output is required to follow it.
 
 ### 4.1 Required Top-Level Fields
 
-All successful JSON outputs MUST include the following top-level fields.
+All v2 JSON outputs MUST include the following top-level fields.
 
 1. `output_schema_version` (string)
 2. `success` (boolean)
-3. `command` (string)
-4. `run_id` (string)
-5. `root` (string)
-6. `data` (object)
-7. `warnings` (array)
-8. `violations` (array)
-9. `advice` (array)
+3. `run_id` (string)
 
-Plain English: Every success response has the same fields, in the same places.
+For `command: check`, successful and validation-failure outputs MUST additionally include:
+
+1. `files_checked`, `files_passed`, `files_failed`
+2. `missing_paths_count`, `schema_failures_count`
+3. `warnings_count`, `violations_count`
+4. `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`
+5. `warnings` (array)
+6. `violations` (array)
+
+Plain English: the stable base envelope is small, and `check` adds the normative counters/findings fields.
 
 ### 4.2 Optional Top-Level Fields
 
+- `command` (string) MAY be present.
+- `root` (string) MAY be present.
+- `data` (object) MAY be present.
+- `advice` (array) MAY be present.
 - `timestamp` (string, ISO 8601 UTC) MAY be present. When present it MUST be in the form `YYYY-MM-DDTHH:MM:SS[.sss]Z` (fractional seconds optional).
+
+When `command` is omitted, agents MUST treat the presence of `check` counters/findings fields (Section 4.1) as a `check`-shape payload.
+Check counters (`files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`, `warnings`, `violations`) are REQUIRED for successful `check` responses and validation-failure responses, and MAY be omitted only when a top-level operational `error` object is present.
 
 Plain English: Timestamp is allowed but not required, and it must be UTC.
 
@@ -90,19 +103,24 @@ Examples: `2026-02-18T14:30:45Z`, `2026-02-18T14:30:45.123Z`.
 
 - `output_schema_version` identifies the contract version used to serialize the response.
 - `success` indicates whether the command completed without fatal error.
-- `command` is the subcommand name used by the user, normalized to the canonical CLI name.
 - `run_id` is a unique identifier for correlating output and logs within a single invocation.
-- `root` is the absolute path to the repository root used for the command.
-- `data` contains command-specific payload details.
+- `command` (when present) is the subcommand name used by the user, normalized to the canonical CLI name.
+- `root` (when present) is the absolute path to the repository root used for the command.
+- `data` (when present) contains command-specific payload details.
 - `warnings` is a list of non-fatal issues.
 - `violations` is a list of fatal or error-level issues.
-- `advice` is a list of non-binding recommendations.
+- `advice` (when present) is a list of non-binding recommendations.
 
 Plain English: The envelope tells you what command ran, where it ran, and what it found.
 
 ## 5. Error Envelope
 
-Successful outputs MUST include the top-level fields listed in Section 4.1. Failed outputs MUST be a single JSON object that includes an `error` object and MAY omit `data`, `warnings`, `violations`, and `advice`. This failed shape is the **error envelope**.
+Successful outputs MUST include the top-level fields listed in Section 4.1. Failed outputs MUST be a single JSON object and follow one of two shapes: an **error envelope** (with top-level `error`) for operational failures, or a **validation-failure envelope** (with top-level `violations`) for non-operational compliance findings.
+
+Exception for validation findings:
+
+- `meminit check` MAY return `success: false` with populated `violations` and without a top-level `error` object when the command completed normally but found compliance failures.
+- A top-level `error` object is reserved for operational failures (for example invalid CLI arguments, path escapes, missing config for command execution).
 
 ### 5.1 Error Object
 
@@ -119,17 +137,24 @@ Plain English: Errors always have a stable code and a human-readable explanation
 
 ## 6. Issue Object Format
 
-Both `warnings` and `violations` MUST be arrays of Issue objects with the following fields.
+`warnings` MUST be an array of Issue objects with the following fields.
 
 1. `code` (string)
 2. `message` (string)
 3. `path` (string, relative to repo root)
 
 Optional fields:
+
 - `line` (integer)
 - `severity` (string, one of `warning` or `error`)
 
-Plain English: Each issue is a simple object so agents do not need to parse nested structures.
+For `check`, `violations` MAY contain grouped objects of the shape:
+
+1. `path` (string)
+2. `violations` (array of objects with required `code` and `message`, optional `line`)
+3. optional `document_id` (string)
+
+Plain English: warnings are flat issue objects; violations can be flat issues or grouped by file path.
 
 ## 7. Advice Object Format
 
@@ -138,6 +163,7 @@ Plain English: Each issue is a simple object so agents do not need to parse nest
 1. `message` (string)
 
 Optional fields:
+
 - `code` (string)
 - `details` (object)
 
@@ -145,22 +171,13 @@ Plain English: Advice is informative only and should not be treated as a violati
 
 ## 8. Command Payload Profiles
 
-Each command MUST populate `data` with at least the fields listed below.
+Current v2 scope includes `check` only. The `check` counters/findings are emitted at the top level (not nested under `data`).
 
-| Command | Required `data` fields | Type |
-| --- | --- | --- |
+| Command | Required top-level fields                                                                                                                                                                                            | Type     |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `check` | `files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count` | integers |
-| `fix` | `fixed`, `remaining`, `dry_run` | integers, boolean |
-| `scan` | `report` | object |
-| `new` | `document_id`, `path`, `type`, `title` | strings |
-| `index` | `index_path`, `document_count` | string, integer |
-| `resolve` | `document_id`, `path` | strings |
-| `identify` | `path`, `document_id` | strings |
-| `link` | `document_id`, `link` | strings |
-| `doctor` | `status`, `errors`, `warnings` | string, arrays |
-| `context` | `repo_prefix`, `docops_version`, `docs_root`, `namespaces`, `schema_path`, `index_path` | strings, array |
 
-Plain English: The `data` object has a minimum shape for every command.
+Plain English: in v2 today, `check` is the migrated command and its counters are top-level fields.
 
 ### 8.1 `check` Counter Semantics
 
@@ -192,59 +209,90 @@ Plain English: The same input should produce identical JSON output, so agents ca
 - The output contract is versioned via `output_schema_version`.
 - Backward-compatible changes MAY occur within the same version.
 - Any breaking change MUST bump `output_schema_version` and be documented.
+- Non-migrated commands remain on v1 and MUST validate against `docs/20-specs/agent-output.schema.v1.json` until explicitly migrated.
 
 Plain English: If the output format changes in a breaking way, the version changes too.
 
 ## 11. JSON Schema (Normative)
 
 The canonical schema for this contract version is `docs/20-specs/agent-output.schema.v2.json`.
+For non-migrated commands, the canonical legacy schema is `docs/20-specs/agent-output.schema.v1.json`.
 The inline schema below is a representative excerpt.
+In v2, check counters are required for non-error payloads when `command` is
+`check` or omitted (implicit check-shape envelope).
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Meminit Output Envelope v2",
   "type": "object",
-  "required": [
-    "output_schema_version",
-    "success",
-    "command",
-    "run_id",
-    "root"
-  ],
+  "required": ["output_schema_version", "success", "run_id"],
   "properties": {
-    "output_schema_version": {"type": "string"},
-    "success": {"type": "boolean"},
-    "command": {"type": "string"},
-    "run_id": {"type": "string"},
-    "timestamp": {"type": "string", "format": "date-time"},
-    "root": {"type": "string"},
-    "data": {"type": "object"},
+    "output_schema_version": { "type": "string" },
+    "success": { "type": "boolean" },
+    "command": { "type": "string" },
+    "run_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "root": { "type": "string" },
+    "data": { "type": "object" },
     "warnings": {
       "type": "array",
-      "items": {"$ref": "#/definitions/issue"}
+      "items": { "$ref": "#/definitions/issue" }
     },
     "violations": {
       "type": "array",
-      "items": {"$ref": "#/definitions/issue"}
+      "items": {
+        "oneOf": [
+          { "$ref": "#/definitions/issue" },
+          { "$ref": "#/definitions/grouped_violations" }
+        ]
+      }
     },
     "advice": {
       "type": "array",
-      "items": {"$ref": "#/definitions/advice"}
+      "items": { "$ref": "#/definitions/advice" }
     },
-    "error": {"$ref": "#/definitions/error"}
+    "error": { "$ref": "#/definitions/error" }
   },
   "allOf": [
     {
-      "if": {"properties": {"success": {"const": true}}},
+      "if": { "properties": { "success": { "const": true } } },
+      "then": { "not": { "required": ["error"] } }
+    },
+    {
+      "if": { "properties": { "success": { "const": false } } },
       "then": {
-        "required": ["data", "warnings", "violations", "advice"],
-        "not": {"required": ["error"]}
+        "anyOf": [{ "required": ["error"] }, { "required": ["violations"] }]
       }
     },
     {
-      "if": {"properties": {"success": {"const": false}}},
-      "then": {"required": ["error"]}
+      "if": {
+        "allOf": [
+          { "not": { "required": ["error"] } },
+          {
+            "anyOf": [
+              { "not": { "required": ["command"] } },
+              { "properties": { "command": { "const": "check" } } }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "files_checked",
+          "files_passed",
+          "files_failed",
+          "missing_paths_count",
+          "schema_failures_count",
+          "warnings_count",
+          "violations_count",
+          "files_with_warnings",
+          "files_outside_docs_root_count",
+          "checked_paths_count",
+          "warnings",
+          "violations"
+        ]
+      }
     }
   ],
   "definitions": {
@@ -252,29 +300,49 @@ The inline schema below is a representative excerpt.
       "type": "object",
       "required": ["code", "message", "path"],
       "properties": {
-        "code": {"type": "string"},
-        "message": {"type": "string"},
-        "path": {"type": "string"},
-        "line": {"type": "integer"},
-        "severity": {"type": "string"}
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "path": { "type": "string" },
+        "line": { "type": "integer" },
+        "severity": { "type": "string" }
+      }
+    },
+    "grouped_violations": {
+      "type": "object",
+      "required": ["path", "violations"],
+      "properties": {
+        "path": { "type": "string" },
+        "document_id": { "type": "string" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "line": { "type": "integer" }
+            }
+          }
+        }
       }
     },
     "advice": {
       "type": "object",
       "required": ["message"],
       "properties": {
-        "message": {"type": "string"},
-        "code": {"type": "string"},
-        "details": {"type": "object"}
+        "message": { "type": "string" },
+        "code": { "type": "string" },
+        "details": { "type": "object" }
       }
     },
     "error": {
       "type": "object",
       "required": ["code", "message"],
       "properties": {
-        "code": {"type": "string"},
-        "message": {"type": "string"},
-        "details": {"type": "object"}
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "details": { "type": "object" }
       }
     }
   }
@@ -285,23 +353,71 @@ Plain English: This schema is what agents and tests should validate against.
 
 ## 12. Examples
 
-### 12.1 Success Example
+### 12.1 Validation Failure Example
 
 ```json
-{"output_schema_version":"2.0","success":false,"command":"check","run_id":"20260218-1f2c3a","root":"/repo","files_checked":42,"files_passed":41,"files_failed":1,"missing_paths_count":0,"schema_failures_count":1,"warnings_count":0,"violations_count":2,"files_with_warnings":0,"files_outside_docs_root_count":0,"checked_paths_count":43,"warnings":[],"violations":[{"path":"docs/00-governance/metadata.schema.json","violations":[{"code":"SCHEMA_INVALID","message":"Schema is invalid","line":0}]},{"path":"docs/10-prd/prd-007-sample.md","violations":[{"code":"MISSING_FIELD","message":"Missing required field: owner","line":5}]}],"advice":[]}
+{
+  "output_schema_version": "2.0",
+  "success": false,
+  "command": "check",
+  "run_id": "20260218-1f2c3a",
+  "root": "/repo",
+  "files_checked": 42,
+  "files_passed": 41,
+  "files_failed": 1,
+  "missing_paths_count": 0,
+  "schema_failures_count": 1,
+  "warnings_count": 0,
+  "violations_count": 2,
+  "files_with_warnings": 0,
+  "files_outside_docs_root_count": 0,
+  "checked_paths_count": 43,
+  "warnings": [],
+  "violations": [
+    {
+      "path": "docs/00-governance/metadata.schema.json",
+      "violations": [
+        { "code": "SCHEMA_INVALID", "message": "Schema is invalid", "line": 0 }
+      ]
+    },
+    {
+      "path": "docs/10-prd/prd-007-sample.md",
+      "violations": [
+        {
+          "code": "MISSING_FIELD",
+          "message": "Missing required field: owner",
+          "line": 5
+        }
+      ]
+    }
+  ],
+  "advice": []
+}
 ```
 
 ### 12.2 Error Example
 
 ```json
-{"output_schema_version":"2.0","success":false,"command":"new","run_id":"20260218-1f2c3a","root":"/repo","error":{"code":"UNKNOWN_TYPE","message":"Unknown document type: XYZ","details":{"valid_types":["ADR","PRD","FDD"]}}}
+{
+  "output_schema_version": "2.0",
+  "success": false,
+  "command": "check",
+  "run_id": "20260218-1f2c3a",
+  "root": "/repo",
+  "error": {
+    "code": "FILE_NOT_FOUND",
+    "message": "File not found: docs/missing.md",
+    "details": { "path": "docs/missing.md" }
+  }
+}
 ```
 
 ## 13. Compliance Checklist
 
-1. All commands emit a JSON envelope when `--format json` is requested.
-2. All errors use the structured error object.
+1. All v2-migrated commands emit a JSON envelope when `--format json` is requested.
+2. All operational errors use the structured error object.
 3. Output is deterministic and stable across repeated runs.
 4. JSON output passes schema validation tests.
+5. Non-migrated command outputs continue to validate against the v1 schema until migrated.
 
 Plain English: If these are true, the contract is implemented.

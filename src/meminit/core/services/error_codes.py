@@ -124,7 +124,7 @@ def error_to_dict(error: MeminitError) -> Dict[str, Any]:
         ...     details={"valid_types": ["ADR", "PRD"]}
         ... )
         >>> error_to_dict(error)
-        {'output_schema_version': '2.0', 'success': False, 'error': {'code': 'UNKNOWN_TYPE', 'message': 'Unknown document type: XYZ', 'details': {'valid_types': ['ADR', 'PRD']}}}
+        {'output_schema_version': '1.0', 'success': False, 'error': {'code': 'UNKNOWN_TYPE', 'message': 'Unknown document type: XYZ', 'details': {'valid_types': ['ADR', 'PRD']}}}
     """
     result: Dict[str, Any] = {
         "output_schema_version": OUTPUT_SCHEMA_VERSION,

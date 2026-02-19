@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-003
 type: PRD
 title: Agent Interface v1
 status: Draft
-version: "0.1"
-last_updated: 2026-02-18
+version: "0.2"
+last_updated: 2026-02-19
 owner: GitCmurf
 docops_version: "2.0"
 area: Agentic Integration
@@ -27,8 +27,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-003
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-02-18
+> **Version:** 0.2
+> **Last Updated:** 2026-02-19
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -37,6 +37,8 @@ related_ids:
 ## Executive Summary
 
 Meminit already supports machine-readable output for some commands, but the contract is not consistent across the CLI, the error model is not uniform, and there is no published schema or protocol. This PRD defines a stable, deterministic agent interface for all Meminit commands, including a single output envelope, structured errors, and a documented versioned schema. The goal is to make Meminit safe and predictable for agent orchestrators while keeping outputs readable and helpful for humans.
+
+Current rollout status (2026-02-19): this PRD is being delivered in phases. `meminit check` is migrated to schema v2. Non-migrated commands currently remain on schema v1 envelopes.
 
 ## Plain-English Overview
 
@@ -89,6 +91,14 @@ Out of scope:
 - Output schema version is declared and enforced via tests.
 - Agents can parse results without command-specific logic.
 
+## Delivery Status (Phased Rollout)
+
+- Phase complete: `check --format json` on `output_schema_version: "2.0"` with v2 counters and validation-failure envelope semantics.
+- Phase pending (remain on `output_schema_version: "1.0"` until migrated): `scan`, `index`, `new`, `doctor`, `org` subcommands (`install`, `vendor`, `status`), `migrate-ids`, `fix` (text-only currently), `resolve` (text-only currently), `identify` (text-only currently), `link` (text-only currently), and planned `context`.
+- Contract source of truth:
+  - v2 (`check`): `docs/20-specs/agent-output.schema.v2.json` + `docs/20-specs/spec-004-agent-output-contract.md`
+  - v1 (non-migrated): `docs/20-specs/agent-output.schema.v1.json`
+
 ## Functional Requirements
 
 ### FR-1 Unified Output Envelope
@@ -113,7 +123,7 @@ Requirement: A JSON Schema file MUST be published in the repo to define the outp
 
 Plain English: We publish the exact shape of outputs so agents can validate, and we only change it with version bumps.
 
-Implementation notes: Maintain `docs/20-specs/spec-004-agent-output-contract.md` and add `docs/20-specs/agent-output.schema.v1.json`. Keep `OUTPUT_SCHEMA_VERSION` aligned with the published schema.
+Implementation notes: Maintain `docs/20-specs/spec-004-agent-output-contract.md`, `docs/20-specs/agent-output.schema.v2.json`, and `docs/20-specs/agent-output.schema.v1.json`. During phased rollout, keep command-scoped schema constants aligned with the published schemas.
 
 ### FR-4 Command Coverage
 
@@ -247,14 +257,14 @@ Plain English: The output gives agents what they need without leaking sensitive 
 ### Documentation Changes
 
 - Update `docs/20-specs/spec-004-agent-output-contract.md` to describe the contract and error taxonomy.
-- Add `docs/20-specs/agent-output.schema.v1.json` and keep it in sync with code.
+- Maintain `docs/20-specs/agent-output.schema.v1.json` and `docs/20-specs/agent-output.schema.v2.json` in sync with code.
 - Update any runbooks that describe agent usage to reference the new output contract.
 
 ### Testing Requirements
 
 - Add unit tests for the output formatter with stable ordering.
 - Add CLI integration tests to verify JSON outputs for every command.
-- Add schema validation tests that ensure outputs conform to `agent-output.schema.v1.json`.
+- Add schema validation tests that ensure outputs conform to the correct schema per command (`v1` for non-migrated commands, `v2` for migrated commands).
 - Add regression tests for error paths that previously emitted ad-hoc JSON.
 
 ## Rollout Plan
@@ -266,7 +276,7 @@ Plain English: The output gives agents what they need without leaking sensitive 
 
 ## Open Questions
 
-1. Should `output_schema_version` remain `1.0` with additive fields, or should it move to `1.1` for this epic?
+1. Resolved: use phased migration with a breaking bump to `2.0` for migrated `check` outputs while non-migrated commands remain on `1.0` until migrated.
 2. Should `meminit context` include index data by default or require `--deep`?
 3. Should `--output` be standardized as a file-path flag (distinct from `--format`), or remain optional for commands that already support it? `--format` remains the output format selector.
 

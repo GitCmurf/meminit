@@ -1,7 +1,7 @@
 {
-  "output_schema_version": "2.0",
+  "output_schema_version": "1.0",
   "index_version": "0.1",
-  "generated_at": "2026-02-18T17:00:27.822734+00:00",
+  "generated_at": "2026-02-19T07:27:51.297930+00:00",
   "namespaces": [
     {
       "namespace": "meminit",

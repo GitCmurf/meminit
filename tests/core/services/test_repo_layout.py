@@ -6,7 +6,6 @@ from meminit.core.use_cases.identify_document import IdentifyDocumentUseCase
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 
-
 SCHEMA_JSON = (
     '{"type": "object", "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],'
     ' "properties": {"document_id": {"type": "string"}, "type": {"type": "string"}, "title": {"type": "string"},'
@@ -59,7 +58,9 @@ namespaces:
     )
 
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(SCHEMA_JSON, encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     root_doc = tmp_path / "docs" / "45-adr" / "adr-001-root.md"
     root_doc.parent.mkdir(parents=True)
@@ -104,7 +105,7 @@ namespaces:
     index_path = tmp_path / ".meminit" / "meminit.index.json"
     assert report.index_path == index_path
     payload = json.loads(index_path.read_text(encoding="utf-8"))
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "1.0"
     assert {d["namespace"] for d in payload["documents"]} == {"root", "phyla"}
 
     resolved = ResolveDocumentUseCase(str(tmp_path)).execute("PHYLA-ADR-001")
@@ -132,7 +133,9 @@ namespaces:
     )
 
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(SCHEMA_JSON, encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     pkg_doc = tmp_path / "packages" / "phyla" / "docs" / "45-adr" / "adr-001-phyla.md"
     pkg_doc.parent.mkdir(parents=True)
@@ -177,7 +180,9 @@ namespaces:
     )
 
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(SCHEMA_JSON, encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
 
     org_doc = tmp_path / "docs" / "00-governance" / "org" / "org-gov-001.md"
     org_doc.parent.mkdir(parents=True)

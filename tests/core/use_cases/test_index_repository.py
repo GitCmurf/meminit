@@ -34,7 +34,7 @@ def test_index_repository_builds_index(tmp_path):
     text = index_path.read_text(encoding="utf-8")
     assert text.endswith("\n")
     payload = json.loads(text)
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "1.0"
     assert payload["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
 
 
