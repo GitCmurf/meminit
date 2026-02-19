@@ -13,17 +13,9 @@ import yaml
 
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.observability import (
-    log_operation,
-    get_current_run_id,
-    log_debug,
-)
-from meminit.core.services.repo_config import (
-    RepoConfig,
-    load_repo_config,
-    load_repo_layout,
-)
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
+from meminit.core.services.observability import get_current_run_id, log_debug, log_operation
+from meminit.core.services.repo_config import RepoConfig, load_repo_config, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 
@@ -222,6 +214,21 @@ class NewDocumentUseCase:
                         details={"document_id": params.document_id},
                     )
                 id_parts = params.document_id.split("-")
+                provided_prefix = id_parts[0] if id_parts else ""
+                expected_prefix = (ns.repo_prefix or "").upper()
+                if provided_prefix.upper() != expected_prefix:
+                    raise MeminitError(
+                        code=ErrorCode.INVALID_ID_FORMAT,
+                        message=(
+                            f"document_id prefix segment '{provided_prefix}' does not match "
+                            f"namespace repo_prefix '{ns.repo_prefix}'"
+                        ),
+                        details={
+                            "document_id": params.document_id,
+                            "namespace": ns.namespace,
+                            "expected_prefix": ns.repo_prefix,
+                        },
+                    )
                 provided_type = id_parts[1] if len(id_parts) >= 2 else ""
                 if provided_type.upper() != normalized_type.upper():
                     raise MeminitError(
@@ -258,8 +265,7 @@ class NewDocumentUseCase:
                         raise MeminitError(
                             code=ErrorCode.DUPLICATE_ID,
                             message=(
-                                f"Document ID already exists: {doc_id} "
-                                f"at {existing_path}"
+                                f"Document ID already exists: {doc_id} " f"at {existing_path}"
                             ),
                             details={
                                 "document_id": doc_id,
@@ -270,9 +276,7 @@ class NewDocumentUseCase:
 
                 if target_path.exists():
                     existing_content = target_path.read_text(encoding="utf-8")
-                    owner, owner_source = self._resolve_owner_with_source(
-                        params.owner, ns
-                    )
+                    owner, owner_source = self._resolve_owner_with_source(params.owner, ns)
                     if reasoning is not None:
                         reasoning.append(
                             {
@@ -296,9 +300,7 @@ class NewDocumentUseCase:
                     )
                     if reasoning is not None:
                         template_path_str = ns.templates.get(normalized_type.lower())
-                        template_name = (
-                            template_path_str if template_path_str else "default"
-                        )
+                        template_name = template_path_str if template_path_str else "default"
                         reasoning.append(
                             {
                                 "decision": "template_loaded",
@@ -524,9 +526,7 @@ class NewDocumentUseCase:
 
         return "__TBD__"
 
-    def _resolve_owner_with_source(
-        self, cli_owner: Optional[str], ns: RepoConfig
-    ) -> tuple:
+    def _resolve_owner_with_source(self, cli_owner: Optional[str], ns: RepoConfig) -> tuple:
         """Resolve owner and return (value, source) tuple.
 
         Precedence order (first non-empty value wins):
@@ -567,16 +567,12 @@ class NewDocumentUseCase:
         config_path = self.root_dir / "docops.config.yaml"
         if config_path.exists():
             try:
-                return (
-                    yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-                )
+                return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
             except Exception:
                 return None
         return None
 
-    def _validate_generated_metadata(
-        self, metadata: Dict[str, Any], ns: RepoConfig
-    ) -> None:
+    def _validate_generated_metadata(self, metadata: Dict[str, Any], ns: RepoConfig) -> None:
         """Validate generated metadata against schema and required fields."""
         schema_validator = SchemaValidator(str(ns.schema_file))
         if schema_validator.is_ready():
@@ -627,9 +623,7 @@ class NewDocumentUseCase:
         if existing_post.content != generated_post.content:
             return None
 
-        existing_meta = normalize_yaml_scalar_footguns(
-            dict(existing_post.metadata or {})
-        )
+        existing_meta = normalize_yaml_scalar_footguns(dict(existing_post.metadata or {}))
         generated_meta = normalize_yaml_scalar_footguns(
             dict(getattr(generated_post, "metadata", {}) or {})
         )
@@ -734,14 +728,10 @@ class NewDocumentUseCase:
             return "GOV"
         return t
 
-    def get_available_types(
-        self, namespace: Optional[str] = None
-    ) -> List[Dict[str, str]]:
+    def get_available_types(self, namespace: Optional[str] = None) -> List[Dict[str, str]]:
         """Return available document types and directories for a namespace."""
         ns = (
-            self._layout.get_namespace(namespace)
-            if namespace
-            else self._layout.default_namespace()
+            self._layout.get_namespace(namespace) if namespace else self._layout.default_namespace()
         )
         if ns is None:
             valid = [n.namespace for n in self._layout.namespaces]
@@ -811,9 +801,7 @@ class NewDocumentUseCase:
         )
         return f"{repo_prefix}-{id_type}-{next_id:03d}"
 
-    def _find_existing_document_id(
-        self, doc_id: str, ns: RepoConfig
-    ) -> Optional[Path]:
+    def _find_existing_document_id(self, doc_id: str, ns: RepoConfig) -> Optional[Path]:
         """Find an existing document path by document_id within the namespace docs root."""
         for path in ns.docs_dir.rglob("*.md"):
             if ns.is_excluded(path):
@@ -1020,9 +1008,7 @@ class NewDocumentUseCase:
         if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
             body = body.replace("<!-- MEMINIT_METADATA_BLOCK -->", visible_block)
 
-        fm_yaml = yaml.safe_dump(
-            metadata, sort_keys=False, default_flow_style=False
-        ).strip()
+        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
         return f"---\n{fm_yaml}\n---\n\n{body.lstrip()}"
 
     def _id_type_segment(self, doc_type: str) -> str:

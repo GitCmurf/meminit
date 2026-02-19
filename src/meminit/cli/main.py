@@ -1,5 +1,6 @@
 import json
 import os
+import shlex
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -446,7 +447,8 @@ def check(root, format, quiet, strict, paths):
                 f"{result.files_checked}\n- Violations: 0\n- Warnings: 0\n"
             )
             return
-        console.print("[bold green]Success! No violations found.[/bold green]")
+        if not quiet:
+            console.print("[bold green]Success! No violations found.[/bold green]")
         return
 
     if format == "json":
@@ -1510,7 +1512,10 @@ def new_doc(
             import subprocess
 
             try:
-                subprocess.run([editor, str(result.path)], check=False)
+                editor_argv = shlex.split(editor, posix=(os.name != "nt"))
+                if not editor_argv:
+                    raise ValueError("EDITOR/VISUAL is empty after parsing")
+                subprocess.run([*editor_argv, str(result.path)], check=False)
             except Exception as e:
                 console.print(f"[bold yellow]Warning: Could not open editor: {e}[/bold yellow]")
         else:

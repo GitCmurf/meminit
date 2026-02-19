@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
-from meminit.core.domain.entities import CheckResult
+from meminit.core.domain.entities import CheckResult, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 
 
@@ -43,6 +43,31 @@ def test_cli_check_clean(mock_use_case):
 
     assert result.exit_code == 0
     assert "No violations found" in result.output
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_clean_quiet_is_silent(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--quiet", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Success! No violations found." not in result.output
+    assert "Meminit Compliance Check" not in result.output
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
@@ -915,6 +940,46 @@ type_directories:
         assert result.exit_code != 0
         data = json.loads(result.output)
         assert data["error"]["code"] == "INVALID_FLAG_COMBINATION"
+
+
+@patch("subprocess.run")
+@patch("meminit.cli.main.NewDocumentUseCase")
+def test_new_edit_parses_editor_command_with_args(
+    mock_new_document_use_case,
+    mock_subprocess_run,
+    tmp_path,
+    monkeypatch,
+):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    result_path = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
+    mock_new_document_use_case.return_value.execute_with_params.return_value = NewDocumentResult(
+        success=True,
+        path=result_path,
+        document_id="TEST-ADR-001",
+        doc_type="ADR",
+        title="Test",
+        status="Draft",
+        version="0.1",
+        owner="TestOwner",
+        last_updated="2026-02-19",
+        docops_version="2.0",
+    )
+    monkeypatch.setenv("EDITOR", "code --wait")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["new", "ADR", "Test", "--root", str(tmp_path), "--edit"],
+    )
+
+    assert result.exit_code == 0
+    mock_subprocess_run.assert_called_once_with(
+        ["code", "--wait", str(result_path)],
+        check=False,
+    )
 
 
 class TestCliJsonOutputFormat:
