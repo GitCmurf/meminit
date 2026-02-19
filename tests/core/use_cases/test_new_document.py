@@ -11,6 +11,7 @@ import frontmatter
 import pytest
 import yaml
 
+import meminit.core.use_cases.new_document as new_document_module
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.use_cases.init_repository import InitRepositoryUseCase
@@ -1045,3 +1046,34 @@ type_directories:
 
             assert result.success is True
             mock_acquire.assert_not_called()
+
+
+class TestLockFallbackAndSafety:
+    def test_non_posix_lock_fallback_allows_document_creation(
+        self, repo_with_config_and_template, monkeypatch
+    ):
+        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
+        monkeypatch.setattr(new_document_module, "fcntl", None)
+
+        params = NewDocumentParams(doc_type="ADR", title="No Posix Lock")
+        result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.path is not None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlink semantics differ on Windows")
+    def test_symlinked_lock_file_is_rejected(self, repo_with_config_and_template):
+        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
+
+        lock_path = repo_with_config_and_template / "docs" / "45-adr" / ".meminit.lock"
+        escape_target = repo_with_config_and_template.parent / "meminit-lock-escape-target.txt"
+        escape_target.write_text("SAFE", encoding="utf-8")
+        lock_path.symlink_to(escape_target)
+
+        params = NewDocumentParams(doc_type="ADR", title="Symlinked Lock")
+        result = use_case.execute_with_params(params)
+
+        assert result.success is False
+        assert isinstance(result.error, MeminitError)
+        assert result.error.code == ErrorCode.PATH_ESCAPE
+        assert escape_target.read_text(encoding="utf-8") == "SAFE"

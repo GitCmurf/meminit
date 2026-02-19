@@ -194,6 +194,77 @@ def test_cli_check_warnings_non_strict(mock_use_case):
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_warnings_quiet_is_silent(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=1,
+        files_passed=1,
+        files_failed=0,
+        violations=[],
+        warnings=[
+            {
+                "path": "docs/warn.md",
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
+            }
+        ],
+        checked_paths=["docs/warn.md"],
+        warnings_count=1,
+        files_with_warnings=1,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--quiet", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Compliance Warnings" not in result.output
+    assert "WARN_RULE" not in result.output
+    assert "Found 1 warning" not in result.output
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=False,
+        files_checked=1,
+        files_passed=0,
+        files_failed=1,
+        violations=[
+            {
+                "path": "docs/bad.md",
+                "violations": [{"code": "ID_REGEX", "message": "Bad ID", "line": 3}],
+            }
+        ],
+        warnings=[
+            {
+                "path": "docs/bad.md",
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 5}],
+            }
+        ],
+        checked_paths=["docs/bad.md"],
+        warnings_count=1,
+        violations_count=1,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--quiet", "--root", str(tmp_path)])
+
+    assert result.exit_code == 65
+    assert "FAIL docs/bad.md" in result.output
+    assert "ID_REGEX" in result.output
+    assert "WARN_RULE" not in result.output
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_warnings_strict(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(

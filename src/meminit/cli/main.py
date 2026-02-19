@@ -491,6 +491,14 @@ def check(root, format, quiet, strict, paths):
         )
         raise SystemExit(EX_DATAERR if not result.success else 0)
 
+    if quiet:
+        for item in result.violations:
+            path = item.get("path")
+            for v in item.get("violations", []):
+                line_info = f" (line {v['line']})" if v.get("line") is not None else ""
+                console.print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
+        raise SystemExit(EX_DATAERR if not result.success else 0)
+
     table_title = "Compliance Violations" if result.violations_count else "Compliance Warnings"
     table = Table(title=table_title)
     table.add_column("Severity")

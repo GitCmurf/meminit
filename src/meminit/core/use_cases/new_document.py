@@ -1,3 +1,4 @@
+import errno
 import os
 import re
 import sys
@@ -665,14 +666,21 @@ class NewDocumentUseCase:
         Raises:
             MeminitError: with LOCK_TIMEOUT if lock cannot be acquired
         """
-        if fcntl is None:
-            raise MeminitError(
-                code=ErrorCode.UNKNOWN_ERROR,
-                message="File locking is unsupported on this platform (requires Unix fcntl)",
-                details={"platform": sys.platform},
-            )
         lock_path = target_dir / ".meminit.lock"
         target_dir.mkdir(parents=True, exist_ok=True)
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=lock_path)
+
+        # Best-effort fallback for non-POSIX platforms: continue without file
+        # locking rather than failing all document creation operations.
+        if fcntl is None:
+            log_debug(
+                "file_locking_unavailable",
+                {
+                    "platform": sys.platform,
+                    "directory": str(target_dir),
+                },
+            )
+            return None
 
         timeout_ms = self._get_lock_timeout_ms()
         start_time = time.monotonic()
@@ -680,9 +688,17 @@ class NewDocumentUseCase:
         while True:
             lock_file = None
             try:
-                lock_file = open(lock_path, "w")
+                ensure_safe_write_path(root_dir=self.root_dir, target_path=lock_path)
+                lock_file = self._open_lock_file(lock_path)
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 return lock_file
+            except MeminitError:
+                if lock_file:
+                    try:
+                        lock_file.close()
+                    except Exception:
+                        pass
+                raise
             except (IOError, OSError):
                 if lock_file:
                     try:
@@ -700,6 +716,24 @@ class NewDocumentUseCase:
                         },
                     )
                 time.sleep(0.05)
+
+    def _open_lock_file(self, lock_path: Path):
+        """Open a lock file without following symlinks when supported."""
+        flags = os.O_RDWR | os.O_CREAT
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+
+        try:
+            fd = os.open(lock_path, flags, 0o600)
+        except OSError as exc:
+            if hasattr(os, "O_NOFOLLOW") and exc.errno == errno.ELOOP:
+                raise MeminitError(
+                    code=ErrorCode.PATH_ESCAPE,
+                    message=f"Lock path '{lock_path}' is a symlink and cannot be used",
+                    details={"lock_path": str(lock_path)},
+                ) from exc
+            raise
+        return os.fdopen(fd, "a+")
 
     def _release_lock(self, lock_file) -> None:
         """Release the lock file."""
