@@ -1,0 +1,273 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meminit.io/schemas/agent-output.schema.v2.json",
+  "title": "Meminit Agent Output Envelope v2",
+  "type": "object",
+  "required": ["output_schema_version", "success", "run_id"],
+  "properties": {
+    "output_schema_version": {
+      "type": "string",
+      "enum": ["2.0"]
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "root": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/issue"
+      }
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/issue"
+          },
+          {
+            "$ref": "#/definitions/grouped_violations"
+          }
+        ]
+      }
+    },
+    "advice": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/advice"
+      }
+    },
+    "error": {
+      "$ref": "#/definitions/error"
+    },
+    "files_checked": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "files_passed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "files_failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "missing_paths_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "schema_failures_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "warnings_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "violations_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "files_with_warnings": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "files_outside_docs_root_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checked_paths_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checked_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "success": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": ["error"]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "success": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": ["error"]
+          },
+          {
+            "required": ["violations"]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          {
+            "not": {
+              "required": ["error"]
+            }
+          },
+          {
+            "anyOf": [
+              {
+                "not": {
+                  "required": ["command"]
+                }
+              },
+              {
+                "properties": {
+                  "command": {
+                    "const": "check"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "files_checked",
+          "files_passed",
+          "files_failed",
+          "missing_paths_count",
+          "schema_failures_count",
+          "warnings_count",
+          "violations_count",
+          "files_with_warnings",
+          "files_outside_docs_root_count",
+          "checked_paths_count",
+          "warnings",
+          "violations"
+        ]
+      }
+    }
+  ],
+  "definitions": {
+    "issue": {
+      "type": "object",
+      "required": ["code", "message", "path"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "severity": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "advice": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "grouped_violations": {
+      "type": "object",
+      "required": ["path", "violations"],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "document_id": {
+          "type": "string"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

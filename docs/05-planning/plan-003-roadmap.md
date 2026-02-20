@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-003
 owner: Product Team
 approvers: GitCmurf
 status: Draft
-version: 0.2
-last_updated: 2025-12-22
+version: 0.4
+last_updated: 2026-02-18
 title: Project Roadmap
 type: PLAN
 docops_version: 2.0
@@ -16,7 +16,7 @@ docops_version: 2.0
 > **Owner:** Product Team
 > **Approvers:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.4
 > **Type:** Planning
 
 # Meminit Development Roadmap
@@ -26,28 +26,41 @@ If this roadmap and the vision diverge, the roadmap wins for sequencing and the 
 
 ## Idea catcher (not yet sequenced or properly specified)
 
+Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
+
 ### 2025-11-27
 
-- make a prettified README suitable as a public GitHub intro
-  - use the project logo? simplify for favicon?
-- wiki for project (use GitHub native?)
+- [ ] make a prettified README suitable as a public GitHub intro
+  - [x] write copy text
+  - [ ] use the project logo? simplify for favicon?
+  - [ ] some form of intro graphic or GIF/video
+- [x] public release
+- [ ] wiki for project (use GitHub native?)
   - GitHub Projects space?
-- tests with Google Code Wiki after first push
+- [ ] tests with project wiki (specify platform) after first push
 - integration of GitHub actions CI/CD and PR auto-reviewers (CodeRabbit, Qodo, Greptile, ??)
-- instructions for machine use (what to go into AGENTS.md? what to refer to? what to output for `--help` flags or similar: CLI best practices)
-- maximum backward compatibility with `adr-tools` without unintentionally importing GPL terms (CLI option matching ok? need a config setting for full compatibility? smooth aliasing? or an interpretation layer--could also allow orgs to alias existing tools?)
-- auto-update tool for repo's own AGENTS.md
+  - [x] Greptile set up to review PR
+  - [ ] CI/CD - PR auto-reviewer integration
+  - [ ] other?
+- [ ] instructions for machine use (what to go into AGENTS.md? what to refer to? what to output for `--help` flags or similar: CLI best practices)
+  - [ ] review/improve AGENTS.md
+  - [ ] review/improve meminit skills.md
+- [ ] maximum backward compatibility with `adr-tools` without unintentionally importing GPL terms (CLI option matching ok? need a config setting for full compatibility? smooth aliasing? or an interpretation layer--could also allow orgs to alias existing tools?)
+  - [x] implemented
+  - [ ] make a note about aliasing
+  - [ ] need to check behaviour
+- [ ] auto-update tool for repo's own AGENTS.md
   - keep repo file structure up to date
   - other info AGENTS need that could otherwise go stale?
-- full template set:
+- [ ] full template set:
   - overlap with Project Architext--how keep aligned?
   - which docs?
   - tasks list (check chatGPT discussions)
-- make Python and TypeScript implementations in parallel? (DCI principles should minimise friction?)
+- [?] make Python and TypeScript implementations in parallel? (DCI principles should minimise friction?)
 - GitHub Super Linter--how to interact? Patterns for other popular linting tools (including pre-commit, Ruff, Flake8, mypy, ESLint, Prettier).
 - static-site generator alignment and benefits optimisation (MkDocs vs Sphinx vs)
 - Obsidian and logseq friendly? How to deal with `docs/` being a 'vault directory' for PKM-like tools--flexibility without breaking structure and linting/checking
-- VS Code integration--what features? how?
+- [ ] VS Code integration--what features? how?
 
 ## Phase 1: Foundation (Current)
 
@@ -57,7 +70,7 @@ If this roadmap and the vision diverge, the roadmap wins for sequencing and the 
 - [x] CI/CD Pipeline Implementation (PR-only enforcement; least-privilege workflow permissions)
 - [x] Basic CLI Tooling: internally-consistent green-light on own doc-linting checks
 - [ ] Full internal consistency: pass checks by all major code AIs
-- [ ] Best practices for GitHub public sites? e.g., initial issues recorded?
+- [x] Best practices for GitHub public sites? e.g., initial issues recorded?
 
 ### Consolidated Work Remaining
 

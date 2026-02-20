@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meminit.io/schemas/agent-output.schema.v1.json",
+  "title": "Meminit Agent Output Envelope v1",
+  "type": "object",
+  "required": ["output_schema_version", "run_id"],
+  "properties": {
+    "output_schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string"
+    },
+    "command": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "root": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object"
+    },
+    "report": {
+      "type": "object"
+    },
+    "message": {
+      "type": "string"
+    },
+    "strict": {
+      "type": "boolean"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "advice": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "types": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "path": {
+      "type": ["string", "null"]
+    },
+    "document_id": {
+      "type": ["string", "null"]
+    },
+    "type": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "would_create": {
+      "type": "object"
+    },
+    "error": {
+      "$ref": "#/definitions/error"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["success"],
+        "properties": {
+          "success": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "required": ["error"]
+      }
+    }
+  ],
+  "definitions": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

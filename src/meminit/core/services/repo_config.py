@@ -6,6 +6,8 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import yaml
 
+from meminit.core.services.observability import log_debug
+
 DEFAULT_DOCS_ROOT = "docs"
 
 DEFAULT_TYPE_DIRECTORIES: Dict[str, str] = {
@@ -303,11 +305,22 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
     config_path = root / "docops.config.yaml"
 
     data: Dict[str, Any] = {}
+    load_error: str | None = None
     if config_path.exists():
         try:
             data = yaml.safe_load(config_path.read_text()) or {}
-        except Exception:
+        except Exception as exc:
+            load_error = str(exc)
             data = {}
+    log_debug(
+        operation="debug.config_loaded",
+        details={
+            "config_path": str(config_path),
+            "exists": config_path.exists(),
+            "loaded": config_path.exists() and load_error is None,
+            "error": load_error,
+        },
+    )
 
     project_name = str(data.get("project_name") or root.name).strip() or root.name
 

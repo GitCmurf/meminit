@@ -66,12 +66,15 @@ def test_init_idempotent(empty_repo):
 
 
 def test_init_refuses_symlink_escape(tmp_path: Path):
-    outside = tmp_path / "outside"
+    from meminit.core.services.error_codes import ErrorCode, MeminitError
+
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
     outside.mkdir(parents=True, exist_ok=True)
 
     # If a repo contains a symlinked docs root, init must refuse to write outside the repo.
     (tmp_path / "docs").symlink_to(outside, target_is_directory=True)
 
     use_case = InitRepositoryUseCase(str(tmp_path))
-    with pytest.raises(ValueError):
+    with pytest.raises(MeminitError) as exc_info:
         use_case.execute()
+    assert exc_info.value.code == ErrorCode.PATH_ESCAPE

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from meminit.core.domain.entities import Violation
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 
 
@@ -370,3 +371,347 @@ def test_check_excludes_wip_directories_by_default(tmp_path):
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
     assert not violations
+
+
+class TestTargetedCheck:
+    """Tests for F10: Targeted File Validation"""
+
+    @pytest.fixture
+    def repo_for_targeted_check(self, tmp_path):
+        gov = tmp_path / "docs" / "00-governance"
+        gov.mkdir(parents=True)
+        (gov / "metadata.schema.json").write_text(
+            """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip()
+        )
+
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+type_directories:
+  ADR: 45-adr
+  PRD: 10-prd
+"""
+        )
+
+        adr_dir = tmp_path / "docs" / "45-adr"
+        adr_dir.mkdir(parents=True)
+
+        (adr_dir / "adr-001-valid.md").write_text(
+            """---
+document_id: TEST-ADR-001
+type: ADR
+title: Valid Doc
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Valid
+"""
+        )
+
+        (adr_dir / "adr-002-invalid.md").write_text(
+            """---
+document_id: BAD-ID
+type: ADR
+title: Invalid Doc
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Invalid
+"""
+        )
+
+        prd_dir = tmp_path / "docs" / "10-prd"
+        prd_dir.mkdir(parents=True)
+
+        (prd_dir / "prd-001-valid.md").write_text(
+            """---
+document_id: TEST-PRD-001
+type: PRD
+title: Valid PRD
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Valid PRD
+"""
+        )
+
+        return tmp_path
+
+    def test_execute_targeted_with_single_file(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])
+
+        assert result.success is True
+        assert result.files_checked == 1
+        assert result.files_passed == 1
+        assert result.files_failed == 0
+        assert result.missing_paths_count == 0
+        assert result.schema_failures_count == 0
+        assert result.violations_count == 0
+        assert result.warnings_count == 0
+        assert result.violations == []
+
+    def test_execute_targeted_with_invalid_file(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr/adr-002-invalid.md"])
+
+        assert result.success is False
+        assert result.files_checked == 1
+        assert result.files_passed == 0
+        assert result.files_failed == 1
+        assert result.violations_count >= 1
+        assert len(result.violations) == 1
+        assert "adr-002-invalid.md" in result.violations[0]["path"]
+
+    def test_execute_targeted_with_glob_patterns(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr/*.md"])
+
+        assert result.files_checked == 2
+        assert result.files_failed == 1
+        assert result.files_passed == 1
+        assert result.missing_paths_count == 0
+
+    def test_execute_targeted_with_directory_path(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr"])
+
+        assert result.success is False
+        assert result.files_checked == 2
+        assert result.files_failed == 1
+        assert result.files_passed == 1
+        assert result.missing_paths_count == 0
+
+    def test_execute_targeted_with_multiple_files(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(
+            [
+                "docs/45-adr/adr-001-valid.md",
+                "docs/10-prd/prd-001-valid.md",
+            ]
+        )
+
+        assert result.success is True
+        assert result.files_checked == 2
+        assert result.files_passed == 2
+        assert result.files_failed == 0
+        assert result.checked_paths_count == 2
+
+    def test_execute_targeted_missing_file_reports_file_not_found(self, repo_for_targeted_check):
+        """Per F10.6, single missing path should raise FILE_NOT_FOUND error envelope."""
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.execute_targeted(["docs/45-adr/nonexistent.md"])
+
+        assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+        assert "nonexistent.md" in exc_info.value.message
+
+    def test_execute_targeted_outside_docs_root_warning(self, repo_for_targeted_check):
+        outside_file = repo_for_targeted_check / "README.md"
+        outside_file.write_text("# README\n")
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["README.md"])
+
+        assert result.success is True
+        assert result.files_checked == 1
+        assert result.files_passed == 1
+        assert result.files_outside_docs_root_count == 1
+        assert result.files_with_warnings == 1
+        assert len(result.warnings) == 1
+        assert "OUTSIDE_DOCS_ROOT" in result.warnings[0]["warnings"][0]["code"]
+
+    def test_execute_targeted_reports_schema_missing(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+type_directories:
+  ADR: 45-adr
+"""
+        )
+
+        adr_dir = tmp_path / "docs" / "45-adr"
+        adr_dir.mkdir(parents=True)
+        (adr_dir / "adr-001-valid.md").write_text(
+            """---
+document_id: TEST-ADR-001
+type: ADR
+title: Valid Doc
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Valid
+"""
+        )
+
+        use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+        result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])
+
+        assert result.success is False
+        assert result.files_checked == 1
+        assert result.files_failed == 0
+        assert result.schema_failures_count == 1
+        assert result.violations_count >= 1
+        assert any(v["violations"][0]["code"] == "SCHEMA_MISSING" for v in result.violations)
+
+    def test_check_result_structure(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr/adr-002-invalid.md"])
+
+        assert hasattr(result, "success")
+        assert hasattr(result, "files_checked")
+        assert hasattr(result, "files_passed")
+        assert hasattr(result, "files_failed")
+        assert hasattr(result, "missing_paths_count")
+        assert hasattr(result, "schema_failures_count")
+        assert hasattr(result, "warnings_count")
+        assert hasattr(result, "violations_count")
+        assert hasattr(result, "files_with_warnings")
+        assert hasattr(result, "files_outside_docs_root_count")
+        assert hasattr(result, "checked_paths_count")
+        assert hasattr(result, "violations")
+        assert hasattr(result, "warnings")
+
+        assert isinstance(result.violations, list)
+        assert isinstance(result.warnings, list)
+
+        if result.violations:
+            assert "path" in result.violations[0]
+            assert "violations" in result.violations[0]
+            violation_entry = result.violations[0]["violations"][0]
+            assert "code" in violation_entry
+            assert "message" in violation_entry
+
+    def test_execute_targeted_recursive_glob(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/**/*.md"])
+
+        assert result.files_checked == 3
+        assert result.files_failed == 1
+        assert result.checked_paths_count == 3
+
+    def test_execute_targeted_recursive_glob_honors_exclusions(self, repo_for_targeted_check):
+        templates_dir = repo_for_targeted_check / "docs" / "00-governance" / "templates"
+        templates_dir.mkdir(parents=True, exist_ok=True)
+        (templates_dir / "bad-template.md").write_text(
+            "# Template with no governed frontmatter\n",
+            encoding="utf-8",
+        )
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/**/*.md"])
+
+        assert result.files_checked == 3
+        assert result.checked_paths_count == 3
+        assert all("docs/00-governance/templates" not in path for path in result.checked_paths)
+        assert all(
+            "docs/00-governance/templates" not in entry["path"] for entry in result.violations
+        )
+        assert all("docs/00-governance/templates" not in entry["path"] for entry in result.warnings)
+
+    def test_execute_targeted_normalizes_noncanonical_paths(self, repo_for_targeted_check):
+        templates_dir = repo_for_targeted_check / "docs" / "00-governance" / "templates"
+        templates_dir.mkdir(parents=True, exist_ok=True)
+        (templates_dir / "bad-template.md").write_text(
+            "# Template with no governed frontmatter\n",
+            encoding="utf-8",
+        )
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/../docs/**/*.md"])
+
+        assert result.files_checked == 3
+        assert result.checked_paths_count == 3
+        assert all(".." not in path for path in result.checked_paths)
+        assert all(
+            "docs/00-governance/templates" not in entry["path"] for entry in result.violations
+        )
+        assert all("docs/00-governance/templates" not in entry["path"] for entry in result.warnings)
+
+    def test_execute_targeted_path_escape_is_fatal(self, repo_for_targeted_check):
+        """Per F10.5, PATH_ESCAPE should raise MeminitError, not per-file violation."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write("# Outside Repo\n")
+            outside_file = Path(f.name)
+
+        try:
+            use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+            with pytest.raises(Exception) as exc_info:
+                use_case.execute_targeted([str(outside_file)])
+
+            from meminit.core.services.error_codes import ErrorCode, MeminitError
+
+            assert isinstance(exc_info.value, MeminitError)
+            assert exc_info.value.code == ErrorCode.PATH_ESCAPE
+        finally:
+            outside_file.unlink()
+
+    def test_execute_targeted_relative_path_escape_is_fatal(self, repo_for_targeted_check):
+        """F10.4: Relative path escapes must raise PATH_ESCAPE."""
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.execute_targeted(["../outside.md"])
+
+        assert exc_info.value.code == ErrorCode.PATH_ESCAPE
+
+    def test_strict_mode_promotes_outside_docs_root_to_error(self, repo_for_targeted_check):
+        """F10.5: --strict should promote OUTSIDE_DOCS_ROOT to error."""
+        outside_file = repo_for_targeted_check / "outside.md"
+        outside_file.write_text("---\ndocument_id: TEST-ADR-001\n---\n# Test\n")
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+
+        result = use_case.execute_targeted(["outside.md"], strict=False)
+        assert result.success
+        assert len(result.warnings) == 1
+        assert result.warnings[0]["warnings"][0]["code"] == "OUTSIDE_DOCS_ROOT"
+        assert result.files_outside_docs_root_count == 1
+
+        result = use_case.execute_targeted(["outside.md"], strict=True)
+        assert not result.success
+        assert len(result.violations) == 1
+        assert result.violations[0]["violations"][0]["code"] == "OUTSIDE_DOCS_ROOT"
+        assert result.files_outside_docs_root_count == 1
+
+    def test_execute_full_summary_includes_v2_counters(self, repo_for_targeted_check):
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_full_summary(strict=False)
+
+        assert result.files_checked == 3
+        assert result.files_passed == 2
+        assert result.files_failed == 1
+        assert result.missing_paths_count == 0
+        assert result.schema_failures_count == 0
+        assert result.violations_count >= 1
+        assert result.checked_paths_count >= 3
