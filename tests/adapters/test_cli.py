@@ -892,6 +892,58 @@ docops_version: 2.0
         assert data["files_failed"] == 1
         assert data["missing_paths_count"] == 0
 
+    def test_check_directory_target_json(self, repo_for_targeted_check):
+        runner = runner_no_mixed_stderr()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "docs/45-adr",
+                "--root",
+                str(repo_for_targeted_check),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 65
+        data = json.loads(result.output.strip().splitlines()[-1])
+        assert data["success"] is False
+        assert data["files_checked"] == 2
+        assert data["files_failed"] == 1
+        assert data["missing_paths_count"] == 0
+
+    def test_check_recursive_glob_json_honors_exclusions(self, repo_for_targeted_check):
+        templates_dir = repo_for_targeted_check / "docs" / "00-governance" / "templates"
+        templates_dir.mkdir(parents=True, exist_ok=True)
+        (templates_dir / "bad-template.md").write_text(
+            "# Template with no governed frontmatter\n",
+            encoding="utf-8",
+        )
+
+        runner = runner_no_mixed_stderr()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "docs/**/*.md",
+                "--root",
+                str(repo_for_targeted_check),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 65
+        data = json.loads(result.output.strip().splitlines()[-1])
+        assert data["files_checked"] == 2
+        assert all(
+            "docs/00-governance/templates" not in entry["path"] for entry in data["violations"]
+        )
+        assert all(
+            "docs/00-governance/templates" not in warning["path"] for warning in data["warnings"]
+        )
+
     def test_check_file_not_found_json(self, repo_for_targeted_check):
         runner = CliRunner()
         result = runner.invoke(
@@ -1009,6 +1061,32 @@ type_directories:
         )
 
         assert result.exit_code != 0
+        data = json.loads(result.output)
+        assert data["error"]["code"] == "INVALID_FLAG_COMBINATION"
+
+    def test_invalid_flag_incompatibility_works_without_os_ex_constants(
+        self, repo_for_flags, monkeypatch
+    ):
+        monkeypatch.delattr(os, "EX_USAGE", raising=False)
+        monkeypatch.delattr(os, "EX_DATAERR", raising=False)
+        monkeypatch.delattr(os, "EX_CANTCREAT", raising=False)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "--list-types",
+                "ADR",
+                "Test",
+                "--root",
+                str(repo_for_flags),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 64
         data = json.loads(result.output)
         assert data["error"]["code"] == "INVALID_FLAG_COMBINATION"
 
@@ -1142,7 +1220,8 @@ docops_version: 2.0
             ],
         )
 
-        assert "\n" not in result.output.strip()
+        json_line = result.output.strip().splitlines()[-1]
+        assert "\n" not in json_line
 
 
 class TestCliSinglePathNotFound:
@@ -1187,7 +1266,7 @@ type_directories:
 
     def test_single_path_not_found_returns_error_envelope(self, repo_for_single_path_check):
         """F10.6: Single missing path should return error envelope."""
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -1201,10 +1280,34 @@ type_directories:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "FILE_NOT_FOUND"
+
+    def test_single_path_not_found_logs_failed_operation(self, repo_for_single_path_check):
+        runner = runner_no_mixed_stderr()
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "docs/45-adr/nonexistent.md",
+                "--root",
+                str(repo_for_single_path_check),
+                "--format",
+                "json",
+            ],
+            env={"MEMINIT_LOG_FORMAT": "text"},
+        )
+
+        assert result.exit_code == 1
+        stderr_output = result.stderr if getattr(result, "stderr", None) else ""
+        if not stderr_output:
+            stderr_output = result.output
+
+        assert "check_targeted" in stderr_output
+        assert "FAILED" in stderr_output
+        assert "FILE_NOT_FOUND" in stderr_output
 
 
 class TestCliAbsolutePathEscape:
@@ -1249,7 +1352,7 @@ type_directories:
 
     def test_absolute_path_outside_root_returns_path_escape(self, repo_for_path_escape_check):
         """F10.4: Absolute path outside root should return PATH_ESCAPE error."""
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             [
@@ -1263,7 +1366,7 @@ type_directories:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "PATH_ESCAPE"
@@ -1280,6 +1383,16 @@ def test_config_missing_when_docs_exists_but_no_config(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
+
+
+def test_adr_new_requires_initialized_repo(tmp_path):
+    (tmp_path / "docs").mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["adr", "new", "Alias Test", "--root", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "CONFIG_MISSING" in result.output
 
 
 class TestCliVerboseJsonStderr:

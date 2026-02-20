@@ -3,6 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict
 
+VERSION_STRING_KEYS = {
+    "version",
+    "docops_version",
+    "template_version",
+}
+
 
 def normalize_yaml_scalar_footguns(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -36,12 +42,8 @@ def normalize_yaml_scalar_footguns(metadata: Dict[str, Any]) -> Dict[str, Any]:
         elif isinstance(value, date):
             normalized["last_updated"] = value.isoformat()
 
-    for key in ("version", "docops_version"):
+    for key in VERSION_STRING_KEYS:
         if key in normalized:
-            normalized[key] = _coerce_float_int_to_version_string(normalized.get(key))
-
-    for key in list(normalized.keys()):
-        if key.endswith("_version") and key not in ("version", "docops_version"):
             normalized[key] = _coerce_float_int_to_version_string(normalized.get(key))
 
     return normalized

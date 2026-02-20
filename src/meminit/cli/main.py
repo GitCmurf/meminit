@@ -226,53 +226,51 @@ def check(root, format, quiet, strict, paths):
     validate_initialized(root_path, format=format, json_schema_version=check_schema_version)
 
     if paths:
-        with log_operation(
-            operation="check_targeted",
-            details={"paths": list(paths), "strict": strict},
-            run_id=get_current_run_id(),
-        ) as _check_ctx:
-            try:
+        try:
+            with log_operation(
+                operation="check_targeted",
+                details={"paths": list(paths), "strict": strict},
+                run_id=get_current_run_id(),
+            ) as _check_ctx:
                 use_case = CheckRepositoryUseCase(root_dir=str(root_path))
                 result = use_case.execute_targeted(list(paths), strict=strict)
                 _check_ctx["details"]["files_checked"] = result.files_checked
                 _check_ctx["details"]["files_failed"] = result.files_failed
                 _check_ctx["details"]["violations_count"] = result.violations_count
                 _check_ctx["details"]["warnings_count"] = result.warnings_count
-            except MeminitError as e:
-                if format == "json":
-                    click.echo(
-                        _error_payload(
-                            e.code,
-                            e.message,
-                            e.details,
-                            schema_version=check_schema_version,
-                        )
+        except MeminitError as e:
+            if format == "json":
+                click.echo(
+                    _error_payload(
+                        e.code,
+                        e.message,
+                        e.details,
+                        schema_version=check_schema_version,
                     )
-                elif format == "md":
-                    click.echo(
-                        f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                )
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                )
+            else:
+                console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
+            raise SystemExit(1)
+        except Exception as e:
+            if format == "json":
+                click.echo(
+                    _error_payload(
+                        ErrorCode.UNKNOWN_ERROR,
+                        str(e),
+                        schema_version=check_schema_version,
                     )
-                else:
-                    console.print(
-                        f"[bold red]Error during compliance check: {e.message}[/bold red]"
-                    )
-                raise SystemExit(1)
-            except Exception as e:
-                if format == "json":
-                    click.echo(
-                        _error_payload(
-                            ErrorCode.UNKNOWN_ERROR,
-                            str(e),
-                            schema_version=check_schema_version,
-                        )
-                    )
-                elif format == "md":
-                    click.echo(
-                        f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
-                    )
-                else:
-                    console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-                raise SystemExit(1)
+                )
+            elif format == "md":
+                click.echo(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+                )
+            else:
+                console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
+            raise SystemExit(1)
 
         if format == "json":
             data: Dict[str, Any] = {
@@ -372,51 +370,51 @@ def check(root, format, quiet, strict, paths):
     if format == "text" and not quiet:
         console.print(f"Scanning root: {root_path}")
 
-    with log_operation(
-        operation="check_full",
-        details={"root": str(root_path)},
-        run_id=get_current_run_id(),
-    ) as _check_ctx:
-        try:
+    try:
+        with log_operation(
+            operation="check_full",
+            details={"root": str(root_path)},
+            run_id=get_current_run_id(),
+        ) as _check_ctx:
             use_case = CheckRepositoryUseCase(root_dir=str(root_path))
             result = use_case.execute_full_summary(strict=strict)
             _check_ctx["details"]["files_checked"] = result.files_checked
             _check_ctx["details"]["files_failed"] = result.files_failed
             _check_ctx["details"]["violations_count"] = result.violations_count
             _check_ctx["details"]["warnings_count"] = result.warnings_count
-        except MeminitError as e:
-            if format == "json":
-                click.echo(
-                    _error_payload(
-                        e.code,
-                        e.message,
-                        e.details,
-                        schema_version=check_schema_version,
-                    )
+    except MeminitError as e:
+        if format == "json":
+            click.echo(
+                _error_payload(
+                    e.code,
+                    e.message,
+                    e.details,
+                    schema_version=check_schema_version,
                 )
-            elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+            )
+        elif format == "md":
+            click.echo(
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+            )
+        else:
+            console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
+        raise SystemExit(1)
+    except Exception as e:
+        if format == "json":
+            click.echo(
+                _error_payload(
+                    ErrorCode.UNKNOWN_ERROR,
+                    str(e),
+                    schema_version=check_schema_version,
                 )
-            else:
-                console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
-            raise SystemExit(1)
-        except Exception as e:
-            if format == "json":
-                click.echo(
-                    _error_payload(
-                        ErrorCode.UNKNOWN_ERROR,
-                        str(e),
-                        schema_version=check_schema_version,
-                    )
-                )
-            elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
-                )
-            else:
-                console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-            raise SystemExit(1)
+            )
+        elif format == "md":
+            click.echo(
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+            )
+        else:
+            console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
+        raise SystemExit(1)
 
     if result.violations_count == 0 and result.warnings_count == 0:
         if format == "json":
@@ -1243,6 +1241,10 @@ def new_doc(
     Without --id, this allocates the next sequence and is non-idempotent.
     Use --list-types to discover valid types and --format json for agents.
     """
+    ex_usage = getattr(os, "EX_USAGE", 64)
+    ex_dataerr = getattr(os, "EX_DATAERR", 65)
+    ex_cantcreat = getattr(os, "EX_CANTCREAT", 73)
+
     if interactive and output_format == "json":
         click.echo(
             _json_payload(
@@ -1255,7 +1257,7 @@ def new_doc(
                 }
             )
         )
-        raise SystemExit(os.EX_USAGE)
+        raise SystemExit(ex_usage)
 
     if edit and (dry_run or output_format == "json"):
         if output_format == "json":
@@ -1274,7 +1276,7 @@ def new_doc(
             console.print(
                 "[bold red][ERROR INVALID_FLAG_COMBINATION] --edit is incompatible with --dry-run and --format json[/bold red]"
             )
-        raise SystemExit(os.EX_USAGE)
+        raise SystemExit(ex_usage)
 
     if list_types and (doc_type or title):
         if output_format == "json":
@@ -1293,7 +1295,7 @@ def new_doc(
             console.print(
                 "[bold red][ERROR INVALID_FLAG_COMBINATION] --list-types cannot be combined with TYPE or TITLE arguments[/bold red]"
             )
-        raise SystemExit(os.EX_USAGE)
+        raise SystemExit(ex_usage)
 
     if list_types:
         root_path = Path(root).resolve()
@@ -1307,7 +1309,7 @@ def new_doc(
                 click.echo(_error_payload(exc.code, exc.message, exc.details))
             else:
                 console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
-            raise SystemExit(os.EX_USAGE)
+            raise SystemExit(ex_usage)
         if output_format == "json":
             click.echo(
                 _json_payload(
@@ -1334,7 +1336,7 @@ def new_doc(
                 click.echo(_error_payload(exc.code, exc.message, exc.details))
             else:
                 console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
-            raise SystemExit(os.EX_USAGE)
+            raise SystemExit(ex_usage)
         if not doc_type:
             doc_type = click.prompt("Document type", type=click.Choice(valid_types))
         if not title:
@@ -1362,7 +1364,7 @@ def new_doc(
         else:
             console.print("[bold red]Error: TYPE and TITLE are required.[/bold red]")
             console.print("Usage: meminit new <TYPE> <TITLE>")
-        raise SystemExit(os.EX_USAGE)
+        raise SystemExit(ex_usage)
 
     root_path = Path(root).resolve()
     validate_root_path(root_path, format=output_format)
@@ -1442,10 +1444,10 @@ def new_doc(
                 ErrorCode.INVALID_ID_FORMAT,
                 ErrorCode.INVALID_FLAG_COMBINATION,
             ):
-                raise SystemExit(os.EX_DATAERR)
+                raise SystemExit(ex_dataerr)
             if result.error.code in (ErrorCode.DUPLICATE_ID, ErrorCode.FILE_EXISTS):
-                raise SystemExit(os.EX_CANTCREAT)
-        raise SystemExit(os.EX_DATAERR)
+                raise SystemExit(ex_cantcreat)
+        raise SystemExit(ex_dataerr)
 
     if output_format == "json":
         if result.reasoning and verbose:
@@ -1546,6 +1548,7 @@ def adr_new(title, root, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
     root_path = Path(root).resolve()
     validate_root_path(root_path, format="text")
+    validate_initialized(root_path, format="text")
     use_case = NewDocumentUseCase(str(root_path))
     try:
         path = use_case.execute("ADR", title, namespace=namespace)

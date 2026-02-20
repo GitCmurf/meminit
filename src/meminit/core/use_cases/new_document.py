@@ -4,7 +4,6 @@ import re
 import sys
 import tempfile
 import time
-import warnings
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -27,6 +26,7 @@ except ImportError:  # pragma: no cover - Windows or unsupported platforms
 
 ALLOWED_STATUSES = ["Draft", "In Review", "Approved", "Superseded"]
 RELATED_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
+ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 class NewDocumentUseCase:
@@ -136,11 +136,19 @@ class NewDocumentUseCase:
             )
 
         if params.status == "Superseded" and not params.superseded_by:
-            warnings.warn(
+            status_warning = (
                 "Document status is 'Superseded'. "
-                "Consider adding 'superseded_by' field to indicate the replacement document.",
-                UserWarning,
+                "Consider adding 'superseded_by' field to indicate the replacement document."
             )
+            warning_messages = ctx["details"].setdefault("warning_messages", [])
+            warning_messages.append(status_warning)
+            if reasoning is not None:
+                reasoning.append(
+                    {
+                        "decision": "status_warning",
+                        "value": status_warning,
+                    }
+                )
 
         if params.superseded_by:
             if not RELATED_ID_PATTERN.match(params.superseded_by):
@@ -258,7 +266,7 @@ class NewDocumentUseCase:
                 # Lock is per target type directory; deterministic IDs are validated
                 # against the type segment, so concurrent creates in other directories
                 # cannot legitimately produce the same document_id.
-                existing_path = self._find_existing_document_id(doc_id, ns)
+                existing_path = self._find_existing_document_id(doc_id)
                 if existing_path is not None:
                     existing_resolved = existing_path.resolve()
                     target_resolved = target_path.resolve()
@@ -621,20 +629,46 @@ class NewDocumentUseCase:
         except Exception:
             return None
 
-        if existing_post.content != generated_post.content:
-            return None
-
         existing_meta = normalize_yaml_scalar_footguns(dict(existing_post.metadata or {}))
         generated_meta = normalize_yaml_scalar_footguns(
             dict(getattr(generated_post, "metadata", {}) or {})
         )
-        existing_last_updated = existing_meta.get("last_updated")
-        generated_last_updated = generated_meta.get("last_updated")
+        existing_last_updated = self._as_iso_date_string(existing_meta.get("last_updated"))
+        generated_last_updated = self._as_iso_date_string(generated_meta.get("last_updated"))
         existing_meta.pop("last_updated", None)
         generated_meta.pop("last_updated", None)
         if existing_meta != generated_meta:
             return None
+
+        if existing_post.content != generated_post.content:
+            normalized_existing = self._normalize_idempotent_body_dates(
+                existing_post.content, existing_last_updated, generated_last_updated
+            )
+            normalized_generated = self._normalize_idempotent_body_dates(
+                generated_post.content, existing_last_updated, generated_last_updated
+            )
+            if normalized_existing != normalized_generated:
+                return None
+
         return self._coerce_last_updated(existing_last_updated or generated_last_updated)
+
+    def _as_iso_date_string(self, value: Any) -> Optional[str]:
+        if isinstance(value, str) and ISO_DATE_PATTERN.fullmatch(value):
+            return value
+        return None
+
+    def _normalize_idempotent_body_dates(
+        self,
+        content: str,
+        existing_last_updated: Optional[str],
+        generated_last_updated: Optional[str],
+    ) -> str:
+        normalized = content
+        for date_value in sorted(
+            d for d in {existing_last_updated, generated_last_updated} if d is not None
+        ):
+            normalized = normalized.replace(date_value, "<YYYY-MM-DD>")
+        return normalized
 
     def _coerce_last_updated(self, value: Any) -> str:
         """Return a normalized last_updated string or today's date as fallback."""
@@ -690,8 +724,6 @@ class NewDocumentUseCase:
             try:
                 ensure_safe_write_path(root_dir=self.root_dir, target_path=lock_path)
                 lock_file = self._open_lock_file(lock_path)
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return lock_file
             except MeminitError:
                 if lock_file:
                     try:
@@ -699,12 +731,43 @@ class NewDocumentUseCase:
                     except Exception:
                         pass
                 raise
-            except (IOError, OSError):
+            except OSError as exc:
                 if lock_file:
                     try:
                         lock_file.close()
                     except Exception:
                         pass
+                raise MeminitError(
+                    code=ErrorCode.UNKNOWN_ERROR,
+                    message=f"Could not open lock file '{lock_path}': {exc}",
+                    details={
+                        "directory": str(target_dir),
+                        "lock_path": str(lock_path),
+                        "errno": exc.errno,
+                    },
+                ) from exc
+
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return lock_file
+            except OSError as exc:
+                if lock_file:
+                    try:
+                        lock_file.close()
+                    except Exception:
+                        pass
+
+                if not self._is_lock_contention_error(exc):
+                    raise MeminitError(
+                        code=ErrorCode.UNKNOWN_ERROR,
+                        message=f"Could not acquire lock for '{target_dir}': {exc}",
+                        details={
+                            "directory": str(target_dir),
+                            "lock_path": str(lock_path),
+                            "errno": exc.errno,
+                        },
+                    ) from exc
+
                 elapsed_ms = (time.monotonic() - start_time) * 1000
                 if elapsed_ms >= timeout_ms:
                     raise MeminitError(
@@ -734,6 +797,14 @@ class NewDocumentUseCase:
                 ) from exc
             raise
         return os.fdopen(fd, "a+")
+
+    def _is_lock_contention_error(self, exc: OSError) -> bool:
+        contention_errnos = {errno.EAGAIN}
+        if hasattr(errno, "EWOULDBLOCK"):
+            contention_errnos.add(errno.EWOULDBLOCK)
+        if hasattr(errno, "EACCES"):
+            contention_errnos.add(errno.EACCES)
+        return exc.errno in contention_errnos
 
     def _release_lock(self, lock_file) -> None:
         """Release the lock file."""
@@ -835,19 +906,25 @@ class NewDocumentUseCase:
         )
         return f"{repo_prefix}-{id_type}-{next_id:03d}"
 
-    def _find_existing_document_id(self, doc_id: str, ns: RepoConfig) -> Optional[Path]:
-        """Find an existing document path by document_id within the namespace docs root."""
-        for path in ns.docs_dir.rglob("*.md"):
-            if ns.is_excluded(path):
+    def _find_existing_document_id(self, doc_id: str) -> Optional[Path]:
+        """Find an existing document path by document_id across all namespaces."""
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
                 continue
-            try:
-                post = frontmatter.load(str(path))
-            except Exception:
-                continue
-            metadata = post.metadata or {}
-            existing_id = metadata.get("document_id")
-            if isinstance(existing_id, str) and existing_id.strip() == doc_id:
-                return path
+            for path in ns.docs_dir.rglob("*.md"):
+                owner = self._layout.namespace_for_path(path)
+                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                    continue
+                if ns.is_excluded(path):
+                    continue
+                try:
+                    post = frontmatter.load(str(path))
+                except Exception:
+                    continue
+                metadata = post.metadata or {}
+                existing_id = metadata.get("document_id")
+                if isinstance(existing_id, str) and existing_id.strip() == doc_id:
+                    return path
         return None
 
     def _generate_filename(self, doc_id: str, title: str) -> str:

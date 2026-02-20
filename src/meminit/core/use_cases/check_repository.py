@@ -69,9 +69,7 @@ class CheckRepositoryUseCase:
                     continue
                 if ns.is_excluded(path):
                     continue
-                violations.extend(
-                    self._process_document(path, existing_ids, ns, schema_validator)
-                )
+                violations.extend(self._process_document(path, existing_ids, ns, schema_validator))
 
         return violations
 
@@ -123,6 +121,11 @@ class CheckRepositoryUseCase:
 
             for match in matches:
                 p = Path(match)
+                if p.is_dir():
+                    for nested in p.rglob("*.md"):
+                        if nested.is_file():
+                            all_files.append(nested)
+                    continue
                 if p.is_file() and p.suffix == ".md":
                     all_files.append(p)
 
@@ -146,6 +149,7 @@ class CheckRepositoryUseCase:
         warnings_by_file: Dict[str, Dict[str, Any]] = {}
         files_passed = 0
         files_failed = 0
+        files_checked = 0
         schema_failures = 0
         files_outside_docs_root_count = 0
         checked_paths: List[str] = []
@@ -198,9 +202,14 @@ class CheckRepositoryUseCase:
                 )
 
             rel_path = str(file_path.relative_to(self.root_dir))
-            checked_paths.append(rel_path)
 
             ns = self._layout.namespace_for_path(file_path)
+            if ns is not None and ns.is_excluded(file_path):
+                continue
+
+            checked_paths.append(rel_path)
+            files_checked += 1
+
             if ns is None:
                 files_outside_docs_root_count += 1
                 if strict:
@@ -230,17 +239,13 @@ class CheckRepositoryUseCase:
             schema_validator = schema_validators.get(ns.schema_path) or SchemaValidator(
                 str(ns.schema_file)
             )
-            file_violations = self._process_document(
-                file_path, existing_ids, ns, schema_validator
-            )
+            file_violations = self._process_document(file_path, existing_ids, ns, schema_validator)
 
             document_id = self._extract_document_id(file_path)
 
             if file_violations:
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
-                warnings = [
-                    v for v in file_violations if v.severity == Severity.WARNING
-                ]
+                warnings = [v for v in file_violations if v.severity == Severity.WARNING]
 
                 if strict and warnings:
                     errors = list(file_violations)
@@ -251,8 +256,7 @@ class CheckRepositoryUseCase:
                     file_entry: Dict[str, Any] = {
                         "path": rel_path,
                         "violations": [
-                            {"code": v.rule, "message": v.message, "line": v.line}
-                            for v in errors
+                            {"code": v.rule, "message": v.message, "line": v.line} for v in errors
                         ],
                     }
                     if document_id:
@@ -265,8 +269,7 @@ class CheckRepositoryUseCase:
                     warnings_by_file[rel_path] = {
                         "path": rel_path,
                         "warnings": [
-                            {"code": v.rule, "message": v.message, "line": v.line}
-                            for v in warnings
+                            {"code": v.rule, "message": v.message, "line": v.line} for v in warnings
                         ],
                     }
             else:
@@ -287,7 +290,7 @@ class CheckRepositoryUseCase:
 
         return CheckResult(
             success=success,
-            files_checked=len(unique_files),
+            files_checked=files_checked,
             files_passed=files_passed,
             files_failed=files_failed,
             missing_paths_count=len(not_found_patterns),
@@ -362,15 +365,11 @@ class CheckRepositoryUseCase:
                 files_checked += 1
                 rel_path = str(path.relative_to(self.root_dir))
                 checked_paths.append(rel_path)
-                file_violations = self._process_document(
-                    path, existing_ids, ns, schema_validator
-                )
+                file_violations = self._process_document(path, existing_ids, ns, schema_validator)
 
                 document_id = self._extract_document_id(path)
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
-                warnings = [
-                    v for v in file_violations if v.severity == Severity.WARNING
-                ]
+                warnings = [v for v in file_violations if v.severity == Severity.WARNING]
                 if strict and warnings:
                     errors = list(file_violations)
                     warnings = []
@@ -380,8 +379,7 @@ class CheckRepositoryUseCase:
                     entry: Dict[str, Any] = {
                         "path": rel_path,
                         "violations": [
-                            {"code": v.rule, "message": v.message, "line": v.line}
-                            for v in errors
+                            {"code": v.rule, "message": v.message, "line": v.line} for v in errors
                         ],
                     }
                     if document_id:
@@ -394,8 +392,7 @@ class CheckRepositoryUseCase:
                     warnings_by_file[rel_path] = {
                         "path": rel_path,
                         "warnings": [
-                            {"code": v.rule, "message": v.message, "line": v.line}
-                            for v in warnings
+                            {"code": v.rule, "message": v.message, "line": v.line} for v in warnings
                         ],
                     }
 
@@ -406,9 +403,7 @@ class CheckRepositoryUseCase:
         checked_paths_sorted = sorted(set(checked_paths))
 
         success = (
-            files_failed == 0
-            and repo_level_failures == 0
-            and not (strict and warnings_count > 0)
+            files_failed == 0 and repo_level_failures == 0 and not (strict and warnings_count > 0)
         )
 
         return CheckResult(
@@ -428,9 +423,7 @@ class CheckRepositoryUseCase:
             checked_paths=checked_paths_sorted,
         )
 
-    def _count_grouped_issues(
-        self, grouped: List[Dict[str, Any]], key: str
-    ) -> int:
+    def _count_grouped_issues(self, grouped: List[Dict[str, Any]], key: str) -> int:
         return sum(len(item.get(key, [])) for item in grouped)
 
     def _extract_document_id(self, path: Path) -> Optional[str]:
@@ -481,9 +474,7 @@ class CheckRepositoryUseCase:
         violations: List[Violation] = []
         rel_path = str(path.relative_to(self.root_dir))
 
-        if path.name not in self.FILENAME_EXCEPTIONS and not self.FILENAME_REGEX.match(
-            path.name
-        ):
+        if path.name not in self.FILENAME_EXCEPTIONS and not self.FILENAME_REGEX.match(path.name):
             violations.append(
                 Violation(
                     file=rel_path,
@@ -537,9 +528,7 @@ class CheckRepositoryUseCase:
 
         return violations
 
-    def _normalize_metadata_for_schema(
-        self, metadata: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _normalize_metadata_for_schema(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize metadata values to match JSON Schema expectations.
 
         YAML frontmatter parsing can coerce certain values to native Python types
@@ -559,9 +548,7 @@ class CheckRepositoryUseCase:
         """
         return normalize_yaml_scalar_footguns(metadata)
 
-    def _validate_id(
-        self, post: Any, rel_path: str, existing_ids: Set[str]
-    ) -> List[Violation]:
+    def _validate_id(self, post: Any, rel_path: str, existing_ids: Set[str]) -> List[Violation]:
         r"""Validate a document's ID for format, prefix, and uniqueness.
 
         Validation steps:

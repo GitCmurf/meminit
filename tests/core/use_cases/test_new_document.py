@@ -1,5 +1,7 @@
+import errno
 import re
 import sys
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -199,6 +201,19 @@ class TestStatusValidation:
         assert result.success is True
         assert result.status == "Superseded"
 
+    def test_valid_status_superseded_remains_non_fatal_with_warnings_as_errors(
+        self, repo_with_config_and_template
+    ):
+        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
+        params = NewDocumentParams(doc_type="ADR", title="Test", status="Superseded")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.status == "Superseded"
+
     def test_invalid_status_raises_error(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
         params = NewDocumentParams(doc_type="ADR", title="Test", status="Invalid")
@@ -350,6 +365,68 @@ class TestDeterministicIdMode:
         assert "prefix segment" in result.error.message
         assert result.error.details["expected_prefix"] == "TEST"
 
+    def test_id_flag_detects_duplicate_id_across_namespaces(self, tmp_path):
+        (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+        (tmp_path / "packages" / "phyla" / "docs" / "00-governance").mkdir(parents=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
+        (
+            tmp_path / "packages" / "phyla" / "docs" / "00-governance" / "metadata.schema.json"
+        ).write_text(SCHEMA_JSON, encoding="utf-8")
+
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+docops_version: '2.0'
+namespaces:
+  - name: root
+    repo_prefix: TEST
+    docs_root: docs
+    schema_path: docs/00-governance/metadata.schema.json
+    type_directories:
+      ADR: 45-adr
+  - name: phyla
+    repo_prefix: TEST
+    docs_root: packages/phyla/docs
+    schema_path: packages/phyla/docs/00-governance/metadata.schema.json
+    type_directories:
+      ADR: 45-adr
+""",
+            encoding="utf-8",
+        )
+
+        root_adr_dir = tmp_path / "docs" / "45-adr"
+        root_adr_dir.mkdir(parents=True, exist_ok=True)
+        (root_adr_dir / "adr-777-existing.md").write_text(
+            """---
+document_id: TEST-ADR-777
+type: ADR
+title: Existing
+status: Draft
+version: 0.1
+last_updated: 2026-02-20
+owner: TestOwner
+docops_version: 2.0
+---
+# Existing
+""",
+            encoding="utf-8",
+        )
+
+        use_case = NewDocumentUseCase(str(tmp_path))
+        params = NewDocumentParams(
+            doc_type="ADR",
+            title="Duplicate Across Namespace",
+            namespace="phyla",
+            document_id="TEST-ADR-777",
+        )
+        result = use_case.execute_with_params(params)
+
+        assert result.success is False
+        assert isinstance(result.error, MeminitError)
+        assert result.error.code == ErrorCode.DUPLICATE_ID
+        assert "docs/45-adr/adr-777-existing.md" in str(result.error.details["existing_path"])
+
     def test_id_flag_with_existing_id_allows_idempotent_create(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
 
@@ -435,6 +512,60 @@ class TestDeterministicIdMode:
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_ID_FORMAT
+
+    def test_id_flag_remains_idempotent_when_template_dates_change_by_day(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+        (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
+            "# ADR: {title}\n\n- Date decided: <YYYY-MM-DD>\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            SCHEMA_JSON, encoding="utf-8"
+        )
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+templates:
+  adr: docs/00-governance/templates/adr.md
+type_directories:
+  ADR: 45-adr
+""",
+            encoding="utf-8",
+        )
+        (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+
+        class DayOneDate:
+            @staticmethod
+            def today():
+                from datetime import date as real_date
+
+                return real_date(2026, 2, 19)
+
+        class DayTwoDate:
+            @staticmethod
+            def today():
+                from datetime import date as real_date
+
+                return real_date(2026, 2, 20)
+
+        monkeypatch.setattr(new_document_module, "date", DayOneDate)
+        use_case = NewDocumentUseCase(str(tmp_path))
+        params = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-009")
+        first = use_case.execute_with_params(params)
+        assert first.success is True
+        assert first.path is not None
+        assert "Date decided: 2026-02-19" in first.path.read_text(encoding="utf-8")
+
+        monkeypatch.setattr(new_document_module, "date", DayTwoDate)
+        second = use_case.execute_with_params(params)
+        assert second.success is True
+        assert second.path == first.path
+        # Deterministic retries should not fail due to template date substitutions.
+        assert "Date decided: 2026-02-19" in first.path.read_text(encoding="utf-8")
 
 
 class TestDryRunMode:
@@ -1036,6 +1167,25 @@ type_directories:
                     assert "Could not acquire lock" in result.error.message
             finally:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    def test_non_contention_lock_error_fails_fast(self, repo_for_locking):
+        use_case = NewDocumentUseCase(str(repo_for_locking))
+
+        def raise_permission_error(_lock_path):
+            raise PermissionError(errno.EPERM, "Operation not permitted")
+
+        with patch.object(
+            use_case, "_open_lock_file", side_effect=raise_permission_error
+        ) as mock_open_lock_file:
+            with patch.dict("os.environ", {"MEMINIT_LOCK_TIMEOUT_MS": "1000"}):
+                params = NewDocumentParams(doc_type="ADR", title="Lock Permission Error")
+                result = use_case.execute_with_params(params)
+
+        assert result.success is False
+        assert isinstance(result.error, MeminitError)
+        assert result.error.code == ErrorCode.UNKNOWN_ERROR
+        assert "Could not open lock file" in result.error.message
+        assert mock_open_lock_file.call_count == 1
 
     def test_dry_run_does_not_acquire_lock(self, repo_for_locking):
         use_case = NewDocumentUseCase(str(repo_for_locking))
