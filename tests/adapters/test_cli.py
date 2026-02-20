@@ -1385,6 +1385,58 @@ def test_config_missing_when_docs_exists_but_no_config(tmp_path):
     assert data["error"]["code"] == "CONFIG_MISSING"
 
 
+def test_config_missing_when_config_path_is_directory(tmp_path):
+    """F9.1: CONFIG_MISSING when docops.config.yaml exists but is not a file."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docops.config.yaml").mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--root", str(tmp_path), "--format", "json"])
+
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+    assert data["error"]["details"]["required"] == "regular file (not directory/symlink)"
+
+
+def test_new_rejects_non_file_config_path(tmp_path):
+    """F9.1: new must reject directory docops.config.yaml."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docops.config.yaml").mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
+
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+
+
+def test_config_missing_when_config_path_is_symlink(tmp_path):
+    """F9.1: CONFIG_MISSING when docops.config.yaml exists as a symlink."""
+    if not hasattr(os, "symlink"):
+        pytest.skip("Symlinks are not supported on this platform")
+
+    target = tmp_path / "real-config.yaml"
+    target.write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    link_path = tmp_path / "docops.config.yaml"
+    try:
+        os.symlink(target, link_path)
+    except OSError as exc:
+        pytest.skip(f"Unable to create symlink on this platform: {exc}")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["check", "--root", str(tmp_path), "--format", "json"])
+
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+
+
 def test_adr_new_requires_initialized_repo(tmp_path):
     (tmp_path / "docs").mkdir()
 

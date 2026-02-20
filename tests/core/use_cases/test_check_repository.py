@@ -640,6 +640,25 @@ docops_version: 2.0
         )
         assert all("docs/00-governance/templates" not in entry["path"] for entry in result.warnings)
 
+    def test_execute_targeted_normalizes_noncanonical_paths(self, repo_for_targeted_check):
+        templates_dir = repo_for_targeted_check / "docs" / "00-governance" / "templates"
+        templates_dir.mkdir(parents=True, exist_ok=True)
+        (templates_dir / "bad-template.md").write_text(
+            "# Template with no governed frontmatter\n",
+            encoding="utf-8",
+        )
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/../docs/**/*.md"])
+
+        assert result.files_checked == 3
+        assert result.checked_paths_count == 3
+        assert all(".." not in path for path in result.checked_paths)
+        assert all(
+            "docs/00-governance/templates" not in entry["path"] for entry in result.violations
+        )
+        assert all("docs/00-governance/templates" not in entry["path"] for entry in result.warnings)
+
     def test_execute_targeted_path_escape_is_fatal(self, repo_for_targeted_check):
         """Per F10.5, PATH_ESCAPE should raise MeminitError, not per-file violation."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:

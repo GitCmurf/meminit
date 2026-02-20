@@ -149,17 +149,21 @@ def validate_initialized(
 
     Raises SystemExit with CONFIG_MISSING error if:
     - docops.config.yaml does not exist
+    - docops.config.yaml is not a regular file (e.g., directory or symlink)
     """
     config_file = root_path / "docops.config.yaml"
 
-    if config_file.exists():
+    if config_file.is_file() and not config_file.is_symlink():
         return
 
-    msg = "Repository not initialized: missing docops.config.yaml. Run 'meminit init' first."
+    msg = (
+        "Repository not initialized: missing valid docops.config.yaml. " "Run 'meminit init' first."
+    )
     details = {
         "hint": "meminit init",
         "root": str(root_path),
         "missing_file": "docops.config.yaml",
+        "required": "regular file (not directory/symlink)",
     }
 
     if format == "json":

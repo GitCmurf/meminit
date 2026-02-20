@@ -1,5 +1,7 @@
 # Engineering Principles
 
+(GitCmurf v.1.0 2025-02-18)
+
 > **Audience**: AI agentic coding assistants (Claude, Codex, Gemini, etc.) and human contributors.
 > **Scope**: Universal engineering standards. For repo-specific rules (DocOps, governance, CLI workflows), see [`AGENTS.md`](AGENTS.md).
 

@@ -23,7 +23,7 @@ sync with your code.
 
 ### Built for the Agentic Age
 
-Meminit is designed to work *with* AI coding agents, not just alongside them:
+Meminit is designed to work _with_ AI coding agents, not just alongside them:
 
 - **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without
   guessing filenames.
@@ -96,7 +96,7 @@ Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-mi
 
 Meminit extends the ideas pioneered by
 [adr-tools](https://github.com/npryce/adr-tools) — lightweight, plain-text
-Architecture Decision Records — and generalizes them to *all* governed document
+Architecture Decision Records — and generalizes them to _all_ governed document
 types (PRDs, FDDs, specs, runbooks, and more).
 
 Your muscle memory still works:
@@ -176,7 +176,7 @@ designs, and runbooks.
 
 ## Project Status
 
-> **Alpha (v0.1.0)** — the CLI is functional and under active development. It
+> **Alpha (v0.2.0)** — the CLI is functional and under active development. It
 > is not yet published on PyPI. Expect breaking changes before v1.0.
 
 ## Non-goals

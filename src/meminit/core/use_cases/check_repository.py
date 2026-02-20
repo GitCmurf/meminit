@@ -92,6 +92,8 @@ class CheckRepositoryUseCase:
         schema_issues_seen: Set[str] = set()
         schema_validators: Dict[str, SchemaValidator] = {}
 
+        root_resolved = self.root_dir.resolve()
+
         for pattern in paths:
             pattern_path = Path(pattern)
             if pattern_path.is_absolute():
@@ -99,7 +101,7 @@ class CheckRepositoryUseCase:
             else:
                 candidate = self.root_dir / pattern_path
             try:
-                candidate.resolve().relative_to(self.root_dir.resolve())
+                candidate.resolve().relative_to(root_resolved)
             except (ValueError, OSError):
                 raise MeminitError(
                     code=ErrorCode.PATH_ESCAPE,
@@ -192,8 +194,9 @@ class CheckRepositoryUseCase:
 
         for file_path in unique_files:
             try:
-                file_path.resolve().relative_to(self.root_dir.resolve())
-            except ValueError:
+                canonical_path = file_path.resolve()
+                canonical_path.relative_to(root_resolved)
+            except (ValueError, OSError):
                 path_str = str(file_path)
                 raise MeminitError(
                     code=ErrorCode.PATH_ESCAPE,
@@ -201,10 +204,10 @@ class CheckRepositoryUseCase:
                     details={"path": path_str},
                 )
 
-            rel_path = str(file_path.relative_to(self.root_dir))
+            rel_path = str(canonical_path.relative_to(root_resolved))
 
-            ns = self._layout.namespace_for_path(file_path)
-            if ns is not None and ns.is_excluded(file_path):
+            ns = self._layout.namespace_for_path(canonical_path)
+            if ns is not None and ns.is_excluded(canonical_path):
                 continue
 
             checked_paths.append(rel_path)
@@ -239,9 +242,11 @@ class CheckRepositoryUseCase:
             schema_validator = schema_validators.get(ns.schema_path) or SchemaValidator(
                 str(ns.schema_file)
             )
-            file_violations = self._process_document(file_path, existing_ids, ns, schema_validator)
+            file_violations = self._process_document(
+                canonical_path, existing_ids, ns, schema_validator
+            )
 
-            document_id = self._extract_document_id(file_path)
+            document_id = self._extract_document_id(canonical_path)
 
             if file_violations:
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
