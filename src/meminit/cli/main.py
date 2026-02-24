@@ -8,14 +8,9 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from meminit.core.domain.entities import FixReport, NewDocumentParams, Violation
-from meminit.core.services.error_codes import ErrorCode, MeminitError, error_to_dict
+from meminit.core.domain.entities import NewDocumentParams, Violation
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import get_current_run_id, log_operation
-from meminit.core.services.output_contracts import (
-    CHECK_OUTPUT_SCHEMA_VERSION,
-    OUTPUT_SCHEMA_VERSION,
-    OUTPUT_SCHEMA_VERSION_V2,
-)
 from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
@@ -57,35 +52,6 @@ def complete_document_types(ctx, param, incomplete: str):
     return []
 
 
-def _json_payload(payload: dict, schema_version: str = OUTPUT_SCHEMA_VERSION) -> str:
-    """Generate single-line JSON output with run_id (N5).
-
-    DEPRECATED: Use format_envelope() for v2 commands.
-    Kept for backward compat during migration of remaining commands.
-    """
-    enriched = {
-        **payload,
-        "output_schema_version": schema_version,
-        "run_id": get_current_run_id(),
-    }
-    return json.dumps(enriched, separators=(",", ":"))
-
-
-def _error_payload(
-    code: ErrorCode,
-    message: str,
-    details: Optional[dict[str, Any]] = None,
-    schema_version: str = OUTPUT_SCHEMA_VERSION,
-) -> str:
-    """Generate JSON error envelope per F1.3/F1.5.
-
-    DEPRECATED: Use format_error_envelope() for v2 commands.
-    Kept for backward compat during migration of remaining commands.
-    """
-    error_obj: dict[str, Any] = {"code": code.value, "message": message}
-    if details is not None:
-        error_obj["details"] = details
-    return _json_payload({"success": False, "error": error_obj}, schema_version=schema_version)
 
 
 def _write_output(output_str: str, output_path: Optional[str] = None) -> None:
@@ -126,9 +92,9 @@ def _flatten_warning_groups(warnings: list[dict[str, Any]]) -> list[dict[str, An
 def validate_root_path(
     root_path: Path,
     format: str = "text",
-    json_schema_version: str = OUTPUT_SCHEMA_VERSION,
     command: str = "unknown",
     include_timestamp: bool = False,
+    **_kwargs: object,
 ) -> None:
     """Validate root path exists and is a directory.
 
@@ -165,9 +131,9 @@ def validate_root_path(
 def validate_initialized(
     root_path: Path,
     format: str = "text",
-    json_schema_version: str = OUTPUT_SCHEMA_VERSION,
     command: str = "unknown",
     include_timestamp: bool = False,
+    **_kwargs: object,
 ) -> None:
     """Validate that the repo is initialized with meminit config (F9.1).
 
@@ -253,10 +219,9 @@ def check(root, format, quiet, strict, paths):
     if format == "text" and not quiet and not paths:
         console.print("[bold blue]Meminit Compliance Check[/bold blue]")
 
-    check_schema_version = CHECK_OUTPUT_SCHEMA_VERSION
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, json_schema_version=check_schema_version, command="check")
-    validate_initialized(root_path, format=format, json_schema_version=check_schema_version, command="check")
+    validate_root_path(root_path, format=format, command="check")
+    validate_initialized(root_path, format=format, command="check")
 
     if paths:
         try:
