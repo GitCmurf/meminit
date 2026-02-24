@@ -299,7 +299,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["output_schema_version"] == "1.0"
+    assert data["output_schema_version"] == "2.0"
 
 
 @patch("meminit.cli.main.ScanRepositoryUseCase")
@@ -403,9 +403,8 @@ def test_cli_index_json_contract(tmp_path):
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["status"] == "ok"
-    assert data["output_schema_version"] == "1.0"
-    assert data["report"]["document_count"] == 1
+    assert data["output_schema_version"] == "2.0"
+    assert data["data"]["document_count"] == 1
 
 
 class TestCliNewJsonOutput:
@@ -477,16 +476,16 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert "path" in data
-        assert data["document_id"] == "TEST-ADR-001"
-        assert data["type"] == "ADR"
-        assert data["title"] == "Test Decision"
-        assert data["status"] == "Draft"
-        assert "owner" in data
-        assert "keywords" in data
-        assert "related_ids" in data
+        assert "path" in data["data"]
+        assert data["data"]["document_id"] == "TEST-ADR-001"
+        assert data["data"]["type"] == "ADR"
+        assert data["data"]["title"] == "Test Decision"
+        assert data["data"]["status"] == "Draft"
+        assert "owner" in data["data"]
+        assert "keywords" in data["data"]
+        assert "related_ids" in data["data"]
 
     def test_new_format_json_with_metadata(self, repo_for_new):
         runner = CliRunner()
@@ -521,11 +520,11 @@ type_directories:
         data = json.loads(json_line)
 
         assert data["success"] is True
-        assert data["owner"] == "TestOwner"
-        assert data["area"] == "Backend"
-        assert data["description"] == "Test description"
-        assert data["keywords"] == ["api", "test"]
-        assert data["related_ids"] == ["TEST-PRD-001"]
+        assert data["data"]["owner"] == "TestOwner"
+        assert data["data"]["area"] == "Backend"
+        assert data["data"]["description"] == "Test description"
+        assert data["data"]["keywords"] == ["api", "test"]
+        assert data["data"]["related_ids"] == ["TEST-PRD-001"]
 
     def test_new_format_json_error(self, repo_for_new):
         runner = CliRunner()
@@ -547,7 +546,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
@@ -593,11 +592,11 @@ type_directories:
         assert result.exit_code == 0
         data = json.loads(result.output)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert "types" in data
+        assert "types" in data["data"]
 
-        types_dict = {t["type"]: t["directory"] for t in data["types"]}
+        types_dict = {t["type"]: t["directory"] for t in data["data"]["types"]}
         assert "ADR" in types_dict
         assert "PRD" in types_dict
         assert "FDD" in types_dict
@@ -699,11 +698,11 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert data["dry_run"] is True
-        assert "would_create" in data
-        assert data["would_create"]["document_id"] == "TEST-ADR-001"
+        assert data["data"]["dry_run"] is True
+        assert "would_create" in data["data"]
+        assert data["data"]["would_create"]["document_id"] == "TEST-ADR-001"
 
     def test_new_dry_run_with_metadata_preview(self, repo_for_dry_run):
         runner = CliRunner()
@@ -730,8 +729,8 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["owner"] == "TestOwner"
-        assert data["area"] == "Backend"
+        assert data["data"]["owner"] == "TestOwner"
+        assert data["data"]["area"] == "Backend"
 
 
 class TestCliCheckTargeted:

@@ -19,7 +19,7 @@ class TestObservability:
         id1 = get_run_id()
         id2 = get_run_id()
         assert id1 != id2
-        assert len(id1) == 8
+        assert len(id1) == 36  # Full UUIDv4
 
     def test_get_run_id_uses_env(self, monkeypatch):
         monkeypatch.setenv("MEMINIT_RUN_ID", "test1234")

@@ -23,7 +23,7 @@ _current_run_id: Optional[str] = None
 
 def get_run_id() -> str:
     """Generate or retrieve a unique run ID for this invocation."""
-    return os.environ.get("MEMINIT_RUN_ID") or str(uuid.uuid4())[:8]
+    return os.environ.get("MEMINIT_RUN_ID") or str(uuid.uuid4())
 
 
 def get_current_run_id() -> str:

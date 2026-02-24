@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
 status: Draft
-version: "0.4"
-last_updated: 2026-02-19
+version: "0.5"
+last_updated: 2026-02-24
 owner: Product Team
 docops_version: "2.0"
 area: Agentic Integration
@@ -26,8 +26,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-004
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.4
-> **Last Updated:** 2026-02-19
+> **Version:** 0.5
+> **Last Updated:** 2026-02-24
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -71,7 +71,13 @@ All v2 JSON outputs MUST include the following top-level fields.
 
 1. `output_schema_version` (string)
 2. `success` (boolean)
-3. `run_id` (string)
+3. `command` (string) — the subcommand name, normalized to the canonical CLI name
+4. `run_id` (string, UUIDv4)
+5. `root` (string) — absolute path to the repository root
+6. `data` (object) — command-specific payload (empty `{}` when not applicable)
+7. `warnings` (array) — non-fatal issues (empty `[]` when none)
+8. `violations` (array) — fatal or error-level issues (empty `[]` when none)
+9. `advice` (array) — non-binding recommendations (empty `[]` when none)
 
 For `command: check`, successful and validation-failure outputs MUST additionally include:
 
@@ -86,14 +92,11 @@ Plain English: the stable base envelope is small, and `check` adds the normative
 
 ### 4.2 Optional Top-Level Fields
 
-- `command` (string) MAY be present.
-- `root` (string) MAY be present.
-- `data` (object) MAY be present.
-- `advice` (array) MAY be present.
-- `timestamp` (string, ISO 8601 UTC) MAY be present. When present it MUST be in the form `YYYY-MM-DDTHH:MM:SS[.sss]Z` (fractional seconds optional).
+- `timestamp` (string, ISO 8601 UTC) MAY be present. Included only when `--include-timestamp` is passed. When present it MUST be in the form `YYYY-MM-DDTHH:MM:SS[.sss]Z` (fractional seconds optional).
+- `error` (object) MAY be present for operational failures (see §5).
 
-When `command` is omitted, agents MUST treat the presence of `check` counters/findings fields (Section 4.1) as a `check`-shape payload.
-Check counters (`files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`, `warnings`, `violations`) are REQUIRED for successful `check` responses and validation-failure responses, and MAY be omitted only when a top-level operational `error` object is present.
+For `command: check`, additional top-level counter fields are REQUIRED (see §4.1).
+Check counters (`files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`) are REQUIRED for successful `check` responses and validation-failure responses, and MAY be omitted only when a top-level operational `error` object is present.
 
 Plain English: Timestamp is allowed but not required, and it must be UTC.
 
@@ -104,12 +107,12 @@ Examples: `2026-02-18T14:30:45Z`, `2026-02-18T14:30:45.123Z`.
 - `output_schema_version` identifies the contract version used to serialize the response.
 - `success` indicates whether the command completed without fatal error.
 - `run_id` is a unique identifier for correlating output and logs within a single invocation.
-- `command` (when present) is the subcommand name used by the user, normalized to the canonical CLI name.
-- `root` (when present) is the absolute path to the repository root used for the command.
-- `data` (when present) contains command-specific payload details.
-- `warnings` is a list of non-fatal issues.
-- `violations` is a list of fatal or error-level issues.
-- `advice` (when present) is a list of non-binding recommendations.
+- `command` is the subcommand name used by the user, normalized to the canonical CLI name.
+- `root` is the absolute path to the repository root used for the command.
+- `data` contains command-specific payload details; empty `{}` when not applicable.
+- `warnings` is a list of non-fatal issues; empty `[]` when none.
+- `violations` is a list of fatal or error-level issues; empty `[]` when none.
+- `advice` is a list of non-binding recommendations; empty `[]` when none.
 
 Plain English: The envelope tells you what command ran, where it ran, and what it found.
 
@@ -160,11 +163,11 @@ Plain English: warnings are flat issue objects; violations can be flat issues or
 
 `advice` MUST be an array of objects with these fields.
 
-1. `message` (string)
+1. `code` (string) — stable identifier for deterministic sorting and agent handling
+2. `message` (string)
 
 Optional fields:
 
-- `code` (string)
 - `details` (object)
 
 Plain English: Advice is informative only and should not be treated as a violation.
