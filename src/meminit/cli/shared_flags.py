@@ -4,8 +4,6 @@ Centralizes CLI flags that apply across multiple commands to avoid
 duplication and ensure consistency (PRD-003 FR-4, FR-7).
 """
 
-import functools
-
 import click
 
 
@@ -19,6 +17,19 @@ def format_option():
             type=click.Choice(["text", "json", "md"], case_sensitive=False),
             default="text",
             help="Output format (text|json|md).",
+        )(f)
+
+    return decorator
+
+
+def root_option():
+    """Add --root option for repository root directory."""
+
+    def decorator(f):
+        return click.option(
+            "--root",
+            default=".",
+            help="Root directory of the repository",
         )(f)
 
     return decorator
@@ -69,6 +80,20 @@ def agent_output_options():
         f = format_option()(f)
         f = output_option()(f)
         f = include_timestamp_option()(f)
+        return f
+
+    return decorator
+
+
+def agent_repo_options():
+    """Composite decorator applying repo-root + agent interface output flags.
+
+    Applies: --root, --format, --output, --include-timestamp.
+    """
+
+    def decorator(f):
+        f = agent_output_options()(f)
+        f = root_option()(f)
         return f
 
     return decorator

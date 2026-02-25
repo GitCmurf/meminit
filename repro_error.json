@@ -1,0 +1,1 @@
+{"output_schema_version":"2.0","success":false,"command":"check","run_id":"19aa591d-0458-4a55-9187-45b4a966c494","root":"/tmp/non_existent_dir_12345","data":{},"warnings":[],"violations":[],"advice":[],"error":{"code":"CONFIG_MISSING","details":{"path":"/tmp/non_existent_dir_12345","reason":"not_found"},"message":"Path does not exist: /tmp/non_existent_dir_12345"}}

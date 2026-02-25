@@ -137,6 +137,47 @@ def test_cli_check_violations_json(mock_use_case):
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outdir"
+    output_dir.mkdir()
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+    assert payload["error"]["details"]["output_path"] == str(output_dir)
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_md(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -731,6 +772,31 @@ type_directories:
 
         assert data["data"]["owner"] == "TestOwner"
         assert data["data"]["area"] == "Backend"
+
+    def test_new_md_format_rejected_and_written_to_output(self, repo_for_dry_run, tmp_path):
+        output_path = tmp_path / "new-md-error.md"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "ADR",
+                "MD Not Supported",
+                "--root",
+                str(repo_for_dry_run),
+                "--format",
+                "md",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == getattr(os, "EX_USAGE", 64)
+        assert result.output == ""
+        content = output_path.read_text(encoding="utf-8")
+        assert "# Meminit New" in content
+        assert "INVALID_FLAG_COMBINATION" in content
+        assert "--format md is not supported for this command." in content
 
 
 class TestCliCheckTargeted:

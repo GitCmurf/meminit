@@ -1,6 +1,7 @@
-import json
 import os
 import shlex
+import sys
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -8,6 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from meminit.cli.shared_flags import agent_output_options, agent_repo_options
 from meminit.core.domain.entities import NewDocumentParams, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import get_current_run_id, log_operation
@@ -52,13 +54,44 @@ def complete_document_types(ctx, param, incomplete: str):
     return []
 
 
+def _write_output(output_str: str, output: Optional[str] = None) -> None:
+    """Write output to stdout or to a file if requested."""
+    if output:
+        try:
+            Path(output).write_text(output_str + "\n", encoding="utf-8")
+            return
+        except OSError as exc:
+            # Preserve machine-safe behavior for JSON output when file writes fail.
+            try:
+                payload = json.loads(output_str)
+            except Exception:
+                payload = None
 
-
-def _write_output(output_str: str, output_path: Optional[str] = None) -> None:
-    """Write output to stdout and optionally to a file."""
+            if (
+                isinstance(payload, dict)
+                and payload.get("output_schema_version") == "2.0"
+                and isinstance(payload.get("command"), str)
+                and isinstance(payload.get("root"), str)
+            ):
+                click.echo(
+                    format_error_envelope(
+                        command=payload["command"],
+                        root=payload["root"],
+                        error_code=ErrorCode.UNKNOWN_ERROR,
+                        message=f"Failed to write output file: {output}",
+                        details={"output_path": output, "reason": str(exc)},
+                        include_timestamp="timestamp" in payload,
+                        run_id=payload.get("run_id")
+                        if isinstance(payload.get("run_id"), str)
+                        else None,
+                    )
+                )
+            else:
+                console.print(
+                    f"[bold red]Error writing output file '{output}': {exc}[/bold red]"
+                )
+            raise SystemExit(1)
     click.echo(output_str)
-    if output_path:
-        Path(output_path).write_text(output_str + "\n", encoding="utf-8")
 
 
 def _md_escape(value: object) -> str:
@@ -94,6 +127,8 @@ def validate_root_path(
     format: str = "text",
     command: str = "unknown",
     include_timestamp: bool = False,
+    run_id: Optional[str] = None,
+    output: Optional[str] = None,
     **_kwargs: object,
 ) -> None:
     """Validate root path exists and is a directory.
@@ -111,7 +146,7 @@ def validate_root_path(
         details = {"path": str(root_path), "reason": "not_directory"}
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_error_envelope(
                 command=command,
                 root=str(root_path),
@@ -119,10 +154,12 @@ def validate_root_path(
                 message=msg,
                 details=details,
                 include_timestamp=include_timestamp,
-            )
+                run_id=run_id or get_current_run_id(),
+            ),
+            output=output,
         )
     elif format == "md":
-        click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
+        _write_output(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n", output=output)
     else:
         console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
     raise SystemExit(1)
@@ -133,6 +170,8 @@ def validate_initialized(
     format: str = "text",
     command: str = "unknown",
     include_timestamp: bool = False,
+    run_id: Optional[str] = None,
+    output: Optional[str] = None,
     **_kwargs: object,
 ) -> None:
     """Validate that the repo is initialized with meminit config (F9.1).
@@ -160,7 +199,7 @@ def validate_initialized(
     }
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_error_envelope(
                 command=command,
                 root=str(root_path),
@@ -168,10 +207,12 @@ def validate_initialized(
                 message=msg,
                 details=details,
                 include_timestamp=include_timestamp,
-            )
+                run_id=run_id or get_current_run_id(),
+            ),
+            output=output,
         )
     elif format == "md":
-        click.echo(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n")
+        _write_output(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n", output=output)
     else:
         console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
     raise SystemExit(1)
@@ -194,13 +235,7 @@ def cli():
 
 @cli.command()
 @click.argument("paths", nargs=-1, required=False)
-@click.option("--root", default=".", help="Root directory of the repository")
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format (text|json|md)",
-)
+@agent_repo_options()
 @click.option("--quiet", is_flag=True, default=False, help="Only show failures (text output)")
 @click.option(
     "--strict",
@@ -208,27 +243,42 @@ def cli():
     default=False,
     help="Treat warnings as errors (e.g., outside docs_root)",
 )
-def check(root, format, quiet, strict, paths):
+def check(root, format, output, include_timestamp, quiet, strict, paths):
     """Run compliance checks on the repository or specified PATHS.
 
     PATHS may be relative, absolute, or glob patterns. If omitted, all governed
     docs under the configured docs_root are checked.
     """
-    EX_DATAERR = 65
+    EX_COMPLIANCE_FAIL = 65
+    run_id = get_current_run_id()
 
     if format == "text" and not quiet and not paths:
         console.print("[bold blue]Meminit Compliance Check[/bold blue]")
 
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="check")
-    validate_initialized(root_path, format=format, command="check")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="check",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
+    validate_initialized(
+        root_path,
+        format=format,
+        command="check",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     if paths:
         try:
             with log_operation(
                 operation="check_targeted",
                 details={"paths": list(paths), "strict": strict},
-                run_id=get_current_run_id(),
+                run_id=run_id,
             ) as _check_ctx:
                 use_case = CheckRepositoryUseCase(root_dir=str(root_path))
                 result = use_case.execute_targeted(list(paths), strict=strict)
@@ -238,35 +288,43 @@ def check(root, format, quiet, strict, paths):
                 _check_ctx["details"]["warnings_count"] = result.warnings_count
         except MeminitError as e:
             if format == "json":
-                click.echo(
+                _write_output(
                     format_error_envelope(
                         command="check",
                         root=str(root_path),
                         error_code=e.code,
                         message=e.message,
                         details=e.details,
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
             elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+                _write_output(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n",
+                    output,
                 )
             else:
                 console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
             raise SystemExit(1)
         except Exception as e:
             if format == "json":
-                click.echo(
+                _write_output(
                     format_error_envelope(
                         command="check",
                         root=str(root_path),
                         error_code=ErrorCode.UNKNOWN_ERROR,
                         message=str(e),
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
             elif format == "md":
-                click.echo(
-                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+                _write_output(
+                    f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n",
+                    output,
                 )
             else:
                 console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
@@ -285,7 +343,7 @@ def check(root, format, quiet, strict, paths):
                 "violations_count": result.violations_count,
                 "warnings_count": result.warnings_count,
             }
-            click.echo(
+            _write_output(
                 format_envelope(
                     command="check",
                     root=str(root_path),
@@ -293,9 +351,12 @@ def check(root, format, quiet, strict, paths):
                     violations=result.violations,
                     warnings=_flatten_warning_groups(result.warnings),
                     extra_top_level=check_counters,
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
-            exit(0 if result.success else EX_DATAERR)
+            raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
         if format == "md":
             lines = [
@@ -329,8 +390,8 @@ def check(root, format, quiet, strict, paths):
                         if w.get("line"):
                             lines[-1] += f" (line {w['line']})"
                     lines.append("")
-            click.echo("\n".join(lines))
-            exit(0 if result.success else EX_DATAERR)
+            _write_output("\n".join(lines), output)
+            raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
         violations_by_path = {item["path"]: item["violations"] for item in result.violations}
         warnings_by_path = {item["path"]: item["warnings"] for item in result.warnings}
@@ -340,7 +401,7 @@ def check(root, format, quiet, strict, paths):
                 for v in violations_by_path[path]:
                     line_info = f" (line {v['line']})" if v.get("line") is not None else ""
                     console.print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
-            exit(0 if result.success else EX_DATAERR)
+            raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
         label = "file" if result.files_checked == 1 else "files"
         console.print(f"Checking {result.files_checked} existing {label}...")
@@ -371,7 +432,7 @@ def check(root, format, quiet, strict, paths):
             console.print("No violations found.")
         if result.warnings_count and not strict:
             console.print(f"Warnings: {result.warnings_count}.")
-        exit(0 if result.success else EX_DATAERR)
+        raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
     if format == "text" and not quiet:
         console.print(f"Scanning root: {root_path}")
@@ -380,7 +441,7 @@ def check(root, format, quiet, strict, paths):
         with log_operation(
             operation="check_full",
             details={"root": str(root_path)},
-            run_id=get_current_run_id(),
+            run_id=run_id,
         ) as _check_ctx:
             use_case = CheckRepositoryUseCase(root_dir=str(root_path))
             result = use_case.execute_full_summary(strict=strict)
@@ -390,35 +451,43 @@ def check(root, format, quiet, strict, paths):
             _check_ctx["details"]["warnings_count"] = result.warnings_count
     except MeminitError as e:
         if format == "json":
-            click.echo(
+            _write_output(
                 format_error_envelope(
                     command="check",
                     root=str(root_path),
                     error_code=e.code,
                     message=e.message,
                     details=e.details,
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         elif format == "md":
-            click.echo(
-                f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n"
+            _write_output(
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: {e.code.value}\n- Message: {_md_escape(e.message)}\n",
+                output,
             )
         else:
             console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
         raise SystemExit(1)
     except Exception as e:
         if format == "json":
-            click.echo(
+            _write_output(
                 format_error_envelope(
                     command="check",
                     root=str(root_path),
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=str(e),
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         elif format == "md":
-            click.echo(
-                f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n"
+            _write_output(
+                f"# Meminit Compliance Check\n\n- Status: error\n- Code: UNKNOWN_ERROR\n- Message: {_md_escape(e)}\n",
+                output,
             )
         else:
             console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
@@ -438,19 +507,23 @@ def check(root, format, quiet, strict, paths):
                 "violations_count": result.violations_count,
                 "warnings_count": result.warnings_count,
             }
-            click.echo(
+            _write_output(
                 format_envelope(
                     command="check",
                     root=str(root_path),
                     success=True,
                     extra_top_level=check_counters,
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
             return
         if format == "md":
-            click.echo(
+            _write_output(
                 "# Meminit Compliance Check\n\n- Status: success\n- Files checked: "
-                f"{result.files_checked}\n- Violations: 0\n- Warnings: 0\n"
+                f"{result.files_checked}\n- Violations: 0\n- Warnings: 0\n",
+                output,
             )
             return
         if not quiet:
@@ -470,7 +543,7 @@ def check(root, format, quiet, strict, paths):
             "violations_count": result.violations_count,
             "warnings_count": result.warnings_count,
         }
-        click.echo(
+        _write_output(
             format_envelope(
                 command="check",
                 root=str(root_path),
@@ -478,9 +551,12 @@ def check(root, format, quiet, strict, paths):
                 violations=result.violations,
                 warnings=_flatten_warning_groups(result.warnings),
                 extra_top_level=check_counters,
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
-        exit(EX_DATAERR if not result.success else 0)
+        raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
     if format == "md":
         status = "failed" if not result.success else "success"
@@ -493,15 +569,16 @@ def check(root, format, quiet, strict, paths):
             path = item.get("path")
             for w in item.get("warnings", []):
                 rows.append(["warning", w.get("code"), path, w.get("line"), w.get("message")])
-        click.echo(
+        _write_output(
             "# Meminit Compliance Check\n\n"
             f"- Status: {status}\n- Files checked: {result.files_checked}\n"
             f"- Violations: {result.violations_count}\n- Warnings: {result.warnings_count}\n\n"
             "## Findings\n\n"
             + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
-            + "\n"
+            + "\n",
+            output,
         )
-        raise SystemExit(EX_DATAERR if not result.success else 0)
+        raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
     if quiet:
         for item in result.violations:
@@ -509,7 +586,7 @@ def check(root, format, quiet, strict, paths):
             for v in item.get("violations", []):
                 line_info = f" (line {v['line']})" if v.get("line") is not None else ""
                 console.print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
-        raise SystemExit(EX_DATAERR if not result.success else 0)
+        raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
     table_title = "Compliance Violations" if result.violations_count else "Compliance Warnings"
     table = Table(title=table_title)
@@ -539,28 +616,30 @@ def check(root, format, quiet, strict, paths):
         console.print(
             f"\n[bold red]Found {result.violations_count} violations across {result.files_checked} checked files.[/bold red]"
         )
-        exit(EX_DATAERR)
+        raise SystemExit(EX_COMPLIANCE_FAIL)
     console.print(f"\n[bold yellow]Found {result.warnings_count} warning(s).[/bold yellow]")
-    exit(0)
+    raise SystemExit(0)
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
+@agent_repo_options()
 @click.option(
     "--strict/--no-strict",
     default=False,
     help="Treat warnings as errors (exit non-zero)",
 )
-def doctor(root, format, strict):
+def doctor(root, format, output, include_timestamp, strict):
     """Self-check: verify meminit can operate in this repository."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="doctor")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="doctor",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = DoctorRepositoryUseCase(root_dir=str(root_path))
     issues = use_case.execute()
@@ -587,6 +666,7 @@ def doctor(root, format, strict):
         status = "warn"
 
     if format == "json":
+        # PRD §15.1 Mapping Rule:
         v2_warnings = [
             {
                 "code": v.rule,
@@ -607,17 +687,31 @@ def doctor(root, format, strict):
             }
             for v in errors
         ]
-        click.echo(
+        # Include original issues in data for backward compatibility (PRD §15.1)
+        issues_payload = [
+            {
+                "severity": i.severity.value if hasattr(i.severity, "value") else str(i.severity),
+                "rule": i.rule,
+                "file": i.file,
+                "line": i.line,
+                "message": i.message,
+            }
+            for i in issues
+        ]
+        _write_output(
             format_envelope(
                 command="doctor",
                 root=str(root_path),
                 success=exit_code == 0,
-                data={"strict": strict, "status": status},
+                data={"strict": strict, "status": status, "issues": issues_payload},
                 warnings=v2_warnings,
                 violations=v2_violations,
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
-        exit(exit_code)
+        raise SystemExit(exit_code)
 
     if format == "md":
         rows = [
@@ -630,7 +724,7 @@ def doctor(root, format, strict):
             ]
             for v in issues
         ]
-        click.echo(
+        _write_output(
             "# Meminit Doctor\n\n"
             f"- Status: {status}\n"
             f"- Strict: {strict}\n"
@@ -641,16 +735,17 @@ def doctor(root, format, strict):
                 _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
                 if rows
                 else "_None_\n"
-            )
+            ),
+            output,
         )
-        exit(exit_code)
+        raise SystemExit(exit_code)
 
     console.print("[bold blue]Meminit Doctor[/bold blue]")
     console.print(f"Root: {root_path}")
 
     if not issues:
         console.print("[bold green]OK: meminit is ready to run here.[/bold green]")
-        exit(exit_code)
+        raise SystemExit(exit_code)
 
     table = Table(title="Doctor Findings")
     table.add_column("Severity")
@@ -674,33 +769,85 @@ def doctor(root, format, strict):
     else:
         console.print(f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]")
 
-    exit(exit_code)
+    raise SystemExit(exit_code)
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files")
 @click.option(
     "--namespace",
     default=None,
     help="Limit fixes to a single namespace (monorepo safety)",
 )
-def fix(root, dry_run, namespace):
+def fix(root, dry_run, namespace, format, output, include_timestamp):
     """Automatically fix common compliance violations."""
-    msg = "[bold blue]Meminit Compliance Fixer[/bold blue]"
-    if dry_run:
-        msg += " [yellow](DRY RUN)[/yellow]"
-    console.print(msg)
+    run_id = get_current_run_id()
+    if format == "text":
+        msg = "[bold blue]Meminit Compliance Fixer[/bold blue]"
+        if dry_run:
+            msg += " [yellow](DRY RUN)[/yellow]"
+        console.print(msg)
 
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="fix",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     try:
         fixer = FixRepositoryUseCase(root_dir=str(root_path))
         report = fixer.execute(dry_run=dry_run, namespace=namespace)
     except Exception as e:
-        console.print(f"[bold red]Error during processing: {e}[/bold red]")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="fix",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(e),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(f"# Meminit Fix\n\n- Status: error\n- Message: {_md_escape(e)}\n", output)
+        else:
+            console.print(f"[bold red]Error during processing: {e}[/bold red]")
         raise SystemExit(1)
+
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="fix",
+                root=str(root_path),
+                success=True,
+                data={
+                    "fixed": len(report.fixed_violations),
+                    "remaining": len(report.remaining_violations),
+                    "dry_run": dry_run,
+                },
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+        raise SystemExit(0 if not report.remaining_violations else 1)
+
+    if format == "md":
+        _write_output(
+            "# Meminit Fix\n\n"
+            f"- Mode: {'DRY RUN' if dry_run else 'APPLY'}\n"
+            f"- Fixed: {len(report.fixed_violations)}\n"
+            f"- Remaining: {len(report.remaining_violations)}\n",
+            output,
+        )
+        raise SystemExit(0 if not report.remaining_violations else 1)
 
     # Print fixed actions
     if report.fixed_violations:
@@ -734,38 +881,36 @@ def fix(root, dry_run, namespace):
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
-@click.option(
-    "--output",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Optional path to write JSON report",
-)
-@click.option(
-    "--format",
-    type=click.Choice(["json", "text", "md"]),
-    default="json",
-    help="Output format",
-)
-def scan(root, output, format):
+@agent_repo_options()
+def scan(root, format, output, include_timestamp):
     """Scan a repository and suggest a DocOps migration plan (read-only)."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="scan")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="scan",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = ScanRepositoryUseCase(root_dir=str(root_path))
     report = use_case.execute()
     scan_data = report.as_dict()
 
     if format == "json":
-        envelope = format_envelope(
-            command="scan",
-            root=str(root_path),
-            success=True,
-            data=scan_data,
+        _write_output(
+            format_envelope(
+                command="scan",
+                root=str(root_path),
+                success=True,
+                data=scan_data,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
-        click.echo(envelope)
-        if output:
-            output.write_text(envelope + "\n", encoding="utf-8")
         return
     if format == "md":
         lines: list[str] = [
@@ -863,7 +1008,7 @@ def scan(root, output, format):
             lines.append("## Notes\n")
             lines.extend([f"- {_md_escape(n)}" for n in report.notes])
             lines.append("")
-        click.echo("\n".join(lines))
+        _write_output("\n".join(lines), output=output)
         return
 
     console.print("[bold blue]Meminit Scan[/bold blue]")
@@ -945,18 +1090,57 @@ def scan(root, output, format):
 
 
 @cli.command("install-precommit")
-@click.option("--root", default=".", help="Root directory of the repository")
-def install_precommit(root):
+@agent_repo_options()
+def install_precommit(root, format, output, include_timestamp):
     """Install a pre-commit hook to enforce meminit check."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="install-precommit",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = InstallPrecommitUseCase(root_dir=str(root_path))
     try:
         result = use_case.execute()
-    except ValueError as exc:
-        console.print(f"[bold red]Error: {exc}[/bold red]")
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="install-precommit",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
+
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="install-precommit",
+                root=str(root_path),
+                success=True,
+                data={
+                    "installed": result.status in ("created", "updated"),
+                    "hook_path": str(result.config_path),
+                    "already_present": result.status == "already_installed",
+                },
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+        return
 
     if result.status == "already_installed":
         console.print("[yellow]meminit pre-commit hook already installed.[/yellow]")
@@ -968,33 +1152,38 @@ def install_precommit(root):
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
-def index(root, format):
+@agent_repo_options()
+def index(root, format, output, include_timestamp):
     """Build or update the repository index artifact."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="index")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="index",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = IndexRepositoryUseCase(root_dir=str(root_path))
     try:
         report = use_case.execute()
     except FileNotFoundError as exc:
         if format == "json":
-            click.echo(
+            _write_output(
                 format_error_envelope(
                     command="index",
                     root=str(root_path),
                     error_code=ErrorCode.CONFIG_MISSING,
                     message=str(exc),
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         elif format == "md":
-            click.echo(f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n")
+            _write_output(f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n", output)
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
@@ -1006,7 +1195,7 @@ def index(root, format):
         rel_index_path = str(report.index_path)
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_envelope(
                 command="index",
                 root=str(root_path),
@@ -1015,19 +1204,20 @@ def index(root, format):
                     "index_path": rel_index_path,
                     "document_count": report.document_count,
                 },
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         return
 
     if format == "md":
-        click.echo(
+        _write_output(
             "# Meminit Index\n\n"
             "- Status: ok\n"
             f"- Index path: `{rel_index_path}`\n"
-            f"- Documents: {report.document_count}\n\n"
-            "Next:\n"
-            f"- `meminit resolve <DOCUMENT_ID> --root {root}`\n"
-            f"- `meminit identify <PATH> --root {root}`\n"
+            f"- Documents: {report.document_count}\n",
+            output,
         )
         return
 
@@ -1039,131 +1229,275 @@ def index(root, format):
 
 @cli.command()
 @click.argument("document_id")
-@click.option("--root", default=".", help="Root directory of the repository")
-def resolve(document_id, root):
+@agent_repo_options()
+def resolve(document_id, root, format, output, include_timestamp):
     """Resolve a document_id to a path using the index."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="resolve",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = ResolveDocumentUseCase(root_dir=str(root_path))
     try:
         result = use_case.execute(document_id)
     except (FileNotFoundError, ValueError) as exc:
-        console.print(f"[bold red]Error: {exc}[/bold red]")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="resolve",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
 
     if not result.path:
-        console.print(f"[bold red]Not found:[/bold red] {document_id}")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="resolve",
+                    root=str(root_path),
+                    error_code=ErrorCode.FILE_NOT_FOUND,
+                    message=f"Not found: {document_id}",
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Not found:[/bold red] {document_id}")
         raise SystemExit(1)
 
-    console.print(result.path)
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="resolve",
+                root=str(root_path),
+                success=True,
+                data={"document_id": document_id, "path": result.path},
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+    else:
+        console.print(result.path)
 
 
 @cli.command()
 @click.argument("path")
-@click.option("--root", default=".", help="Root directory of the repository")
-def identify(path, root):
+@agent_repo_options()
+def identify(path, root, format, output, include_timestamp):
     """Identify a document_id for a given path using the index."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="identify",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = IdentifyDocumentUseCase(root_dir=str(root_path))
     try:
         result = use_case.execute(path)
     except (FileNotFoundError, ValueError) as exc:
-        console.print(f"[bold red]Error: {exc}[/bold red]")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="identify",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
 
     if not result.document_id:
-        console.print(f"[bold red]Not governed:[/bold red] {result.path}")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="identify",
+                    root=str(root_path),
+                    error_code=ErrorCode.FILE_NOT_FOUND,
+                    message=f"Not governed: {result.path}",
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Not governed:[/bold red] {result.path}")
         raise SystemExit(1)
 
-    console.print(result.document_id)
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="identify",
+                root=str(root_path),
+                success=True,
+                data={"document_id": result.document_id, "path": result.path},
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+    else:
+        console.print(result.document_id)
 
 
 @cli.command()
 @click.argument("document_id")
-@click.option("--root", default=".", help="Root directory of the repository")
-def link(document_id, root):
+@agent_repo_options()
+def link(document_id, root, format, output, include_timestamp):
     """Print a Markdown link for a document_id using the index."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="link",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = ResolveDocumentUseCase(root_dir=str(root_path))
     try:
         result = use_case.execute(document_id)
     except (FileNotFoundError, ValueError) as exc:
-        console.print(f"[bold red]Error: {exc}[/bold red]")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="link",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
 
     if not result.path:
-        console.print(f"[bold red]Not found:[/bold red] {document_id}")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="link",
+                    root=str(root_path),
+                    error_code=ErrorCode.FILE_NOT_FOUND,
+                    message=f"Not found: {document_id}",
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Not found:[/bold red] {document_id}")
         raise SystemExit(1)
 
-    console.print(f"[{document_id}]({result.path})")
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="link",
+                root=str(root_path),
+                success=True,
+                data={"document_id": document_id, "link": f"[{document_id}]({result.path})"},
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+    else:
+        console.print(f"[{document_id}]({result.path})")
 
 
 @cli.command("migrate-ids")
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--dry-run/--no-dry-run", default=True, help="Preview changes without writing files")
 @click.option(
     "--rewrite-references/--no-rewrite-references",
     default=False,
     help="Rewrite old IDs in document bodies",
 )
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
-@click.option(
-    "--output",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Optional path to write JSON report",
-)
-def migrate_ids(root, dry_run, rewrite_references, format, output):
+def migrate_ids(root, dry_run, rewrite_references, format, output, include_timestamp):
     """Migrate legacy document_id values into REPO-TYPE-SEQ format."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="migrate-ids")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="migrate-ids",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = MigrateIdsUseCase(root_dir=str(root_path))
     try:
         report = use_case.execute(dry_run=dry_run, rewrite_references=rewrite_references)
     except Exception as exc:
         if format == "json":
-            click.echo(
+            _write_output(
                 format_error_envelope(
                     command="migrate-ids",
                     root=str(root_path),
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=str(exc),
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         elif format == "md":
-            click.echo(f"# Meminit ID Migration\n\n- Status: error\n- Message: {_md_escape(exc)}\n")
+            _write_output(
+                f"# Meminit ID Migration\n\n- Status: error\n- Message: {_md_escape(exc)}\n", output
+            )
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
 
     if format == "json":
-        envelope = format_envelope(
-            command="migrate-ids",
-            root=str(root_path),
-            success=True,
-            data=report.as_dict(),
+        _write_output(
+            format_envelope(
+                command="migrate-ids",
+                root=str(root_path),
+                success=True,
+                data=report.as_dict(),
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
-        click.echo(envelope)
-        if output:
-            output.write_text(envelope + "\n", encoding="utf-8")
         return
     if format == "md":
         rows = [
             [a.file, a.doc_type, a.old_id, a.new_id, a.rewritten_reference_count]
             for a in report.actions
         ]
-        click.echo(
+        _write_output(
             "# Meminit ID Migration\n\n"
             f"- Root: `{root_path}`\n"
             f"- Mode: {'DRY RUN' if dry_run else 'APPLY'}\n"
@@ -1174,7 +1508,8 @@ def migrate_ids(root, dry_run, rewrite_references, format, output):
                 _md_table(["File", "Type", "Old ID", "New ID", "Refs Rewritten"], rows)
                 if rows
                 else "_None_\n"
-            )
+            ),
+            output,
         )
         return
 
@@ -1188,29 +1523,61 @@ def migrate_ids(root, dry_run, rewrite_references, format, output):
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
-def init(root):
+@agent_repo_options()
+def init(root, format, output, include_timestamp):
     """Initialize a new DocOps repository structure."""
-
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
+    # Note: init doesn't require validate_root_path or validate_initialized
+    # because it creates them.
 
     use_case = InitRepositoryUseCase(str(root_path))
     try:
         use_case.execute()
-        console.print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
-        console.print("- Created directory structure (docs/)")
-        console.print("- Created docops.config.yaml")
-        console.print("- Created AGENTS.md")
     except Exception as e:
-        console.print(f"[bold red]Error during initialization: {e}[/bold red]")
-        exit(1)
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="init",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(e),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error during initialization: {e}[/bold red]")
+        raise SystemExit(1)
+
+    if format == "json":
+        _write_output(
+            format_envelope(
+                command="init",
+                root=str(root_path),
+                success=True,
+                data={
+                    "message": f"Initialized DocOps repository at {root}",
+                    "files": ["docs/", "docops.config.yaml", "AGENTS.md"],
+                },
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
+        )
+        return
+
+    console.print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
+    console.print("- Created directory structure (docs/)")
+    console.print("- Created docops.config.yaml")
+    console.print("- Created AGENTS.md")
 
 
 @cli.command(name="new")
 @click.argument("doc_type", required=False, shell_complete=complete_document_types)
 @click.argument("title", required=False)
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--namespace", default=None, help="Namespace to create the doc in (monorepo mode)")
 @click.option("--owner", default=None, help="Set owner frontmatter field")
 @click.option("--area", default=None, help="Set area frontmatter field")
@@ -1252,13 +1619,6 @@ def init(root):
     help="Open in editor after creation (no --dry-run/--format json)",
 )
 @click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["text", "json"]),
-    default="text",
-    help="Output format (text|json; JSON is single-line)",
-)
-@click.option(
     "--interactive",
     is_flag=True,
     default=False,
@@ -1280,7 +1640,9 @@ def new_doc(
     verbose,
     list_types,
     edit,
-    output_format,
+    format,
+    output,
+    include_timestamp,
     interactive,
 ):
     """Create a new document of TYPE with TITLE.
@@ -1288,30 +1650,48 @@ def new_doc(
     Without --id, this allocates the next sequence and is non-idempotent.
     Use --list-types to discover valid types and --format json for agents.
     """
+    run_id = get_current_run_id()
     ex_usage = getattr(os, "EX_USAGE", 64)
     ex_dataerr = getattr(os, "EX_DATAERR", 65)
     ex_cantcreat = getattr(os, "EX_CANTCREAT", 73)
 
-    if interactive and output_format == "json":
-        click.echo(
+    if format == "md":
+        _write_output(
+            "# Meminit New\n\n"
+            "- Status: error\n"
+            "- Code: INVALID_FLAG_COMBINATION\n"
+            "- Message: --format md is not supported for this command. "
+            "Use --format json or text.\n",
+            output,
+        )
+        raise SystemExit(ex_usage)
+
+    if interactive and format == "json":
+        _write_output(
             format_error_envelope(
                 command="new",
                 root=root,
                 error_code=ErrorCode.INVALID_FLAG_COMBINATION,
                 message="--interactive and --format json are incompatible",
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         raise SystemExit(ex_usage)
 
-    if edit and (dry_run or output_format == "json"):
-        if output_format == "json":
-            click.echo(
+    if edit and (dry_run or format == "json"):
+        if format == "json":
+            _write_output(
                 format_error_envelope(
                     command="new",
                     root=root,
                     error_code=ErrorCode.INVALID_FLAG_COMBINATION,
                     message="--edit is incompatible with --dry-run and --format json",
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         else:
             console.print(
@@ -1320,14 +1700,17 @@ def new_doc(
         raise SystemExit(ex_usage)
 
     if list_types and (doc_type or title):
-        if output_format == "json":
-            click.echo(
+        if format == "json":
+            _write_output(
                 format_error_envelope(
                     command="new",
                     root=root,
                     error_code=ErrorCode.INVALID_FLAG_COMBINATION,
                     message="--list-types cannot be combined with TYPE or TITLE arguments",
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         else:
             console.print(
@@ -1337,33 +1720,53 @@ def new_doc(
 
     if list_types:
         root_path = Path(root).resolve()
-        validate_root_path(root_path, format=output_format, command="new")
-        validate_initialized(root_path, format=output_format, command="new")
+        validate_root_path(
+            root_path,
+            format=format,
+            command="new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
         use_case = NewDocumentUseCase(str(root_path))
         try:
             types_list = use_case.get_available_types(namespace)
         except MeminitError as exc:
-            if output_format == "json":
-                click.echo(
+            if format == "json":
+                _write_output(
                     format_error_envelope(
                         command="new",
                         root=str(root_path),
                         error_code=exc.code,
                         message=exc.message,
                         details=exc.details,
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
             else:
                 console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
             raise SystemExit(ex_usage)
-        if output_format == "json":
-            click.echo(
+        if format == "json":
+            _write_output(
                 format_envelope(
                     command="new",
                     root=str(root_path),
                     success=True,
                     data={"types": types_list},
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         else:
             console.print("[bold blue]Valid Document Types:[/bold blue]")
@@ -1373,20 +1776,23 @@ def new_doc(
 
     if interactive:
         root_path = Path(root).resolve()
-        validate_root_path(root_path, format=output_format, command="new")
+        validate_root_path(root_path, format=format, command="new", output=output)
         use_case = NewDocumentUseCase(str(root_path))
         try:
             valid_types = use_case.get_valid_types(namespace)
         except MeminitError as exc:
-            if output_format == "json":
-                click.echo(
+            if format == "json":
+                _write_output(
                     format_error_envelope(
                         command="new",
                         root=str(root_path),
                         error_code=exc.code,
                         message=exc.message,
                         details=exc.details,
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
             else:
                 console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
@@ -1403,14 +1809,17 @@ def new_doc(
             description = click.prompt("Description (optional)", default="", show_default=False)
 
     if not doc_type or not title:
-        if output_format == "json":
-            click.echo(
+        if format == "json":
+            _write_output(
                 format_error_envelope(
                     command="new",
                     root=root,
                     error_code=ErrorCode.INVALID_FLAG_COMBINATION,
                     message="TYPE and TITLE are required unless --list-types is specified",
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         else:
             console.print("[bold red]Error: TYPE and TITLE are required.[/bold red]")
@@ -1418,8 +1827,22 @@ def new_doc(
         raise SystemExit(ex_usage)
 
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=output_format, command="new")
-    validate_initialized(root_path, format=output_format, command="new")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="new",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
+    validate_initialized(
+        root_path,
+        format=format,
+        command="new",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     if doc_type.lower() == "adr":
         doc_type = "ADR"
@@ -1452,25 +1875,31 @@ def new_doc(
     result = use_case.execute_with_params(params)
 
     if not result.success:
-        if output_format == "json":
+        if format == "json":
             if isinstance(result.error, MeminitError):
-                click.echo(
+                _write_output(
                     format_error_envelope(
                         command="new",
                         root=str(root_path),
                         error_code=result.error.code,
                         message=result.error.message,
                         details=result.error.details,
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
             else:
-                click.echo(
+                _write_output(
                     format_error_envelope(
                         command="new",
                         root=str(root_path),
                         error_code=ErrorCode.UNKNOWN_ERROR,
                         message=str(result.error) if result.error else "Unknown error",
-                    )
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
                 )
         else:
             if isinstance(result.error, MeminitError):
@@ -1494,10 +1923,8 @@ def new_doc(
                 raise SystemExit(ex_cantcreat)
         raise SystemExit(ex_dataerr)
 
-    if output_format == "json":
+    if format == "json":
         if result.reasoning and verbose:
-            import sys
-
             for entry in result.reasoning:
                 sys.stderr.write(f"# {entry['decision']}: {entry['value']}")
                 if "source" in entry:
@@ -1529,13 +1956,16 @@ def new_doc(
                 "type": response_data["type"],
                 "title": response_data["title"],
             }
-        click.echo(
+        _write_output(
             format_envelope(
                 command="new",
                 root=str(root_path),
                 success=True,
                 data=response_data,
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
     else:
         if dry_run:
@@ -1570,12 +2000,12 @@ def new_doc(
     if edit and not dry_run and result.path:
         editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
         if editor:
-            import subprocess
-
             try:
                 editor_argv = shlex.split(editor, posix=(os.name != "nt"))
                 if not editor_argv:
                     raise ValueError("EDITOR/VISUAL is empty after parsing")
+                import subprocess
+
                 subprocess.run([*editor_argv, str(result.path)], check=False)
             except Exception as e:
                 console.print(f"[bold yellow]Warning: Could not open editor: {e}[/bold yellow]")
@@ -1593,70 +2023,132 @@ def adr():
 
 @adr.command(name="new")
 @click.argument("title")
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)")
-def adr_new(title, root, namespace):
+def adr_new(title, root, format, output, include_timestamp, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format="text")
-    validate_initialized(root_path, format="text")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="adr new",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
+    validate_initialized(
+        root_path,
+        format=format,
+        command="adr new",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
     use_case = NewDocumentUseCase(str(root_path))
     try:
         path = use_case.execute("ADR", title, namespace=namespace)
-        console.print(f"[bold green]Created ADR: {path}[/bold green]")
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="adr new",
+                    root=str(root_path),
+                    success=True,
+                    data={"path": str(path)},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(f"# ADR Created\n\n- Path: `{path}`\n", output)
+        else:
+            console.print(f"[bold green]Created ADR: {path}[/bold green]")
     except Exception as e:
-        console.print(f"[bold red]Error creating document: {e}[/bold red]")
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="adr new",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(e),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(f"# Error\n\n- Code: UNKNOWN_ERROR\n- Message: {e}\n", output)
+        else:
+            console.print(f"[bold red]Error creating document: {e}[/bold red]")
         exit(1)
 
 
 @cli.command()
-@click.option("--root", default=".", help="Root directory of the repository")
-@click.option("--deep", is_flag=True, default=False, help="Include per-namespace document counts (2s budget)")
+@agent_repo_options()
 @click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="json",
-    help="Output format (default: json)",
+    "--deep", is_flag=True, default=False, help="Include per-namespace document counts (2s budget)"
 )
-def context(root, deep, format):
+def context(root, deep, format, output, include_timestamp):
     """Emit repository configuration context for agent bootstrap (FR-6).
 
     Returns namespace layout, type directories, templates, and exclusion
     rules.  With --deep, adds per-namespace document counts subject to a
     2-second performance budget.
     """
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="context")
-    validate_initialized(root_path, format=format, command="context")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="context",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
+    validate_initialized(
+        root_path,
+        format=format,
+        command="context",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     try:
         use_case = ContextRepositoryUseCase(root_dir=root_path)
         result = use_case.execute(deep=deep)
     except Exception as exc:
         if format == "json":
-            click.echo(
+            _write_output(
                 format_error_envelope(
                     command="context",
                     root=str(root_path),
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=str(exc),
-                )
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
             )
         elif format == "md":
-            click.echo(f"# Meminit Context\n\n- Status: error\n- Message: {_md_escape(exc)}\n")
+            _write_output(f"# Meminit Context\n\n- Status: error\n- Message: {_md_escape(exc)}\n", output)
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
         raise SystemExit(1)
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_envelope(
                 command="context",
                 root=str(root_path),
                 success=True,
                 data=result.data,
                 warnings=result.warnings,
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         return
 
@@ -1671,14 +2163,17 @@ def context(root, deep, format):
         ns_list = result.data.get("namespaces", [])
         if ns_list:
             rows = [
-                [ns.get("name"), ns.get("docs_root"), ns.get("repo_prefix"), ns.get("document_count")]
+                [
+                    ns.get("name"),
+                    ns.get("docs_root"),
+                    ns.get("repo_prefix"),
+                    ns.get("document_count"),
+                ]
                 for ns in ns_list
             ]
             lines.append("## Namespaces\n")
-            lines.append(
-                _md_table(["Name", "Docs Root", "Repo Prefix", "Doc Count"], rows)
-            )
-        click.echo("\n".join(lines))
+            lines.append(_md_table(["Name", "Docs Root", "Repo Prefix", "Doc Count"], rows))
+        _write_output("\n".join(lines), output)
         return
 
     # text output
@@ -1700,34 +2195,34 @@ def org():
 @click.option("--profile", default="default", help="Org profile name to install")
 @click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths")
 @click.option("--force/--no-force", default=False, help="Overwrite an existing installed profile")
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
-def org_install(profile, dry_run, force, format):
+@agent_output_options()
+def org_install(profile, dry_run, force, format, output, include_timestamp):
     """Install the packaged org profile into XDG user data directories."""
+    run_id = get_current_run_id()
     use_case = InstallOrgProfileUseCase()
     report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force)
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_envelope(
                 command="org install",
                 root=".",
                 success=True,
                 data=report.as_dict(),
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         return
     if format == "md":
-        click.echo(
+        _write_output(
             "# Meminit Org Install\n\n"
             f"- Profile: `{profile}`\n"
             f"- Dry run: `{dry_run}`\n"
             f"- Target: `{report.target_dir}`\n"
-            f"- Message: {_md_escape(report.message)}\n"
+            f"- Message: {_md_escape(report.message)}\n",
+            output,
         )
         return
 
@@ -1738,7 +2233,7 @@ def org_install(profile, dry_run, force, format):
 
 
 @org.command("vendor")
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--profile", default="default", help="Org profile name to vendor")
 @click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing files")
 @click.option(
@@ -1751,16 +2246,18 @@ def org_install(profile, dry_run, force, format):
     default=True,
     help="Vendor ORG governance markdown docs too",
 )
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
-def org_vendor(root, profile, dry_run, force, include_org_docs, format):
+def org_vendor(root, profile, dry_run, force, include_org_docs, format, output, include_timestamp):
     """Vendor (copy + pin) org standards into a repo to prevent unintentional drift."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="org vendor")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="org vendor",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     use_case = VendorOrgProfileUseCase(root_dir=str(root_path))
     report = use_case.execute(
@@ -1771,17 +2268,20 @@ def org_vendor(root, profile, dry_run, force, include_org_docs, format):
     )
 
     if format == "json":
-        click.echo(
+        _write_output(
             format_envelope(
                 command="org vendor",
                 root=str(root_path),
                 success=True,
                 data=report.as_dict(),
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         return
     if format == "md":
-        click.echo(
+        _write_output(
             "# Meminit Org Vendor\n\n"
             f"- Root: `{root_path}`\n"
             f"- Profile: `{profile}` ({report.source})\n"
@@ -1790,7 +2290,8 @@ def org_vendor(root, profile, dry_run, force, include_org_docs, format):
             f"- Would update: {report.updated_files}\n"
             f"- Unchanged: {report.unchanged_files}\n"
             f"- Lock: `{report.lock_path}`\n"
-            f"- Message: {_md_escape(report.message)}\n"
+            f"- Message: {_md_escape(report.message)}\n",
+            output,
         )
         return
 
@@ -1806,39 +2307,45 @@ def org_vendor(root, profile, dry_run, force, include_org_docs, format):
 
 
 @org.command("status")
-@click.option("--root", default=".", help="Root directory of the repository")
+@agent_repo_options()
 @click.option("--profile", default="default", help="Org profile name")
-@click.option(
-    "--format",
-    type=click.Choice(["text", "json", "md"]),
-    default="text",
-    help="Output format",
-)
-def org_status(root, profile, format):
+def org_status(root, profile, format, output, include_timestamp):
     """Show org profile install + repo lock status (drift visibility)."""
+    run_id = get_current_run_id()
     root_path = Path(root).resolve()
-    validate_root_path(root_path, format=format, command="org status")
+    validate_root_path(
+        root_path,
+        format=format,
+        command="org status",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+    )
 
     report = OrgStatusUseCase(root_dir=str(root_path)).execute(profile_name=profile)
     if format == "json":
-        click.echo(
+        _write_output(
             format_envelope(
                 command="org status",
                 root=str(root_path),
                 success=True,
                 data=report.as_dict(),
-            )
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+            ),
+            output,
         )
         return
     if format == "md":
-        click.echo(
+        _write_output(
             "# Meminit Org Status\n\n"
             f"- Root: `{root_path}`\n"
             f"- Profile: `{profile}`\n"
             f"- Global installed: `{report.global_installed}` (`{report.global_dir}`)\n"
             f"- Repo lock present: `{report.repo_lock_present}` (`{report.repo_lock_path}`)\n"
             f"- Current source: `{report.current_profile_source}`\n"
-            f"- Lock matches current: `{report.repo_lock_matches_current}`\n"
+            f"- Lock matches current: `{report.repo_lock_matches_current}`\n",
+            output,
         )
         return
 
@@ -1849,3 +2356,7 @@ def org_status(root, profile, format):
     console.print(f"Repo lock present: {report.repo_lock_present} ({report.repo_lock_path})")
     console.print(f"Current source: {report.current_profile_source}")
     console.print(f"Lock matches current: {report.repo_lock_matches_current}")
+
+
+if __name__ == "__main__":
+    cli()

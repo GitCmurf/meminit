@@ -22,11 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from meminit.core.services.error_codes import ErrorCode
-
-# Sentinel used to detect "no value provided" vs explicit None.
-_UNSET = object()
-
-OUTPUT_SCHEMA_VERSION_V2 = "2.0"
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 
 # Canonical key ordering for the top-level v2 envelope.
 # Keys not in this list are appended in sorted order after `error`.
@@ -62,32 +58,73 @@ def _recursively_sort_keys(obj: Any) -> Any:
     return obj
 
 
-def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort warnings by (path, line, message) per §16.1 determinism rules.
+def _get_line_key(line: Any) -> tuple:
+    """Helper to sort None before integers."""
+    return (-1,) if line is None else (0, int(line))
 
-    Null lines sort before non-null lines.
-    """
+
+def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sort warnings by (path, line, code, message) per SPEC-004 §9.3."""
 
     def _key(w: dict[str, Any]) -> tuple:
-        line = w.get("line")
-        # None sorts before integers: use (-1,) for None so it comes first.
-        line_key = (-1,) if line is None else (0, line)
-        return (w.get("path", ""), *line_key, w.get("message", ""))
+        return (
+            w.get("path", ""),
+            *_get_line_key(w.get("line")),
+            w.get("code", ""),
+            w.get("message", ""),
+        )
 
     return sorted(warnings, key=_key)
 
 
 def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort violations by (path, code, severity) per §16.1 determinism rules."""
+    """Sort violations by path, then code, then severity per SPEC-004 §9.3.
 
-    def _key(v: dict[str, Any]) -> tuple:
-        return (v.get("path", ""), v.get("code", ""), v.get("severity", ""))
+    Supports both flat Issue objects and grouped violations.
+    """
 
-    return sorted(violations, key=_key)
+    def _flat_key(v: dict[str, Any]) -> tuple:
+        return (
+            v.get("path", ""),
+            v.get("code", ""),
+            v.get("severity", ""),
+            *_get_line_key(v.get("line")),
+            v.get("message", ""),
+        )
+
+    def _outer_grouped_key(v: dict[str, Any]) -> tuple:
+        return (v.get("path", ""),)
+
+    def _inner_violation_key(v: dict[str, Any]) -> tuple:
+        # Grouped inner items: sort by line, then code, then message for stability
+        return (
+            *_get_line_key(v.get("line")),
+            v.get("code", ""),
+            v.get("message", ""),
+        )
+
+    is_grouped = any("violations" in item for item in violations)
+
+    if is_grouped:
+        # Sort groups by path
+        sorted_outer = sorted(violations, key=_outer_grouped_key)
+        result = []
+        for item in sorted_outer:
+            if "violations" in item and isinstance(item["violations"], list):
+                new_item = item.copy()
+                new_item["violations"] = sorted(item["violations"], key=_inner_violation_key)
+                result.append(new_item)
+            else:
+                # Fallback for mixed flat/grouped (unexpected but handled)
+                result.append(item)
+        return result
+
+    # Flat violations
+    return sorted(violations, key=_flat_key)
 
 
 def _sort_advice(advice: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort advice by (code, message) per §16.1 determinism rules."""
+    """Sort advice by (code, message) per SPEC-004 §9.3."""
 
     def _key(a: dict[str, Any]) -> tuple:
         return (a.get("code", ""), a.get("message", ""))

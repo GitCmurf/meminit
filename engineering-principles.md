@@ -24,11 +24,12 @@ Do not submit one without the others. Partial deliveries create drift.
 ## 2. Architecture & Design
 
 - **Separation of concerns**: isolate API/transport, business logic, and data access into distinct modules. A database import in a route handler is a code smell.
+- **Emphasise reusability**: design for reusability and always seek to reuse existing code, generalised and expanded where appropriate, in line with _separation of concerns_, before generating new code.
+- **Data modelling**: get the schema right first — it is the hardest thing to change later. Normalise appropriately, avoid stringly-typed fields, and define constraints at the schema level, not only in application code.
 - **SOLID**: apply pragmatically, not dogmatically. Prefer small, focused interfaces (ISP) and constructor injection (DIP) over over-abstracted hierarchies.
 - **DRY**: extract shared logic into well-named helpers. Tolerate _minor_ repetition when the alternative is a premature abstraction.
 - **KISS**: choose the simplest solution that meets the requirements. If a design needs a diagram to explain, it may be too complex.
-- **Backwards compatibility**: do not break public APIs, CLI interfaces, or configuration file formats without explicit approval and a migration path.
-- **Data modelling**: get the schema right first — it is the hardest thing to change later. Normalise appropriately, avoid stringly-typed fields, and define constraints at the schema level, not only in application code.
+- **Backwards compatibility**: if the project is pre-production/pre-alpha/alpha/beta, do not bother with backwards compatibility issues; but if the project is explicitly in production use, do not break public APIs, CLI interfaces, or configuration file formats without explicit approval and a migration path. If in doubt about project production status, first check `./AGENTS.md` and then ask the user if status is still unclear.
 
 ## 3. Code Quality
 
@@ -70,7 +71,7 @@ Do not submit one without the others. Partial deliveries create drift.
 
 ## 7. Dependencies & Tooling
 
-- **Prefer established libraries**: choose well-maintained, widely-adopted packages over obscure alternatives. Check commit activity, issue responsiveness, and download counts.
+- **Prefer established libraries**: choose well-maintained, widely-adopted packages over obscure alternatives or _de novo_ coding. Check commit activity, issue responsiveness, and download counts.
 - **Pin versions**: use lockfiles (`uv.lock`, `package-lock.json`) and pin direct dependencies to compatible ranges. Avoid unpinned `latest`.
 - **Minimise dependency surface**: each new dependency is a liability. If the functionality is < 50 lines to implement correctly, consider owning it.
 - **Keep dependencies current**: outdated dependencies accumulate security risk. Flag and remediate known vulnerabilities.
