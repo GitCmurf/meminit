@@ -153,6 +153,7 @@ Agent Interface v1 is **fully implemented** across all CLI commands. All command
 [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) normative contract.
 
 Key milestones achieved:
+
 - **Unified envelope:** All commands emit the standard `output_schema_version: "2.0"` envelope.
 - **Deterministic ordering:** STDOUT JSON outputs follow the canonical key and array sorting rules.
 - **Structured errors:** Operational and validation failures use stable error codes and envelopes.
@@ -535,31 +536,21 @@ The migration to Agent Interface v1 (output schema v2) is complete. 100% of CLI 
 
 All commands now fully conform to the v2 contract.
 
-| Command                     | Today (2026-02-25) | Conforms? | Remaining Work | Target           |
-| --------------------------- | ------------------ | --------- | -------------- | ---------------- |
-| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope      |
-| `index`                     | `--format json` pre-contract JSON (`status`/`report`)                                                                                                     | No                                            | Migrate to v2 envelope; nest report under `data`; remove legacy `status`.                                                          | v2 envelope                                                                               |
-| `migrate-ids`               | `--format json` pre-contract JSON (`status`/`report`)                                                                                                     | No                                            | Migrate to v2 envelope; nest report under `data`; remove legacy `status`.                                                          | v2 envelope                                                                               |
-| `org install/status/vendor` | `--format json` pre-contract JSON (`status`/`report`)                                                                                                     | No                                            | Migrate to v2 envelope for all org subcommands; normalize payloads under `data`; remove legacy `status`.                           | v2 envelope                                                                               |
-| `new`                       | `--format json` non-enveloped creation payload                                                                                                            | No                                            | Wrap creation payload under v2 envelope (`data`); add required envelope fields; ensure error paths use structured `error`.         | v2 envelope ([PRD-002](../10-prd/prd-002-new-file-function.md) shape nested under `data`) |
-| `adr new`                   | text output only (compatibility alias for `meminit new ADR`)                                                                                               | No                                            | Add `--format json` + shared flags and route through the canonical `new ADR` implementation so the alias emits the same v2 envelope. | v2 envelope (alias of `new ADR`)                                                         |
-| `fix`                       | text output only                                                                                                                                          | No                                            | Add `--format json` + shared flags; emit v2 envelope; ensure dry-run vs apply is machine-distinguishable.                          | v2 envelope                                                                               |
-| `init`                      | text output only                                                                                                                                          | No                                            | Add `--format json` + shared flags; emit v2 envelope.                                                                              | v2 envelope                                                                               |
-| `install-precommit`         | text output only                                                                                                                                          | No                                            | Add `--format json` + shared flags; emit v2 envelope.                                                                              | v2 envelope                                                                               |
-| `identify/resolve/link`     | text output only                                                                                                                                          | No                                            | Add `--format json` + shared flags; emit v2 envelope; keep outputs deterministic.                                                  | v2 envelope                                                                               |
-| `context`                   | **NEW COMMAND** — not yet implemented                                                                                                                     | N/A (new)                                     | Implement command per §17; emit v2 envelope; enforce determinism + deep-mode partial results behavior.                             | v2 envelope per §17                                                                       |
+| Command                     | Today (2026-02-25) | Conforms? | Remaining Work | Target      |
+| --------------------------- | ------------------ | --------- | -------------- | ----------- |
+| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope |
+| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope |
 
 > [!IMPORTANT]
 > **Migration order recommendation:** Prioritize `context` (agent
@@ -1162,18 +1153,18 @@ follow these rules:
    (once implemented) and treat its output as the source of truth for:
    namespaces, docs roots, schema paths, templates, and type-directory
    mappings.
-2. Always request JSON mode (`--format json`) and treat STDOUT as the
+1. Always request JSON mode (`--format json`) and treat STDOUT as the
    single parseable artifact. Treat STDERR as human logs only.
-3. Treat `output_schema_version` as the contract selector:
+1. Treat `output_schema_version` as the contract selector:
    - If missing: treat as non-conforming output (migration gap) and
      surface to a human.
    - If unknown: treat as a hard failure (do not guess).
-4. Determine outcome using a generic rule set:
+1. Determine outcome using a generic rule set:
    - If top-level `error` exists: operational error (retry/fail).
    - Else if `success: true`: operational success.
    - Else if `success: false` and `violations` exists: compliance
      failure (fixable findings).
-5. Treat `run_id` as an opaque correlation token; never branch on its
+1. Treat `run_id` as an opaque correlation token; never branch on its
    format.
 
 **Reference pseudocode:**
@@ -2392,6 +2383,6 @@ proceed to implementation.
 | 1.0     | 2026-02-23 | Architect | Ship-candidate polish: corrected TOC anchor for §21; clarified current `check --format json` deviations (STDOUT log prelude, non-UUID `run_id`, missing fields); tightened envelope requirements and Appendix C action items; and opened draft follow-on [MEMINIT-PRD-005](../10-prd/prd-005-agent-interface-v2.md) for out-of-scope v2 improvements.                                                                                                                                                                                                                                                        |
 | 1.1     | 2026-02-23 | Architect | Reviewer-1 precision pass: fixed multi-namespace `context` example to satisfy determinism (recursive key sorting, added missing fields, sorted `allowed_types` and nested maps); reconciled determinism Gherkin with §16.1 sorting rules; clarified `check` error envelopes re counters; standardized error-field ordering to match §16.1; documented `--verbose` flag normalization; added explicit mapping for `doctor` issue severities; and clarified lifecycle workflow status transitions as direct edits with v2 candidate command.                                                                   |
 | 1.2     | 2026-02-23 | Architect | Reviewer-2 implementation-hardening pass: clarified rollout buckets and command inventory; expanded compatibility matrix with explicit remaining-work; strengthened FR Gherkin tests (STDOUT JSON-only + operational error arrays); clarified exit-code semantics; strengthened output-contract emphasis (`check` still requires `data: {}`) and security for `error.details`; made determinism rules more prominent; expanded `doctor` mapping into a normative subsection; added test scenarios for UUIDv4 and enum-only error codes; added pre-handover action checklist and Appendix C decision summary. |
-| 1.3     | 2026-02-24 | Architect | Final handover polish for agentic implementation: updated metadata date; removed remaining ambiguity around `--output` (now explicitly CLI-wide); tightened determinism sorting (null `line` ordering + warning tie-breaker); clarified normative `success`/`error` relationship (non-`check` cannot be `success:false` without `error`); improved FR-2 invalid-args examples to match actual CLI shapes; and aligned remaining sections to reduce orchestrator guesswork. |
-| 1.4     | 2026-02-24 | Architect | Final pass on sub-optimalities: updated remaining as-of dates to match `last_updated`; added `adr new` alias visibility and guidance; clarified recursive sorting applies across the whole envelope (including `error.details`); added an explicit note that examples are pretty-printed but real JSON output must be single-line; and ensured all sections remain internally consistent for agentic implementers. |
-| 2.0     | 2026-02-25 | Architect | Final approval and handover: marked all pre-handover action items as complete; updated status to Approved; synchronized all normative sections with implementation; and finalized CLI-wide contract enforcement. |
+| 1.3     | 2026-02-24 | Architect | Final handover polish for agentic implementation: updated metadata date; removed remaining ambiguity around `--output` (now explicitly CLI-wide); tightened determinism sorting (null `line` ordering + warning tie-breaker); clarified normative `success`/`error` relationship (non-`check` cannot be `success:false` without `error`); improved FR-2 invalid-args examples to match actual CLI shapes; and aligned remaining sections to reduce orchestrator guesswork.                                                                                                                                   |
+| 1.4     | 2026-02-24 | Architect | Final pass on sub-optimalities: updated remaining as-of dates to match `last_updated`; added `adr new` alias visibility and guidance; clarified recursive sorting applies across the whole envelope (including `error.details`); added an explicit note that examples are pretty-printed but real JSON output must be single-line; and ensured all sections remain internally consistent for agentic implementers.                                                                                                                                                                                           |
+| 2.0     | 2026-02-25 | Architect | Final approval and handover: marked all pre-handover action items as complete; updated status to Approved; synchronized all normative sections with implementation; and finalized CLI-wide contract enforcement.                                                                                                                                                                                                                                                                                                                                                                                             |
