@@ -27,40 +27,42 @@ It does **not** decide _when_ your repo should adopt DocOps; that policy belongs
 
 ## Quick command map
 
-- Repo readiness: `meminit doctor --root .`
-- Compliance: `meminit check --root .` (use `--format json` for pipelines)
-- Safe preview: `meminit fix --root . --dry-run`
-- Apply mechanical fixes: `meminit fix --root . --no-dry-run`
-- Migration planning: `meminit scan --root . --format json`
+- Repo readiness: `meminit doctor --format json`
+- Repo discovery: `meminit context --format json`
+- Compliance: `meminit check --format json`
+- Safe preview: `meminit fix --dry-run --format json`
+- Apply mechanical fixes: `meminit fix --no-dry-run --format json`
+- Migration planning: `meminit scan --format json`
 - Index + resolution:
-  - `meminit index --root .`
-  - `meminit resolve <DOCUMENT_ID> --root .`
-  - `meminit identify <PATH> --root .`
-  - `meminit link <DOCUMENT_ID> --root .`
+  - `meminit index --format json`
+  - `meminit resolve <DOCUMENT_ID> --format json`
+  - `meminit identify <PATH> --format json`
+  - `meminit link <DOCUMENT_ID> --format json`
+
+> [!TIP]
+> Use `--output <path>` to capture JSON artifacts for CI or downstream tools. All commands support `--include-timestamp` if timing data is needed in the envelope.
 
 ## Decision tree (brownfield migration)
 
 ### Step 0 — Confirm boundaries
 
-Ask:
+Run:
 
-- Is everything under `docs/` governed, or do we exclude WIP drafts?
-- What is the repo prefix (e.g., `ARCHITEXT`), and should new IDs follow `REPO-TYPE-SEQ`?
+```bash
+meminit context --format json
+```
 
-If WIP drafts exist:
-
-- Recommend using `WIP-` prefix and/or `excluded_filename_prefixes` so WIP docs don’t break `meminit check`.
+Determine if the repo is initialized and what namespaces exist. If not initialized, recommend `meminit init`.
 
 ### Step 1 — Scan (read-only)
 
 Run:
 
 ```bash
-meminit scan --root . --format json
+meminit scan --format json
 ```
 
-Interpret:
-
+Interpret the `data.report`:
 - `suggested_type_directories` → propose `docops.config.yaml` overrides.
 - `ambiguous_types` → ask the user to pick the intended mapping (do not guess).
 

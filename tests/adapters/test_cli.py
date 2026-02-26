@@ -551,6 +551,82 @@ def test_cli_context_md_output(tmp_path):
     assert "- Project: `TestProject`" in result.output
 
 
+@patch("meminit.cli.main.ContextRepositoryUseCase")
+def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    instance = mock_use_case.return_value
+    instance.execute.return_value = type(
+        "Result",
+        (),
+        {
+            "data": {
+                "project_name": "TestProject",
+                "config_path": "docops.config.yaml",
+                "namespaces": [
+                    {"name": "default", "docs_root": "docs", "document_count": None}
+                ],
+            },
+            "warnings": [
+                {
+                    "code": "DEEP_BUDGET_EXCEEDED",
+                    "message": "Deep scan performance budget (2s) exceeded; some namespace counts are incomplete.",
+                    "path": "docops.config.yaml",
+                }
+            ],
+        },
+    )()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["context", "--root", str(tmp_path), "--format", "md", "--deep"]
+    )
+
+    assert result.exit_code == 0
+    assert "## Warnings" in result.output
+    assert "DEEP_BUDGET_EXCEEDED" in result.output
+
+
+@patch("meminit.cli.main.ContextRepositoryUseCase")
+def test_cli_context_text_emits_warnings(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    instance = mock_use_case.return_value
+    instance.execute.return_value = type(
+        "Result",
+        (),
+        {
+            "data": {
+                "project_name": "TestProject",
+                "config_path": "docops.config.yaml",
+                "namespaces": [
+                    {"name": "default", "docs_root": "docs", "document_count": None}
+                ],
+            },
+            "warnings": [
+                {
+                    "code": "DEEP_BUDGET_EXCEEDED",
+                    "message": "Deep scan performance budget (2s) exceeded; some namespace counts are incomplete.",
+                    "path": "docops.config.yaml",
+                }
+            ],
+        },
+    )()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--deep"])
+
+    assert result.exit_code == 0
+    assert "Warnings:" in result.output
+    assert "DEEP_BUDGET_EXCEEDED" in result.output
+
+
 def test_cli_index_json_contract(tmp_path):
     docs_dir = tmp_path / "docs" / "45-adr"
     docs_dir.mkdir(parents=True)

@@ -108,10 +108,21 @@ Depending on the Codex build, these may appear with slightly different names in 
 
 Does:
 
-- Provide a safe decision tree for `scan → config → doctor → check → fix → index`.
-- Emphasize dry-run first; require explicit confirmation before writes.
+- Provide a safe decision tree for `scan → context → doctor → check → fix → index`.
+- Use the **Agent Interface v1** (output schema v2) for all commands.
+- Emphasize deterministic, machine-safe JSON outputs via `--format json`.
+- Support standardized agent flags: `--output`, `--include-timestamp`, and `--verbose`.
 
 Does not:
 
 - Decide repo governance policy (that belongs in `AGENTS.md` / human decisions).
 - Promote documents to `Approved` or assign owners without explicit user input.
+
+## Agent Interface Compliance
+
+The `meminit-docops` skill is designed to work with the **v2 output contract**. When developing or modifying skills that consume Meminit:
+
+1. **Always use `--format json`** for machine parsing.
+2. **Expect exactly one JSON object on STDOUT**.
+3. **Handle errors structuredly** via the `error` object in the envelope.
+4. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.

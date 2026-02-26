@@ -45,16 +45,45 @@ The **rules of this repository** are:
 ### Recommended workflow (greenfield)
 
 1. `meminit init` (once) — scaffold `docs/`, templates, schema, and `AGENTS.md`.
-2. `meminit new <TYPE> <TITLE>` — create new governed docs with correct IDs and schema-valid frontmatter.
-3. `meminit check` — verify compliance.
+2. `meminit context --format json` — discover repo DocOps constraints (namespaces, prefixes).
+3. `meminit new <TYPE> <TITLE> --format json` — create new governed docs with correct IDs and schema-valid frontmatter.
+4. `meminit check --format json` — verify compliance.
 
 ### Recommended workflow (brownfield / existing repo)
 
-1. `meminit init` — safe/idempotent scaffolding (won’t overwrite existing files).
-2. `meminit check` — get a baseline list of violations.
-3. `meminit fix --dry-run` — review proposed mechanical changes (filenames/frontmatter).
-4. `meminit fix --no-dry-run` — apply changes once reviewed.
-5. Re-run `meminit check` and iterate.
+1. `meminit scan --format json` — analyze repo and suggest configuration.
+2. `meminit init` — safe/idempotent scaffolding (won’t overwrite existing files).
+3. `meminit check --format json` — get a baseline list of violations.
+4. `meminit fix --dry-run --format json` — review proposed mechanical changes (filenames/frontmatter).
+5. `meminit fix --no-dry-run --format json` — apply changes once reviewed.
+6. Re-run `meminit check --format json` and iterate.
+
+## Agent Interface (v1)
+
+Meminit provides a deterministic, machine-parseable interface for agents and orchestrators.
+
+### JSON Output Contract
+
+When `--format json` is used, Meminit emits exactly one JSON object on STDOUT. All human-readable logs and errors are routed to STDERR.
+
+The JSON envelope includes:
+- `output_schema_version`: `"2.0"`
+- `success`: boolean status
+- `command`: canonical subcommand name
+- `run_id`: UUIDv4 correlation token
+- `root`: absolute path to repo root
+- `data`: command-specific payload
+- `warnings`, `violations`, `advice`: structured issue arrays
+
+### Repo Discovery
+
+Use `meminit context --format json` at the start of a session to discover:
+- `namespaces`: governed subtrees, their docs roots, and prefixes.
+- `templates`: type-to-template mappings.
+- `allowed_types`: valid document types.
+- `repo_prefix`: default ID prefix.
+
+Agents SHOULD use this data to avoid hardcoding paths or prefixes.
 
 ### Notes for brownfield repos
 

@@ -2219,6 +2219,17 @@ def context(root, deep, format, output, include_timestamp):
                 f"- Config: `{result.data.get('config_path', 'N/A')}`",
                 "",
             ]
+            if result.warnings:
+                lines.append("## Warnings\n")
+                for warning in result.warnings:
+                    code = warning.get("code", "WARNING")
+                    message = _md_escape(warning.get("message", ""))
+                    path = warning.get("path")
+                    if path:
+                        lines.append(f"- [{code}] {message} (`{path}`)")
+                    else:
+                        lines.append(f"- [{code}] {message}")
+                lines.append("")
             ns_list = result.data.get("namespaces", [])
             if ns_list:
                 rows = [
@@ -2242,6 +2253,14 @@ def context(root, deep, format, output, include_timestamp):
         for ns in result.data.get("namespaces", []):
             count_str = f" ({ns.get('document_count', '?')} docs)" if deep else ""
             console.print(f"  {ns.get('name')}: {ns.get('docs_root')}{count_str}")
+        if result.warnings:
+            console.print("Warnings:")
+            for warning in result.warnings:
+                code = warning.get("code", "WARNING")
+                message = warning.get("message", "")
+                path = warning.get("path")
+                suffix = f" ({path})" if path else ""
+                console.print(f"  - {code}: {message}{suffix}")
 
 
 @cli.group()

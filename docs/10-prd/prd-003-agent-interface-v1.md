@@ -2,9 +2,9 @@
 document_id: MEMINIT-PRD-003
 type: PRD
 title: Agent Interface v1
-status: In Review
-version: "1.4"
-last_updated: 2026-02-24
+status: Approved
+version: "2.0"
+last_updated: 2026-02-25
 owner: GitCmurf
 docops_version: "2.0"
 area: Agentic Integration
@@ -36,9 +36,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-003
 > **Owner:** GitCmurf
-> **Status:** In Review
-> **Version:** 1.4
-> **Last Updated:** 2026-02-24
+> **Status:** Approved
+> **Version:** 2.0
+> **Last Updated:** 2026-02-25
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -146,30 +146,18 @@ This means:
 - Human-readable output remains important but is secondary to machine-parseable contracts.
 - Every CLI change must consider agent impact first.
 
-### 1.4 Current Rollout Status (as of 2026-02-24; see §10 for authoritative state)
+### 1.4 Current Rollout Status (Complete as of 2026-02-25)
 
-Delivery is phased. `meminit check` is migrated to output schema v2
-(normative definitions live in [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)). Non-migrated commands
-currently fall into three buckets:
+Agent Interface v1 is **fully implemented** across all CLI commands. All commands now support
+`--format json` and emit a deterministic v2 envelope conforming to the
+[MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) normative contract.
 
-1. **V2 schema outputs (partially conforming):** `check --format json` emits
-   `output_schema_version: "2.0"` but deviates from the unified envelope:
-   - Missing required fields: `command`, `root`, `data`, `advice`
-   - `run_id` is not yet UUIDv4 format (see Decision 20.5)
-   - A run log line is printed to **STDOUT** before the JSON object
-   - These gaps are tracked in §10.2 and must be resolved before handover
-2. **Pre-contract JSON outputs** (non-conforming): commands that already
-   support `--format json` but emit ad-hoc JSON shapes (typically
-   `{"status":"ok","report":...}`) without the unified envelope fields
-   (`success`, `command`, `root`, `warnings`, `violations`, `advice`).
-   As of 2026-02-24: `scan`, `doctor`, `index`, `migrate-ids`, `org`
-   subcommands, and `new` (non-enveloped payload).
-3. **Text-only commands:** commands without `--format json` support.
-   As of 2026-02-24: `fix`, `init`, `install-precommit`, `identify`,
-   `resolve`, `link`, plus compatibility aliases (for example `adr new`).
-
-This PRD defines how to migrate buckets (2) and (3) into a single,
-versioned, deterministic contract suitable for production orchestrators.
+Key milestones achieved:
+- **Unified envelope:** All commands emit the standard `output_schema_version: "2.0"` envelope.
+- **Deterministic ordering:** STDOUT JSON outputs follow the canonical key and array sorting rules.
+- **Structured errors:** Operational and validation failures use stable error codes and envelopes.
+- **Bootstrap command:** `meminit context` is implemented for automated repo discovery.
+- **Alias alignment:** Compatibility aliases (like `adr new`) are fully aligned with canonical commands.
 
 ---
 
@@ -534,62 +522,34 @@ Future improvement ideas (out of scope for v1) are captured in [MEMINIT-PRD-005]
 
 ## 10. Delivery Status (Phased Rollout)
 
-### 10.1 Current State
+### 10.1 Current State (Complete as of 2026-02-25)
 
-- **Partially migrated to output schema v2 (current):**
-  - `check --format json` emits `output_schema_version: "2.0"` and is the
-    closest existing command to the target contract.
-  - However, as of **2026-02-24**, `check --format json` still deviates from
-    the Agent Interface v1 envelope and determinism requirements:
-    - Missing required envelope fields per this PRD (`command`, `root`,
-      `data`, `advice`).
-    - `run_id` is not UUIDv4 yet (see Decision 20.5).
-    - A run log line is printed to **STDOUT** before the JSON object (must
-      be moved to **STDERR** in JSON mode).
-  - Normative v2 definitions and schema live in:
-    - [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)
-    - [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
-
-- **Pre-contract JSON outputs (present, non-conforming):**
-  - Commands that already accept `--format json` but do NOT emit the
-    unified envelope described in §14, and typically use ad-hoc shapes
-    like `{"status":"ok","report":...}`. As of 2026-02-24, this includes
-    (at minimum): `scan`, `doctor`, `index`, `migrate-ids`, and `org`
-    subcommands (`install`, `status`, `vendor`). `new` also supports
-    `--format json` but currently emits a non-enveloped payload.
-
-- **Text-only commands (no `--format json` yet):**
-  - `fix`, `init`, `install-precommit`, `identify`, `resolve`, `link`, `adr new` (compatibility alias)
-    (plus any other subcommands without a `--format` option).
-
-- **Not yet implemented:**
-  - `context` (agent bootstrap contract is defined in §17).
-
-- **As-of snapshot (command inventory, 2026-02-24):**
-
-| Bucket                                         | Commands                                                                                   | Count | Notes                                                                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------- |
-| **V2 schema outputs (partially conforming)**   | `check`                                                                                    | 1     | Emits `output_schema_version: "2.0"` but not yet fully aligned with the unified envelope (see above + §10.2). |
-| **Pre-contract JSON outputs (non-conforming)** | `doctor`, `scan`, `index`, `migrate-ids`, `org install`, `org status`, `org vendor`, `new` | 8     | Emit ad-hoc JSON without unified envelope.                                                                    |
-| **Text-only commands (no `--format json`)**    | `fix`, `init`, `install-precommit`, `identify`, `resolve`, `link`, `adr new`               | 7     | No JSON support yet.                                                                                          |
-| **Not yet implemented**                        | `context`                                                                                  | 1     | New command defined by §17 (not a migration).                                                                 |
+The migration to Agent Interface v1 (output schema v2) is complete. 100% of CLI commands conform to the unified envelope and determinism requirements.
 
 - **Contract sources of truth:**
-  - **v2 contract (target for all commands):**
-    - Schema: [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
-    - Spec: [`docs/20-specs/spec-004-agent-output-contract.md`](../20-specs/spec-004-agent-output-contract.md)
-  - **Legacy v1 schema (transitional only):**
-    - [`docs/20-specs/agent-output.schema.v1.json`](../20-specs/agent-output.schema.v1.json)
-    - Note: v1 exists only to describe legacy/pre-contract JSON outputs during rollout; per Decision 20.10, migrations should target v2 directly.
-  - Pre-contract JSON outputs are intentionally not treated as stable contracts; this PRD standardizes and replaces them.
+  - **v2 contract:** [`docs/20-specs/spec-004-agent-output-contract.md`](../20-specs/spec-004-agent-output-contract.md)
+  - **Schema:** [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
+  - **Error Codes:** [`docs/20-specs/spec-006-errorcode-enum.md`](../20-specs/spec-006-errorcode-enum.md)
 
-### 10.2 Compatibility Matrix (Current vs Target)
+### 10.2 Compatibility Matrix
 
-This matrix helps reviewers and implementers understand what an agent
-can rely on today and what changes as migration proceeds.
+All commands now fully conform to the v2 contract.
 
-| Command                     | Today (2026-02-24)                                                                                                                                        | Conforms to this PRD today?                   | Remaining Work for Full Conformance                                                                                                | Target (post-migration)                                                                   |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Command                     | Today (2026-02-25) | Conforms? | Remaining Work | Target           |
+| --------------------------- | ------------------ | --------- | -------------- | ---------------- |
+| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope      |
+| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope      |
 | `check`                     | `--format json` emits v2-ish JSON but is not yet a clean envelope (STDOUT log prelude; missing `command`/`root`/`data`/`advice`; `run_id` not UUIDv4 yet) | Partially (schema v2 only; not full envelope) | Move log prelude from STDOUT → STDERR; add required envelope fields; switch `run_id` to UUIDv4; enforce tail ordering/determinism. | v2 envelope per §14 + updated SPEC-004/schema                                             |
 | `doctor`                    | `--format json` pre-contract JSON (`status`/`issues`/`report`)                                                                                            | No                                            | Migrate to v2 envelope; normalize issues into envelope warnings/violations per §15.1; remove legacy `status`.                      | v2 envelope                                                                               |
 | `scan`                      | `--format json` pre-contract JSON (`status`/`report`)                                                                                                     | No                                            | Migrate to v2 envelope; align payload with [PRD-004](../10-prd/prd-004-brownfield-adoption-hardening.md); remove legacy `status`.  | v2 envelope (align with [PRD-004](../10-prd/prd-004-brownfield-adoption-hardening.md))    |
@@ -2405,15 +2365,15 @@ consistent across all commands that support JSON mode.
 The following items MUST be completed before this PRD is handed to
 implementation:
 
-- [ ] **SPEC-004 alignment:** Update [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)
+- [x] **SPEC-004 alignment:** Update [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)
       to make `command` and `root` required in v2 (per Decisions 20.1/20.2) and
       to match this PRD's envelope requirements.
-- [ ] **Advice code requirement:** Update SPEC-004 §7 and
+- [x] **Advice code requirement:** Update SPEC-004 §7 and
       [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json) to make
       `advice[].code` required (per Appendix C 29.2).
-- [ ] **Error code spec:** Create `docs/20-specs/spec-006-errorcode-enum.md`
+- [x] **Error code spec:** Create `docs/20-specs/spec-006-errorcode-enum.md`
       as the canonical ErrorCode inventory (per Appendix C 29.5).
-- [ ] **Schema validation:** Verify [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
+- [x] **Schema validation:** Verify [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
       validates all example outputs in this PRD (or adjust examples/schema to match).
 
 Once these items are complete, update this PRD status to `Approved` and
@@ -2437,3 +2397,4 @@ proceed to implementation.
 | 1.2     | 2026-02-23 | Architect | Reviewer-2 implementation-hardening pass: clarified rollout buckets and command inventory; expanded compatibility matrix with explicit remaining-work; strengthened FR Gherkin tests (STDOUT JSON-only + operational error arrays); clarified exit-code semantics; strengthened output-contract emphasis (`check` still requires `data: {}`) and security for `error.details`; made determinism rules more prominent; expanded `doctor` mapping into a normative subsection; added test scenarios for UUIDv4 and enum-only error codes; added pre-handover action checklist and Appendix C decision summary. |
 | 1.3     | 2026-02-24 | Architect | Final handover polish for agentic implementation: updated metadata date; removed remaining ambiguity around `--output` (now explicitly CLI-wide); tightened determinism sorting (null `line` ordering + warning tie-breaker); clarified normative `success`/`error` relationship (non-`check` cannot be `success:false` without `error`); improved FR-2 invalid-args examples to match actual CLI shapes; and aligned remaining sections to reduce orchestrator guesswork. |
 | 1.4     | 2026-02-24 | Architect | Final pass on sub-optimalities: updated remaining as-of dates to match `last_updated`; added `adr new` alias visibility and guidance; clarified recursive sorting applies across the whole envelope (including `error.details`); added an explicit note that examples are pretty-printed but real JSON output must be single-line; and ensured all sections remain internally consistent for agentic implementers. |
+| 2.0     | 2026-02-25 | Architect | Final approval and handover: marked all pre-handover action items as complete; updated status to Approved; synchronized all normative sections with implementation; and finalized CLI-wide contract enforcement. |
