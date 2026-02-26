@@ -192,7 +192,7 @@ Minimum payload SHOULD include:
 - supported `output_schema_version` values,
 - supported `--format` values (for example `text`, `json`, `ndjson`),
 - list of commands/subcommands and which support JSON envelopes,
-- supported standardized flags (`--output`, `--include-timestamp`, etc),
+- supported standardized flags (`--output`, `--include-timestamp`, etc.),
 - and contract feature flags (for example `stdout_json_only: true`).
 
 Builder note: `capabilities` MUST be fast and MUST NOT touch the filesystem by
@@ -271,7 +271,7 @@ Minimum expectations:
 Agent Interface v1 targets `output_schema_version: "2.0"` across commands.
 Agent Interface v2 may:
 
-- remain on `"2.x"` if changes are backward compatible additions, or
+- remain on `"2.x"` if changes are backward-compatible additions, or
 - introduce `"3.0"` if breaking changes are required.
 
 ### 7.2 Backward Compatibility Expectations

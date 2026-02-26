@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
 status: Approved
-version: "1.0"
-last_updated: 2026-02-25
+version: "1.1"
+last_updated: 2026-02-26
 owner: Product Team
 docops_version: "2.0"
 area: Agentic Integration
@@ -202,8 +202,9 @@ Plain English: `files_checked` is now strictly file-validation count, and reposi
 
 `output_schema_version`, `success`, `command`, `run_id`, `timestamp`, `root`, `data`, `warnings`, `violations`, `advice`, `error`
 
-3. Arrays MUST be sorted deterministically when their order is not semantically meaningful. Warnings MUST be sorted by `path`, then `line`, then `message`. Violations MUST be sorted by `path`, then `code`, then `severity`. Advice MUST be sorted by `code` then `message`.
-4. When paths are included, they MUST be normalized with forward slashes and be relative to `root` unless explicitly documented otherwise.
+3. Arrays MUST be sorted deterministically when their order is not semantically meaningful. Warnings MUST be sorted by `path`, then `line`, then `code`, then `message`. Violations MUST be sorted by `path`, then `code`, then `severity`, then `line`, then `message`. Advice MUST be sorted by `code` then `message`.
+4. When `violations` are grouped by `path`, the outer list MUST be sorted by `path` and the inner `violations` array MUST be sorted by `code`, then `severity`, then `line`, then `message`.
+5. When paths are included, they MUST be normalized with forward slashes and be relative to `root` unless explicitly documented otherwise.
 
 Plain English: The same input should produce identical JSON output, so agents can diff reliably.
 

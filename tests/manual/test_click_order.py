@@ -14,10 +14,17 @@ def composite_reversed(f):
 
 @click.command()
 @composite_reversed
-def foo(b, a): # Testing if inner-most (dec2) is first
+def foo(b, a):
     click.echo(f"a={a}, b={b}")
 
-if __name__ == "__main__":
+def test_click_option_order():
     runner = CliRunner()
-    result = runner.invoke(foo, ["--a", "1", "--b", "2"])
-    print(result.output)
+    result = runner.invoke(foo, ["--help"])
+    assert result.exit_code == 0
+    # Click presents options in a deterministic order, independent of signature order.
+    assert result.output.index("--a") < result.output.index("--b")
+    assert [param.name for param in foo.params if hasattr(param, "name")] == ["a", "b"]
+
+    invoke = runner.invoke(foo, ["--a", "1", "--b", "2"])
+    assert invoke.exit_code == 0
+    assert "a=1, b=2" in invoke.output

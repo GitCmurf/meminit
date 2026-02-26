@@ -71,7 +71,7 @@ def _recursively_sort_keys(obj: Any) -> Any:
 
 def _get_line_key(line: Any) -> tuple:
     """Helper to sort None before integers."""
-    return (-1,) if line is None else (0, int(line))
+    return (0, -1) if line is None else (1, int(line))
 
 
 def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -99,21 +99,27 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if "violations" in v:
             # Grouped item: (path, 0, ...)
             # Sorts before flat items for the same path
-            return (path, 0, "", "", 0, "")
+            return (path, 0, "", "", 0, 0, "")
         # Flat item: (path, 1, code, severity, line, message)
+        line_key = _get_line_key(v.get("line"))
         return (
             path,
             1,
             v.get("code", ""),
-            *_get_line_key(v.get("line")),
+            v.get("severity", ""),
+            line_key[0],
+            line_key[1],
             v.get("message", ""),
         )
 
     def _inner_violation_key(v: dict[str, Any]) -> tuple:
-        # Grouped inner items: sort by code, then line, then message per PRD §16.1
+        # Grouped inner items: sort by code, severity, line, then message per PRD §16.1
+        line_key = _get_line_key(v.get("line"))
         return (
             v.get("code", ""),
-            *_get_line_key(v.get("line")),
+            v.get("severity", ""),
+            line_key[0],
+            line_key[1],
             v.get("message", ""),
         )
 

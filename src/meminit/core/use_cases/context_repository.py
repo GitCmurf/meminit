@@ -61,7 +61,7 @@ def _load_config_yaml(root_dir: Path) -> Dict[str, Any]:
         return {}
     try:
         return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except Exception:
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
         return {}
 
 
