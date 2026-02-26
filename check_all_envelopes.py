@@ -3,7 +3,7 @@ import subprocess
 import os
 from pathlib import Path
 
-REPO_ROOT = "/home/cmf/code/Meminit"
+REPO_ROOT = os.getcwd()
 VENV_PYTHON = REPO_ROOT + "/.venv/bin/python3"
 
 def check_command(cmd_args, expected_data_keys=None):
