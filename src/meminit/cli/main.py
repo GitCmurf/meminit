@@ -309,7 +309,7 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
         output=output,
     )
 
-    log_ctx = log_operation if format != "json" else _noop_log_operation
+    log_ctx = log_operation
 
     if paths:
         try:
