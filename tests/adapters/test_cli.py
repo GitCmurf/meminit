@@ -177,6 +177,76 @@ def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, t
     assert payload["error"]["details"]["output_path"] == str(output_dir)
 
 
+def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
+    output_path = tmp_path / "new-error.txt"
+    missing_root = tmp_path / "does-not-exist"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "new",
+            "ADR",
+            "Bad Root",
+            "--root",
+            str(missing_root),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "CONFIG_MISSING" in content
+    assert "Path does not exist:" in content
+    assert str(missing_root) in content
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_text_output_writes_file_and_not_stdout(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "check-output.txt"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Meminit Compliance Check" not in result.output
+    assert f"Scanning root: {tmp_path}" not in result.output
+    assert "Success! No violations found." not in result.output
+    content = output_path.read_text(encoding="utf-8")
+    assert "Meminit Compliance Check" in content
+    assert f"Scanning root: {tmp_path}" in content
+    assert "Success! No violations found." in content
+
+
 @patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_md(mock_use_case):
     instance = mock_use_case.return_value
