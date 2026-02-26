@@ -152,6 +152,19 @@ def generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
+def _normalize_run_id(run_id: str | None) -> str:
+    """Validate or generate a UUIDv4 run_id."""
+    if run_id is None:
+        return generate_run_id()
+    try:
+        parsed = uuid.UUID(str(run_id))
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise ValueError("run_id must be a UUIDv4") from exc
+    if parsed.version != 4:
+        raise ValueError("run_id must be a UUIDv4")
+    return str(parsed)
+
+
 def format_envelope(
     *,
     command: str,
@@ -178,7 +191,7 @@ def format_envelope(
         advice: Non-binding recommendations. Defaults to [].
         error: Operational error object (code, message, optional details).
         include_timestamp: If True, include ISO 8601 UTC timestamp.
-        run_id: Override run_id (defaults to a new UUIDv4).
+        run_id: Override run_id (must be a UUIDv4).
         extra_top_level: Additional top-level fields (e.g. check counters).
             These are placed after the standard envelope keys in sorted order.
 
@@ -192,7 +205,7 @@ def format_envelope(
         "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
         "success": success,
         "command": command,
-        "run_id": run_id or generate_run_id(),
+        "run_id": _normalize_run_id(run_id),
     }
 
     if include_timestamp:
@@ -217,6 +230,12 @@ def format_envelope(
 
     # Add extra top-level fields (e.g. check counters) in sorted order.
     if extra_top_level:
+        reserved = set(_ENVELOPE_KEY_ORDER)
+        overlap = reserved.intersection(extra_top_level.keys())
+        if overlap:
+            raise ValueError(
+                f"extra_top_level contains reserved keys: {sorted(overlap)}"
+            )
         for k in sorted(extra_top_level.keys()):
             envelope[k] = _recursively_sort_keys(extra_top_level[k])
 

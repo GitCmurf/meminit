@@ -173,3 +173,31 @@ def test_format_envelope_sorts_violations_by_severity(tmp_path):
             "severity": "warning",
         },
     ]
+
+
+def test_format_envelope_rejects_invalid_run_id(tmp_path):
+    try:
+        format_envelope(
+            command="check",
+            root=tmp_path,
+            success=True,
+            run_id="not-a-uuid",
+        )
+    except ValueError as exc:
+        assert "run_id must be a UUIDv4" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid run_id")
+
+
+def test_format_envelope_rejects_reserved_extra_keys(tmp_path):
+    try:
+        format_envelope(
+            command="check",
+            root=tmp_path,
+            success=True,
+            extra_top_level={"success": True},
+        )
+    except ValueError as exc:
+        assert "reserved keys" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for reserved extra_top_level keys")

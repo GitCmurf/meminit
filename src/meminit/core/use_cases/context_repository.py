@@ -76,7 +76,8 @@ def _resolve_default_owner(config: Dict[str, Any], default_namespace_name: str) 
         for ns in namespaces:
             if not isinstance(ns, dict):
                 continue
-            if str(ns.get("name", "")).strip().lower() != default_namespace_name.strip().lower():
+            ns_name = str(ns.get("namespace", ns.get("name", ""))).strip().lower()
+            if ns_name != default_namespace_name.strip().lower():
                 continue
             owner = ns.get("default_owner")
             if isinstance(owner, str) and owner.strip():

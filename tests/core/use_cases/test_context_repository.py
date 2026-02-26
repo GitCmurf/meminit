@@ -1,6 +1,9 @@
 from unittest.mock import patch
 
-from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
+from meminit.core.use_cases.context_repository import (
+    ContextRepositoryUseCase,
+    _resolve_default_owner,
+)
 
 
 def _write_config(tmp_path):
@@ -128,6 +131,16 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
             "path": "docops.config.yaml",
         }
     ]
+
+
+def test_resolve_default_owner_prefers_namespace_key():
+    config = {
+        "default_owner": "Fallback",
+        "namespaces": [
+            {"namespace": "default", "default_owner": "TeamN"},
+        ],
+    }
+    assert _resolve_default_owner(config, "default") == "TeamN"
 
 
 def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):

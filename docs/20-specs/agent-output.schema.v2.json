@@ -133,7 +133,11 @@
             "required": ["error"]
           },
           {
-            "required": ["violations"]
+            "properties": {
+              "violations": {
+                "minItems": 1
+              }
+            }
           }
         ]
       }

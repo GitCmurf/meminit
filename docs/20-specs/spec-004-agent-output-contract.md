@@ -276,7 +276,10 @@ In v2, check counters are required for non-error payloads when `command` is
     {
       "if": { "properties": { "success": { "const": false } } },
       "then": {
-        "anyOf": [{ "required": ["error"] }, { "required": ["violations"] }]
+        "anyOf": [
+          { "required": ["error"] },
+          { "properties": { "violations": { "minItems": 1 } } }
+        ]
       }
     },
     {
