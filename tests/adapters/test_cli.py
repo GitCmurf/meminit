@@ -137,6 +137,117 @@ def test_cli_check_violations_json(mock_use_case):
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outdir"
+    output_dir.mkdir()
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+    assert payload["error"]["details"]["output_path"] == str(output_dir)
+
+
+def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
+    output_path = tmp_path / "new-error.txt"
+    missing_root = tmp_path / "does-not-exist"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "new",
+            "ADR",
+            "Bad Root",
+            "--root",
+            str(missing_root),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "CONFIG_MISSING" in content
+    assert "Path does not exist:" in content
+    assert str(missing_root) in content
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_text_output_writes_file_and_not_stdout(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "check-output.txt"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Meminit Compliance Check" not in result.output
+    assert f"Scanning root: {tmp_path}" not in result.output
+    assert "Success! No violations found." not in result.output
+    content = output_path.read_text(encoding="utf-8")
+    assert "Meminit Compliance Check" in content
+    assert f"Scanning root: {tmp_path}" in content
+    assert "Success! No violations found." in content
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_violations_md(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -299,7 +410,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["output_schema_version"] == "1.0"
+    assert data["output_schema_version"] == "2.0"
 
 
 @patch("meminit.cli.main.ScanRepositoryUseCase")
@@ -381,6 +492,65 @@ def test_cli_scan_md_includes_ambiguous_types_and_namespaces(mock_use_case, tmp_
     assert "## Overlapping Namespace Roots" in result.output
 
 
+def test_cli_context_json_output(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "default_owner: TeamA\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["output_schema_version"] == "2.0"
+    assert data["success"] is True
+    assert data["data"]["project_name"] == "TestProject"
+    assert data["data"]["default_owner"] == "TeamA"
+
+
+def test_cli_context_deep_counts_documents(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    docs_dir = tmp_path / "docs" / "00-governance"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "a.md").write_text("# A\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["context", "--root", str(tmp_path), "--format", "json", "--deep"],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["data"]["deep_incomplete"] is False
+    namespaces = data["data"]["namespaces"]
+    default_ns = next(ns for ns in namespaces if ns.get("name") == "default")
+    assert default_ns["document_count"] == 1
+
+
+def test_cli_context_md_output(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "md"])
+
+    assert result.exit_code == 0
+    assert "# Meminit Context" in result.output
+    assert "- Project: `TestProject`" in result.output
+
+
 def test_cli_index_json_contract(tmp_path):
     docs_dir = tmp_path / "docs" / "45-adr"
     docs_dir.mkdir(parents=True)
@@ -403,9 +573,8 @@ def test_cli_index_json_contract(tmp_path):
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["status"] == "ok"
-    assert data["output_schema_version"] == "1.0"
-    assert data["report"]["document_count"] == 1
+    assert data["output_schema_version"] == "2.0"
+    assert data["data"]["document_count"] == 1
 
 
 class TestCliNewJsonOutput:
@@ -477,16 +646,16 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert "path" in data
-        assert data["document_id"] == "TEST-ADR-001"
-        assert data["type"] == "ADR"
-        assert data["title"] == "Test Decision"
-        assert data["status"] == "Draft"
-        assert "owner" in data
-        assert "keywords" in data
-        assert "related_ids" in data
+        assert "path" in data["data"]
+        assert data["data"]["document_id"] == "TEST-ADR-001"
+        assert data["data"]["type"] == "ADR"
+        assert data["data"]["title"] == "Test Decision"
+        assert data["data"]["status"] == "Draft"
+        assert "owner" in data["data"]
+        assert "keywords" in data["data"]
+        assert "related_ids" in data["data"]
 
     def test_new_format_json_with_metadata(self, repo_for_new):
         runner = CliRunner()
@@ -521,11 +690,11 @@ type_directories:
         data = json.loads(json_line)
 
         assert data["success"] is True
-        assert data["owner"] == "TestOwner"
-        assert data["area"] == "Backend"
-        assert data["description"] == "Test description"
-        assert data["keywords"] == ["api", "test"]
-        assert data["related_ids"] == ["TEST-PRD-001"]
+        assert data["data"]["owner"] == "TestOwner"
+        assert data["data"]["area"] == "Backend"
+        assert data["data"]["description"] == "Test description"
+        assert data["data"]["keywords"] == ["api", "test"]
+        assert data["data"]["related_ids"] == ["TEST-PRD-001"]
 
     def test_new_format_json_error(self, repo_for_new):
         runner = CliRunner()
@@ -547,7 +716,7 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
@@ -593,11 +762,11 @@ type_directories:
         assert result.exit_code == 0
         data = json.loads(result.output)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert "types" in data
+        assert "types" in data["data"]
 
-        types_dict = {t["type"]: t["directory"] for t in data["types"]}
+        types_dict = {t["type"]: t["directory"] for t in data["data"]["types"]}
         assert "ADR" in types_dict
         assert "PRD" in types_dict
         assert "FDD" in types_dict
@@ -699,11 +868,11 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "1.0"
+        assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
-        assert data["dry_run"] is True
-        assert "would_create" in data
-        assert data["would_create"]["document_id"] == "TEST-ADR-001"
+        assert data["data"]["dry_run"] is True
+        assert "would_create" in data["data"]
+        assert data["data"]["would_create"]["document_id"] == "TEST-ADR-001"
 
     def test_new_dry_run_with_metadata_preview(self, repo_for_dry_run):
         runner = CliRunner()
@@ -730,8 +899,33 @@ type_directories:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["owner"] == "TestOwner"
-        assert data["area"] == "Backend"
+        assert data["data"]["owner"] == "TestOwner"
+        assert data["data"]["area"] == "Backend"
+
+    def test_new_md_format_rejected_and_written_to_output(self, repo_for_dry_run, tmp_path):
+        output_path = tmp_path / "new-md-error.md"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "ADR",
+                "MD Not Supported",
+                "--root",
+                str(repo_for_dry_run),
+                "--format",
+                "md",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == getattr(os, "EX_USAGE", 64)
+        assert result.output == ""
+        content = output_path.read_text(encoding="utf-8")
+        assert "# Meminit New" in content
+        assert "INVALID_FLAG_COMBINATION" in content
+        assert "--format md is not supported for this command." in content
 
 
 class TestCliCheckTargeted:

@@ -192,7 +192,7 @@ Minimum payload SHOULD include:
 - supported `output_schema_version` values,
 - supported `--format` values (for example `text`, `json`, `ndjson`),
 - list of commands/subcommands and which support JSON envelopes,
-- supported standardized flags (`--output`, `--include-timestamp`, etc),
+- supported standardized flags (`--output`, `--include-timestamp`, etc.),
 - and contract feature flags (for example `stdout_json_only: true`).
 
 Builder note: `capabilities` MUST be fast and MUST NOT touch the filesystem by

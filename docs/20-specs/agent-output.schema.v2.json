@@ -3,7 +3,7 @@
   "$id": "https://meminit.io/schemas/agent-output.schema.v2.json",
   "title": "Meminit Agent Output Envelope v2",
   "type": "object",
-  "required": ["output_schema_version", "success", "run_id"],
+  "required": ["output_schema_version", "success", "command", "run_id", "root", "data", "warnings", "violations", "advice"],
   "properties": {
     "output_schema_version": {
       "type": "string",
@@ -16,7 +16,8 @@
       "type": "string"
     },
     "run_id": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
     },
     "timestamp": {
       "type": "string",
@@ -132,36 +133,25 @@
             "required": ["error"]
           },
           {
-            "required": ["violations"]
+            "properties": {
+              "violations": {
+                "minItems": 1
+              }
+            }
           }
         ]
       }
     },
     {
       "if": {
-        "allOf": [
-          {
-            "not": {
-              "required": ["error"]
-            }
-          },
-          {
-            "anyOf": [
-              {
-                "not": {
-                  "required": ["command"]
-                }
-              },
-              {
-                "properties": {
-                  "command": {
-                    "const": "check"
-                  }
-                }
-              }
-            ]
+        "properties": {
+          "command": {
+            "const": "check"
           }
-        ]
+        },
+        "not": {
+          "required": ["error"]
+        }
       },
       "then": {
         "required": [
@@ -206,7 +196,7 @@
     },
     "advice": {
       "type": "object",
-      "required": ["message"],
+      "required": ["code", "message"],
       "properties": {
         "message": {
           "type": "string"
