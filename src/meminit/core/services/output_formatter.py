@@ -75,7 +75,7 @@ def _get_line_key(line: Any) -> tuple:
 
 
 def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort warnings by (path, line, code, message) per SPEC-004 §9.3."""
+    """Sort warnings by (path, line, code, message) per PRD §16.1."""
 
     def _key(w: dict[str, Any]) -> tuple:
         return (
@@ -89,49 +89,47 @@ def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort violations by path, then code, then severity per SPEC-004 §9.3.
+    """Sort violations by path, then sub-keys per PRD §16.1.
 
     Supports both flat Issue objects and grouped violations.
     """
 
-    def _flat_key(v: dict[str, Any]) -> tuple:
+    def _outer_key(v: dict[str, Any]) -> tuple:
+        path = v.get("path", "")
+        if "violations" in v:
+            # Grouped item: (path, 0, ...)
+            # Sorts before flat items for the same path
+            return (path, 0, "", "", 0, "")
+        # Flat item: (path, 1, code, severity, line, message)
         return (
-            v.get("path", ""),
+            path,
+            1,
             v.get("code", ""),
-            v.get("severity", ""),
             *_get_line_key(v.get("line")),
             v.get("message", ""),
         )
-
-    def _outer_grouped_key(v: dict[str, Any]) -> tuple:
-        return (v.get("path", ""),)
 
     def _inner_violation_key(v: dict[str, Any]) -> tuple:
-        # Grouped inner items: sort by line, then code, then message for stability
+        # Grouped inner items: sort by code, then line, then message per PRD §16.1
         return (
-            *_get_line_key(v.get("line")),
             v.get("code", ""),
+            *_get_line_key(v.get("line")),
             v.get("message", ""),
         )
 
-    is_grouped = any("violations" in item for item in violations)
+    # Sort the outer list
+    sorted_outer = sorted(violations, key=_outer_key)
 
-    if is_grouped:
-        # Sort groups by path
-        sorted_outer = sorted(violations, key=_outer_grouped_key)
-        result = []
-        for item in sorted_outer:
-            if "violations" in item and isinstance(item["violations"], list):
-                new_item = item.copy()
-                new_item["violations"] = sorted(item["violations"], key=_inner_violation_key)
-                result.append(new_item)
-            else:
-                # Fallback for mixed flat/grouped (unexpected but handled)
-                result.append(item)
-        return result
-
-    # Flat violations
-    return sorted(violations, key=_flat_key)
+    # Sort inner violations for grouped items
+    result = []
+    for item in sorted_outer:
+        if "violations" in item and isinstance(item["violations"], list):
+            new_item = item.copy()
+            new_item["violations"] = sorted(item["violations"], key=_inner_violation_key)
+            result.append(new_item)
+        else:
+            result.append(item)
+    return result
 
 
 def _sort_advice(advice: list[dict[str, Any]]) -> list[dict[str, Any]]:

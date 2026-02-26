@@ -16,6 +16,10 @@ def _write_config(tmp_path):
                 "    docs_root: docs",
                 "    repo_prefix: TST",
                 "    docops_version: '2.0'",
+                "  - name: nested",
+                "    docs_root: docs/nested",
+                "    repo_prefix: NST",
+                "    docops_version: '2.0'",
                 "  - name: other",
                 "    docs_root: docs-other",
                 "    repo_prefix: OTH",
@@ -30,6 +34,7 @@ def _write_config(tmp_path):
 def test_context_repository_execute_shallow(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
 
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
@@ -42,9 +47,10 @@ def test_context_repository_execute_shallow(tmp_path):
     assert result.data["project_name"] == "Test"
 
     namespaces = result.data["namespaces"]
-    assert [ns["name"] for ns in namespaces] == ["default", "other"]
+    assert [ns["name"] for ns in namespaces] == ["default", "nested", "other"]
     assert namespaces[0]["docs_root"] == "docs"
-    assert namespaces[1]["docs_root"] == "docs-other"
+    assert namespaces[1]["docs_root"] == "docs/nested"
+    assert namespaces[2]["docs_root"] == "docs-other"
     assert "document_count" not in namespaces[0]
 
     assert result.warnings == []
@@ -54,6 +60,7 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+    (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
     (tmp_path / "docs" / "00-governance" / "b.md").write_text("# B\n", encoding="utf-8")
@@ -62,21 +69,26 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
         "# Template\n", encoding="utf-8"
     )
     (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
+    (tmp_path / "docs" / "nested" / "00-governance" / "d.md").write_text(
+        "# D\n", encoding="utf-8"
+    )
 
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
     result = use_case.execute(deep=True)
 
     assert result.data["deep_incomplete"] is False
     namespaces = result.data["namespaces"]
-    assert [ns["name"] for ns in namespaces] == ["default", "other"]
+    assert [ns["name"] for ns in namespaces] == ["default", "nested", "other"]
     assert namespaces[0]["document_count"] == 2
     assert namespaces[1]["document_count"] == 1
+    assert namespaces[2]["document_count"] == 1
     assert result.warnings == []
 
 
 def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
     (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
@@ -103,9 +115,10 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
 
     assert result.data["deep_incomplete"] is True
     namespaces = result.data["namespaces"]
-    assert [ns["name"] for ns in namespaces] == ["default", "other"]
+    assert [ns["name"] for ns in namespaces] == ["default", "nested", "other"]
     assert namespaces[0]["document_count"] == 1
     assert namespaces[1]["document_count"] is None
+    assert namespaces[2]["document_count"] is None
     assert result.warnings == [
         {
             "code": "DEEP_BUDGET_EXCEEDED",
@@ -121,6 +134,7 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
 def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
     # Multiple files so the counter loop runs more than once.
     (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
@@ -149,7 +163,8 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
 
     assert result.data["deep_incomplete"] is True
     namespaces = result.data["namespaces"]
-    assert [ns["name"] for ns in namespaces] == ["default", "other"]
+    assert [ns["name"] for ns in namespaces] == ["default", "nested", "other"]
     assert namespaces[0]["document_count"] is None
     assert namespaces[1]["document_count"] is None
+    assert namespaces[2]["document_count"] is None
     assert result.warnings and result.warnings[0]["code"] == "DEEP_BUDGET_EXCEEDED"

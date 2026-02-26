@@ -31,7 +31,7 @@ class ContextResult:
 
 
 def _count_governed_markdown(
-    ns: RepoConfig, *, deadline: float | None = None
+    layout: RepoLayout, ns: RepoConfig, *, deadline: float | None = None
 ) -> int | None:
     """Count markdown files under a docs directory.
 
@@ -44,6 +44,9 @@ def _count_governed_markdown(
 
     count = 0
     for path in docs_dir.rglob("*.md"):
+        owner = layout.namespace_for_path(path)
+        if owner is None or owner.namespace != ns.namespace:
+            continue
         if ns.is_excluded(path):
             continue
         count += 1
@@ -150,7 +153,11 @@ class ContextRepositoryUseCase:
                         rest["document_count"] = None
                     break
 
-                count = _count_governed_markdown(namespaces_sorted[i], deadline=deadline)
+                count = _count_governed_markdown(
+                    layout,
+                    namespaces_sorted[i],
+                    deadline=deadline,
+                )
                 if count is None:
                     deep_incomplete = True
                     ns_entry["document_count"] = None

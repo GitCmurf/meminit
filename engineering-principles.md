@@ -29,7 +29,7 @@ Do not submit one without the others. Partial deliveries create drift.
 - **SOLID**: apply pragmatically, not dogmatically. Prefer small, focused interfaces (ISP) and constructor injection (DIP) over over-abstracted hierarchies.
 - **DRY**: extract shared logic into well-named helpers. Tolerate _minor_ repetition when the alternative is a premature abstraction.
 - **KISS**: choose the simplest solution that meets the requirements. If a design needs a diagram to explain, it may be too complex.
-- **Backwards compatibility**: if the project is pre-production/pre-alpha/alpha/beta, do not bother with backwards compatibility issues; but if the project is explicitly in production use, do not break public APIs, CLI interfaces, or configuration file formats without explicit approval and a migration path. If in doubt about project production status, first check `./AGENTS.md` and then ask the user if status is still unclear.
+- **Backwards compatibility**: if the project is pre-production/pre-alpha/alpha/beta, do not bother with backwards compatibility issues; but if the project is explicitly in production use, do not break public APIs, CLI contracts, or configuration file formats without explicit approval and a migration path. If in doubt about project production status, first check `./AGENTS.md` and then ask the user if status is still unclear.
 
 ## 3. Code Quality
 

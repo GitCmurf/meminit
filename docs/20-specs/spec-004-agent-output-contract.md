@@ -2,9 +2,9 @@
 document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
-status: Draft
-version: "0.5"
-last_updated: 2026-02-24
+status: Approved
+version: "1.0"
+last_updated: 2026-02-25
 owner: Product Team
 docops_version: "2.0"
 area: Agentic Integration
@@ -25,9 +25,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-SPEC-004
 > **Owner:** Product Team
-> **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-02-24
+> **Status:** Approved
+> **Version:** 1.0
+> **Last Updated:** 2026-02-25
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -229,12 +229,22 @@ In v2, check counters are required for non-error payloads when `command` is
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Meminit Output Envelope v2",
   "type": "object",
-  "required": ["output_schema_version", "success", "run_id"],
+  "required": [
+    "output_schema_version",
+    "success",
+    "command",
+    "run_id",
+    "root",
+    "data",
+    "warnings",
+    "violations",
+    "advice"
+  ],
   "properties": {
     "output_schema_version": { "type": "string" },
     "success": { "type": "boolean" },
     "command": { "type": "string" },
-    "run_id": { "type": "string" },
+    "run_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" },
     "timestamp": { "type": "string", "format": "date-time" },
     "root": { "type": "string" },
     "data": { "type": "object" },
@@ -332,7 +342,7 @@ In v2, check counters are required for non-error payloads when `command` is
     },
     "advice": {
       "type": "object",
-      "required": ["message"],
+      "required": ["code", "message"],
       "properties": {
         "message": { "type": "string" },
         "code": { "type": "string" },
@@ -363,7 +373,7 @@ Plain English: This schema is what agents and tests should validate against.
   "output_schema_version": "2.0",
   "success": false,
   "command": "check",
-  "run_id": "20260218-1f2c3a",
+  "run_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "root": "/repo",
   "files_checked": 42,
   "files_passed": 41,
@@ -375,6 +385,7 @@ Plain English: This schema is what agents and tests should validate against.
   "files_with_warnings": 0,
   "files_outside_docs_root_count": 0,
   "checked_paths_count": 43,
+  "data": {},
   "warnings": [],
   "violations": [
     {
@@ -405,8 +416,12 @@ Plain English: This schema is what agents and tests should validate against.
   "output_schema_version": "2.0",
   "success": false,
   "command": "check",
-  "run_id": "20260218-1f2c3a",
+  "run_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "root": "/repo",
+  "data": {},
+  "warnings": [],
+  "violations": [],
+  "advice": [],
   "error": {
     "code": "FILE_NOT_FOUND",
     "message": "File not found: docs/missing.md",
