@@ -46,7 +46,7 @@ def test_repro():
         print(f"File content: {payload}")
     else:
         print(f"FAILURE: {output_file.name} was NOT created.")
-        assert False, "Output file was not created."
+        raise AssertionError("Output file was not created.")
 
 def test_repro_adr():
     output_file = Path(__file__).parent / "repro_adr_error.json"
@@ -87,7 +87,7 @@ def test_repro_adr():
         print(f"FAILURE: {output_file.name} was NOT created.")
         print(f"STDOUT: {result.stdout}")
         print(f"STDERR: {result.stderr}")
-        assert False, "Output file was not created."
+        raise AssertionError("Output file was not created.")
 
 if __name__ == "__main__":
     test_repro()

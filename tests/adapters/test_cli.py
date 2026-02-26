@@ -492,6 +492,65 @@ def test_cli_scan_md_includes_ambiguous_types_and_namespaces(mock_use_case, tmp_
     assert "## Overlapping Namespace Roots" in result.output
 
 
+def test_cli_context_json_output(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "default_owner: TeamA\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["output_schema_version"] == "2.0"
+    assert data["success"] is True
+    assert data["data"]["project_name"] == "TestProject"
+    assert data["data"]["default_owner"] == "TeamA"
+
+
+def test_cli_context_deep_counts_documents(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    docs_dir = tmp_path / "docs" / "00-governance"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "a.md").write_text("# A\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["context", "--root", str(tmp_path), "--format", "json", "--deep"],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["data"]["deep_incomplete"] is False
+    namespaces = data["data"]["namespaces"]
+    default_ns = next(ns for ns in namespaces if ns.get("name") == "default")
+    assert default_ns["document_count"] == 1
+
+
+def test_cli_context_md_output(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "md"])
+
+    assert result.exit_code == 0
+    assert "# Meminit Context" in result.output
+    assert "- Project: `TestProject`" in result.output
+
+
 def test_cli_index_json_contract(tmp_path):
     docs_dir = tmp_path / "docs" / "45-adr"
     docs_dir.mkdir(parents=True)

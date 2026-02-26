@@ -88,7 +88,6 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
 def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
     (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
@@ -106,10 +105,10 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
 
         return _fn
 
-    # start=0.0; namespace 1 fits; namespace 2 hits budget before counting.
+    # Allow first namespace to complete, then hit the budget before the next.
     with patch(
         "meminit.core.use_cases.context_repository.time.monotonic",
-        new=monotonic_values([0.0, 0.0, 0.0, 2.1]),
+        new=monotonic_values([0.0, 0.0, 0.0, 0.0, 2.1]),
     ):
         result = use_case.execute(deep=True)
 
@@ -143,21 +142,20 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
 
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
 
-    def monotonic_values(values):
-        it = iter(values)
-        last = values[-1]
+    def monotonic_after(calls_before_deadline: int):
+        calls = 0
 
         def _fn():
-            nonlocal last
-            last = next(it, last)
-            return last
+            nonlocal calls
+            calls += 1
+            return 0.0 if calls <= calls_before_deadline else 2.1
 
         return _fn
 
-    # start=0.0; ns1 pre-check ok; after first file still ok; after second file exceeds.
+    # Exceed budget during the first namespace count.
     with patch(
         "meminit.core.use_cases.context_repository.time.monotonic",
-        new=monotonic_values([0.0, 0.0, 0.0, 2.1]),
+        new=monotonic_after(2),
     ):
         result = use_case.execute(deep=True)
 

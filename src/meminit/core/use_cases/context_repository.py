@@ -43,15 +43,19 @@ def _count_governed_markdown(
         return 0
 
     count = 0
-    for path in docs_dir.rglob("*.md"):
+    for path in docs_dir.rglob("*"):
+        if deadline is not None and time.monotonic() >= deadline:
+            return None
+        if path.suffix.lower() != ".md":
+            continue
+        if not path.is_file():
+            continue
         owner = layout.namespace_for_path(path)
         if owner is None or owner.namespace != ns.namespace:
             continue
         if ns.is_excluded(path):
             continue
         count += 1
-        if deadline is not None and time.monotonic() >= deadline:
-            return None
     return count
 
 
@@ -60,7 +64,8 @@ def _load_config_yaml(root_dir: Path) -> Dict[str, Any]:
     if not config_path.exists():
         return {}
     try:
-        return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        return loaded if isinstance(loaded, dict) else {}
     except (OSError, UnicodeDecodeError, yaml.YAMLError):
         return {}
 

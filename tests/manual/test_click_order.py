@@ -23,7 +23,7 @@ def test_click_option_order():
     assert result.exit_code == 0
     # Click presents options in a deterministic order, independent of signature order.
     assert result.output.index("--a") < result.output.index("--b")
-    assert [param.name for param in foo.params if hasattr(param, "name")] == ["a", "b"]
+    assert [param.name for param in foo.params] == ["a", "b"]
 
     invoke = runner.invoke(foo, ["--a", "1", "--b", "2"])
     assert invoke.exit_code == 0
