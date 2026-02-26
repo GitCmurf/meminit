@@ -98,6 +98,17 @@ def _write_output(output_str: str, output: Optional[str] = None, append: bool = 
 
 
 @contextlib.contextmanager
+def _noop_log_operation(
+    *,
+    operation: str,
+    details: Optional[Dict[str, Any]] = None,
+    run_id: Optional[str] = None,
+):
+    context: Dict[str, Any] = {"details": dict(details) if details else {}}
+    yield context
+
+
+@contextlib.contextmanager
 def maybe_capture(output: Optional[str], format: str):
     """Capture console output if output file is specified and format is text."""
     if format == "text" and output:
@@ -298,9 +309,11 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
         output=output,
     )
 
+    log_ctx = log_operation if format != "json" else _noop_log_operation
+
     if paths:
         try:
-            with log_operation(
+            with log_ctx(
                 operation="check_targeted",
                 details={"paths": list(paths), "strict": strict},
                 run_id=run_id,
@@ -467,7 +480,7 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
             console.print(f"Scanning root: {root_path}")
 
     try:
-        with log_operation(
+        with log_ctx(
             operation="check_full",
             details={"root": str(root_path)},
             run_id=run_id,

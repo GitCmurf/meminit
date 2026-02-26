@@ -230,8 +230,7 @@ def format_envelope(
 
     # Add extra top-level fields (e.g. check counters) in sorted order.
     if extra_top_level:
-        reserved = set(_ENVELOPE_KEY_ORDER)
-        overlap = reserved.intersection(extra_top_level.keys())
+        overlap = set(envelope.keys()).intersection(extra_top_level.keys())
         if overlap:
             raise ValueError(
                 f"extra_top_level contains reserved keys: {sorted(overlap)}"
