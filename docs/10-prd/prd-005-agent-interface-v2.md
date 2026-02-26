@@ -2,9 +2,9 @@
 document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
-status: Approved
-version: "1.0"
-last_updated: 2026-02-25
+status: Draft
+version: "0.2"
+last_updated: 2026-02-23
 owner: GitCmurf
 docops_version: "2.0"
 area: Agentic Integration
@@ -36,9 +36,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
-> **Status:** Approved
-> **Version:** 1.0
-> **Last Updated:** 2026-02-25
+> **Status:** Draft
+> **Version:** 0.2
+> **Last Updated:** 2026-02-23
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -271,7 +271,7 @@ Minimum expectations:
 Agent Interface v1 targets `output_schema_version: "2.0"` across commands.
 Agent Interface v2 may:
 
-- remain on `"2.x"` if changes are backward-compatible additions, or
+- remain on `"2.x"` if changes are backward compatible additions, or
 - introduce `"3.0"` if breaking changes are required.
 
 ### 7.2 Backward Compatibility Expectations
