@@ -107,8 +107,9 @@ class ContextRepositoryUseCase:
         layout: RepoLayout = load_repo_layout(self.root_dir)
         warnings: List[Dict[str, Any]] = []
 
+        namespaces_sorted = sorted(layout.namespaces, key=lambda n: n.namespace)
         namespaces_data: List[Dict[str, Any]] = []
-        for ns in sorted(layout.namespaces, key=lambda n: n.namespace):
+        for ns in namespaces_sorted:
             ns_entry: Dict[str, Any] = {
                 "docs_root": ns.docs_root,
                 "excluded_filename_prefixes": sorted(ns.excluded_filename_prefixes),
@@ -148,7 +149,6 @@ class ContextRepositoryUseCase:
             deadline = start + budget_seconds
             deep_incomplete = False
 
-            namespaces_sorted = sorted(layout.namespaces, key=lambda n: n.namespace)
             for i, ns_entry in enumerate(namespaces_data):
                 if time.monotonic() >= deadline:
                     deep_incomplete = True

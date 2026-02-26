@@ -100,7 +100,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Grouped item: (path, 0, ...)
             # Sorts before flat items for the same path
             return (path, 0, "", "", 0, 0, "")
-        # Flat item: (path, 1, code, severity, line, message)
+        # Flat item: (path, 1, code, severity, line_key[0], line_key[1], message)
         line_key = _get_line_key(v.get("line"))
         return (
             path,

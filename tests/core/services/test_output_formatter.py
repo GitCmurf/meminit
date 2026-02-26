@@ -130,3 +130,46 @@ def test_format_envelope_sorts_warnings_with_code_tiebreaker(tmp_path):
         {"code": "WARN_A", "line": 10, "message": "same", "path": "docs/a.md"},
         {"code": "WARN_B", "line": 10, "message": "same", "path": "docs/a.md"},
     ]
+
+
+def test_format_envelope_sorts_violations_by_severity(tmp_path):
+    output = format_envelope(
+        command="check",
+        root=tmp_path,
+        success=False,
+        violations=[
+            {
+                "path": "docs/a.md",
+                "code": "RULE",
+                "severity": "warning",
+                "line": 2,
+                "message": "warn",
+            },
+            {
+                "path": "docs/a.md",
+                "code": "RULE",
+                "severity": "error",
+                "line": 1,
+                "message": "err",
+            },
+        ],
+        include_timestamp=False,
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    payload = json.loads(output)
+    assert payload["violations"] == [
+        {
+            "code": "RULE",
+            "line": 1,
+            "message": "err",
+            "path": "docs/a.md",
+            "severity": "error",
+        },
+        {
+            "code": "RULE",
+            "line": 2,
+            "message": "warn",
+            "path": "docs/a.md",
+            "severity": "warning",
+        },
+    ]
