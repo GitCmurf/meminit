@@ -2,9 +2,9 @@
 document_id: MEMINIT-PRD-003
 type: PRD
 title: Agent Interface v1
-status: Approved
-version: "2.0"
-last_updated: 2026-02-25
+status: In Review
+version: "2.3"
+last_updated: 2026-02-27
 owner: GitCmurf
 docops_version: "2.0"
 area: Agentic Integration
@@ -36,9 +36,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-003
 > **Owner:** GitCmurf
-> **Status:** Approved
-> **Version:** 2.0
-> **Last Updated:** 2026-02-25
+> **Status:** In Review
+> **Version:** 2.3
+> **Last Updated:** 2026-02-27
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -146,11 +146,13 @@ This means:
 - Human-readable output remains important but is secondary to machine-parseable contracts.
 - Every CLI change must consider agent impact first.
 
-### 1.4 Current Rollout Status (Complete as of 2026-02-25)
+### 1.4 Current Rollout Status (Feature-complete as of 2026-02-27)
 
-Agent Interface v1 is **fully implemented** across all CLI commands. All commands now support
+Agent Interface v1 is **feature-complete** across all CLI commands. All commands now support
 `--format json` and emit a deterministic v2 envelope conforming to the
 [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) normative contract.
+
+Completion date was updated from 2026-02-25 to 2026-02-27 to reflect the determinism-order clarification (severity tie-breaker), the deep-scan budget alignment to 10s, and the addition of explicit verification notes.
 
 Key milestones achieved:
 
@@ -159,6 +161,18 @@ Key milestones achieved:
 - **Structured errors:** Operational and validation failures use stable error codes and envelopes.
 - **Bootstrap command:** `meminit context` is implemented for automated repo discovery.
 - **Alias alignment:** Compatibility aliases (like `adr new`) are fully aligned with canonical commands.
+
+#### Verification
+
+Evidence for this rollout status is captured in automated tests and schema validation. Current verification coverage includes:
+
+- **CLI envelope & error contract:** `tests/adapters/test_cli.py`
+- **Schema conformance:** `tests/core/services/test_output_contract_schema.py`
+- **Determinism & ordering:** `tests/core/services/test_output_formatter.py`
+
+Known verification gaps (tracked below in §10.3):
+
+- PRD example payloads are not yet validated against the schema in CI.
 
 ---
 
@@ -295,7 +309,9 @@ writes ad-hoc frontmatter, and hopes a human reviewer catches errors.
 **With Meminit:** The agent runs `meminit context`, then
 `meminit new ADR "Title" --format json`, receives a valid `document_id`
 and path, makes content edits, and runs `meminit check --format json` to
-confirm compliance — all in under 2 seconds and fully automatable in CI.
+confirm compliance — all in under 10 seconds and fully automatable in CI.
+
+**Timing note:** The 10-second target aligns with the `context --deep` budget and current CI observations. It is a performance target (not a hard SLA); large monorepos may exceed it. This change is documented in the v2.2 history entry.
 
 **Value delivered:** Zero-friction compliance, no human review needed for structure.
 
@@ -523,7 +539,7 @@ Future improvement ideas (out of scope for v1) are captured in [MEMINIT-PRD-005]
 
 ## 10. Delivery Status (Phased Rollout)
 
-### 10.1 Current State (Complete as of 2026-02-25)
+### 10.1 Current State (Feature-complete as of 2026-02-27)
 
 The migration to Agent Interface v1 (output schema v2) is complete. 100% of CLI commands conform to the unified envelope and determinism requirements.
 
@@ -536,21 +552,21 @@ The migration to Agent Interface v1 (output schema v2) is complete. 100% of CLI 
 
 All commands now fully conform to the v2 contract.
 
-| Command                     | Today (2026-02-25) | Conforms? | Remaining Work | Target      |
-| --------------------------- | ------------------ | --------- | -------------- | ----------- |
-| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope |
-| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope |
+| Command                     | Today (2026-02-27) | Conforms? | Remaining Work | Target      | Test Coverage               |
+| --------------------------- | ------------------ | --------- | -------------- | ----------- | --------------------------- |
+| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + schema tests          |
+| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope | CLI alias + use-case tests  |
+| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
 
 > [!IMPORTANT]
 > **Migration order recommendation:** Prioritize `context` (agent
@@ -570,6 +586,20 @@ All commands now fully conform to the v2 contract.
 > hardcoded paths). `new` is the primary document creation command. `fix`
 > closes the remediation loop. Together, these three complete the core
 > agent workflow: discover → create → validate → remediate.
+
+---
+
+### 10.3 Test Coverage (Current)
+
+Current coverage for the Agent Interface contract is anchored in three layers:
+
+- **CLI integration tests:** `tests/adapters/test_cli.py` covers `check`, `doctor`, `fix`, `scan`, `context`, `index`, `init`, `migrate-ids`, `new`, `adr new`, `install-precommit`, `identify`, `resolve`, `link`, and `org install/status/vendor`.
+- **Use-case tests:** `tests/core/use_cases/` covers `check`, `context`, `scan`, `fix`, `migrate-ids`, `new`, `init`, `doctor`, `index`, `org`, and `identify/resolve`.
+- **Envelope/schema tests:** `tests/core/services/test_output_contract_schema.py` (schema) and `tests/core/services/test_output_formatter.py` (determinism/ordering).
+
+Gaps to close (value-add):
+
+- Add automated validation that PRD example payloads conform to the v2 schema.
 
 ---
 
@@ -987,8 +1017,12 @@ Scenario: Repeated runs produce identical output
 Scenario: Lists are sorted deterministically
   Given a repository with multiple violations
   When I run "meminit check --format json"
-  Then violations are sorted by path, then code, then line, then message
+  Then violations are sorted by path, then code, then severity, then line, then message
   And warnings are sorted by path, then line, then code, then message
+
+  # Breaking change note (v2.2):
+  # Severity is now included between code and line for violations ordering.
+  # Agents SHOULD update any custom comparators that assumed the previous order.
 ```
 
 ### FR-6: `meminit context` Command
@@ -1498,10 +1532,14 @@ the envelope-level arrays so generic parsers do not have to special-case
 - **`warnings` array:** sorted by `path` → `line` → `code` → `message`.
   - If `line` is missing, treat it as `null` and sort `null` values last.
 - **`violations` array:** sorted by `path` then:
-  - for Issue objects: `code` → `line` → `message`
+  - for Issue objects: `code` → `severity` → `line` → `message`
     - If `line` is missing, treat it as `null` and sort `null` values last.
-  - for grouped violations: sort the outer array by `path`, and sort the inner `violations` by `code` → `line` → `message`
+  - for grouped violations: sort the outer array by `path`, and sort the inner `violations` by `code` → `severity` → `line` → `message`
     - If `line` is missing, treat it as `null` and sort `null` values last.
+- **Breaking change (v2.2):** `severity` was inserted between `code` and `line` for violations ordering.
+  - Rationale: deterministic ordering across mixed severities.
+  - Impact: agents that sort violations locally MUST update comparators.
+  - No schema bump: structure unchanged; ordering only.
 - **`advice` array:** sorted by `code` → `message` (Appendix C 29.2 requires `code`).
 - **`data` object keys:** sorted alphabetically.
   - **RECURSIVE SORTING:** This rule applies recursively. Any nested JSON
@@ -2075,7 +2113,7 @@ This appendix provides concrete test scenarios for validating the agent interfac
 | Test ID | Description                              | Expected Result                    |
 | ------- | ---------------------------------------- | ---------------------------------- |
 | DET-001 | Repeated `check` produces identical JSON | Diff is empty (excluding `run_id`) |
-| DET-002 | Violations sorted by path, then code     | Stable ordering across runs        |
+| DET-002 | Violations sorted by path, then code, then severity | Stable ordering across runs |
 | DET-003 | Keys in consistent order                 | Matches §16.1 specification        |
 
 ### 27.3 Error Path Tests
@@ -2355,14 +2393,16 @@ implementation:
 
 - [x] **SPEC-004 alignment:** Update [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)
       to make `command` and `root` required in v2 (per Decisions 20.1/20.2) and
-      to match this PRD's envelope requirements.
+      to match this PRD's envelope requirements (see SPEC-004 §4.1).
 - [x] **Advice code requirement:** Update SPEC-004 §7 and
       [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json) to make
       `advice[].code` required (per Appendix C 29.2).
 - [x] **Error code spec:** Create `docs/20-specs/spec-006-errorcode-enum.md`
       as the canonical ErrorCode inventory (per Appendix C 29.5).
-- [x] **Schema validation:** Verify [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
-      validates all example outputs in this PRD (or adjust examples/schema to match).
+- [x] **Schema validation (CLI outputs):** Verify [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
+      validates CLI outputs (see `tests/core/services/test_output_contract_schema.py`).
+- [ ] **Schema validation (PRD examples):** Validate all example outputs in this PRD against the schema
+      (automate in CI or add a dedicated verification script).
 
 Once these items are complete, update this PRD status to `Approved` and
 proceed to implementation.
@@ -2386,3 +2426,6 @@ proceed to implementation.
 | 1.3     | 2026-02-24 | Architect | Final handover polish for agentic implementation: updated metadata date; removed remaining ambiguity around `--output` (now explicitly CLI-wide); tightened determinism sorting (null `line` ordering + warning tie-breaker); clarified normative `success`/`error` relationship (non-`check` cannot be `success:false` without `error`); improved FR-2 invalid-args examples to match actual CLI shapes; and aligned remaining sections to reduce orchestrator guesswork.                                                                                                                                   |
 | 1.4     | 2026-02-24 | Architect | Final pass on sub-optimalities: updated remaining as-of dates to match `last_updated`; added `adr new` alias visibility and guidance; clarified recursive sorting applies across the whole envelope (including `error.details`); added an explicit note that examples are pretty-printed but real JSON output must be single-line; and ensured all sections remain internally consistent for agentic implementers.                                                                                                                                                                                           |
 | 2.0     | 2026-02-25 | Architect | Final approval and handover: marked all pre-handover action items as complete; updated status to Approved; synchronized all normative sections with implementation; and finalized CLI-wide contract enforcement.                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2.1     | 2026-02-27 | GitCmurf  | Aligned deep-scan budget messaging to 10s and reconciled violation sorting to include severity across determinism rules and tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2.2     | 2026-02-27 | GitCmurf  | Clarified rollout status and verification scope; documented the violations ordering change as a breaking determinism update; added test-coverage inventory and timing rationale for the 10s target.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2.3     | 2026-02-27 | GitCmurf  | Set status to In Review pending approval of breaking determinism ordering change; updated governance metadata accordingly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |

@@ -13,6 +13,12 @@ from rich.table import Table
 from meminit.cli.shared_flags import agent_output_options, agent_repo_options
 from meminit.core.domain.entities import NewDocumentParams, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.exit_codes import (
+    EX_CANTCREAT,
+    EX_COMPLIANCE_FAIL,
+    EX_USAGE,
+    exit_code_for_error,
+)
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
     format_envelope,
@@ -55,13 +61,21 @@ def complete_document_types(ctx, param, incomplete: str):
     return []
 
 
-def _write_output(output_str: str, output: Optional[str] = None, append: bool = False) -> None:
+def _write_output(
+    output_str: str,
+    output: Optional[str] = None,
+    append: bool = False,
+    add_newline: bool = True,
+) -> None:
     """Write output to stdout or to a file if requested."""
     if output:
         try:
             mode = "a" if append else "w"
             with Path(output).open(mode, encoding="utf-8") as handle:
-                handle.write(output_str + "\n")
+                if add_newline:
+                    handle.write(output_str + "\n")
+                else:
+                    handle.write(output_str)
             return
         except OSError as exc:
             # Preserve machine-safe behavior for JSON output when file writes fail.
@@ -93,8 +107,8 @@ def _write_output(output_str: str, output: Optional[str] = None, append: bool = 
                 console.print(
                     f"[bold red]Error writing output file '{output}': {exc}[/bold red]"
                 )
-            raise SystemExit(1)
-    click.echo(output_str)
+            raise SystemExit(EX_CANTCREAT)
+    click.echo(output_str, nl=add_newline)
 
 
 @contextlib.contextmanager
@@ -122,7 +136,12 @@ def maybe_capture(output: Optional[str], format: str):
                 captured_text = capture_obj.get()
                 # Avoid clobbering a file with empty content in nested capture flows.
                 if captured_text.strip():
-                    _write_output(captured_text, output=output, append=True)
+                    _write_output(
+                        captured_text,
+                        output=output,
+                        append=True,
+                        add_newline=False,
+                    )
     else:
         yield
 
@@ -196,7 +215,7 @@ def validate_root_path(
     else:
         with maybe_capture(output, format):
             console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
-    raise SystemExit(1)
+    raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
 
 
 def validate_initialized(
@@ -250,7 +269,7 @@ def validate_initialized(
     else:
         with maybe_capture(output, format):
             console.print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
-    raise SystemExit(1)
+    raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
 
 
 def get_severity_value(violation: Violation) -> str:
@@ -263,9 +282,17 @@ def get_severity_value(violation: Violation) -> str:
 
 @click.group()
 @click.version_option(package_name="meminit", prog_name="meminit")
-def cli():
+@click.option("--no-color", is_flag=True, default=False, help="Disable ANSI colors in text output.")
+@click.option("--verbose", is_flag=True, default=False, help="Enable verbose debug logging.")
+def cli(no_color: bool, verbose: bool):
     """Meminit DocOps CLI"""
-    pass
+    global console
+    if no_color:
+        os.environ["NO_COLOR"] = "1"
+        os.environ["RICH_NO_COLOR"] = "1"
+    if verbose:
+        os.environ["MEMINIT_DEBUG"] = "1"
+    console = Console(no_color=no_color)
 
 
 @cli.command()
@@ -284,7 +311,6 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
     PATHS may be relative, absolute, or glob patterns. If omitted, all governed
     docs under the configured docs_root are checked.
     """
-    EX_COMPLIANCE_FAIL = 65
     run_id = get_current_run_id()
 
     if format == "text" and not quiet and not paths:
@@ -346,7 +372,7 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
             else:
                 with maybe_capture(output, format):
                     console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(e.code))
         except Exception as e:
             if format == "json":
                 _write_output(
@@ -368,11 +394,13 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
             else:
                 with maybe_capture(output, format):
                     console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if format == "json":
+            checked_paths_sorted = sorted(result.checked_paths)
             check_counters = {
-                "checked_paths_count": result.checked_paths_count,
+                "checked_paths_count": len(checked_paths_sorted),
+                "checked_paths": checked_paths_sorted,
                 "files_checked": result.files_checked,
                 "files_failed": result.files_failed,
                 "files_outside_docs_root_count": result.files_outside_docs_root_count,
@@ -513,7 +541,7 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
         else:
             with maybe_capture(output, format):
                 console.print(f"[bold red]Error during compliance check: {e.message}[/bold red]")
-        raise SystemExit(1)
+        raise SystemExit(exit_code_for_error(e.code))
     except Exception as e:
         if format == "json":
             _write_output(
@@ -535,7 +563,7 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
         else:
             with maybe_capture(output, format):
                 console.print(f"[bold red]Error during compliance check: {e}[/bold red]")
-        raise SystemExit(1)
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     if result.violations_count == 0 and result.warnings_count == 0:
         if format == "json":
@@ -576,8 +604,10 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
         return
 
     if format == "json":
+        checked_paths_sorted = sorted(result.checked_paths)
         check_counters = {
-            "checked_paths_count": result.checked_paths_count,
+            "checked_paths_count": len(checked_paths_sorted),
+            "checked_paths": checked_paths_sorted,
             "files_checked": result.files_checked,
             "files_failed": result.files_failed,
             "files_outside_docs_root_count": result.files_outside_docs_root_count,
@@ -688,7 +718,30 @@ def doctor(root, format, output, include_timestamp, strict):
     )
 
     use_case = DoctorRepositoryUseCase(root_dir=str(root_path))
-    issues = use_case.execute()
+    try:
+        issues = use_case.execute()
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="doctor",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Doctor\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            with maybe_capture(output, format):
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     errors = [
         i
@@ -700,10 +753,6 @@ def doctor(root, format, output, include_timestamp, strict):
         for i in issues
         if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "warning"
     ]
-
-    exit_code = 0
-    if errors or (strict and warnings):
-        exit_code = 1
 
     status = "ok"
     if errors:
@@ -748,7 +797,7 @@ def doctor(root, format, output, include_timestamp, strict):
             format_envelope(
                 command="doctor",
                 root=str(root_path),
-                success=exit_code == 0,
+                success=True,
                 data={"strict": strict, "status": status, "issues": issues_payload},
                 warnings=v2_warnings,
                 violations=v2_violations,
@@ -757,7 +806,7 @@ def doctor(root, format, output, include_timestamp, strict):
             ),
             output,
         )
-        raise SystemExit(exit_code)
+        raise SystemExit(0)
 
     if format == "md":
         rows = [
@@ -784,7 +833,7 @@ def doctor(root, format, output, include_timestamp, strict):
             ),
             output,
         )
-        raise SystemExit(exit_code)
+        raise SystemExit(0)
 
     with maybe_capture(output, format):
         console.print("[bold blue]Meminit Doctor[/bold blue]")
@@ -792,7 +841,7 @@ def doctor(root, format, output, include_timestamp, strict):
 
         if not issues:
             console.print("[bold green]OK: meminit is ready to run here.[/bold green]")
-            raise SystemExit(exit_code)
+            raise SystemExit(0)
 
         table = Table(title="Doctor Findings")
         table.add_column("Severity")
@@ -816,7 +865,7 @@ def doctor(root, format, output, include_timestamp, strict):
         else:
             console.print(f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]")
 
-        raise SystemExit(exit_code)
+        raise SystemExit(0)
 
 
 @cli.command()
@@ -867,7 +916,7 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
                 _write_output(f"# Meminit Fix\n\n- Status: error\n- Message: {_md_escape(e)}\n", output)
             else:
                 console.print(f"[bold red]Error during processing: {e}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if format == "json":
             _write_output(
@@ -885,7 +934,7 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
                 ),
                 output,
             )
-            raise SystemExit(0 if not report.remaining_violations else 1)
+            raise SystemExit(0)
 
         if format == "md":
             _write_output(
@@ -895,7 +944,7 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
                 f"- Remaining: {len(report.remaining_violations)}\n",
                 output,
             )
-            raise SystemExit(0 if not report.remaining_violations else 1)
+            raise SystemExit(0)
 
         # Print fixed actions
         if report.fixed_violations:
@@ -923,7 +972,7 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
             if len(report.remaining_violations) > 5:
                 console.print(f"... and {len(report.remaining_violations) - 5} more.")
             console.print("\nRun [bold]meminit check[/bold] for full details.")
-            raise SystemExit(1)
+            raise SystemExit(0)
 
         console.print("\n[bold green]All clear![/bold green]")
 
@@ -944,7 +993,30 @@ def scan(root, format, output, include_timestamp):
     )
 
     use_case = ScanRepositoryUseCase(root_dir=str(root_path))
-    report = use_case.execute()
+    try:
+        report = use_case.execute()
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="scan",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Scan\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            with maybe_capture(output, format):
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
     scan_data = report.as_dict()
 
     if format == "json":
@@ -1169,9 +1241,14 @@ def install_precommit(root, format, output, include_timestamp):
                 ),
                 output,
             )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Install Precommit\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
-        raise SystemExit(1)
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     if format == "json":
         _write_output(
@@ -1187,6 +1264,17 @@ def install_precommit(root, format, output, include_timestamp):
                 include_timestamp=include_timestamp,
                 run_id=run_id,
             ),
+            output,
+        )
+        return
+
+    if format == "md":
+        _write_output(
+            "# Meminit Install Precommit\n\n"
+            f"- Status: {'ok' if result.status in ('created', 'updated') else 'noop'}\n"
+            f"- Installed: `{result.status in ('created', 'updated')}`\n"
+            f"- Already present: `{result.status == 'already_installed'}`\n"
+            f"- Hook path: `{result.config_path}`\n",
             output,
         )
         return
@@ -1236,7 +1324,28 @@ def index(root, format, output, include_timestamp):
             _write_output(f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n", output)
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
-        raise SystemExit(1)
+        raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="index",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Index\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     rel_index_path = None
     try:
@@ -1311,9 +1420,35 @@ def resolve(document_id, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Resolve\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Error: {exc}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+        except Exception as exc:
+            if format == "json":
+                _write_output(
+                    format_error_envelope(
+                        command="resolve",
+                        root=str(root_path),
+                        error_code=ErrorCode.UNKNOWN_ERROR,
+                        message=str(exc),
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
+                )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Resolve\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
+            else:
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if not result.path:
             if format == "json":
@@ -1328,9 +1463,14 @@ def resolve(document_id, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Resolve\n\n- Status: error\n- Code: FILE_NOT_FOUND\n- Message: Not found: {_md_escape(document_id)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Not found:[/bold red] {document_id}")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.FILE_NOT_FOUND))
 
         if format == "json":
             _write_output(
@@ -1338,10 +1478,20 @@ def resolve(document_id, root, format, output, include_timestamp):
                     command="resolve",
                     root=str(root_path),
                     success=True,
-                    data={"document_id": document_id, "path": result.path},
+                    data={
+                        "document_id": document_id,
+                        "path": result.path.replace("\\", "/") if result.path else None,
+                    },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                "# Meminit Resolve\n\n"
+                f"- Document ID: `{document_id}`\n"
+                f"- Path: `{result.path}`\n",
                 output,
             )
         else:
@@ -1381,9 +1531,35 @@ def identify(path, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Identify\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Error: {exc}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+        except Exception as exc:
+            if format == "json":
+                _write_output(
+                    format_error_envelope(
+                        command="identify",
+                        root=str(root_path),
+                        error_code=ErrorCode.UNKNOWN_ERROR,
+                        message=str(exc),
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
+                )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Identify\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
+            else:
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if not result.document_id:
             if format == "json":
@@ -1398,9 +1574,14 @@ def identify(path, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Identify\n\n- Status: error\n- Code: FILE_NOT_FOUND\n- Message: Not governed: {_md_escape(result.path)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Not governed:[/bold red] {result.path}")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.FILE_NOT_FOUND))
 
         if format == "json":
             _write_output(
@@ -1408,10 +1589,20 @@ def identify(path, root, format, output, include_timestamp):
                     command="identify",
                     root=str(root_path),
                     success=True,
-                    data={"document_id": result.document_id, "path": result.path},
+                    data={
+                        "document_id": result.document_id,
+                        "path": result.path.replace("\\", "/") if result.path else None,
+                    },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                "# Meminit Identify\n\n"
+                f"- Path: `{result.path}`\n"
+                f"- Document ID: `{result.document_id}`\n",
                 output,
             )
         else:
@@ -1451,9 +1642,35 @@ def link(document_id, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Link\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Error: {exc}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+        except Exception as exc:
+            if format == "json":
+                _write_output(
+                    format_error_envelope(
+                        command="link",
+                        root=str(root_path),
+                        error_code=ErrorCode.UNKNOWN_ERROR,
+                        message=str(exc),
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
+                )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Link\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                    output,
+                )
+            else:
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if not result.path:
             if format == "json":
@@ -1468,9 +1685,14 @@ def link(document_id, root, format, output, include_timestamp):
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    f"# Meminit Link\n\n- Status: error\n- Code: FILE_NOT_FOUND\n- Message: Not found: {_md_escape(document_id)}\n",
+                    output,
+                )
             else:
                 console.print(f"[bold red]Not found:[/bold red] {document_id}")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.FILE_NOT_FOUND))
 
         if format == "json":
             _write_output(
@@ -1478,10 +1700,22 @@ def link(document_id, root, format, output, include_timestamp):
                     command="link",
                     root=str(root_path),
                     success=True,
-                    data={"document_id": document_id, "link": f"[{document_id}]({result.path})"},
+                    data={
+                        "document_id": document_id,
+                        "link": f"[{document_id}]({result.path.replace('\\', '/')})"
+                        if result.path
+                        else None,
+                    },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                "# Meminit Link\n\n"
+                f"- Document ID: `{document_id}`\n"
+                f"- Link: [{document_id}]({result.path})\n",
                 output,
             )
         else:
@@ -1531,7 +1765,7 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
             )
         else:
             console.print(f"[bold red]Error: {exc}[/bold red]")
-        raise SystemExit(1)
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     if format == "json":
         _write_output(
@@ -1589,7 +1823,7 @@ def init(root, format, output, include_timestamp):
     with maybe_capture(output, format):
         use_case = InitRepositoryUseCase(str(root_path))
         try:
-            use_case.execute()
+            report = use_case.execute()
         except Exception as e:
             if format == "json":
                 _write_output(
@@ -1605,7 +1839,7 @@ def init(root, format, output, include_timestamp):
                 )
             else:
                 console.print(f"[bold red]Error during initialization: {e}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if format == "json":
             _write_output(
@@ -1614,14 +1848,36 @@ def init(root, format, output, include_timestamp):
                     root=str(root_path),
                     success=True,
                     data={
-                        "message": f"Initialized DocOps repository at {root}",
-                        "files": ["docs/", "docops.config.yaml", "AGENTS.md"],
+                        "created_paths": report.created_paths,
+                        "skipped_paths": report.skipped_paths,
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
                 output,
             )
+            return
+
+        if format == "md":
+            created = report.created_paths
+            skipped = report.skipped_paths
+            lines = [
+                "# Meminit Init",
+                "",
+                "- Status: ok",
+                f"- Created: {len(created)}",
+                f"- Skipped: {len(skipped)}",
+                "",
+            ]
+            if created:
+                lines.append("## Created Paths\n")
+                lines.extend([f"- `{p}`" for p in created])
+                lines.append("")
+            if skipped:
+                lines.append("## Skipped Paths\n")
+                lines.extend([f"- `{p}`" for p in skipped])
+                lines.append("")
+            _write_output("\n".join(lines), output)
             return
 
         console.print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
@@ -1707,22 +1963,8 @@ def new_doc(
     Use --list-types to discover valid types and --format json for agents.
     """
     run_id = get_current_run_id()
-    ex_usage = getattr(os, "EX_USAGE", 64)
-    ex_dataerr = getattr(os, "EX_DATAERR", 65)
-    ex_cantcreat = getattr(os, "EX_CANTCREAT", 73)
 
     with maybe_capture(output, format):
-        if format == "md":
-            _write_output(
-                "# Meminit New\n\n"
-                "- Status: error\n"
-                "- Code: INVALID_FLAG_COMBINATION\n"
-                "- Message: --format md is not supported for this command. "
-                "Use --format json or text.\n",
-                output,
-            )
-            raise SystemExit(ex_usage)
-
         if interactive and format == "json":
             _write_output(
                 format_error_envelope(
@@ -1735,7 +1977,7 @@ def new_doc(
                 ),
                 output,
             )
-            raise SystemExit(ex_usage)
+            raise SystemExit(EX_USAGE)
 
         if edit and (dry_run or format == "json"):
             if format == "json":
@@ -1750,11 +1992,19 @@ def new_doc(
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    "# Meminit New\n\n"
+                    "- Status: error\n"
+                    "- Code: INVALID_FLAG_COMBINATION\n"
+                    "- Message: --edit is incompatible with --dry-run and --format json\n",
+                    output,
+                )
             else:
                 console.print(
                     "[bold red][ERROR INVALID_FLAG_COMBINATION] --edit is incompatible with --dry-run and --format json[/bold red]"
                 )
-            raise SystemExit(ex_usage)
+            raise SystemExit(EX_USAGE)
 
         if list_types and (doc_type or title):
             if format == "json":
@@ -1769,11 +2019,19 @@ def new_doc(
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    "# Meminit New\n\n"
+                    "- Status: error\n"
+                    "- Code: INVALID_FLAG_COMBINATION\n"
+                    "- Message: --list-types cannot be combined with TYPE or TITLE arguments\n",
+                    output,
+                )
             else:
                 console.print(
                     "[bold red][ERROR INVALID_FLAG_COMBINATION] --list-types cannot be combined with TYPE or TITLE arguments[/bold red]"
                 )
-            raise SystemExit(ex_usage)
+            raise SystemExit(EX_USAGE)
 
         if list_types:
             root_path = Path(root).resolve()
@@ -1810,9 +2068,15 @@ def new_doc(
                         ),
                         output,
                     )
+                elif format == "md":
+                    _write_output(
+                        "# Meminit New\n\n"
+                        f"- Status: error\n- Code: {exc.code.value}\n- Message: {_md_escape(exc.message)}\n",
+                        output,
+                    )
                 else:
                     console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
-                raise SystemExit(ex_usage)
+                raise SystemExit(EX_USAGE)
             if format == "json":
                 _write_output(
                     format_envelope(
@@ -1825,6 +2089,18 @@ def new_doc(
                     ),
                     output,
                 )
+            elif format == "md":
+                lines = [
+                    "# Meminit New",
+                    "",
+                    "## Valid Document Types",
+                    "",
+                ]
+                for item in types_list:
+                    doc_type = item.get("type")
+                    directory = item.get("directory")
+                    lines.append(f"- `{doc_type}` → `{directory}`")
+                _write_output("\n".join(lines), output)
             else:
                 console.print("[bold blue]Valid Document Types:[/bold blue]")
                 for item in types_list:
@@ -1851,9 +2127,15 @@ def new_doc(
                         ),
                         output,
                     )
+                elif format == "md":
+                    _write_output(
+                        "# Meminit New\n\n"
+                        f"- Status: error\n- Code: {exc.code.value}\n- Message: {_md_escape(exc.message)}\n",
+                        output,
+                    )
                 else:
                     console.print(f"[bold red][ERROR {exc.code.value}] {exc.message}[/bold red]")
-                raise SystemExit(ex_usage)
+                raise SystemExit(EX_USAGE)
             if not doc_type:
                 doc_type = click.prompt("Document type", type=click.Choice(valid_types))
             if not title:
@@ -1878,10 +2160,18 @@ def new_doc(
                     ),
                     output,
                 )
+            elif format == "md":
+                _write_output(
+                    "# Meminit New\n\n"
+                    "- Status: error\n"
+                    "- Code: INVALID_FLAG_COMBINATION\n"
+                    "- Message: TYPE and TITLE are required unless --list-types is specified\n",
+                    output,
+                )
             else:
                 console.print("[bold red]Error: TYPE and TITLE are required.[/bold red]")
                 console.print("Usage: meminit new <TYPE> <TITLE>")
-            raise SystemExit(ex_usage)
+            raise SystemExit(EX_USAGE)
 
         root_path = Path(root).resolve()
         validate_root_path(
@@ -1958,6 +2248,21 @@ def new_doc(
                         ),
                         output,
                     )
+            elif format == "md":
+                if isinstance(result.error, MeminitError):
+                    _write_output(
+                        "# Meminit New\n\n"
+                        f"- Status: error\n- Code: {result.error.code.value}\n- Message: {_md_escape(result.error.message)}\n",
+                        output,
+                    )
+                else:
+                    _write_output(
+                        "# Meminit New\n\n"
+                        "- Status: error\n"
+                        "- Code: UNKNOWN_ERROR\n"
+                        f"- Message: {_md_escape(result.error) if result.error else 'Unknown error'}\n",
+                        output,
+                    )
             else:
                 if isinstance(result.error, MeminitError):
                     console.print(
@@ -1967,18 +2272,8 @@ def new_doc(
                     console.print(f"[bold red]Error creating document: {result.error}[/bold red]")
 
             if isinstance(result.error, MeminitError):
-                if result.error.code in (
-                    ErrorCode.UNKNOWN_TYPE,
-                    ErrorCode.UNKNOWN_NAMESPACE,
-                    ErrorCode.INVALID_STATUS,
-                    ErrorCode.INVALID_RELATED_ID,
-                    ErrorCode.INVALID_ID_FORMAT,
-                    ErrorCode.INVALID_FLAG_COMBINATION,
-                ):
-                    raise SystemExit(ex_dataerr)
-                if result.error.code in (ErrorCode.DUPLICATE_ID, ErrorCode.FILE_EXISTS):
-                    raise SystemExit(ex_cantcreat)
-            raise SystemExit(ex_dataerr)
+                raise SystemExit(exit_code_for_error(result.error.code))
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if format == "json":
             if result.reasoning and verbose:
@@ -1991,7 +2286,7 @@ def new_doc(
                     sys.stderr.write("\n")
                 sys.stderr.flush()
             response_data = {
-                "path": str(result.path.relative_to(root_path)) if result.path else None,
+                "path": result.path.relative_to(root_path).as_posix() if result.path else None,
                 "document_id": result.document_id,
                 "type": result.doc_type,
                 "title": result.title,
@@ -2024,6 +2319,64 @@ def new_doc(
                 ),
                 output,
             )
+        elif format == "md":
+            rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
+            lines = [
+                "# Meminit New",
+                "",
+                f"- Status: {'dry-run' if dry_run else 'ok'}",
+                f"- Type: `{_md_escape(result.doc_type)}`",
+                f"- Title: `{_md_escape(result.title)}`",
+            ]
+            if result.document_id:
+                lines.append(f"- Document ID: `{_md_escape(result.document_id)}`")
+            if rel_path:
+                lines.append(f"- Path: `{_md_escape(rel_path)}`")
+            if result.status:
+                lines.append(f"- Status value: `{_md_escape(result.status)}`")
+            if result.version:
+                lines.append(f"- Version: `{_md_escape(result.version)}`")
+            if result.owner:
+                lines.append(f"- Owner: `{_md_escape(result.owner)}`")
+            if result.area:
+                lines.append(f"- Area: `{_md_escape(result.area)}`")
+            if result.last_updated:
+                lines.append(f"- Last Updated: `{_md_escape(result.last_updated)}`")
+            if result.docops_version:
+                lines.append(f"- DocOps Version: `{_md_escape(result.docops_version)}`")
+            if result.description:
+                lines.append(f"- Description: {_md_escape(result.description)}")
+            if result.keywords:
+                keywords_str = ", ".join(f"`{_md_escape(k)}`" for k in result.keywords)
+                lines.append(f"- Keywords: {keywords_str}")
+            if result.related_ids:
+                related_str = ", ".join(f"`{_md_escape(r)}`" for r in result.related_ids)
+                lines.append(f"- Related IDs: {related_str}")
+            if dry_run and rel_path:
+                lines.extend(
+                    [
+                        "",
+                        "## Would Create",
+                        "",
+                        f"- Path: `{_md_escape(rel_path)}`",
+                        f"- Document ID: `{_md_escape(result.document_id)}`"
+                        if result.document_id
+                        else "- Document ID: _unknown_",
+                    ]
+                )
+            if verbose and result.reasoning:
+                lines.extend(["", "## Reasoning", ""])
+                for entry in result.reasoning:
+                    source_info = entry.get("source") or entry.get("method")
+                    if source_info:
+                        lines.append(
+                            f"- {_md_escape(entry['decision'])}: {_md_escape(entry['value'])} ({_md_escape(source_info)})"
+                        )
+                    else:
+                        lines.append(
+                            f"- {_md_escape(entry['decision'])}: {_md_escape(entry['value'])}"
+                        )
+            _write_output("\n".join(lines), output)
         else:
             if dry_run:
                 console.print(
@@ -2104,55 +2457,121 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
             output=output,
         )
         use_case = NewDocumentUseCase(str(root_path))
-        try:
-            path = use_case.execute("ADR", title, namespace=namespace)
+        params = NewDocumentParams(
+            doc_type="ADR",
+            title=title,
+            namespace=namespace,
+            verbose=os.environ.get("MEMINIT_DEBUG") == "1",
+        )
+        result = use_case.execute_with_params(params)
+
+        if not result.success:
             if format == "json":
-                _write_output(
-                    format_envelope(
-                        command="adr new",
-                        root=str(root_path),
-                        success=True,
-                        data={"path": str(path)},
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                    ),
-                    output,
-                )
+                if isinstance(result.error, MeminitError):
+                    _write_output(
+                        format_error_envelope(
+                            command="adr new",
+                            root=str(root_path),
+                            error_code=result.error.code,
+                            message=result.error.message,
+                            details=result.error.details,
+                            include_timestamp=include_timestamp,
+                            run_id=run_id,
+                        ),
+                        output,
+                    )
+                else:
+                    _write_output(
+                        format_error_envelope(
+                            command="adr new",
+                            root=str(root_path),
+                            error_code=ErrorCode.UNKNOWN_ERROR,
+                            message=str(result.error) if result.error else "Unknown error",
+                            include_timestamp=include_timestamp,
+                            run_id=run_id,
+                        ),
+                        output,
+                    )
             elif format == "md":
-                _write_output(f"# ADR Created\n\n- Path: `{path}`\n", output)
+                if isinstance(result.error, MeminitError):
+                    _write_output(
+                        "# Meminit ADR New\n\n"
+                        f"- Status: error\n- Code: {result.error.code.value}\n- Message: {_md_escape(result.error.message)}\n",
+                        output,
+                    )
+                else:
+                    _write_output(
+                        "# Meminit ADR New\n\n"
+                        "- Status: error\n- Code: UNKNOWN_ERROR\n"
+                        f"- Message: {_md_escape(result.error) if result.error else 'Unknown error'}\n",
+                        output,
+                    )
             else:
-                console.print(f"[bold green]Created ADR: {path}[/bold green]")
-        except Exception as e:
-            if format == "json":
-                _write_output(
-                    format_error_envelope(
-                        command="adr new",
-                        root=str(root_path),
-                        error_code=ErrorCode.UNKNOWN_ERROR,
-                        message=str(e),
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                    ),
-                    output,
-                )
-            elif format == "md":
-                _write_output(f"# Error\n\n- Code: UNKNOWN_ERROR\n- Message: {e}\n", output)
-            else:
-                console.print(f"[bold red]Error creating document: {e}[/bold red]")
-            exit(1)
+                if isinstance(result.error, MeminitError):
+                    console.print(
+                        f"[bold red][ERROR {result.error.code.value}] {result.error.message}[/bold red]"
+                    )
+                else:
+                    console.print(f"[bold red]Error creating document: {result.error}[/bold red]")
+            if isinstance(result.error, MeminitError):
+                raise SystemExit(exit_code_for_error(result.error.code))
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+
+        rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
+        if format == "json":
+            response_data = {
+                "path": rel_path,
+                "document_id": result.document_id,
+                "type": result.doc_type,
+                "title": result.title,
+                "status": result.status,
+                "version": result.version,
+                "owner": result.owner,
+                "area": result.area,
+                "last_updated": result.last_updated,
+                "docops_version": result.docops_version,
+                "description": result.description,
+                "keywords": result.keywords or [],
+                "related_ids": result.related_ids or [],
+            }
+            _write_output(
+                format_envelope(
+                    command="adr new",
+                    root=str(root_path),
+                    success=True,
+                    data=response_data,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            lines = [
+                "# Meminit ADR New",
+                "",
+                "- Status: ok",
+                f"- Title: `{_md_escape(result.title)}`",
+            ]
+            if result.document_id:
+                lines.append(f"- Document ID: `{_md_escape(result.document_id)}`")
+            if rel_path:
+                lines.append(f"- Path: `{_md_escape(rel_path)}`")
+            _write_output("\n".join(lines), output)
+        else:
+            console.print(f"[bold green]Created ADR: {result.path}[/bold green]")
 
 
 @cli.command()
 @agent_repo_options()
 @click.option(
-    "--deep", is_flag=True, default=False, help="Include per-namespace document counts (2s budget)"
+    "--deep", is_flag=True, default=False, help="Include per-namespace document counts (10s budget)"
 )
 def context(root, deep, format, output, include_timestamp):
     """Emit repository configuration context for agent bootstrap (FR-6).
 
     Returns namespace layout, type directories, templates, and exclusion
     rules.  With --deep, adds per-namespace document counts subject to a
-    2-second performance budget.
+    10-second performance budget.
     """
     run_id = get_current_run_id()
     with maybe_capture(output, format):
@@ -2194,7 +2613,7 @@ def context(root, deep, format, output, include_timestamp):
                 _write_output(f"# Meminit Context\n\n- Status: error\n- Message: {_md_escape(exc)}\n", output)
             else:
                 console.print(f"[bold red]Error: {exc}[/bold red]")
-            raise SystemExit(1)
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
         if format == "json":
             _write_output(
@@ -2278,7 +2697,30 @@ def org_install(profile, dry_run, force, format, output, include_timestamp):
     """Install the packaged org profile into XDG user data directories."""
     run_id = get_current_run_id()
     use_case = InstallOrgProfileUseCase()
-    report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force)
+    try:
+        report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force)
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="org install",
+                    root=".",
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Org Install\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            with maybe_capture(output, format):
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     if format == "json":
         _write_output(
@@ -2339,12 +2781,35 @@ def org_vendor(root, profile, dry_run, force, include_org_docs, format, output, 
     )
 
     use_case = VendorOrgProfileUseCase(root_dir=str(root_path))
-    report = use_case.execute(
-        profile_name=profile,
-        dry_run=dry_run,
-        force=force,
-        include_org_docs=include_org_docs,
-    )
+    try:
+        report = use_case.execute(
+            profile_name=profile,
+            dry_run=dry_run,
+            force=force,
+            include_org_docs=include_org_docs,
+        )
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="org vendor",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Org Vendor\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            with maybe_capture(output, format):
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
     if format == "json":
         _write_output(
@@ -2402,7 +2867,30 @@ def org_status(root, profile, format, output, include_timestamp):
         output=output,
     )
 
-    report = OrgStatusUseCase(root_dir=str(root_path)).execute(profile_name=profile)
+    try:
+        report = OrgStatusUseCase(root_dir=str(root_path)).execute(profile_name=profile)
+    except Exception as exc:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="org status",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=str(exc),
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+        elif format == "md":
+            _write_output(
+                f"# Meminit Org Status\n\n- Status: error\n- Message: {_md_escape(exc)}\n",
+                output,
+            )
+        else:
+            with maybe_capture(output, format):
+                console.print(f"[bold red]Error: {exc}[/bold red]")
+        raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
     if format == "json":
         _write_output(
             format_envelope(

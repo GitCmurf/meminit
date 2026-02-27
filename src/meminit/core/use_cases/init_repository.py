@@ -1,6 +1,7 @@
 from importlib import resources
 from pathlib import Path
-from typing import Mapping, Optional
+from dataclasses import dataclass
+from typing import List, Mapping, Optional
 
 import yaml
 
@@ -54,13 +55,29 @@ _FALLBACK_TEMPLATES: dict[str, bytes] = {
 }
 
 
+@dataclass(frozen=True)
+class InitReport:
+    created_paths: List[str]
+    skipped_paths: List[str]
+
+
 class InitRepositoryUseCase:
     def __init__(self, root_dir: str, env: Optional[Mapping[str, str]] = None):
         self.root_dir = Path(root_dir).resolve()
         self.docs_dir = self.root_dir / "docs"
         self._env = env
 
-    def execute(self):
+    def execute(self) -> InitReport:
+        created_paths: List[str] = []
+        skipped_paths: List[str] = []
+
+        def record(path: Path, created: bool) -> None:
+            rel = path.relative_to(self.root_dir).as_posix()
+            if created:
+                created_paths.append(rel)
+            else:
+                skipped_paths.append(rel)
+
         # 1. Create Directory Structure
         dirs = [
             "00-governance",
@@ -88,7 +105,14 @@ class InitRepositoryUseCase:
         for d in dirs:
             target_dir = self.docs_dir / d
             ensure_safe_write_path(root_dir=self.root_dir, target_path=target_dir)
-            target_dir.mkdir(parents=True, exist_ok=True)
+            created = True
+            try:
+                target_dir.mkdir(parents=True, exist_ok=False)
+            except FileExistsError:
+                if not target_dir.is_dir():
+                    raise
+                created = False
+            record(target_dir, created=created)
 
         # 2. Create docops.config.yaml
         config_path = self.root_dir / "docops.config.yaml"
@@ -134,6 +158,9 @@ class InitRepositoryUseCase:
                 yaml.safe_dump(config_content, sort_keys=False),
                 encoding="utf-8",
             )
+            record(config_path, created=True)
+        else:
+            record(config_path, created=False)
 
         # 3. Create Templates & Schema
         gov_dir = self.docs_dir / "00-governance"
@@ -159,6 +186,9 @@ class InitRepositoryUseCase:
         ensure_safe_write_path(root_dir=self.root_dir, target_path=schema_path)
         if not schema_path.exists():
             schema_path.write_bytes(schema_bytes)
+            record(schema_path, created=True)
+        else:
+            record(schema_path, created=False)
 
         for rel, content in template_bytes.items():
             dest = gov_dir / rel
@@ -166,6 +196,9 @@ class InitRepositoryUseCase:
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(content)
+                record(dest, created=True)
+            else:
+                record(dest, created=False)
 
         # 4. Create AGENTS.md
         agents_path = self.root_dir / "AGENTS.md"
@@ -177,6 +210,16 @@ class InitRepositoryUseCase:
                 "{{REPO_PREFIX}}", repo_prefix
             )
             agents_path.write_text(agents_content, encoding="utf-8")
+            record(agents_path, created=True)
+        else:
+            record(agents_path, created=False)
+
+        created_paths_sorted = sorted(set(created_paths))
+        skipped_paths_sorted = sorted(set(skipped_paths))
+        return InitReport(
+            created_paths=created_paths_sorted,
+            skipped_paths=skipped_paths_sorted,
+        )
 
     def _load_agents_template(self) -> str:
         """

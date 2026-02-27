@@ -16,10 +16,14 @@ Key guarantees:
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft7Validator
+from jsonschema.exceptions import SchemaError
 
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
@@ -51,6 +55,53 @@ _ENVELOPE_KEY_ORDER = [
     "error",
 ]
 
+_SCHEMA_VALIDATOR: Draft7Validator | None = None
+_SCHEMA_LOAD_FAILED: bool = False
+_SCHEMA_WARNING_EMITTED: bool = False
+
+logger = logging.getLogger(__name__)
+
+
+def _find_schema_path(start: Path) -> Path | None:
+    for parent in (start, *start.parents):
+        candidate = parent / "docs" / "20-specs" / "agent-output.schema.v2.json"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _get_schema_validator() -> Draft7Validator | None:
+    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED
+    if _SCHEMA_VALIDATOR is not None or _SCHEMA_LOAD_FAILED:
+        return _SCHEMA_VALIDATOR
+
+    schema_path = _find_schema_path(Path(__file__).resolve().parent)
+    if schema_path is None:
+        _SCHEMA_LOAD_FAILED = True
+        return None
+
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        _SCHEMA_VALIDATOR = Draft7Validator(schema)
+    except (OSError, json.JSONDecodeError, SchemaError, ValueError):
+        _SCHEMA_LOAD_FAILED = True
+        return None
+    return _SCHEMA_VALIDATOR
+
+
+def _validate_envelope(envelope: dict[str, Any]) -> None:
+    validator = _get_schema_validator()
+    if validator is None:
+        global _SCHEMA_WARNING_EMITTED
+        if not _SCHEMA_WARNING_EMITTED:
+            logger.warning("Schema validator unavailable, skipping envelope validation.")
+            _SCHEMA_WARNING_EMITTED = True
+        return
+    errors = sorted(validator.iter_errors(envelope), key=str)
+    if errors:
+        messages = "; ".join(error.message for error in errors[:3])
+        raise ValueError(f"output envelope failed schema validation: {messages}")
+
 
 def _sort_key_index(key: str) -> tuple[int, str]:
     """Return a sort key that preserves canonical order for known keys."""
@@ -70,12 +121,28 @@ def _recursively_sort_keys(obj: Any) -> Any:
 
 
 def _get_line_key(line: Any) -> tuple:
-    """Helper to sort None before integers."""
-    return (0, -1) if line is None else (1, int(line))
+    """Helper to sort None after integers."""
+    if line is None:
+        return (1, 0)
+    try:
+        return (0, int(line))
+    except (TypeError, ValueError):
+        return (2, str(line))
+
+
+def _strip_none_line(item: dict[str, Any]) -> dict[str, Any]:
+    """Remove line key when value is None to satisfy schema expectations."""
+    if "line" in item and item.get("line") is None:
+        cleaned = dict(item)
+        cleaned.pop("line", None)
+        return cleaned
+    return item
 
 
 def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort warnings by (path, line, code, message) per PRD §16.1."""
+
+    cleaned = [_strip_none_line(w) for w in warnings]
 
     def _key(w: dict[str, Any]) -> tuple:
         return (
@@ -85,7 +152,7 @@ def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             w.get("message", ""),
         )
 
-    return sorted(warnings, key=_key)
+    return sorted(cleaned, key=_key)
 
 
 def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -102,11 +169,12 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
             return (path, 0, "", "", 0, 0, "")
         # Flat item: (path, 1, code, severity, line_key[0], line_key[1], message)
         line_key = _get_line_key(v.get("line"))
+        severity = v.get("severity") or "error"
         return (
             path,
             1,
             v.get("code", ""),
-            v.get("severity", ""),
+            severity,
             line_key[0],
             line_key[1],
             v.get("message", ""),
@@ -115,16 +183,26 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     def _inner_violation_key(v: dict[str, Any]) -> tuple:
         # Grouped inner items: sort by code, severity, line, then message per PRD §16.1
         line_key = _get_line_key(v.get("line"))
+        severity = v.get("severity") or "error"
         return (
             v.get("code", ""),
-            v.get("severity", ""),
+            severity,
             line_key[0],
             line_key[1],
             v.get("message", ""),
         )
 
     # Sort the outer list
-    sorted_outer = sorted(violations, key=_outer_key)
+    cleaned_outer = []
+    for item in violations:
+        if "violations" in item and isinstance(item["violations"], list):
+            new_item = item.copy()
+            new_item["violations"] = [_strip_none_line(v) for v in item["violations"]]
+            cleaned_outer.append(new_item)
+        else:
+            cleaned_outer.append(_strip_none_line(item))
+
+    sorted_outer = sorted(cleaned_outer, key=_outer_key)
 
     # Sort inner violations for grouped items
     result = []
@@ -158,10 +236,10 @@ def _normalize_run_id(run_id: str | None) -> str:
         return generate_run_id()
     try:
         parsed = uuid.UUID(str(run_id))
-    except (ValueError, AttributeError, TypeError) as exc:
-        raise ValueError("run_id must be a UUIDv4") from exc
+    except (ValueError, AttributeError, TypeError):
+        return generate_run_id()
     if parsed.version != 4:
-        raise ValueError("run_id must be a UUIDv4")
+        return generate_run_id()
     return str(parsed)
 
 
@@ -199,7 +277,7 @@ def format_envelope(
         A single-line JSON string with no trailing newline.
     """
     # Resolve root to absolute path.
-    root_str = str(Path(root).resolve())
+    root_str = Path(root).resolve().as_posix()
 
     envelope: dict[str, Any] = {
         "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
@@ -230,11 +308,22 @@ def format_envelope(
 
     # Add extra top-level fields (e.g. check counters) in sorted order.
     if extra_top_level:
-        overlap = set(envelope.keys()).intersection(extra_top_level.keys())
+        reserved = {
+            "output_schema_version",
+            "success",
+            "command",
+            "run_id",
+            "timestamp",
+            "root",
+            "data",
+            "warnings",
+            "violations",
+            "advice",
+            "error",
+        }
+        overlap = reserved.intersection(extra_top_level.keys())
         if overlap:
-            raise ValueError(
-                f"extra_top_level contains reserved keys: {sorted(overlap)}"
-            )
+            raise ValueError(f"extra_top_level contains reserved keys: {sorted(overlap)}")
         for k in sorted(extra_top_level.keys()):
             envelope[k] = _recursively_sort_keys(extra_top_level[k])
 
@@ -242,6 +331,8 @@ def format_envelope(
     ordered: dict[str, Any] = {}
     for key in sorted(envelope.keys(), key=_sort_key_index):
         ordered[key] = envelope[key]
+
+    _validate_envelope(ordered)
 
     return json.dumps(ordered, separators=(",", ":"), default=str)
 

@@ -97,6 +97,9 @@ def log_event(
         level: Optional log level/severity tag (e.g., "debug", "info", "warning", "error").
             When provided, it is included in both JSON and text logs.
     """
+    if os.environ.get("MEMINIT_LOG_SILENT") == "1":
+        return
+
     entry: Dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "run_id": run_id or get_current_run_id(),

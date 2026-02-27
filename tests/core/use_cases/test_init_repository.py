@@ -14,7 +14,7 @@ def empty_repo(tmp_path):
 
 def test_init_creates_structure(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
-    use_case.execute()
+    report = use_case.execute()
 
     # Check Directories
     assert (empty_repo / "docs").is_dir()
@@ -53,6 +53,9 @@ def test_init_creates_structure(empty_repo):
     schema_path = empty_repo / "docs/00-governance/metadata.schema.json"
     assert schema_path.exists()
     assert "$schema" in schema_path.read_text()
+    assert "docops.config.yaml" in report.created_paths
+    assert "AGENTS.md" in report.created_paths
+    assert "docs/00-governance" in report.created_paths
 
 
 def test_init_idempotent(empty_repo):
@@ -60,9 +63,21 @@ def test_init_idempotent(empty_repo):
     use_case.execute()
 
     # Run again, should not fail
-    use_case.execute()
+    report = use_case.execute()
 
     assert (empty_repo / "docops.config.yaml").exists()
+    assert report.created_paths == []
+
+
+def test_init_raises_when_docs_subdir_is_file(empty_repo):
+    docs_dir = empty_repo / "docs"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    conflict = docs_dir / "00-governance"
+    conflict.write_text("not a directory", encoding="utf-8")
+
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    with pytest.raises(FileExistsError):
+        use_case.execute()
 
 
 def test_init_refuses_symlink_escape(tmp_path: Path):

@@ -115,7 +115,7 @@ Does:
 
 Does not:
 
-- Decide repo governance policy (that belongs in `AGENTS.md` / human decisions).
+- Decide repo governance policy (that belongs in `MEMINIT-GOV-001` / human decisions).
 - Promote documents to `Approved` or assign owners without explicit user input.
 
 ## Agent Interface Compliance
