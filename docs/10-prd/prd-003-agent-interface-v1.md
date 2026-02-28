@@ -1133,21 +1133,22 @@ final `json.dumps()` call from the shared output formatter.
 
 ### 13.2 Exit Codes
 
-| Code | Meaning                                       | When Used                                                              | JSON `success` Value |
-| ---- | --------------------------------------------- | ---------------------------------------------------------------------- | -------------------- |
-| `0`  | Operational success; no gating failures       | Command completed and (where applicable) no compliance gating failures | `true`               |
-| `1`  | Compliance failure (validation findings)      | `meminit check` found violations; `success: false` with no `error`     | `false`              |
-| `64` | `EX_USAGE` — invalid command/argument         | Bad flags, invalid flag combinations, unknown commands/subcommands     | `false`              |
-| `65` | `EX_DATAERR` — input data error               | Invalid document type, bad metadata, invalid IDs/status/related_ids    | `false`              |
-| `66` | `EX_NOINPUT` — input file not found           | Missing config, missing target paths                                   | `false`              |
-| `73` | `EX_CANTCREAT` — cannot create output         | Filesystem write failure                                               | `false`              |
-| `77` | `EX_NOPERM` — permission denied / path escape | Symlink escape, permission error                                       | `false`              |
+| Code | Meaning                                       | When Used                                                                                               | JSON `success` Value |
+| ---- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------- |
+| `0`  | Operational success; no gating failures       | Command completed and (where applicable) no compliance gating failures                                  | `true`               |
+| `1`  | Compliance failure (validation findings)      | `check`, `doctor`, or `fix` found violations or issues; `success: false` with no operational `error`    | `false`              |
+| `64` | `EX_USAGE` — invalid command/argument         | Bad flags, invalid flag combinations, unknown commands/subcommands                                      | `false`              |
+| `65` | `EX_DATAERR` — input data error               | Invalid document type, bad metadata, invalid IDs/status/related_ids                                     | `false`              |
+| `66` | `EX_NOINPUT` — input file not found           | Missing config, missing target paths                                                                    | `false`              |
+| `73` | `EX_CANTCREAT` — cannot create output         | Filesystem write failure                                                                                | `false`              |
+| `77` | `EX_NOPERM` — permission denied / path escape | Symlink escape, permission error                                                                        | `false`              |
 
 > [!IMPORTANT]
-> Exit code `1` is ONLY for `check` compliance failures (violations with no
-> operational error). Other commands encountering invalid input MUST return
-> the appropriate `EX_USAGE`/`EX_DATAERR`/etc code and include a top-level
-> `error` object in JSON mode.
+> Exit code `1` is for compliance and health findings from `check`, `doctor`,
+> or `fix` (violations/issues with no operational error). Other commands
+> encountering invalid input MUST return the appropriate
+> `EX_USAGE`/`EX_DATAERR`/etc code and include a top-level `error` object in
+> JSON mode.
 
 **Key distinction:** For `meminit check`, `success: false` with non-zero
 exit is a valid outcome when compliance violations exist — this is NOT

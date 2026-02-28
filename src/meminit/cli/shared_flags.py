@@ -78,7 +78,7 @@ def with_log_silence():
             output_value = kwargs.get("output")
             silence_logs = False
             if os.environ.get("MEMINIT_DEBUG") != "1" and not verbose_value:
-                if format_value == "json" or output_value:
+                if format_value == "json":
                     silence_logs = True
             changed = False
             if silence_logs and previous != "1":

@@ -31,20 +31,16 @@ def test_cli_no_color_sets_env(tmp_path, monkeypatch):
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
         encoding="utf-8",
     )
-    with monkeypatch.context() as m:
-        m.delenv("NO_COLOR", raising=False)
-        m.delenv("RICH_NO_COLOR", raising=False)
+    # Ensure variables are cleared before and restored after the test
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("RICH_NO_COLOR", raising=False)
 
-        runner = CliRunner()
-        result = runner.invoke(cli, ["--no-color", "context", "--root", str(tmp_path)])
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--no-color", "context", "--root", str(tmp_path)])
 
-        assert result.exit_code == 0
-        assert os.environ.get("NO_COLOR") == "1"
-        assert os.environ.get("RICH_NO_COLOR") == "1"
-        
-        # Cleanup to prevent leakage to other tests in the same process
-        os.environ.pop("NO_COLOR", None)
-        os.environ.pop("RICH_NO_COLOR", None)
+    assert result.exit_code == 0
+    assert os.environ.get("NO_COLOR") == "1"
+    assert os.environ.get("RICH_NO_COLOR") == "1"
 
 
 def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
@@ -52,17 +48,14 @@ def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
         encoding="utf-8",
     )
-    with monkeypatch.context() as m:
-        m.delenv("MEMINIT_DEBUG", raising=False)
+    # Ensure variable is cleared before and restored after the test
+    monkeypatch.delenv("MEMINIT_DEBUG", raising=False)
 
-        runner = CliRunner()
-        result = runner.invoke(cli, ["--verbose", "context", "--root", str(tmp_path)])
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--verbose", "context", "--root", str(tmp_path)])
 
-        assert result.exit_code == 0
-        assert os.environ.get("MEMINIT_DEBUG") == "1"
-        
-        # Cleanup to prevent leakage
-        os.environ.pop("MEMINIT_DEBUG", None)
+    assert result.exit_code == 0
+    assert os.environ.get("MEMINIT_DEBUG") == "1"
 
 
 def test_cli_init_json_outputs_created_and_skipped_paths(tmp_path):

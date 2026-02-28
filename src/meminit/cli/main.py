@@ -146,14 +146,14 @@ def _is_safe_path(path: Path) -> bool:
         abs_path = path.resolve()
         path_str = abs_path.as_posix()
         for f in forbidden:
-            if path_str.startswith(f):
+            if path_str == f or path_str.startswith(f + "/"):
                 return False
         # Prevent hidden files in home directory (e.g. .ssh, .bashrc)
         try:
             home = Path.home().resolve().as_posix()
             if path_str.startswith(home) and abs_path.name.startswith("."):
                 # Allow .meminit specific files if any
-                if not path_str.startswith(f"{home}/.meminit"):
+                if not (path_str == f"{home}/.meminit" or path_str.startswith(f"{home}/.meminit/")):
                     return False
         except (RuntimeError, OSError):
             # No home directory or cannot resolve
@@ -164,7 +164,7 @@ def _is_safe_path(path: Path) -> bool:
         if path.is_absolute():
             path_str = path.as_posix()
             for f in forbidden:
-                if path_str.startswith(f):
+                if path_str == f or path_str.startswith(f + "/"):
                     return False
     return True
 
@@ -397,8 +397,6 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
         os.environ["RICH_NO_COLOR"] = "1"
     if verbose:
         os.environ["MEMINIT_DEBUG"] = "1"
-    else:
-        os.environ.pop("MEMINIT_DEBUG", None)
     
     ctx.ensure_object(dict)
     ctx.obj["console"] = Console(no_color=no_color)

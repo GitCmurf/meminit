@@ -22,7 +22,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import click
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import SchemaError
 
@@ -341,12 +340,12 @@ def format_envelope(
     for key in sorted(envelope.keys(), key=_sort_key_index):
         ordered[key] = envelope[key]
 
+    # Validate against schema and raise on failure to maintain contract integrity.
     try:
         _validate_envelope(ordered)
-    except ValueError as e:
+    except ValueError:
         logger.exception("Envelope schema validation failed")
-        # Ensure the error is visible on stderr in CLI contexts
-        click.echo(f"WARN: Envelope schema validation failed: {e}", err=True)
+        raise
 
     return json.dumps(ordered, separators=(",", ":"), default=str)
 
