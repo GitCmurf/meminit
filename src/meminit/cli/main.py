@@ -228,17 +228,6 @@ def _write_output(
 
 
 @contextlib.contextmanager
-def _noop_log_operation(
-    *,
-    operation: str,
-    details: Optional[Dict[str, Any]] = None,
-    run_id: Optional[str] = None,
-):
-    context: Dict[str, Any] = {"details": dict(details) if details else {}}
-    yield context
-
-
-@contextlib.contextmanager
 def maybe_capture(output: Optional[str], format: str):
     """Capture console output if output file is specified and format is text."""
     if format == "text" and output:

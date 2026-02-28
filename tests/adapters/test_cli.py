@@ -41,6 +41,10 @@ def test_cli_no_color_sets_env(tmp_path, monkeypatch):
         assert result.exit_code == 0
         assert os.environ.get("NO_COLOR") == "1"
         assert os.environ.get("RICH_NO_COLOR") == "1"
+        
+        # Cleanup to prevent leakage to other tests in the same process
+        os.environ.pop("NO_COLOR", None)
+        os.environ.pop("RICH_NO_COLOR", None)
 
 
 def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
@@ -56,6 +60,9 @@ def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
 
         assert result.exit_code == 0
         assert os.environ.get("MEMINIT_DEBUG") == "1"
+        
+        # Cleanup to prevent leakage
+        os.environ.pop("MEMINIT_DEBUG", None)
 
 
 def test_cli_init_json_outputs_created_and_skipped_paths(tmp_path):
@@ -633,26 +640,22 @@ def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
     )
 
     instance = mock_use_case.return_value
-    instance.execute.return_value = type(
-        "Result",
-        (),
-        {
-            "data": {
-                "project_name": "TestProject",
-                "config_path": "docops.config.yaml",
-                "namespaces": [
-                    {"name": "default", "docs_root": "docs", "document_count": None}
-                ],
-            },
-            "warnings": [
-                {
-                    "code": "DEEP_BUDGET_EXCEEDED",
-                    "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
-                    "path": ".",
-                }
+    instance.execute.return_value = SimpleNamespace(
+        data={
+            "project_name": "TestProject",
+            "config_path": "docops.config.yaml",
+            "namespaces": [
+                {"name": "default", "docs_root": "docs", "document_count": None}
             ],
         },
-    )()
+        warnings=[
+            {
+                "code": "DEEP_BUDGET_EXCEEDED",
+                "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
+                "path": ".",
+            }
+        ],
+    )
 
     runner = CliRunner()
     result = runner.invoke(
@@ -672,26 +675,22 @@ def test_cli_context_text_emits_warnings(mock_use_case, tmp_path):
     )
 
     instance = mock_use_case.return_value
-    instance.execute.return_value = type(
-        "Result",
-        (),
-        {
-            "data": {
-                "project_name": "TestProject",
-                "config_path": "docops.config.yaml",
-                "namespaces": [
-                    {"name": "default", "docs_root": "docs", "document_count": None}
-                ],
-            },
-            "warnings": [
-                {
-                    "code": "DEEP_BUDGET_EXCEEDED",
-                    "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
-                    "path": ".",
-                }
+    instance.execute.return_value = SimpleNamespace(
+        data={
+            "project_name": "TestProject",
+            "config_path": "docops.config.yaml",
+            "namespaces": [
+                {"name": "default", "docs_root": "docs", "document_count": None}
             ],
         },
-    )()
+        warnings=[
+            {
+                "code": "DEEP_BUDGET_EXCEEDED",
+                "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
+                "path": ".",
+            }
+        ],
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--deep"])
@@ -1052,8 +1051,9 @@ type_directories:
         assert data["data"]["owner"] == "TestOwner"
         assert data["data"]["area"] == "Backend"
 
-    def test_new_md_format_writes_output(self, repo_for_dry_run, tmp_path):
+    def test_new_dry_run_md_format_writes_output(self, repo_for_dry_run, tmp_path):
         output_path = tmp_path / "new-md-error.md"
+
         runner = CliRunner()
         result = runner.invoke(
             cli,

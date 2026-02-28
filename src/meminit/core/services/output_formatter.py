@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import click
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import SchemaError
 
@@ -87,6 +88,14 @@ def _get_schema_validator() -> Draft7Validator | None:
         _SCHEMA_LOAD_FAILED = True
         return None
     return _SCHEMA_VALIDATOR
+
+
+def _reset_schema_cache() -> None:
+    """Reset the module-level schema validator cache (for testing only)."""
+    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED, _SCHEMA_WARNING_EMITTED
+    _SCHEMA_VALIDATOR = None
+    _SCHEMA_LOAD_FAILED = False
+    _SCHEMA_WARNING_EMITTED = False
 
 
 def _validate_envelope(envelope: dict[str, Any]) -> None:
@@ -335,7 +344,9 @@ def format_envelope(
     try:
         _validate_envelope(ordered)
     except ValueError as e:
-        logger.error(f"Envelope schema validation failed: {e}")
+        logger.exception("Envelope schema validation failed")
+        # Ensure the error is visible on stderr in CLI contexts
+        click.echo(f"WARN: Envelope schema validation failed: {e}", err=True)
 
     return json.dumps(ordered, separators=(",", ":"), default=str)
 
