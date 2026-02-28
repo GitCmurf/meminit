@@ -179,12 +179,36 @@ def _write_output(
     if output:
         out_path = Path(output)
         if not _is_safe_path(out_path):
-            # Fallback to click.echo if console might not be initialized
-            click.echo(
-                f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
-                err=True,
-            )
-            raise SystemExit(1)
+            try:
+                payload = json.loads(output_str)
+            except Exception:
+                payload = None
+
+            if (
+                isinstance(payload, dict)
+                and payload.get("output_schema_version") == "2.0"
+                and isinstance(payload.get("command"), str)
+                and isinstance(payload.get("root"), str)
+            ):
+                click.echo(
+                    format_error_envelope(
+                        command=payload["command"],
+                        root=payload["root"],
+                        error_code=ErrorCode.PATH_ESCAPE,
+                        message=f"Output path is considered unsafe: {output}",
+                        details={"output_path": output},
+                        include_timestamp="timestamp" in payload,
+                        run_id=payload.get("run_id")
+                        if isinstance(payload.get("run_id"), str)
+                        else None,
+                    )
+                )
+            else:
+                click.echo(
+                    f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
+                    err=True,
+                )
+            raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
 
         try:
             mode = "a" if append else "w"
@@ -396,7 +420,14 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
         os.environ["NO_COLOR"] = "1"
         os.environ["RICH_NO_COLOR"] = "1"
     if verbose:
+        previous_debug = os.environ.get("MEMINIT_DEBUG")
         os.environ["MEMINIT_DEBUG"] = "1"
+        def _restore_debug() -> None:
+            if previous_debug is None:
+                os.environ.pop("MEMINIT_DEBUG", None)
+            else:
+                os.environ["MEMINIT_DEBUG"] = previous_debug
+        ctx.call_on_close(_restore_debug)
     
     ctx.ensure_object(dict)
     ctx.obj["console"] = Console(no_color=no_color)
@@ -635,6 +666,8 @@ def doctor(root, format, output, include_timestamp, strict):
 
         if format == "json":
             # PRD §15.1 Mapping Rule:
+            promoted_warnings = warnings if strict else []
+            unpromoted_warnings = [] if strict else warnings
             v2_warnings = [
                 {
                     "code": v.rule,
@@ -643,7 +676,7 @@ def doctor(root, format, output, include_timestamp, strict):
                     "line": v.line,
                     "severity": "warning",
                 }
-                for v in warnings
+                for v in unpromoted_warnings
             ]
             v2_violations = [
                 {
@@ -654,6 +687,15 @@ def doctor(root, format, output, include_timestamp, strict):
                     "severity": "error",
                 }
                 for v in errors
+            ] + [
+                {
+                    "code": v.rule,
+                    "message": v.message,
+                    "path": v.file or "",
+                    "line": v.line,
+                    "severity": "error",
+                }
+                for v in promoted_warnings
             ]
             # Include original issues in data for backward compatibility (PRD §15.1)
             issues_payload = [

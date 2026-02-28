@@ -55,7 +55,8 @@ def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["--verbose", "context", "--root", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert os.environ.get("MEMINIT_DEBUG") == "1"
+    assert "debug.config_loaded" in result.output
+    assert os.environ.get("MEMINIT_DEBUG") is None
 
 
 def test_cli_init_json_outputs_created_and_skipped_paths(tmp_path):
@@ -233,6 +234,47 @@ def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, t
     assert payload["output_schema_version"] == "2.0"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
     assert payload["error"]["details"]["output_path"] == str(output_dir)
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+        warnings_count=0,
+        violations_count=0,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            "/etc/report.json",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_NOPERM", 77)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
+    assert payload["error"]["details"]["output_path"] == "/etc/report.json"
 
 
 def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
@@ -1843,8 +1885,8 @@ def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
     assert payload["command"] == "doctor"
     assert payload["success"] is False
     assert payload["data"]["status"] == "warn"
-    assert len(payload["warnings"]) == 1
-    assert payload["violations"] == []
+    assert payload["warnings"] == []
+    assert len(payload["violations"]) == 1
 
 
 @patch("meminit.cli.main.FixRepositoryUseCase")

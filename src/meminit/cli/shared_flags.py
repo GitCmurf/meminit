@@ -67,7 +67,7 @@ def include_timestamp_option():
 
 
 def with_log_silence():
-    """Silence log events for JSON output unless verbose/debug is enabled."""
+    """Silence log events for machine-consumed outputs unless verbose is enabled."""
 
     def decorator(f):
         @functools.wraps(f)
@@ -76,10 +76,9 @@ def with_log_silence():
             format_value = kwargs.get("format")
             verbose_value = kwargs.get("verbose", False)
             output_value = kwargs.get("output")
-            silence_logs = False
-            if os.environ.get("MEMINIT_DEBUG") != "1" and not verbose_value:
-                if format_value == "json":
-                    silence_logs = True
+            silence_logs = (
+                not verbose_value and (format_value == "json" or bool(output_value))
+            )
             changed = False
             if silence_logs and previous != "1":
                 os.environ["MEMINIT_LOG_SILENT"] = "1"

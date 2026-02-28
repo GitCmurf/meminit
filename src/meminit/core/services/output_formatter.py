@@ -16,9 +16,9 @@ Key guarantees:
 """
 
 import json
-import logging
 import uuid
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -57,17 +57,6 @@ _ENVELOPE_KEY_ORDER = [
 
 _SCHEMA_VALIDATOR: Draft7Validator | None = None
 _SCHEMA_LOAD_FAILED: bool = False
-_SCHEMA_WARNING_EMITTED: bool = False
-
-logger = logging.getLogger(__name__)
-
-
-def _find_schema_path(start: Path) -> Path | None:
-    for parent in (start, *start.parents):
-        candidate = parent / "docs" / "20-specs" / "agent-output.schema.v2.json"
-        if candidate.exists():
-            return candidate
-    return None
 
 
 def _get_schema_validator() -> Draft7Validator | None:
@@ -75,15 +64,15 @@ def _get_schema_validator() -> Draft7Validator | None:
     if _SCHEMA_VALIDATOR is not None or _SCHEMA_LOAD_FAILED:
         return _SCHEMA_VALIDATOR
 
-    schema_path = _find_schema_path(Path(__file__).resolve().parent)
-    if schema_path is None:
-        _SCHEMA_LOAD_FAILED = True
-        return None
-
     try:
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema_text = (
+            resources.files("meminit.core.assets")
+            .joinpath("agent-output.schema.v2.json")
+            .read_text(encoding="utf-8")
+        )
+        schema = json.loads(schema_text)
         _SCHEMA_VALIDATOR = Draft7Validator(schema)
-    except (OSError, json.JSONDecodeError, SchemaError, ValueError):
+    except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError):
         _SCHEMA_LOAD_FAILED = True
         return None
     return _SCHEMA_VALIDATOR
@@ -91,19 +80,14 @@ def _get_schema_validator() -> Draft7Validator | None:
 
 def _reset_schema_cache() -> None:
     """Reset the module-level schema validator cache (for testing only)."""
-    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED, _SCHEMA_WARNING_EMITTED
+    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED
     _SCHEMA_VALIDATOR = None
     _SCHEMA_LOAD_FAILED = False
-    _SCHEMA_WARNING_EMITTED = False
 
 
 def _validate_envelope(envelope: dict[str, Any]) -> None:
     validator = _get_schema_validator()
     if validator is None:
-        global _SCHEMA_WARNING_EMITTED
-        if not _SCHEMA_WARNING_EMITTED:
-            logger.warning("Schema validator unavailable, skipping envelope validation.")
-            _SCHEMA_WARNING_EMITTED = True
         return
     errors = sorted(validator.iter_errors(envelope), key=str)
     if errors:

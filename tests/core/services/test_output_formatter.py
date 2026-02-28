@@ -2,7 +2,6 @@ import json
 import re
 from pathlib import Path
 
-from meminit.core.services import output_formatter
 from meminit.core.services.output_formatter import format_envelope, format_error_envelope
 from meminit.core.services.error_codes import ErrorCode
 
@@ -233,17 +232,3 @@ def test_format_envelope_includes_expected_fields_and_single_line(tmp_path):
     assert isinstance(payload["advice"], list)
     assert Path(payload["root"]).is_absolute()
 
-
-def test_find_schema_path_returns_none_when_missing(tmp_path):
-    assert output_formatter._find_schema_path(tmp_path) is None
-
-
-def test_find_schema_path_finds_repo_schema(tmp_path):
-    schema_dir = tmp_path / "docs" / "20-specs"
-    schema_dir.mkdir(parents=True)
-    schema_path = schema_dir / "agent-output.schema.v2.json"
-    schema_path.write_text("{}", encoding="utf-8")
-    nested = tmp_path / "nested" / "path"
-    nested.mkdir(parents=True)
-
-    assert output_formatter._find_schema_path(nested) == schema_path
