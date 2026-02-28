@@ -719,7 +719,7 @@ def test_cli_index_json_contract(tmp_path):
         encoding="utf-8",
     )
 
-    runner = CliRunner()
+    runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
@@ -903,14 +903,14 @@ type_directories:
         assert "FDD" in result.output
 
     def test_new_list_types_json(self, repo_with_types):
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             ["new", "--list-types", "--root", str(repo_with_types), "--format", "json"],
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
 
         assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
@@ -1817,19 +1817,57 @@ def test_cli_doctor_json_output(mock_use_case, tmp_path):
     runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, ["doctor", "--root", str(tmp_path), "--format", "json"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["command"] == "doctor"
-    assert payload["success"] is True
+    assert payload["success"] is False
     assert len(payload["warnings"]) == 1
     assert len(payload["violations"]) == 1
     assert payload["warnings"][0]["code"] == "DOCOPS_WARN"
     assert payload["violations"][0]["code"] == "DOCOPS_ERR"
 
 
+@patch("meminit.cli.main.DoctorRepositoryUseCase")
+def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = [
+        SimpleNamespace(
+            severity=SimpleNamespace(value="warning"),
+            rule="DOCOPS_WARN",
+            file="docs/a.md",
+            line=1,
+            message="Warning message",
+        )
+    ]
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["doctor", "--root", str(tmp_path), "--format", "json", "--strict"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "doctor"
+    assert payload["success"] is False
+    assert payload["data"]["status"] == "warn"
+    assert len(payload["warnings"]) == 1
+    assert payload["violations"] == []
+
+
 @patch("meminit.cli.main.FixRepositoryUseCase")
 def test_cli_fix_json_output(mock_use_case, tmp_path):
-    report = SimpleNamespace(fixed_violations=[1, 2], remaining_violations=[1])
+    report = SimpleNamespace(
+        fixed_violations=[1, 2],
+        remaining_violations=[
+            SimpleNamespace(
+                rule="SCHEMA_VALIDATION",
+                message="Still broken",
+                file="docs/bad.md",
+                line=3,
+                severity=SimpleNamespace(value="error"),
+            )
+        ],
+    )
     mock_use_case.return_value.execute.return_value = report
 
     runner = runner_no_mixed_stderr()
@@ -1838,12 +1876,15 @@ def test_cli_fix_json_output(mock_use_case, tmp_path):
         ["fix", "--root", str(tmp_path), "--format", "json", "--dry-run"],
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["command"] == "fix"
+    assert payload["success"] is False
     assert payload["data"]["fixed"] == 2
     assert payload["data"]["remaining"] == 1
     assert payload["data"]["dry_run"] is True
+    assert payload["violations"][0]["code"] == "SCHEMA_VALIDATION"
+    assert payload["violations"][0]["path"] == "docs/bad.md"
 
 
 @patch("meminit.cli.main.MigrateIdsUseCase")

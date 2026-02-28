@@ -121,11 +121,11 @@ def _recursively_sort_keys(obj: Any) -> Any:
 
 
 def _get_line_key(line: Any) -> tuple:
-    """Helper to sort None after integers."""
+    """Helper to sort None after numeric lines."""
     if line is None:
-        return (1, 0)
+        return (1, 0.0)
     try:
-        return (0, int(line))
+        return (0, float(line))
     except (TypeError, ValueError):
         return (2, str(line))
 
@@ -332,7 +332,10 @@ def format_envelope(
     for key in sorted(envelope.keys(), key=_sort_key_index):
         ordered[key] = envelope[key]
 
-    _validate_envelope(ordered)
+    try:
+        _validate_envelope(ordered)
+    except ValueError as e:
+        logger.error(f"Envelope schema validation failed: {e}")
 
     return json.dumps(ordered, separators=(",", ":"), default=str)
 

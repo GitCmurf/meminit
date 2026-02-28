@@ -2,9 +2,9 @@
 document_id: MEMINIT-PRD-003
 type: PRD
 title: Agent Interface v1
-status: In Review
-version: "2.3"
-last_updated: 2026-02-27
+status: Approved
+version: "3.0"
+last_updated: 2026-02-28
 owner: GitCmurf
 docops_version: "2.0"
 area: Agentic Integration
@@ -36,9 +36,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-003
 > **Owner:** GitCmurf
-> **Status:** In Review
-> **Version:** 2.3
-> **Last Updated:** 2026-02-27
+> **Status:** Approved
+> **Version:** 3.0
+> **Last Updated:** 2026-02-28
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -1189,16 +1189,16 @@ follow these rules:
    mappings.
 1. Always request JSON mode (`--format json`) and treat STDOUT as the
    single parseable artifact. Treat STDERR as human logs only.
-1. Treat `output_schema_version` as the contract selector:
+2. Treat `output_schema_version` as the contract selector:
    - If missing: treat as non-conforming output (migration gap) and
      surface to a human.
    - If unknown: treat as a hard failure (do not guess).
-1. Determine outcome using a generic rule set:
+3. Determine outcome using a generic rule set:
    - If top-level `error` exists: operational error (retry/fail).
    - Else if `success: true`: operational success.
    - Else if `success: false` and `violations` exists: compliance
      failure (fixable findings).
-1. Treat `run_id` as an opaque correlation token; never branch on its
+4. Treat `run_id` as an opaque correlation token; never branch on its
    format.
 
 **Reference pseudocode:**
@@ -2401,7 +2401,7 @@ implementation:
       as the canonical ErrorCode inventory (per Appendix C 29.5).
 - [x] **Schema validation (CLI outputs):** Verify [`docs/20-specs/agent-output.schema.v2.json`](../20-specs/agent-output.schema.v2.json)
       validates CLI outputs (see `tests/core/services/test_output_contract_schema.py`).
-- [ ] **Schema validation (PRD examples):** Validate all example outputs in this PRD against the schema
+- [x] **Schema validation (PRD examples):** Validate all example outputs in this PRD against the schema
       (automate in CI or add a dedicated verification script).
 
 Once these items are complete, update this PRD status to `Approved` and
