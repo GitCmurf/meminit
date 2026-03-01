@@ -2,7 +2,7 @@
 document_id: MEMINIT-FDD-005
 type: FDD
 title: Repository Scan (meminit scan)
-status: Implemented
+status: Approved
 version: 1.0
 last_updated: 2026-03-01
 owner: GitCmurf

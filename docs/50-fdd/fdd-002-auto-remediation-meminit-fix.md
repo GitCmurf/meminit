@@ -2,7 +2,7 @@
 document_id: MEMINIT-FDD-002
 type: FDD
 title: Auto-Remediation (meminit fix)
-status: Implemented
+status: Approved
 version: 1.0
 last_updated: 2026-03-01
 owner: GitCmurf

@@ -2,7 +2,7 @@
 document_id: MEMINIT-PRD-004
 type: PRD
 title: Brownfield Adoption Hardening
-status: Implemented
+status: Approved
 version: "1.0"
 last_updated: 2026-03-01
 owner: GitCmurf
