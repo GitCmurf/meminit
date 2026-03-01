@@ -20,7 +20,7 @@ def extract_title_from_markdown(body: str, fallback_stem: str) -> str:
     return fallback_stem.replace("-", " ").strip().title() or "Untitled"
 
 
-def build_default_frontmatter_patch(ns: RepoConfig, doc_type: str, inferred_title: str, type_rationale: str = "") -> Dict[str, Any]:
+def build_default_frontmatter_patch(ns: RepoConfig, doc_type: str, inferred_title: str) -> Dict[str, Any]:
     """Build a default frontmatter patch with all required fields."""
     patch = {
         "document_id": DEFAULT_OWNER,

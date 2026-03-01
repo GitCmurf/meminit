@@ -49,7 +49,7 @@ class HeuristicsService:
             expected_filename = normalize_filename_to_kebab_case(path).name
             
             # 2. Check if it's in the right type directory
-            expected_dir = ns.type_directories.get(inferred_type)
+            expected_dir = ns.expected_subdir_for_type(inferred_type)
             if expected_dir:
                 expected_dir_path = self.root_dir
                 if ns.docs_root:

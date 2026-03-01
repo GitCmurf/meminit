@@ -1,6 +1,5 @@
 import re
 import shutil
-import hashlib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -92,8 +91,23 @@ class FixRepositoryUseCase:
     def _execute_plan(self, plan: MigrationPlan, dry_run: bool) -> FixReport:
         report = FixReport()
         self._existing_document_ids = self._scan_existing_document_ids()
+        
+        if plan.config_fingerprint:
+            config_path = self.root_dir / "docops.config.yaml"
+            if config_path.exists():
+                try:
+                    current_fp = compute_file_hash(config_path)
+                    if current_fp != plan.config_fingerprint:
+                        report.remaining_violations.append(
+                            Violation(file="docops.config.yaml", line=0, rule="DRIFT_DETECTED", message="Config fingerprint mismatch. Run 'scan --plan' again.")
+                        )
+                        return report
+                except (OSError, IOError):
+                    pass
+
         modified_paths = set()
         path_map = {}
+        created_targets = set()
 
         for action in plan.actions:
             v_file = action.target_path or action.source_path
@@ -147,6 +161,12 @@ class FixRepositoryUseCase:
                     Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists.")
                 )
                 continue
+                
+            if src_path != target_path and target_path in created_targets and not action.safety.overwrites:
+                report.remaining_violations.append(
+                    Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists from prior plan action.")
+                )
+                continue
 
             # Apply Phase
             try:
@@ -157,6 +177,7 @@ class FixRepositoryUseCase:
                     modified_paths.add(target_path)
                     modified_paths.add(src_path)
                     path_map[src_path] = target_path
+                    created_targets.add(target_path)
                     
                     if not dry_run:
                         log_event(
@@ -194,11 +215,11 @@ class FixRepositoryUseCase:
                                 post.metadata["document_id"] = self._generate_unique_document_id(doc_type, ns)
 
                         post.metadata = normalize_yaml_scalar_footguns(post.metadata)
-                        target_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(target_path, "w", encoding="utf-8") as f:
+                        read_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(read_path, "w", encoding="utf-8") as f:
                             f.write(frontmatter.dumps(post))
                     
-                    modified_paths.add(target_path)
+                    modified_paths.add(read_path)
                     modified_paths.add(src_path)
                     
                     if not dry_run:
@@ -437,7 +458,7 @@ class FixRepositoryUseCase:
             and "docops_version" not in post.metadata
         ):
             post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
-            action = FixAction(rel_path, "Update docops_version", f"Set to {DEFAULT_DOCOPS_VERSION}")
+            action = FixAction(rel_path, "Update docops_version", f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}")
             report.fixed_violations.append(action)
             modified = True
 
@@ -450,7 +471,7 @@ class FixRepositoryUseCase:
         # Required schema fields
         if "docops_version" not in post.metadata:
             post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
-            actions.append(FixAction(rel_path, "Update docops_version", f"Set to {DEFAULT_DOCOPS_VERSION}"))
+            actions.append(FixAction(rel_path, "Update docops_version", f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}"))
         if "last_updated" not in post.metadata:
             post.metadata["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             actions.append(
