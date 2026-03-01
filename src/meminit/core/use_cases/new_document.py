@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import frontmatter
 import yaml
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
 
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -316,7 +317,7 @@ class NewDocumentUseCase:
                                 "value": template_name,
                             }
                         )
-                    post = frontmatter.loads(content)
+                    post = safe_frontmatter_loads(content)
                     actual_metadata = dict(post.metadata or {})
                     self._validate_generated_metadata(actual_metadata, ns)
 
@@ -405,7 +406,7 @@ class NewDocumentUseCase:
                     }
                 )
 
-            post = frontmatter.loads(content)
+            post = safe_frontmatter_loads(content)
             actual_metadata = dict(post.metadata or {})
             self._validate_generated_metadata(actual_metadata, ns)
 
@@ -625,7 +626,7 @@ class NewDocumentUseCase:
             return self._coerce_last_updated(normalized_meta.get("last_updated"))
 
         try:
-            existing_post = frontmatter.loads(existing_content)
+            existing_post = safe_frontmatter_loads(existing_content)
         except Exception:
             return None
 
@@ -1026,7 +1027,7 @@ class NewDocumentUseCase:
         body = template_content
         if body.strip().startswith("---"):
             try:
-                post = frontmatter.loads(body)
+                post = safe_frontmatter_loads(body)
             except (yaml.YAMLError, ValueError):
                 pass
             else:

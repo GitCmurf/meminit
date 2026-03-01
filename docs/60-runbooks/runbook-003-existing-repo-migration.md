@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-003
 type: RUNBOOK
 docops_version: "2.0"
-last_updated: "2025-12-31"
-status: Draft
+last_updated: "2026-03-01"
+status: Approved
 title: Existing Repository Migration
 owner: GitCmurf
-version: "0.2"
+version: "1.0"
 ---
 
 # Runbook: Existing Repository Migration
@@ -44,16 +44,30 @@ Run `meminit init` to ensure the standard directory structure exists (`docs/`, `
 
 ### 3. Automated Fixes
 
+For brownfield repos, generate a deterministic migration plan first (recommended), then apply it with `fix`. This reduces guesswork and makes the remediation loop safer and more reviewable.
+
+### 3a. Generate a Migration Plan (Recommended)
+
+Run scan and write a plan artifact (this does not mutate the repo):
+
+```bash
+meminit scan --plan /tmp/meminit_migration_plan.json
+```
+
+Review the plan file and ensure the actions look correct and non-destructive.
+
+### 3b. Apply Fixes (Plan-Driven)
+
 Run the fix command in dry-run mode first:
 
 ```bash
-meminit fix --dry-run
+meminit fix --plan /tmp/meminit_migration_plan.json --dry-run
 ```
 
 If the changes look safe (e.g., renaming files, adding timestamps), apply them:
 
 ```bash
-meminit fix --no-dry-run
+meminit fix --plan /tmp/meminit_migration_plan.json --no-dry-run
 ```
 
 ### 4. Manual Remediation

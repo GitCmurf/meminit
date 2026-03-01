@@ -3,10 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
+import datetime
+import logging
 
 import yaml
 
 from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.scan_plan import MigrationPlan
+from meminit.core.services.heuristics import HeuristicsService
+from meminit.core.services.path_utils import compute_file_hash
 
 TYPE_ALIASES: Dict[str, List[str]] = {
     "ADR": ["adrs", "decisions"],
@@ -32,9 +37,10 @@ class ScanReport:
     suggested_namespaces: List[Dict[str, str]]
     configured_namespaces: List[Dict[str, object]]
     overlapping_namespaces: List[Dict[str, str]]
+    plan: Optional[MigrationPlan] = None
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "docs_root": self.docs_root,
             "suggested_type_directories": self.suggested_type_directories,
             "markdown_count": self.markdown_count,
@@ -45,13 +51,16 @@ class ScanReport:
             "configured_namespaces": self.configured_namespaces,
             "overlapping_namespaces": self.overlapping_namespaces,
         }
+        if self.plan:
+            d["plan"] = self.plan.as_dict()
+        return d
 
 
 class ScanRepositoryUseCase:
     def __init__(self, root_dir: str):
         self._root_dir = Path(root_dir).resolve()
 
-    def execute(self) -> ScanReport:
+    def execute(self, generate_plan: bool = False) -> ScanReport:
         layout = load_repo_layout(self._root_dir)
         config_path = self._root_dir / "docops.config.yaml"
         existing_config = self._load_config(config_path)
@@ -81,10 +90,12 @@ class ScanRepositoryUseCase:
             )
 
         docs_dir = self._root_dir / docs_root
+        target_files = []
         if not docs_dir.exists():
             notes.append(f"Docs root configured but missing on disk: {docs_root}")
         else:
-            markdown_count = len(list(docs_dir.rglob("*.md")))
+            target_files = list(docs_dir.rglob("*.md"))
+            markdown_count = len(target_files)
 
         # Always compute namespace-aware counts when possible.
         configured_namespaces = self._configured_namespaces(layout)
@@ -141,6 +152,25 @@ class ScanRepositoryUseCase:
                 "Repository is already configured with `namespaces`; see `configured_namespaces` for per-namespace stats."
             )
 
+        plan = None
+        if target_files and generate_plan:
+            heuristics = HeuristicsService(self._root_dir, layout)
+            actions = heuristics.generate_plan_actions(target_files)
+            if actions:
+                config_fingerprint_str = ""
+                if config_path.exists():
+                    try:
+                        config_fingerprint_str = compute_file_hash(config_path)
+                    except (OSError, IOError) as e:
+                        logging.debug("Failed to hash config fingerprint: %s", e)
+                
+                plan = MigrationPlan(
+                    plan_version="1.0",
+                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    config_fingerprint=config_fingerprint_str,
+                    actions=actions
+                )
+
         return ScanReport(
             docs_root=docs_root,
             suggested_type_directories=suggested_type_directories,
@@ -151,6 +181,7 @@ class ScanRepositoryUseCase:
             suggested_namespaces=suggested_namespaces,
             configured_namespaces=configured_namespaces,
             overlapping_namespaces=overlapping_namespaces,
+            plan=plan,
         )
 
     def _resolve_docs_root(self, config: dict, default_root: str) -> Optional[str]:

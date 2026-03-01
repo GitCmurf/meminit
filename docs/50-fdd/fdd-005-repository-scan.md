@@ -2,9 +2,9 @@
 document_id: MEMINIT-FDD-005
 type: FDD
 title: Repository Scan (meminit scan)
-status: Draft
-version: 0.1
-last_updated: 2025-12-26
+status: Approved
+version: 1.0
+last_updated: 2026-03-01
 owner: GitCmurf
 docops_version: 2.0
 ---
@@ -23,7 +23,7 @@ Provide a read-only “brownfield assessment” that inspects an existing repo a
 ## Functional Scope (v0.1)
 
 - Command: `meminit scan --root .`
-- Output: JSON report to stdout; optional `--output` to write a report file.
+- Output: JSON report to stdout; optional `--plan <filename>` to write a deterministic JSON plan.
 - Detection:
   - Determine docs root from `docops.config.yaml` or infer `docs/` if present.
   - Count Markdown files under docs root.

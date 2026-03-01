@@ -34,6 +34,7 @@ def test_exit_code_for_error_mappings():
         ErrorCode.INVALID_FIELD: EX_DATAERR,
         ErrorCode.OUTSIDE_DOCS_ROOT: EX_DATAERR,
         ErrorCode.DIRECTORY_MISMATCH: EX_DATAERR,
+        ErrorCode.VALIDATION_ERROR: EX_DATAERR,
         ErrorCode.UNKNOWN_ERROR: EX_DATAERR,
     }
 

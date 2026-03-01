@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-005
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2025-12-30
-status: Draft
+last_updated: 2026-03-01
+status: Approved
 title: Brownfield Repository Migration (Adopt Meminit)
 owner: GitCmurf
-version: 0.4
+version: 1.0
 ---
 
 # Runbook: Brownfield Repository Migration (Adopt Meminit)
@@ -171,10 +171,10 @@ Run:
 meminit scan --root . --format md
 ```
 
-For scriptable pipelines, use JSON:
+For plan-driven migrations (recommended), output a JSON plan:
 
 ```bash
-meminit scan --root . --format json
+meminit scan --root . --plan /tmp/meminit_migration_plan.json
 ```
 
 Interpretation:
