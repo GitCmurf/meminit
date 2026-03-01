@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import frontmatter
+import yaml
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
+from meminit.core.services.observability import log_event
 
 from meminit.core.domain.entities import FixAction, FixReport, Severity, Violation
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
@@ -41,16 +44,31 @@ class FixRepositoryUseCase:
         self._schema_validators: dict[str, SchemaValidator] = {}
 
     def execute(self, dry_run: bool = False, namespace: str | None = None, plan: Optional[MigrationPlan] = None) -> FixReport:
+        report = FixReport()
+
+        target_ns = self._layout.get_namespace(namespace) if namespace else None
+        if namespace and target_ns is None:
+            report.remaining_violations.append(
+                Violation(
+                    file="docops.config.yaml",
+                    line=0,
+                    rule="UNKNOWN_NAMESPACE",
+                    message=f"Namespace '{namespace}' is not defined in docops.config.yaml"
+                )
+            )
+            return report
+
         if plan is not None:
             report = self._execute_plan(plan, dry_run)
             
             # Post-plan compliance check to populate remaining violations
             violations = self.checker.execute()
-            if namespace:
-                target_ns = self._layout.get_namespace(namespace)
-                if target_ns:
-                    ns_root = str(Path(self.root_dir) / target_ns.docs_root)
-                    violations = [v for v in violations if v.file.startswith(ns_root)]
+            
+            if target_ns:
+                ns_root = target_ns.docs_root.strip("/")
+                ns_prefix = ns_root + "/" if ns_root and ns_root != "." else ""
+                if ns_prefix:
+                    violations = [v for v in violations if v.file.startswith(ns_prefix) or v.file == ns_root]
             
             report.remaining_violations.extend(violations)
             return report
@@ -58,10 +76,9 @@ class FixRepositoryUseCase:
         # 1. Run Check
         violations = self.checker.execute()
         self._existing_document_ids = self._scan_existing_document_ids()
-        report = FixReport()
 
-        target_ns = self._layout.get_namespace(namespace) if namespace else None
-        if namespace and target_ns is None:
+        if target_ns is None and namespace:
+            pass # Pre-empted above.
             report.remaining_violations.append(
                 Violation(
                     file="docops.config.yaml",
@@ -140,7 +157,14 @@ class FixRepositoryUseCase:
                     continue
 
             # 4. Collision Policy
-            if src_path != target_path and target_path.exists() and not action.safety.overwrites:
+            is_case_only_rename = False
+            try:
+                if src_path.exists() and src_path.resolve() == target_path.resolve():
+                    is_case_only_rename = True
+            except (OSError, FileNotFoundError):
+                pass
+
+            if src_path != target_path and target_path.exists() and not action.safety.overwrites and not is_case_only_rename:
                 report.remaining_violations.append(
                     Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists.")
                 )
@@ -154,17 +178,28 @@ class FixRepositoryUseCase:
                         shutil.move(str(src_path), str(target_path))
                     modified_paths.add(target_path)
                     modified_paths.add(src_path)
+                    
+                    if not dry_run:
+                        log_event(
+                            operation="plan_action_applied",
+                            success=True,
+                            details={
+                                "action": action.action.value if hasattr(action.action, 'value') else str(action.action),
+                                "source": str(action.source_path),
+                                "target": str(action.target_path)
+                            }
+                        )
+
                     report.fixed_violations.append(
                         FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description=f"Moved/Renamed {action.source_path} to {action.target_path}")
                     )
 
                 elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
                     if not dry_run:
-                        try:
-                            content_bytes = src_path.read_bytes()
-                            post = frontmatter.loads(content_bytes.decode('utf-8'))
-                        except Exception:
-                            post = frontmatter.Post("")
+                        # If the file was moved/renamed in a prior step, we need to read from its new location.
+                        read_path = target_path if target_path in modified_paths else src_path
+                        content_bytes = read_path.read_bytes()
+                        post = safe_frontmatter_loads(content_bytes.decode('utf-8'))
 
                         if not post.metadata:
                             post.metadata = {}
@@ -174,7 +209,7 @@ class FixRepositoryUseCase:
                             post.metadata[k] = v
 
                         if "document_id" not in post.metadata or post.metadata.get("document_id") == "__TBD__":
-                            ns = self._layout.namespace_for_path(src_path)
+                            ns = self._layout.namespace_for_path(target_path)  # Use target_path for namespace context
                             doc_type = post.metadata.get("type", "DOC")
                             if ns:
                                 post.metadata["document_id"] = self._generate_unique_document_id(doc_type, ns)
@@ -186,6 +221,19 @@ class FixRepositoryUseCase:
                     
                     modified_paths.add(target_path)
                     modified_paths.add(src_path)
+                    
+                    if not dry_run:
+                        log_event(
+                            operation="plan_action_applied",
+                            success=True,
+                            details={
+                                "action": action.action.value if hasattr(action.action, 'value') else str(action.action),
+                                "source": str(action.source_path),
+                                "target": str(action.target_path),
+                                "metadata_patch": action.metadata_patch
+                            }
+                        )
+
                     report.fixed_violations.append(
                         FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description="Applied metadata patch")
                     )
@@ -194,10 +242,10 @@ class FixRepositoryUseCase:
                         Violation(file=v_file, line=0, rule="UNKNOWN_ACTION", message=f"Unknown action {action.action}")
                     )
             except Exception as e:
-                import traceback
-                traceback.print_exc()
+                import logging
+                logging.exception(f"Failed to apply action {action.action} for {v_file}")
                 report.remaining_violations.append(
-                    Violation(file=v_file, line=0, rule="APPLY_ERROR", message=str(e))
+                    Violation(file=v_file, line=0, rule="APPLY_ERROR", message=f"Action failed: {e}")
                 )
 
         return report

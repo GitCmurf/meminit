@@ -24,6 +24,7 @@ from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
 from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
@@ -818,10 +819,8 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
         plan_obj = None
         if plan:
             try:
-                import json
                 with open(plan, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                from meminit.core.services.scan_plan import MigrationPlan
                 plan_data = data.get("data", {}).get("plan") or data  # Handle envelope or direct
                 plan_obj = MigrationPlan.from_dict(plan_data)
             except Exception as e:
@@ -841,7 +840,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
                     )
                 else:
                     get_console().print(f"[bold red]Failed to load plan: {e}[/bold red]")
-                raise SystemExit(1)
+                raise SystemExit(1) from e
 
         use_case = FixRepositoryUseCase(root_dir=str(root_path))
         report = use_case.execute(dry_run=dry_run, namespace=namespace, plan=plan_obj)
@@ -930,7 +929,12 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
 
 @cli.command()
 @agent_repo_options()
-@click.option("--plan", type=click.Path(), default=None, help="Output deterministic migration plan to file")
+@click.option(
+    "--plan",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Output deterministic migration plan to file",
+)
 def scan(root, plan, format, output, include_timestamp):
     """Scan a repository and suggest a DocOps migration plan (read-only)."""
     run_id = get_current_run_id()
@@ -952,7 +956,6 @@ def scan(root, plan, format, output, include_timestamp):
 
         if plan and report.plan:
             try:
-                import json
                 plan_json = format_envelope(
                     command="scan",
                     root=str(root_path),

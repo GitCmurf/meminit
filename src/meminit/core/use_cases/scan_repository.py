@@ -161,8 +161,9 @@ class ScanRepositoryUseCase:
                     try:
                         config_bytes = config_path.read_bytes()
                         config_fingerprint_str = f"sha256:{hashlib.sha256(config_bytes).hexdigest()}"
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logging.debug("Failed to hash config fingerprint: %s", e)
                 
                 plan = MigrationPlan(
                     plan_version="1.0",

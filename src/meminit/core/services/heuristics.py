@@ -6,10 +6,11 @@ from typing import List, Dict, Any, Optional, Tuple
 import frontmatter
 
 from meminit.core.services.repo_config import RepoConfig, RepoLayout
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.scan_plan import PlanAction, PlanActionType, ActionPreconditions, ActionSafety
 
 class HeuristicsService:
-    FILENAME_EXCEPTIONS = {
+    FILENAME_EXCEPTIONS = frozenset({
         "README.md",
         "CHANGELOG.md",
         "LICENSE",
@@ -21,7 +22,7 @@ class HeuristicsService:
         "SECURITY.md",
         "NOTICE",
         "NOTICE.md",
-    }
+    })
 
     def __init__(self, root_dir: Path, layout: RepoLayout):
         self.root_dir = root_dir
@@ -37,8 +38,10 @@ class HeuristicsService:
             try:
                 content_bytes = path.read_bytes()
                 source_sha256 = f"sha256:{hashlib.sha256(content_bytes).hexdigest()}"
-                post = frontmatter.loads(content_bytes.decode("utf-8"))
-            except Exception:
+                post = safe_frontmatter_loads(content_bytes.decode("utf-8"))
+            except Exception as e:
+                import logging
+                logging.warning("meminit scan --plan failed to parse %s: %s", path, e)
                 continue
 
             rel_path = path.relative_to(self.root_dir).as_posix()
@@ -106,32 +109,23 @@ class HeuristicsService:
                 actions.append(action)
             else:
                 # Update metadata fields if missing
+                fields_to_patch = [
+                    ("document_id", lambda: "__TBD__", "document_id: requires generation"),
+                    ("type", lambda: inferred_type, f"type: {type_rationale}" if type_rationale else "type: inferred"),
+                    ("title", lambda: inferred_title, "title: Inferred from heading or filename"),
+                    ("status", lambda: "Draft", "status: set to Draft default"),
+                    ("version", lambda: "0.1", "version: set to 0.1 default"),
+                    ("owner", lambda: "__TBD__", "owner: set to __TBD__ placeholder"),
+                    ("docops_version", lambda: ns.docops_version or "2.0", "docops_version: set to default version"),
+                    ("last_updated", lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"), "last_updated: set to today"),
+                ]
+                
                 patch = {}
                 rationale = []
-                if "document_id" not in post.metadata:
-                    patch["document_id"] = "__TBD__"
-                    rationale.append("document_id: requires generation")
-                if "type" not in post.metadata:
-                    patch["type"] = inferred_type
-                    if type_rationale: rationale.append(f"type: {type_rationale}")
-                if "title" not in post.metadata:
-                    patch["title"] = inferred_title
-                    rationale.append("title: Inferred from heading or filename")
-                if "status" not in post.metadata:
-                    patch["status"] = "Draft"
-                    rationale.append("status: set to Draft default")
-                if "version" not in post.metadata:
-                    patch["version"] = "0.1"
-                    rationale.append("version: set to 0.1 default")
-                if "owner" not in post.metadata:
-                    patch["owner"] = "__TBD__"
-                    rationale.append("owner: set to __TBD__ placeholder")
-                if "docops_version" not in post.metadata:
-                    patch["docops_version"] = ns.docops_version or "2.0"
-                    rationale.append("docops_version: set to default version")
-                if "last_updated" not in post.metadata:
-                    patch["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                    rationale.append("last_updated: set to today")
+                for field, default_factory, rationale_msg in fields_to_patch:
+                    if field not in post.metadata:
+                        patch[field] = default_factory()
+                        rationale.append(rationale_msg)
                 
                 if patch:
                     action = PlanAction(
@@ -173,16 +167,23 @@ class HeuristicsService:
         return actions
 
     def _infer_doc_type(self, rel_path: str, ns: RepoConfig) -> Tuple[str, float, str]:
-        parts = Path(rel_path).parts
-        docs_root = ns.docs_root.strip("/").replace("\\", "/") if ns.docs_root else ""
-        docs_root_parts = tuple(Path(docs_root).parts) if docs_root else ()
+        # Check against type directories first, as it's the highest confidence signal.
+        # This is relative to the namespace's docs_dir.
+        abs_path = Path(self.root_dir) / rel_path
         
-        if docs_root_parts and tuple(parts[:len(docs_root_parts)]) == docs_root_parts:
-            rel_to_docs = Path(*parts[len(docs_root_parts):])
-            for doc_type, subdir in ns.type_directories.items():
-                sub_parts = Path(subdir).parts
-                if rel_to_docs.parts[:len(sub_parts)] == sub_parts:
-                    return doc_type, 0.9, f"path_segment:{subdir}"
+        # Determine the full docs directory for this namespace
+        if ns.docs_root:
+            docs_dir = Path(self.root_dir) / ns.docs_root.strip("/").replace("\\", "/")
+        else:
+            docs_dir = Path(self.root_dir)
+
+        for doc_type, subdir in ns.type_directories.items():
+            type_dir_path = docs_dir / subdir
+            try:
+                abs_path.relative_to(type_dir_path)
+                return doc_type, 0.9, f"path_segment:{subdir}"
+            except ValueError:
+                continue
 
         stem = Path(rel_path).stem.lower()
         if "adr" in stem or "decision" in stem:

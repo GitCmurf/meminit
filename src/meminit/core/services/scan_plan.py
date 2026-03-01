@@ -72,7 +72,7 @@ class PlanAction:
             action_priority = priority.get(action_enum, 99)
         except ValueError:
             action_priority = 99
-        return (self.source_path, action_priority)
+        return (self.source_path, action_priority, self.target_path, self.id)
 
 @dataclass
 class MigrationPlan:

@@ -69,8 +69,8 @@ def test_migration_plan_sorting():
     plan = MigrationPlan(actions=[a1, a2, a3])
     plan.sort_actions()
     
-    # Sort key is (target_path, action). a.md before b.md. 
-    # For a.md: insert_metadata_block vs move_file string comparison.
+    # Sort key is (source_path, action_priority, target_path, id). a.md before b.md. 
+    # For a.md: INSERT_METADATA_BLOCK (priority 0) before MOVE_FILE (priority 3).
     # insert < move
     assert plan.actions[0].id == "3"
     assert plan.actions[1].id == "2"

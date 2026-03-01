@@ -57,9 +57,6 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     assert plan_data["output_schema_version"] == "2.0"
     assert "plan" in plan_data["data"]
     actions = plan_data["data"]["plan"]["actions"]
-    print("====== GENERATED ACTIONS ======")
-    print(json.dumps(actions, indent=2))
-    print("===============================")
     assert len(actions) > 0
     
     # There should be an INSERT_METADATA_BLOCK action and a RENAME/MOVE action
