@@ -68,8 +68,10 @@ class HeuristicsService:
             
             # Generate Metadata block action
             if not post.metadata:
+                # Note: document_id uses "__TBD__" placeholder because unique ID generation
+                # requires full repository context. It will be replaced during plan execution.
                 metadata_patch = {
-                    "document_id": DEFAULT_OWNER,
+                    "document_id": DEFAULT_OWNER,  # Placeholder, replaced during execution
                     "type": inferred_type,
                     "title": inferred_title,
                     "status": DEFAULT_STATUS,
@@ -96,8 +98,10 @@ class HeuristicsService:
                 actions.append(action)
             else:
                 # Update metadata fields if missing
+                # Note: document_id uses "__TBD__" placeholder because unique ID generation
+                # requires full repository context. It will be replaced during plan execution.
                 fields_to_patch = [
-                    ("document_id", lambda: DEFAULT_OWNER, "document_id: requires generation"),
+                    ("document_id", lambda: DEFAULT_OWNER, "document_id: placeholder replaced during execution with unique ID"),
                     ("type", lambda: inferred_type, f"type: {type_rationale}" if type_rationale else "type: inferred"),
                     ("title", lambda: inferred_title, "title: Inferred from heading or filename"),
                     ("status", lambda: DEFAULT_STATUS, "status: set to Draft default"),

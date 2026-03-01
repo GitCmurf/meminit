@@ -2,7 +2,7 @@
 document_id: MEMINIT-SPEC-005
 type: SPEC
 title: Scan Plan Format
-status: Draft
+status: Approved
 version: "1.0"
 last_updated: 2026-03-01
 owner: Product Team
@@ -25,7 +25,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-SPEC-005
 > **Owner:** Product Team
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 1.0
 > **Last Updated:** 2026-03-01
 > **Type:** SPEC

@@ -2,9 +2,9 @@
 document_id: MEMINIT-PRD-004
 type: PRD
 title: Brownfield Adoption Hardening
-status: Draft
-version: "0.1"
-last_updated: 2026-02-18
+status: Implemented
+version: "1.0"
+last_updated: 2026-03-01
 owner: GitCmurf
 docops_version: "2.0"
 area: Adoption
@@ -26,9 +26,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-004
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-02-18
+> **Status:** Implemented
+> **Version:** 1.0
+> **Last Updated:** 2026-03-01
 > **Type:** PRD
 > **Area:** Adoption
 
@@ -69,12 +69,14 @@ Brownfield repos often have hundreds of Markdown files, inconsistent layouts, pa
 ## Scope
 
 In scope:
+
 - Scan improvements that produce per-file recommendations with confidence and rationale.
 - A migration plan artifact that can be applied by `meminit fix`.
 - Expanded `fix` coverage for common metadata and filename issues.
 - Config guidance for `docops.config.yaml` based on observed repo structure.
 
 Out of scope:
+
 - Re-structuring non-Markdown content.
 - Refactoring or splitting documents based on semantics.
 

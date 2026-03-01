@@ -3,10 +3,10 @@ document_id: MEMINIT-RUNBOOK-003
 type: RUNBOOK
 docops_version: "2.0"
 last_updated: "2026-03-01"
-status: Draft
+status: Approved
 title: Existing Repository Migration
 owner: GitCmurf
-version: "0.2"
+version: "1.0"
 ---
 
 # Runbook: Existing Repository Migration

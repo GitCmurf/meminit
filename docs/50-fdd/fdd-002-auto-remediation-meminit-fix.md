@@ -2,9 +2,9 @@
 document_id: MEMINIT-FDD-002
 type: FDD
 title: Auto-Remediation (meminit fix)
-status: Draft
-version: 0.1
-last_updated: 2025-12-22
+status: Implemented
+version: 1.0
+last_updated: 2026-03-01
 owner: GitCmurf
 docops_version: 2.0
 ---
@@ -23,6 +23,7 @@ Provide a safe, deterministic fixer that can automatically remediate common comp
 ## Functional Scope (v0.1)
 
 - Default mode is **dry-run**.
+- Supports plan-driven execution via `--plan <path>` to deterministically run a previously generated scan plan artifact.
 - When applied (`--no-dry-run`):
   - Rename files to satisfy filename convention, sanitizing invalid characters.
   - Add/repair frontmatter when missing to satisfy schema-required fields:

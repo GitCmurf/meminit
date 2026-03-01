@@ -21,9 +21,15 @@ def extract_title_from_markdown(body: str, fallback_stem: str) -> str:
 
 
 def build_default_frontmatter_patch(ns: RepoConfig, doc_type: str, inferred_title: str) -> Dict[str, Any]:
-    """Build a default frontmatter patch with all required fields."""
+    """
+    Build a default frontmatter patch with all required fields.
+
+    Note: The document_id is set to a placeholder (__TBD__) because a proper
+    unique document ID must be generated with knowledge of existing documents
+    in the repository. The caller should replace this with a generated ID.
+    """
     patch = {
-        "document_id": DEFAULT_OWNER,
+        "document_id": DEFAULT_OWNER,  # Placeholder - caller should generate unique ID
         "type": doc_type,
         "title": inferred_title,
         "status": DEFAULT_STATUS,

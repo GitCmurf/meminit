@@ -195,9 +195,9 @@ class FixRepositoryUseCase:
                     )
 
                 elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
+                    read_path = path_map.get(src_path, src_path)
                     if not dry_run:
                         # If the file was moved/renamed in a prior step, we need to read from its new location.
-                        read_path = path_map.get(src_path, src_path)
                         content_bytes = read_path.read_bytes()
                         post = safe_frontmatter_loads(content_bytes.decode('utf-8'))
 
