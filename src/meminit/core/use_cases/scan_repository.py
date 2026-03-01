@@ -12,6 +12,7 @@ import yaml
 from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.heuristics import HeuristicsService
+from meminit.core.services.path_utils import compute_file_hash
 
 TYPE_ALIASES: Dict[str, List[str]] = {
     "ADR": ["adrs", "decisions"],
@@ -160,8 +161,7 @@ class ScanRepositoryUseCase:
                 config_fingerprint_str = ""
                 if config_path.exists():
                     try:
-                        config_bytes = config_path.read_bytes()
-                        config_fingerprint_str = f"sha256:{hashlib.sha256(config_bytes).hexdigest()}"
+                        config_fingerprint_str = compute_file_hash(config_path)
                     except (OSError, IOError) as e:
                         logging.debug("Failed to hash config fingerprint: %s", e)
                 

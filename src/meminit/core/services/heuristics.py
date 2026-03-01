@@ -1,5 +1,3 @@
-import re
-import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -8,21 +6,10 @@ import frontmatter
 from meminit.core.services.repo_config import RepoConfig, RepoLayout
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.scan_plan import PlanAction, PlanActionType, ActionPreconditions, ActionSafety
+from meminit.core.services.path_utils import FILENAME_EXCEPTIONS, normalize_filename_to_kebab_case, compute_file_hash
+from meminit.core.services.markdown_utils import extract_title_from_markdown, DEFAULT_DOCOPS_VERSION, DEFAULT_STATUS, DEFAULT_VERSION, DEFAULT_OWNER
 
 class HeuristicsService:
-    FILENAME_EXCEPTIONS = frozenset({
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE",
-        "LICENSE.md",
-        "LICENCE",
-        "LICENCE.md",
-        "CODE_OF_CONDUCT.md",
-        "CONTRIBUTING.md",
-        "SECURITY.md",
-        "NOTICE",
-        "NOTICE.md",
-    })
 
     def __init__(self, root_dir: Path, layout: RepoLayout):
         self.root_dir = root_dir
@@ -37,7 +24,7 @@ class HeuristicsService:
 
             try:
                 content_bytes = path.read_bytes()
-                source_sha256 = f"sha256:{hashlib.sha256(content_bytes).hexdigest()}"
+                source_sha256 = compute_file_hash(path)
                 post = safe_frontmatter_loads(content_bytes.decode("utf-8"))
             except Exception as e:
                 import logging
@@ -55,11 +42,11 @@ class HeuristicsService:
                 inferred_type, type_conf, type_rationale = self._infer_doc_type(rel_path, ns)
             
             # Infer Title
-            inferred_title = self._infer_title(post.content, path.stem)
-            
-            # Path computation 
+            inferred_title = extract_title_from_markdown(post.content, path.stem)
+
+            # Path computation
             # 1. Check if filename matches standard (like fix does)
-            expected_filename = self._compute_renamed_path(path).name
+            expected_filename = normalize_filename_to_kebab_case(path).name
             
             # 2. Check if it's in the right type directory
             expected_dir = ns.type_directories.get(inferred_type)
@@ -82,13 +69,13 @@ class HeuristicsService:
             # Generate Metadata block action
             if not post.metadata:
                 metadata_patch = {
-                    "document_id": "__TBD__",
+                    "document_id": DEFAULT_OWNER,
                     "type": inferred_type,
                     "title": inferred_title,
-                    "status": "Draft",
-                    "version": "0.1",
-                    "owner": "__TBD__",
-                    "docops_version": ns.docops_version or "2.0",
+                    "status": DEFAULT_STATUS,
+                    "version": DEFAULT_VERSION,
+                    "owner": DEFAULT_OWNER,
+                    "docops_version": ns.docops_version or DEFAULT_DOCOPS_VERSION,
                     "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                 }
                 rationale = ["File lacks a frontmatter block."]
@@ -110,13 +97,13 @@ class HeuristicsService:
             else:
                 # Update metadata fields if missing
                 fields_to_patch = [
-                    ("document_id", lambda: "__TBD__", "document_id: requires generation"),
+                    ("document_id", lambda: DEFAULT_OWNER, "document_id: requires generation"),
                     ("type", lambda: inferred_type, f"type: {type_rationale}" if type_rationale else "type: inferred"),
                     ("title", lambda: inferred_title, "title: Inferred from heading or filename"),
-                    ("status", lambda: "Draft", "status: set to Draft default"),
-                    ("version", lambda: "0.1", "version: set to 0.1 default"),
-                    ("owner", lambda: "__TBD__", "owner: set to __TBD__ placeholder"),
-                    ("docops_version", lambda: ns.docops_version or "2.0", "docops_version: set to default version"),
+                    ("status", lambda: DEFAULT_STATUS, "status: set to Draft default"),
+                    ("version", lambda: DEFAULT_VERSION, "version: set to 0.1 default"),
+                    ("owner", lambda: DEFAULT_OWNER, "owner: set to __TBD__ placeholder"),
+                    ("docops_version", lambda: ns.docops_version or DEFAULT_DOCOPS_VERSION, "docops_version: set to default version"),
                     ("last_updated", lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"), "last_updated: set to today"),
                 ]
                 
@@ -195,25 +182,8 @@ class HeuristicsService:
 
         return "DOC", 0.4, "fallback default"
 
-    def _infer_title(self, body: str, fallback_stem: str) -> str:
-        for line in body.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                title = stripped.lstrip("#").strip()
-                if title:
-                    return title
-        return fallback_stem.replace("-", " ").strip().title() or "Untitled"
-
     def _compute_renamed_path(self, original_path: Path) -> Path:
-        if original_path.name in self.FILENAME_EXCEPTIONS:
-            return original_path
-        stem = original_path.stem.lower()
-        suffix = original_path.suffix.lower()
+        return normalize_filename_to_kebab_case(original_path)
 
-        stem = stem.replace(" ", "-").replace("_", "-")
-        stem = re.sub(r"[^a-z0-9-]", "-", stem)
-        stem = re.sub(r"-{2,}", "-", stem).strip("-")
-        if not stem:
-            stem = "doc"
-
-        return original_path.parent / f"{stem}{suffix}"
+    def _infer_title(self, body: str, fallback_stem: str) -> str:
+        return extract_title_from_markdown(body, fallback_stem)

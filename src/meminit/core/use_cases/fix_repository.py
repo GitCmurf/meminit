@@ -2,12 +2,11 @@ import re
 import shutil
 import hashlib
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import frontmatter
-import yaml
 import logging
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.observability import log_event
@@ -20,22 +19,11 @@ from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType
+from meminit.core.services.path_utils import FILENAME_EXCEPTIONS, normalize_filename_to_kebab_case, compute_file_hash
+from meminit.core.services.markdown_utils import extract_title_from_markdown, DEFAULT_DOCOPS_VERSION
 
 
 class FixRepositoryUseCase:
-    FILENAME_EXCEPTIONS = {
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE",
-        "LICENSE.md",
-        "LICENCE",
-        "LICENCE.md",
-        "CODE_OF_CONDUCT.md",
-        "CONTRIBUTING.md",
-        "SECURITY.md",
-        "NOTICE",
-        "NOTICE.md",
-    }
 
     def __init__(self, root_dir: str):
         self._layout = load_repo_layout(root_dir)
@@ -133,12 +121,13 @@ class FixRepositoryUseCase:
 
             # 3. Drift Detection
             if action.preconditions.source_sha256 and src_path not in modified_paths:
-                if not src_path.exists():
+                try:
+                    current_sha256 = compute_file_hash(src_path)
+                except FileNotFoundError:
                     report.remaining_violations.append(
                         Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file is missing.")
                     )
                     continue
-                current_sha256 = f"sha256:{hashlib.sha256(src_path.read_bytes()).hexdigest()}"
                 if current_sha256 != action.preconditions.source_sha256:
                     report.remaining_violations.append(
                         Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file hash mismatch.")
@@ -174,14 +163,14 @@ class FixRepositoryUseCase:
                             operation="plan_action_applied",
                             success=True,
                             details={
-                                "action": action.action.value if hasattr(action.action, 'value') else str(action.action),
+                                "action": str(action.action),
                                 "source": str(action.source_path),
                                 "target": str(action.target_path)
                             }
                         )
 
                     report.fixed_violations.append(
-                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description=f"Moved/Renamed {action.source_path} to {action.target_path}")
+                        FixAction(file=v_file, action=str(action.action), description=f"Moved/Renamed {action.source_path} to {action.target_path}" if not dry_run else f"Would move/rename {action.source_path} to {action.target_path}")
                     )
 
                 elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
@@ -217,7 +206,7 @@ class FixRepositoryUseCase:
                             operation="plan_action_applied",
                             success=True,
                             details={
-                                "action": action.action.value if hasattr(action.action, 'value') else str(action.action),
+                                "action": str(action.action),
                                 "source": str(action.source_path),
                                 "target": str(action.target_path),
                                 "metadata_patch": action.metadata_patch
@@ -225,7 +214,7 @@ class FixRepositoryUseCase:
                         )
 
                     report.fixed_violations.append(
-                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description="Applied metadata patch" if not dry_run else "Would apply metadata patch")
+                        FixAction(file=v_file, action=str(action.action), description="Applied metadata patch" if not dry_run else "Would apply metadata patch")
                     )
                 else:
                     report.remaining_violations.append(
@@ -340,18 +329,7 @@ class FixRepositoryUseCase:
 
     def _compute_renamed_path(self, original_path: Path) -> Path:
         """Compute the target path after applying filename conventions."""
-        if original_path.name in self.FILENAME_EXCEPTIONS:
-            return original_path
-        stem = original_path.stem.lower()
-        suffix = original_path.suffix.lower()
-
-        stem = stem.replace(" ", "-").replace("_", "-")
-        stem = re.sub(r"[^a-z0-9-]", "-", stem)
-        stem = re.sub(r"-{2,}", "-", stem).strip("-")
-        if not stem:
-            stem = "doc"
-
-        return original_path.parent / f"{stem}{suffix}"
+        return normalize_filename_to_kebab_case(original_path)
 
     def _apply_file_fixes(
         self, path: Path, violations: List[Violation], report: FixReport, dry_run: bool
@@ -458,8 +436,8 @@ class FixRepositoryUseCase:
             "docops_version" in violation.message
             and "docops_version" not in post.metadata
         ):
-            post.metadata["docops_version"] = str(ns.docops_version or "2.0")
-            action = FixAction(rel_path, "Update docops_version", "Set to 2.0")
+            post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
+            action = FixAction(rel_path, "Update docops_version", f"Set to {DEFAULT_DOCOPS_VERSION}")
             report.fixed_violations.append(action)
             modified = True
 
@@ -471,10 +449,10 @@ class FixRepositoryUseCase:
         actions: List[FixAction] = []
         # Required schema fields
         if "docops_version" not in post.metadata:
-            post.metadata["docops_version"] = str(ns.docops_version or "2.0")
-            actions.append(FixAction(rel_path, "Update docops_version", "Set to 2.0"))
+            post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
+            actions.append(FixAction(rel_path, "Update docops_version", f"Set to {DEFAULT_DOCOPS_VERSION}"))
         if "last_updated" not in post.metadata:
-            post.metadata["last_updated"] = date.today().isoformat()
+            post.metadata["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             actions.append(
                 FixAction(rel_path, "Update last_updated", "Set to today's date")
             )
@@ -532,13 +510,7 @@ class FixRepositoryUseCase:
         return "DOC"
 
     def _infer_title(self, body: str, fallback_stem: str) -> str:
-        for line in body.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                title = stripped.lstrip("#").strip()
-                if title:
-                    return title
-        return fallback_stem.replace("-", " ").strip().title() or "Untitled"
+        return extract_title_from_markdown(body, fallback_stem)
 
     def _is_schema_compliant(self, metadata: Dict[str, Any], ns: RepoConfig) -> bool:
         normalized = self._normalize_metadata_for_schema(metadata)

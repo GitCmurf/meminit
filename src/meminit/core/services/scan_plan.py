@@ -80,12 +80,15 @@ class MigrationPlan:
     generated_at: str = ""
     config_fingerprint: str = ""
     actions: List[PlanAction] = field(default_factory=list)
+    _sorted: bool = field(default=False, init=False, repr=False)
 
     def sort_actions(self):
         self.actions.sort(key=lambda a: a.sort_key())
-    
+        self._sorted = True
+
     def as_dict(self) -> Dict[str, Any]:
-        self.sort_actions()
+        if not self._sorted:
+            self.sort_actions()
         return {
             "plan_version": self.plan_version,
             "generated_at": self.generated_at,
@@ -128,4 +131,5 @@ class MigrationPlan:
             actions=actions
         )
         plan.sort_actions()
+        plan._sorted = True
         return plan
