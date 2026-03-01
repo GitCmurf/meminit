@@ -77,19 +77,6 @@ class FixRepositoryUseCase:
         violations = self.checker.execute()
         self._existing_document_ids = self._scan_existing_document_ids()
 
-        if target_ns is None and namespace:
-            pass # Pre-empted above.
-            report.remaining_violations.append(
-                Violation(
-                    file="docops.config.yaml",
-                    line=0,
-                    rule="CONFIG_INVALID",
-                    message=f"Unknown namespace: {namespace}",
-                    severity=Severity.ERROR,
-                )
-            )
-            return report
-
         if target_ns is not None:
             filtered: list[Violation] = []
             for v in violations:
@@ -117,6 +104,7 @@ class FixRepositoryUseCase:
         report = FixReport()
         self._existing_document_ids = self._scan_existing_document_ids()
         modified_paths = set()
+        path_map = {}
 
         for action in plan.actions:
             v_file = action.target_path or action.source_path
@@ -178,6 +166,7 @@ class FixRepositoryUseCase:
                         shutil.move(str(src_path), str(target_path))
                     modified_paths.add(target_path)
                     modified_paths.add(src_path)
+                    path_map[src_path] = target_path
                     
                     if not dry_run:
                         log_event(
@@ -197,7 +186,7 @@ class FixRepositoryUseCase:
                 elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
                     if not dry_run:
                         # If the file was moved/renamed in a prior step, we need to read from its new location.
-                        read_path = target_path if target_path in modified_paths else src_path
+                        read_path = path_map.get(src_path, src_path)
                         content_bytes = read_path.read_bytes()
                         post = safe_frontmatter_loads(content_bytes.decode('utf-8'))
 

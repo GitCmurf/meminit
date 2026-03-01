@@ -59,7 +59,7 @@ class ScanRepositoryUseCase:
     def __init__(self, root_dir: str):
         self._root_dir = Path(root_dir).resolve()
 
-    def execute(self) -> ScanReport:
+    def execute(self, generate_plan: bool = False) -> ScanReport:
         layout = load_repo_layout(self._root_dir)
         config_path = self._root_dir / "docops.config.yaml"
         existing_config = self._load_config(config_path)
@@ -152,7 +152,7 @@ class ScanRepositoryUseCase:
             )
 
         plan = None
-        if target_files:
+        if target_files and generate_plan:
             heuristics = HeuristicsService(self._root_dir, layout)
             actions = heuristics.generate_plan_actions(target_files)
             if actions:

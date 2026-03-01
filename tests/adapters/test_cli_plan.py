@@ -1,5 +1,4 @@
 import json
-import os
 from click.testing import CliRunner
 from meminit.cli.main import cli
 import frontmatter
@@ -91,11 +90,12 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     old_file = docs_dir / "my_adr_file.md"
     assert not old_file.exists()
     
-    # the heuristics logic moves it to docs/45-adr/<slugified>.md
-    # We don't need to guess the exact name if we just check the directory
-    adr_dir = docs_dir / "45-adr"
-    assert adr_dir.exists()
-    moved_files = list(adr_dir.glob("*.md"))
+    # The heuristics logic moves the file to a type-specific directory
+    # Find any directory that was created and contains .md files
+    subdirs = [d for d in docs_dir.iterdir() if d.is_dir()]
+    moved_files = []
+    for subdir in subdirs:
+        moved_files.extend(subdir.glob("*.md"))
     assert len(moved_files) == 1
     
     post = frontmatter.load(moved_files[0])

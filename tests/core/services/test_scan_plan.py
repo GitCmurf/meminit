@@ -1,4 +1,3 @@
-import pytest
 from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType, ActionPreconditions, ActionSafety
 
 def test_plan_action_id_generation():

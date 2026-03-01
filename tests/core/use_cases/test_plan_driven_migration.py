@@ -31,7 +31,7 @@ def test_plan_driven_migration_e2e(tmp_path: Path):
 
     # Scan to generate plan
     scanner = ScanRepositoryUseCase(str(tmp_path))
-    report = scanner.execute()
+    report = scanner.execute(generate_plan=True)
     
     plan = report.plan
     assert plan is not None

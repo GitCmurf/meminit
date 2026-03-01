@@ -824,8 +824,6 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
                 plan_data = data.get("data", {}).get("plan") or data  # Handle envelope or direct
                 plan_obj = MigrationPlan.from_dict(plan_data)
             except Exception as e:
-                from meminit.core.services.output_formatter import format_error_envelope
-                from meminit.core.services.error_codes import ErrorCode
                 if format == "json":
                     _write_output(
                         format_error_envelope(
@@ -951,7 +949,7 @@ def scan(root, plan, format, output, include_timestamp):
         )
 
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
-        report = use_case.execute()
+        report = use_case.execute(generate_plan=bool(plan))
         scan_data = report.as_dict()
 
         if plan and report.plan:
@@ -970,8 +968,6 @@ def scan(root, plan, format, output, include_timestamp):
                     get_console().print(f"[bold green]Saved migration plan to {plan}[/bold green]")
             except Exception as e:
                 if format == "json":
-                    from meminit.core.services.output_formatter import format_error_envelope
-                    from meminit.core.services.error_codes import ErrorCode
                     _write_output(
                         format_error_envelope(
                             command="scan", 
@@ -983,10 +979,10 @@ def scan(root, plan, format, output, include_timestamp):
                         ),
                         output
                     )
-                    raise SystemExit(1)
+                    raise SystemExit(1) from e
                 else:
                     get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
-                    raise SystemExit(1)
+                    raise SystemExit(1) from e
 
         if format == "json":
             _write_output(
