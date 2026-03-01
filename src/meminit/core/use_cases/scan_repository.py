@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import datetime
 import hashlib
+import logging
 
 import yaml
 
@@ -161,8 +162,7 @@ class ScanRepositoryUseCase:
                     try:
                         config_bytes = config_path.read_bytes()
                         config_fingerprint_str = f"sha256:{hashlib.sha256(config_bytes).hexdigest()}"
-                    except Exception as e:
-                        import logging
+                    except (OSError, IOError) as e:
                         logging.debug("Failed to hash config fingerprint: %s", e)
                 
                 plan = MigrationPlan(

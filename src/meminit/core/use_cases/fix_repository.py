@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import frontmatter
 import yaml
+import logging
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.observability import log_event
 
@@ -224,14 +225,13 @@ class FixRepositoryUseCase:
                         )
 
                     report.fixed_violations.append(
-                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description="Applied metadata patch")
+                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description="Applied metadata patch" if not dry_run else "Would apply metadata patch")
                     )
                 else:
                     report.remaining_violations.append(
                         Violation(file=v_file, line=0, rule="UNKNOWN_ACTION", message=f"Unknown action {action.action}")
                     )
             except Exception as e:
-                import logging
                 logging.exception(f"Failed to apply action {action.action} for {v_file}")
                 report.remaining_violations.append(
                     Violation(file=v_file, line=0, rule="APPLY_ERROR", message=f"Action failed: {e}")
