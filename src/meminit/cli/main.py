@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import json
 import os
 import shlex
@@ -970,10 +971,10 @@ def scan(root, plan, format, output, include_timestamp):
                 if format == "json":
                     _write_output(
                         format_error_envelope(
-                            command="scan", 
-                            root=str(root_path), 
+                            command="scan",
+                            root=str(root_path),
                             error_code=ErrorCode.UNKNOWN_ERROR,
-                            message=f"Failed to save plan: {e}", 
+                            message=f"Failed to save plan: {e}",
                             run_id=run_id,
                             include_timestamp=include_timestamp
                         ),
@@ -982,7 +983,33 @@ def scan(root, plan, format, output, include_timestamp):
                     raise SystemExit(1) from e
                 else:
                     get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
-                    raise SystemExit(1) from e
+        elif plan:
+            # Plan was requested but no actions were generated
+            if format != "json":
+                get_console().print("[yellow]No plan actions generated — repository may already be compliant.[/yellow]")
+            # Write an empty plan envelope so downstream tooling gets a stable artifact
+            try:
+                from meminit.core.services.scan_plan import MigrationPlan
+                empty_plan = MigrationPlan(
+                    plan_version="1.0",
+                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    config_fingerprint="",
+                    actions=[]
+                )
+                empty_plan_json = format_envelope(
+                    command="scan",
+                    root=str(root_path),
+                    success=True,
+                    data={"plan": empty_plan.as_dict()},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                )
+                with open(plan, "w", encoding="utf-8") as f:
+                    f.write(empty_plan_json + "\n")
+                if format != "json":
+                    get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
+            except Exception:
+                pass  # Best-effort write, don't fail on empty plan
 
         if format == "json":
             _write_output(

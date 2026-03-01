@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -27,7 +28,6 @@ class HeuristicsService:
                 source_sha256 = compute_file_hash(path)
                 post = safe_frontmatter_loads(content_bytes.decode("utf-8"))
             except Exception as e:
-                import logging
                 logging.warning("meminit scan --plan failed to parse %s: %s", path, e)
                 continue
 
