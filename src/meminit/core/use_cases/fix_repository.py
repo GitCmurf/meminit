@@ -1,5 +1,6 @@
 import re
 import shutil
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -14,6 +15,7 @@ from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
+from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType
 
 
 class FixRepositoryUseCase:
@@ -38,7 +40,21 @@ class FixRepositoryUseCase:
         self._existing_document_ids: set[str] = set()
         self._schema_validators: dict[str, SchemaValidator] = {}
 
-    def execute(self, dry_run: bool = False, namespace: str | None = None) -> FixReport:
+    def execute(self, dry_run: bool = False, namespace: str | None = None, plan: Optional[MigrationPlan] = None) -> FixReport:
+        if plan is not None:
+            report = self._execute_plan(plan, dry_run)
+            
+            # Post-plan compliance check to populate remaining violations
+            violations = self.checker.execute()
+            if namespace:
+                target_ns = self._layout.get_namespace(namespace)
+                if target_ns:
+                    ns_root = str(Path(self.root_dir) / target_ns.docs_root)
+                    violations = [v for v in violations if v.file.startswith(ns_root)]
+            
+            report.remaining_violations.extend(violations)
+            return report
+
         # 1. Run Check
         violations = self.checker.execute()
         self._existing_document_ids = self._scan_existing_document_ids()
@@ -77,6 +93,112 @@ class FixRepositoryUseCase:
 
         # 3. Handle Content Fixes
         self._process_content_fixes(other_violations, report, dry_run)
+
+        return report
+
+    def _execute_plan(self, plan: MigrationPlan, dry_run: bool) -> FixReport:
+        report = FixReport()
+        self._existing_document_ids = self._scan_existing_document_ids()
+        modified_paths = set()
+
+        for action in plan.actions:
+            v_file = action.target_path or action.source_path
+            src_path = self.root_dir / action.source_path
+            target_path = self.root_dir / action.target_path
+
+            # 1. Safe Path Validation
+            try:
+                ensure_safe_write_path(root_dir=self.root_dir, target_path=src_path)
+                ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
+            except MeminitError as exc:
+                if exc.code == ErrorCode.PATH_ESCAPE:
+                    report.remaining_violations.append(
+                        Violation(file=v_file, line=0, rule="UNSAFE_PATH", message=exc.message)
+                    )
+                    continue
+                raise
+
+            # 2. Non-Destructive Validation
+            if action.safety.destructive:
+                report.remaining_violations.append(
+                    Violation(file=v_file, line=0, rule="UNSAFE_ACTION", message="Destructive actions are forbidden.")
+                )
+                continue
+
+            # 3. Drift Detection
+            if action.preconditions.source_sha256 and src_path not in modified_paths:
+                if not src_path.exists():
+                    report.remaining_violations.append(
+                        Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file is missing.")
+                    )
+                    continue
+                current_sha256 = f"sha256:{hashlib.sha256(src_path.read_bytes()).hexdigest()}"
+                if current_sha256 != action.preconditions.source_sha256:
+                    report.remaining_violations.append(
+                        Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file hash mismatch.")
+                    )
+                    continue
+
+            # 4. Collision Policy
+            if src_path != target_path and target_path.exists() and not action.safety.overwrites:
+                report.remaining_violations.append(
+                    Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists.")
+                )
+                continue
+
+            # Apply Phase
+            try:
+                if action.action in (PlanActionType.RENAME_FILE, PlanActionType.MOVE_FILE):
+                    if not dry_run:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(src_path), str(target_path))
+                    modified_paths.add(target_path)
+                    modified_paths.add(src_path)
+                    report.fixed_violations.append(
+                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description=f"Moved/Renamed {action.source_path} to {action.target_path}")
+                    )
+
+                elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
+                    if not dry_run:
+                        try:
+                            content_bytes = src_path.read_bytes()
+                            post = frontmatter.loads(content_bytes.decode('utf-8'))
+                        except Exception:
+                            post = frontmatter.Post("")
+
+                        if not post.metadata:
+                            post.metadata = {}
+                        
+                        patch = action.metadata_patch or {}
+                        for k, v in patch.items():
+                            post.metadata[k] = v
+
+                        if "document_id" not in post.metadata or post.metadata.get("document_id") == "__TBD__":
+                            ns = self._layout.namespace_for_path(src_path)
+                            doc_type = post.metadata.get("type", "DOC")
+                            if ns:
+                                post.metadata["document_id"] = self._generate_unique_document_id(doc_type, ns)
+
+                        post.metadata = normalize_yaml_scalar_footguns(post.metadata)
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(target_path, "w", encoding="utf-8") as f:
+                            f.write(frontmatter.dumps(post))
+                    
+                    modified_paths.add(target_path)
+                    modified_paths.add(src_path)
+                    report.fixed_violations.append(
+                        FixAction(file=v_file, action=action.action.value if hasattr(action.action, 'value') else str(action.action), description="Applied metadata patch")
+                    )
+                else:
+                    report.remaining_violations.append(
+                        Violation(file=v_file, line=0, rule="UNKNOWN_ACTION", message=f"Unknown action {action.action}")
+                    )
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                report.remaining_violations.append(
+                    Violation(file=v_file, line=0, rule="APPLY_ERROR", message=str(e))
+                )
 
         return report
 

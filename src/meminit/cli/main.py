@@ -784,13 +784,14 @@ def doctor(root, format, output, include_timestamp, strict):
 
 @cli.command()
 @agent_repo_options()
+@click.option("--plan", type=click.Path(exists=True, dir_okay=False), default=None, help="Apply a deterministic migration plan")
 @click.option("--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files")
 @click.option(
     "--namespace",
     default=None,
     help="Limit fixes to a single namespace (monorepo safety)",
 )
-def fix(root, dry_run, namespace, format, output, include_timestamp):
+def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
     """Automatically fix common compliance violations."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
@@ -801,6 +802,8 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
                 msg = "[bold blue]Meminit Compliance Fixer[/bold blue]"
                 if dry_run:
                     msg += " [yellow](DRY RUN)[/yellow]"
+                if plan:
+                    msg += f" [cyan](Using Plan: {plan})[/cyan]"
                 get_console().print(msg)
 
         validate_root_path(
@@ -812,8 +815,36 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
             output=output,
         )
 
+        plan_obj = None
+        if plan:
+            try:
+                import json
+                with open(plan, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                from meminit.core.services.scan_plan import MigrationPlan
+                plan_data = data.get("data", {}).get("plan") or data  # Handle envelope or direct
+                plan_obj = MigrationPlan.from_dict(plan_data)
+            except Exception as e:
+                from meminit.core.services.output_formatter import format_error_envelope
+                from meminit.core.services.error_codes import ErrorCode
+                if format == "json":
+                    _write_output(
+                        format_error_envelope(
+                            command="fix", 
+                            root=str(root_path), 
+                            error_code=ErrorCode.VALIDATION_ERROR,
+                            message=f"Failed to load plan: {e}", 
+                            run_id=run_id,
+                            include_timestamp=include_timestamp
+                        ),
+                        output
+                    )
+                else:
+                    get_console().print(f"[bold red]Failed to load plan: {e}[/bold red]")
+                raise SystemExit(1)
+
         use_case = FixRepositoryUseCase(root_dir=str(root_path))
-        report = use_case.execute(dry_run=dry_run, namespace=namespace)
+        report = use_case.execute(dry_run=dry_run, namespace=namespace, plan=plan_obj)
         has_remaining = bool(report.remaining_violations)
         exit_code = EX_COMPLIANCE_FAIL if has_remaining else 0
 
@@ -899,7 +930,8 @@ def fix(root, dry_run, namespace, format, output, include_timestamp):
 
 @cli.command()
 @agent_repo_options()
-def scan(root, format, output, include_timestamp):
+@click.option("--plan", type=click.Path(), default=None, help="Output deterministic migration plan to file")
+def scan(root, plan, format, output, include_timestamp):
     """Scan a repository and suggest a DocOps migration plan (read-only)."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
@@ -917,6 +949,41 @@ def scan(root, format, output, include_timestamp):
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
         report = use_case.execute()
         scan_data = report.as_dict()
+
+        if plan and report.plan:
+            try:
+                import json
+                plan_json = format_envelope(
+                    command="scan",
+                    root=str(root_path),
+                    success=True,
+                    data={"plan": report.plan.as_dict()},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                )
+                with open(plan, "w", encoding="utf-8") as f:
+                    f.write(plan_json + "\n")
+                if format != "json":
+                    get_console().print(f"[bold green]Saved migration plan to {plan}[/bold green]")
+            except Exception as e:
+                if format == "json":
+                    from meminit.core.services.output_formatter import format_error_envelope
+                    from meminit.core.services.error_codes import ErrorCode
+                    _write_output(
+                        format_error_envelope(
+                            command="scan", 
+                            root=str(root_path), 
+                            error_code=ErrorCode.UNKNOWN_ERROR,
+                            message=f"Failed to save plan: {e}", 
+                            run_id=run_id,
+                            include_timestamp=include_timestamp
+                        ),
+                        output
+                    )
+                    raise SystemExit(1)
+                else:
+                    get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
+                    raise SystemExit(1)
 
         if format == "json":
             _write_output(
