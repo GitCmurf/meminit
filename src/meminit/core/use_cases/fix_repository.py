@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import frontmatter
-import logging
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.observability import log_event
 
@@ -242,7 +241,15 @@ class FixRepositoryUseCase:
                         Violation(file=v_file, line=0, rule="UNKNOWN_ACTION", message=f"Unknown action {action.action}")
                     )
             except Exception as e:
-                logging.exception(f"Failed to apply action {action.action} for {v_file}")
+                log_event(
+                    operation="plan_action_failed",
+                    success=False,
+                    details={
+                        "action": str(action.action),
+                        "file": str(v_file),
+                        "error": str(e)
+                    }
+                )
                 report.remaining_violations.append(
                     Violation(file=v_file, line=0, rule="APPLY_ERROR", message=f"Action failed: {e}")
                 )
@@ -288,7 +295,14 @@ class FixRepositoryUseCase:
                     else:
                         report.remaining_violations.append(v)
                 except Exception as e:
-                    print(f"Failed to rename {v.file}: {e}")
+                    log_event(
+                        operation="rename_failed",
+                        success=False,
+                        details={
+                            "file": str(v.file),
+                            "error": str(e)
+                        }
+                    )
                     report.remaining_violations.append(v)
             else:
                 # In dry-run, we just record intent
@@ -399,7 +413,14 @@ class FixRepositoryUseCase:
                     f.write(content)
 
         except Exception as e:
-            print(f"Failed to apply fixes to {path}: {e}")
+            log_event(
+                operation="apply_fixes_failed",
+                success=False,
+                details={
+                    "file": str(path),
+                    "error": str(e)
+                }
+            )
             report.remaining_violations.extend(violations)
 
     def _apply_single_fix(
