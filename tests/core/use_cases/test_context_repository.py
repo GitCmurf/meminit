@@ -111,7 +111,7 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
     # Allow first namespace to complete, then hit the budget before the next.
     with patch(
         "meminit.core.use_cases.context_repository.time.monotonic",
-        new=monotonic_values([0.0, 0.0, 0.0, 0.0, 2.1]),
+        new=monotonic_values([0.0, 0.0, 0.0, 0.0, 10.1]),
     ):
         result = use_case.execute(deep=True)
 
@@ -125,10 +125,10 @@ def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
         {
             "code": "DEEP_BUDGET_EXCEEDED",
             "message": (
-                "Deep scan performance budget (2s) exceeded; "
+                "Deep scan performance budget (10s) exceeded; "
                 "some namespace counts are incomplete."
             ),
-            "path": "docops.config.yaml",
+            "path": ".",
         }
     ]
 
@@ -161,7 +161,7 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
         def _fn():
             nonlocal calls
             calls += 1
-            return 0.0 if calls <= calls_before_deadline else 2.1
+            return 0.0 if calls <= calls_before_deadline else 10.1
 
         return _fn
 
@@ -179,3 +179,21 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
     assert namespaces[1]["document_count"] is None
     assert namespaces[2]["document_count"] is None
     assert result.warnings and result.warnings[0]["code"] == "DEEP_BUDGET_EXCEEDED"
+
+
+def test_context_repository_default_owner_none_when_missing(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "\n".join(
+            [
+                "project_name: Test",
+                "repo_prefix: TST",
+                "docops_version: '2.0'",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    use_case = ContextRepositoryUseCase(root_dir=tmp_path)
+    result = use_case.execute(deep=False)
+    assert result.data["default_owner"] is None

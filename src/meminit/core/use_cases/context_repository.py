@@ -5,7 +5,7 @@ repository's ``docops.config.yaml`` via ``load_repo_layout()`` and returns a
 structured payload that an agent can use to understand namespace layout, type
 directories, templates, and exclusion rules.
 
-Deep mode (``--deep``) adds per-namespace document counts with a 2-second
+Deep mode (``--deep``) adds per-namespace document counts with a 10-second
 performance budget.  If the budget is exceeded, partial results are returned
 with ``deep_incomplete: true`` and a warning.
 """
@@ -70,7 +70,9 @@ def _load_config_yaml(root_dir: Path) -> Dict[str, Any]:
         return {}
 
 
-def _resolve_default_owner(config: Dict[str, Any], default_namespace_name: str) -> str:
+def _resolve_default_owner(
+    config: Dict[str, Any], default_namespace_name: str
+) -> str | None:
     namespaces = config.get("namespaces")
     if isinstance(namespaces, list):
         for ns in namespaces:
@@ -86,7 +88,7 @@ def _resolve_default_owner(config: Dict[str, Any], default_namespace_name: str) 
     owner = config.get("default_owner")
     if isinstance(owner, str) and owner.strip():
         return owner.strip()
-    return "__TBD__"
+    return None
 
 
 class ContextRepositoryUseCase:
@@ -100,7 +102,7 @@ class ContextRepositoryUseCase:
 
         Args:
             deep: If True, include per-namespace document counts
-                (subject to 2-second performance budget).
+                (subject to 10-second performance budget).
 
         Returns:
             ContextResult with structured context data and optional warnings.
@@ -145,7 +147,7 @@ class ContextRepositoryUseCase:
         }
 
         if deep:
-            budget_seconds = 2.0
+            budget_seconds = 10.0
             start = time.monotonic()
             deadline = start + budget_seconds
             deep_incomplete = False
@@ -178,10 +180,10 @@ class ContextRepositoryUseCase:
                     {
                         "code": "DEEP_BUDGET_EXCEEDED",
                         "message": (
-                            "Deep scan performance budget (2s) exceeded; "
+                            "Deep scan performance budget (10s) exceeded; "
                             "some namespace counts are incomplete."
                         ),
-                        "path": "docops.config.yaml",
+                        "path": ".",
                     }
                 )
 

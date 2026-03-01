@@ -120,12 +120,22 @@ Plain English: The envelope tells you what command ran, where it ran, and what i
 
 Successful outputs MUST include the top-level fields listed in Section 4.1. Failed outputs MUST be a single JSON object and follow one of two shapes: an **error envelope** (with top-level `error`) for operational failures, or a **validation-failure envelope** (with top-level `violations`) for non-operational compliance findings.
 
-Exception for validation findings:
+### 5.1 Error Taxonomy
 
-- `meminit check` MAY return `success: false` with populated `violations` and without a top-level `error` object when the command completed normally but found compliance failures.
-- A top-level `error` object is reserved for operational failures (for example invalid CLI arguments, path escapes, missing config for command execution).
+Meminit distinguishes between two types of failures to allow agents to handle them appropriately:
 
-### 5.1 Error Object
+1. **Operational Errors**: Prevent the command from executing.
+   - **JSON**: `success: false`, `error` object present.
+   - **Arrays**: `warnings`, `violations`, `advice` are empty `[]`.
+   - **Examples**: `CONFIG_MISSING`, `PATH_ESCAPE`, `UNKNOWN_TYPE`.
+2. **Compliance Violations**: Successful execution that found non-compliant documents.
+   - **JSON**: `success: false` (for `check`), `error` object absent.
+   - **Arrays**: `violations` populated with findings.
+   - **Examples**: `MISSING_FIELD`, `SCHEMA_INVALID`, `BROKEN_LINK`.
+
+Plain English: If `error` exists, the tool failed; if `violations` exist, the documents failed.
+
+### 5.2 Error Object
 
 The `error` object MUST include:
 

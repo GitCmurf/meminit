@@ -22,8 +22,17 @@ class TestObservability:
         assert len(id1) == 36  # Full UUIDv4
 
     def test_get_run_id_uses_env(self, monkeypatch):
-        monkeypatch.setenv("MEMINIT_RUN_ID", "test1234")
-        assert get_run_id() == "test1234"
+        monkeypatch.setenv("MEMINIT_RUN_ID", "00000000-0000-4000-8000-000000000000")
+        assert get_run_id() == "00000000-0000-4000-8000-000000000000"
+
+    def test_get_run_id_invalid_env_falls_back(self, monkeypatch):
+        monkeypatch.setenv("MEMINIT_RUN_ID", "not-a-uuid")
+        run_id = get_run_id()
+        assert run_id != "not-a-uuid"
+        assert re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+            run_id,
+        )
 
     def test_get_log_format_default(self, monkeypatch):
         monkeypatch.delenv("MEMINIT_LOG_FORMAT", raising=False)

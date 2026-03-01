@@ -1,6 +1,6 @@
 # Engineering Principles
 
-(GitCmurf v.1.0 2025-02-18)
+(GitCmurf v.1.1 2026-02-28)
 
 > **Audience**: AI agentic coding assistants (Claude, Codex, Gemini, etc.) and human contributors.
 > **Scope**: Universal engineering standards. For repo-specific rules (DocOps, governance, CLI workflows), see [`AGENTS.md`](AGENTS.md).
@@ -24,7 +24,7 @@ Do not submit one without the others. Partial deliveries create drift.
 ## 2. Architecture & Design
 
 - **Separation of concerns**: isolate API/transport, business logic, and data access into distinct modules. A database import in a route handler is a code smell.
-- **Emphasise reusability**: design for reusability and always seek to reuse existing code, generalised and expanded where appropriate, in line with _separation of concerns_, before generating new code.
+- **Emphasize reusability**: design for reusability and always seek to reuse existing code, generalized and expanded where appropriate, in line with _separation of concerns_, before generating new code.
 - **Data modelling**: get the schema right first — it is the hardest thing to change later. Normalise appropriately, avoid stringly-typed fields, and define constraints at the schema level, not only in application code.
 - **SOLID**: apply pragmatically, not dogmatically. Prefer small, focused interfaces (ISP) and constructor injection (DIP) over over-abstracted hierarchies.
 - **DRY**: extract shared logic into well-named helpers. Tolerate _minor_ repetition when the alternative is a premature abstraction.
@@ -57,6 +57,7 @@ Do not submit one without the others. Partial deliveries create drift.
 - **Fail explicitly**: raise or return specific errors — never silently swallow exceptions. `except Exception: pass` is forbidden.
 - **Design for debuggability**: error messages must include _context_ — what was being attempted, with what inputs, and why it failed. Not `"Error occurred"` but `"Failed to parse config file '{path}': expected 'sources' key"`. When something breaks at 2 AM, your error messages are your only voice.
 - **Validate at the boundary**: validate all external inputs (user input, API responses, file contents) at the point of entry. Trust nothing from outside the process.
+- **Honor output contracts**: when a program advertises a machine-consumable output mode (e.g., JSON on stdout), do not emit unsolicited human text on that channel. Treat any contract stream as parse-only; route diagnostics to a separate stream or gated debug mode.
 - **Idempotency**: design operations so they can be safely retried. This is especially critical for anything involving I/O or state mutation.
 - **Retry with backoff**: for transient failures against external services, use exponential backoff with jitter. Do not retry indefinitely.
 - **Graceful degradation**: when a dependency is unavailable, degrade — don't crash. If the network is down, can you still do local operations? If an optional enrichment step fails, does the core pipeline still produce output?
@@ -75,6 +76,7 @@ Do not submit one without the others. Partial deliveries create drift.
 - **Pin versions**: use lockfiles (`uv.lock`, `package-lock.json`) and pin direct dependencies to compatible ranges. Avoid unpinned `latest`.
 - **Minimise dependency surface**: each new dependency is a liability. If the functionality is < 50 lines to implement correctly, consider owning it.
 - **Keep dependencies current**: outdated dependencies accumulate security risk. Flag and remediate known vulnerabilities.
+- **Package runtime assets**: if code reads schemas/templates/config at runtime, load them via package resources (or another shipped mechanism). Do not rely on repo-relative paths that disappear in installed distributions.
 
 ## 8. Concurrency & Performance
 

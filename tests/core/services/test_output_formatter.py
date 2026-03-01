@@ -1,4 +1,6 @@
 import json
+import re
+from pathlib import Path
 
 from meminit.core.services.output_formatter import format_envelope, format_error_envelope
 from meminit.core.services.error_codes import ErrorCode
@@ -9,14 +11,14 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
     run_id = "00000000-0000-4000-8000-000000000000"
 
     output = format_envelope(
-        command="check",
+        command="context",
         root=root,
         success=False,
         data={"b": 1, "a": {"z": 2, "y": 1}},
         warnings=[
-            {"path": "b.md", "line": 2, "message": "bbb"},
-            {"path": "a.md", "line": None, "message": "aaa"},
-            {"path": "a.md", "line": 1, "message": "aaa"},
+            {"path": "b.md", "line": 2, "code": "WARN_B", "message": "bbb"},
+            {"path": "a.md", "line": None, "code": "WARN_A", "message": "aaa"},
+            {"path": "a.md", "line": 1, "code": "WARN_A", "message": "aaa"},
         ],
         violations=[
             {"path": "docs/a.md", "code": "B", "severity": "error", "line": 2, "message": "bbb"},
@@ -34,14 +36,14 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
     assert "\n" not in output
 
     output2 = format_envelope(
-        command="check",
+        command="context",
         root=root,
         success=False,
         data={"b": 1, "a": {"z": 2, "y": 1}},
         warnings=[
-            {"path": "b.md", "line": 2, "message": "bbb"},
-            {"path": "a.md", "line": None, "message": "aaa"},
-            {"path": "a.md", "line": 1, "message": "aaa"},
+            {"path": "b.md", "line": 2, "code": "WARN_B", "message": "bbb"},
+            {"path": "a.md", "line": None, "code": "WARN_A", "message": "aaa"},
+            {"path": "a.md", "line": 1, "code": "WARN_A", "message": "aaa"},
         ],
         violations=[
             {"path": "docs/a.md", "code": "B", "severity": "error", "line": 2, "message": "bbb"},
@@ -81,12 +83,12 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
 
     # Arrays are deterministically sorted.
     assert payload["warnings"] == [
-        {"line": None, "message": "aaa", "path": "a.md"},
-        {"line": 1, "message": "aaa", "path": "a.md"},
-        {"line": 2, "message": "bbb", "path": "b.md"},
+        {"code": "WARN_A", "line": 1, "message": "aaa", "path": "a.md"},
+        {"code": "WARN_A", "message": "aaa", "path": "a.md"},
+        {"code": "WARN_B", "line": 2, "message": "bbb", "path": "b.md"},
     ]
     assert payload["violations"] == [
-        {"code": "Z", "line": None, "message": "zzz", "path": "docs/0.md", "severity": "error"},
+        {"code": "Z", "message": "zzz", "path": "docs/0.md", "severity": "error"},
         {"code": "A", "line": 1, "message": "aaa", "path": "docs/a.md", "severity": "error"},
         {"code": "B", "line": 2, "message": "bbb", "path": "docs/a.md", "severity": "error"},
     ]
@@ -115,7 +117,7 @@ def test_format_error_envelope_sorts_details_keys(tmp_path):
 
 def test_format_envelope_sorts_warnings_with_code_tiebreaker(tmp_path):
     output = format_envelope(
-        command="check",
+        command="context",
         root=tmp_path,
         success=True,
         warnings=[
@@ -134,7 +136,7 @@ def test_format_envelope_sorts_warnings_with_code_tiebreaker(tmp_path):
 
 def test_format_envelope_sorts_violations_by_severity(tmp_path):
     output = format_envelope(
-        command="check",
+        command="context",
         root=tmp_path,
         success=False,
         violations=[
@@ -175,24 +177,25 @@ def test_format_envelope_sorts_violations_by_severity(tmp_path):
     ]
 
 
-def test_format_envelope_rejects_invalid_run_id(tmp_path):
-    try:
-        format_envelope(
-            command="check",
-            root=tmp_path,
-            success=True,
-            run_id="not-a-uuid",
-        )
-    except ValueError as exc:
-        assert "run_id must be a UUIDv4" in str(exc)
-    else:
-        raise AssertionError("Expected ValueError for invalid run_id")
+def test_format_envelope_normalizes_invalid_run_id(tmp_path):
+    output = format_envelope(
+        command="context",
+        root=tmp_path,
+        success=True,
+        run_id="not-a-uuid",
+    )
+    payload = json.loads(output)
+    assert payload["run_id"] != "not-a-uuid"
+    assert re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+        payload["run_id"],
+    )
 
 
 def test_format_envelope_rejects_reserved_extra_keys(tmp_path):
     try:
         format_envelope(
-            command="check",
+            command="context",
             root=tmp_path,
             success=True,
             extra_top_level={"success": True},
@@ -201,3 +204,31 @@ def test_format_envelope_rejects_reserved_extra_keys(tmp_path):
         assert "reserved keys" in str(exc)
     else:
         raise AssertionError("Expected ValueError for reserved extra_top_level keys")
+
+
+def test_format_envelope_includes_expected_fields_and_single_line(tmp_path):
+    output = format_envelope(
+        command="context",
+        root=tmp_path,
+        success=True,
+        data={"project_name": "Test"},
+        warnings=[],
+        violations=[],
+        advice=[],
+        include_timestamp=False,
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    assert "\n" not in output
+    payload = json.loads(output)
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["command"] == "context"
+    assert payload["success"] is True
+    assert payload["data"]["project_name"] == "Test"
+    assert "timestamp" not in payload
+    for key in ("run_id", "root", "warnings", "violations", "advice", "data"):
+        assert key in payload
+    assert isinstance(payload["warnings"], list)
+    assert isinstance(payload["violations"], list)
+    assert isinstance(payload["advice"], list)
+    assert Path(payload["root"]).is_absolute()
+

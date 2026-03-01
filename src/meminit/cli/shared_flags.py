@@ -4,6 +4,9 @@ Centralizes CLI flags that apply across multiple commands to avoid
 duplication and ensure consistency (PRD-003 FR-4, FR-7).
 """
 
+import functools
+import os
+
 import click
 
 
@@ -63,6 +66,42 @@ def include_timestamp_option():
     return decorator
 
 
+def with_log_silence():
+    """Silence log events for machine-consumed outputs unless verbose is enabled."""
+
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            previous = os.environ.get("MEMINIT_LOG_SILENT")
+            format_value = kwargs.get("format")
+            
+            verbose_value = False
+            ctx = click.get_current_context(silent=True)
+            if ctx and ctx.parent:
+                verbose_value = ctx.parent.params.get("verbose", False)
+
+            output_value = kwargs.get("output")
+            silence_logs = (
+                not verbose_value and (format_value == "json" or bool(output_value))
+            )
+            changed = False
+            if silence_logs and previous != "1":
+                os.environ["MEMINIT_LOG_SILENT"] = "1"
+                changed = True
+            try:
+                return f(*args, **kwargs)
+            finally:
+                if changed:
+                    if previous is None:
+                        os.environ.pop("MEMINIT_LOG_SILENT", None)
+                    else:
+                        os.environ["MEMINIT_LOG_SILENT"] = previous
+
+        return wrapper
+
+    return decorator
+
+
 def agent_output_options():
     """Composite decorator applying all agent interface output flags.
 
@@ -80,6 +119,7 @@ def agent_output_options():
         f = format_option()(f)
         f = output_option()(f)
         f = include_timestamp_option()(f)
+        f = with_log_silence()(f)
         return f
 
     return decorator

@@ -204,7 +204,7 @@ class CheckRepositoryUseCase:
                     details={"path": path_str},
                 )
 
-            rel_path = str(canonical_path.relative_to(root_resolved))
+            rel_path = canonical_path.relative_to(root_resolved).as_posix()
 
             ns = self._layout.namespace_for_path(canonical_path)
             if ns is not None and ns.is_excluded(canonical_path):
@@ -368,7 +368,7 @@ class CheckRepositoryUseCase:
                     continue
 
                 files_checked += 1
-                rel_path = str(path.relative_to(self.root_dir))
+                rel_path = path.relative_to(self.root_dir).as_posix()
                 checked_paths.append(rel_path)
                 file_violations = self._process_document(path, existing_ids, ns, schema_validator)
 
@@ -477,7 +477,7 @@ class CheckRepositoryUseCase:
             List of violations found for this document. Empty if fully compliant.
         """
         violations: List[Violation] = []
-        rel_path = str(path.relative_to(self.root_dir))
+        rel_path = path.relative_to(self.root_dir).as_posix()
 
         if path.name not in self.FILENAME_EXCEPTIONS and not self.FILENAME_REGEX.match(path.name):
             violations.append(

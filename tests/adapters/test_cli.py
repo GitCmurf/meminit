@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,6 +24,64 @@ def test_cli_version():
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
     assert "meminit" in result.output
+
+
+def test_cli_no_color_sets_env(tmp_path, monkeypatch):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    # Ensure variables are cleared before and restored after the test
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("RICH_NO_COLOR", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--no-color", "context", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert os.environ.get("NO_COLOR") == "1"
+    assert os.environ.get("RICH_NO_COLOR") == "1"
+
+
+def test_cli_verbose_sets_debug_env(tmp_path, monkeypatch):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    # Ensure variable is cleared before and restored after the test
+    monkeypatch.delenv("MEMINIT_DEBUG", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--verbose", "context", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "debug.config_loaded" in result.output
+    assert os.environ.get("MEMINIT_DEBUG") is None
+
+
+def test_cli_init_json_outputs_created_and_skipped_paths(tmp_path):
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["init", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    payload = data["data"]
+    assert "created_paths" in payload
+    assert "skipped_paths" in payload
+    assert "docops.config.yaml" in payload["created_paths"]
+    assert "AGENTS.md" in payload["created_paths"]
+
+
+def test_cli_init_md_outputs_created_and_skipped_paths(tmp_path):
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["init", "--root", str(tmp_path), "--format", "md"])
+
+    assert result.exit_code == 0
+    assert "# Meminit Init" in result.output
+    assert "Created Paths" in result.output
+    assert "docops.config.yaml" in result.output
+    assert "AGENTS.md" in result.output
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
@@ -92,7 +151,7 @@ def test_cli_check_violations_text(mock_use_case):
     runner = CliRunner()
     result = runner.invoke(cli, ["check"])
 
-    assert result.exit_code == 65
+    assert result.exit_code == 1
     assert "docs/bad.md" in result.output
     assert "TEST_RULE" in result.output
     assert "ERROR" in result.output or "error" in result.output
@@ -121,7 +180,7 @@ def test_cli_check_violations_json(mock_use_case):
     runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, ["check", "--format", "json"])
 
-    assert result.exit_code == 65
+    assert result.exit_code == 1
     try:
         data = json.loads(result.output.strip().splitlines()[-1])
     except json.JSONDecodeError:
@@ -169,12 +228,53 @@ def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, t
         ],
     )
 
-    assert result.exit_code == 1
+    assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["success"] is False
     assert payload["output_schema_version"] == "2.0"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
     assert payload["error"]["details"]["output_path"] == str(output_dir)
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+        warnings_count=0,
+        violations_count=0,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            "/etc/report.json",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_NOPERM", 77)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
+    assert payload["error"]["details"]["output_path"] == "/etc/report.json"
 
 
 def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
@@ -197,7 +297,7 @@ def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
         ],
     )
 
-    assert result.exit_code == 1
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     assert result.output == ""
     content = output_path.read_text(encoding="utf-8")
     assert "CONFIG_MISSING" in content
@@ -269,7 +369,7 @@ def test_cli_check_violations_md(mock_use_case):
     runner = CliRunner()
     result = runner.invoke(cli, ["check", "--format", "md"])
 
-    assert result.exit_code == 65
+    assert result.exit_code == 1
     assert "# Meminit Compliance Check" in result.output
     assert "## Findings" in result.output
     assert "TEST_RULE" in result.output
@@ -369,7 +469,7 @@ def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
     runner = CliRunner()
     result = runner.invoke(cli, ["check", "--quiet", "--root", str(tmp_path)])
 
-    assert result.exit_code == 65
+    assert result.exit_code == 1
     assert "FAIL docs/bad.md" in result.output
     assert "ID_REGEX" in result.output
     assert "WARN_RULE" not in result.output
@@ -397,7 +497,7 @@ def test_cli_check_warnings_strict(mock_use_case):
     runner = CliRunner()
     result = runner.invoke(cli, ["check", "--strict"])
 
-    assert result.exit_code == 65
+    assert result.exit_code == 1
     assert "Compliance Violations" in result.output
 
 
@@ -406,11 +506,27 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     missing = tmp_path / "does-not-exist"
     result = runner.invoke(cli, ["scan", "--format", "json", "--root", str(missing)])
 
-    assert result.exit_code == 1
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
     assert data["output_schema_version"] == "2.0"
+
+
+@patch("meminit.cli.main.InstallPrecommitUseCase")
+def test_cli_install_precommit_md_output(mock_use_case, tmp_path):
+    instance = mock_use_case.return_value
+    report = MagicMock()
+    report.status = "created"
+    report.config_path = tmp_path / ".git" / "hooks" / "pre-commit"
+    instance.execute.return_value = report
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-precommit", "--root", str(tmp_path), "--format", "md"])
+
+    assert result.exit_code == 0
+    assert "# Meminit Install Precommit" in result.output
+    assert "Hook path" in result.output
 
 
 @patch("meminit.cli.main.ScanRepositoryUseCase")
@@ -551,6 +667,74 @@ def test_cli_context_md_output(tmp_path):
     assert "- Project: `TestProject`" in result.output
 
 
+@patch("meminit.cli.main.ContextRepositoryUseCase")
+def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    instance = mock_use_case.return_value
+    instance.execute.return_value = SimpleNamespace(
+        data={
+            "project_name": "TestProject",
+            "config_path": "docops.config.yaml",
+            "namespaces": [
+                {"name": "default", "docs_root": "docs", "document_count": None}
+            ],
+        },
+        warnings=[
+            {
+                "code": "DEEP_BUDGET_EXCEEDED",
+                "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
+                "path": ".",
+            }
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["context", "--root", str(tmp_path), "--format", "md", "--deep"]
+    )
+
+    assert result.exit_code == 0
+    assert "## Warnings" in result.output
+    assert "DEEP_BUDGET_EXCEEDED" in result.output
+
+
+@patch("meminit.cli.main.ContextRepositoryUseCase")
+def test_cli_context_text_emits_warnings(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    instance = mock_use_case.return_value
+    instance.execute.return_value = SimpleNamespace(
+        data={
+            "project_name": "TestProject",
+            "config_path": "docops.config.yaml",
+            "namespaces": [
+                {"name": "default", "docs_root": "docs", "document_count": None}
+            ],
+        },
+        warnings=[
+            {
+                "code": "DEEP_BUDGET_EXCEEDED",
+                "message": "Deep scan performance budget (10s) exceeded; some namespace counts are incomplete.",
+                "path": ".",
+            }
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--deep"])
+
+    assert result.exit_code == 0
+    assert "Warnings:" in result.output
+    assert "DEEP_BUDGET_EXCEEDED" in result.output
+
+
 def test_cli_index_json_contract(tmp_path):
     docs_dir = tmp_path / "docs" / "45-adr"
     docs_dir.mkdir(parents=True)
@@ -569,7 +753,7 @@ def test_cli_index_json_contract(tmp_path):
         encoding="utf-8",
     )
 
-    runner = CliRunner()
+    runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
@@ -753,14 +937,14 @@ type_directories:
         assert "FDD" in result.output
 
     def test_new_list_types_json(self, repo_with_types):
-        runner = CliRunner()
+        runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
             ["new", "--list-types", "--root", str(repo_with_types), "--format", "json"],
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.output.strip().splitlines()[-1])
 
         assert data["output_schema_version"] == "2.0"
         assert data["success"] is True
@@ -902,8 +1086,9 @@ type_directories:
         assert data["data"]["owner"] == "TestOwner"
         assert data["data"]["area"] == "Backend"
 
-    def test_new_md_format_rejected_and_written_to_output(self, repo_for_dry_run, tmp_path):
+    def test_new_dry_run_md_format_writes_output(self, repo_for_dry_run, tmp_path):
         output_path = tmp_path / "new-md-error.md"
+
         runner = CliRunner()
         result = runner.invoke(
             cli,
@@ -915,17 +1100,18 @@ type_directories:
                 str(repo_for_dry_run),
                 "--format",
                 "md",
+                "--dry-run",
                 "--output",
                 str(output_path),
             ],
         )
 
-        assert result.exit_code == getattr(os, "EX_USAGE", 64)
+        assert result.exit_code == 0
         assert result.output == ""
         content = output_path.read_text(encoding="utf-8")
         assert "# Meminit New" in content
-        assert "INVALID_FLAG_COMBINATION" in content
-        assert "--format md is not supported for this command." in content
+        assert "- Status: dry-run" in content
+        assert "Would Create" in content
 
 
 class TestCliCheckTargeted:
@@ -1037,7 +1223,7 @@ docops_version: 2.0
             ],
         )
 
-        assert result.exit_code == 65
+        assert result.exit_code == 1
         assert "Checking 2 existing files..." in result.output
         assert "OK docs/45-adr/adr-001-valid.md" in result.output
         assert "FAIL docs/45-adr/adr-002-invalid.md" in result.output
@@ -1058,7 +1244,7 @@ docops_version: 2.0
             ],
         )
 
-        assert result.exit_code == 65
+        assert result.exit_code == 1
         data = json.loads(result.output.strip().splitlines()[-1])
 
         assert data["success"] is False
@@ -1100,7 +1286,7 @@ docops_version: 2.0
             ],
         )
 
-        assert result.exit_code == 65
+        assert result.exit_code == 1
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["success"] is False
         assert data["files_checked"] == 2
@@ -1128,7 +1314,7 @@ docops_version: 2.0
             ],
         )
 
-        assert result.exit_code == 65
+        assert result.exit_code == 1
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["files_checked"] == 2
         assert all(
@@ -1464,6 +1650,7 @@ type_directories:
         result = runner.invoke(
             cli,
             [
+                "--verbose",
                 "check",
                 "docs/45-adr/nonexistent.md",
                 "--root",
@@ -1484,6 +1671,7 @@ type_directories:
         result = runner.invoke(
             cli,
             [
+                "--verbose",
                 "check",
                 "docs/45-adr/nonexistent.md",
                 "--root",
@@ -1494,7 +1682,7 @@ type_directories:
             env={"MEMINIT_LOG_FORMAT": "text"},
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
         stderr_output = result.stderr if getattr(result, "stderr", None) else ""
         if not stderr_output:
             stderr_output = result.output
@@ -1637,8 +1825,222 @@ def test_adr_new_requires_initialized_repo(tmp_path):
     runner = CliRunner()
     result = runner.invoke(cli, ["adr", "new", "Alias Test", "--root", str(tmp_path)])
 
-    assert result.exit_code == 1
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     assert "CONFIG_MISSING" in result.output
+
+
+@patch("meminit.cli.main.DoctorRepositoryUseCase")
+def test_cli_doctor_json_output(mock_use_case, tmp_path):
+    issues = [
+        SimpleNamespace(
+            severity=SimpleNamespace(value="warning"),
+            rule="DOCOPS_WARN",
+            file="docs/a.md",
+            line=1,
+            message="Warning message",
+        ),
+        SimpleNamespace(
+            severity=SimpleNamespace(value="error"),
+            rule="DOCOPS_ERR",
+            file="docs/b.md",
+            line=2,
+            message="Error message",
+        ),
+    ]
+    mock_use_case.return_value.execute.return_value = issues
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["doctor", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "doctor"
+    assert payload["success"] is False
+    assert len(payload["warnings"]) == 1
+    assert len(payload["violations"]) == 1
+    assert payload["warnings"][0]["code"] == "DOCOPS_WARN"
+    assert payload["violations"][0]["code"] == "DOCOPS_ERR"
+
+
+@patch("meminit.cli.main.DoctorRepositoryUseCase")
+def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = [
+        SimpleNamespace(
+            severity=SimpleNamespace(value="warning"),
+            rule="DOCOPS_WARN",
+            file="docs/a.md",
+            line=1,
+            message="Warning message",
+        )
+    ]
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["doctor", "--root", str(tmp_path), "--format", "json", "--strict"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "doctor"
+    assert payload["success"] is False
+    assert payload["data"]["status"] == "warn"
+    assert payload["warnings"] == []
+    assert len(payload["violations"]) == 1
+
+
+@patch("meminit.cli.main.FixRepositoryUseCase")
+def test_cli_fix_json_output(mock_use_case, tmp_path):
+    report = SimpleNamespace(
+        fixed_violations=[1, 2],
+        remaining_violations=[
+            SimpleNamespace(
+                rule="SCHEMA_VALIDATION",
+                message="Still broken",
+                file="docs/bad.md",
+                line=3,
+                severity=SimpleNamespace(value="error"),
+            )
+        ],
+    )
+    mock_use_case.return_value.execute.return_value = report
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["fix", "--root", str(tmp_path), "--format", "json", "--dry-run"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "fix"
+    assert payload["success"] is False
+    assert payload["data"]["fixed"] == 2
+    assert payload["data"]["remaining"] == 1
+    assert payload["data"]["dry_run"] is True
+    assert payload["violations"][0]["code"] == "SCHEMA_VALIDATION"
+    assert payload["violations"][0]["path"] == "docs/bad.md"
+
+
+@patch("meminit.cli.main.MigrateIdsUseCase")
+def test_cli_migrate_ids_json_output(mock_use_case, tmp_path):
+    report = SimpleNamespace(as_dict=lambda: {"actions": [], "skipped_files": []})
+    mock_use_case.return_value.execute.return_value = report
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["migrate-ids", "--root", str(tmp_path), "--format", "json", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "migrate-ids"
+    assert payload["data"]["report"]["actions"] == []
+
+
+@patch("meminit.cli.main.IdentifyDocumentUseCase")
+def test_cli_identify_json_output(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = SimpleNamespace(
+        document_id="TEST-ADR-001",
+        path="docs/45-adr/adr-001.md",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["identify", "docs/45-adr/adr-001.md", "--root", str(tmp_path), "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "identify"
+    assert payload["data"]["document_id"] == "TEST-ADR-001"
+
+
+@patch("meminit.cli.main.ResolveDocumentUseCase")
+def test_cli_resolve_json_output(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = SimpleNamespace(
+        path="docs/45-adr/adr-001.md"
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["resolve", "TEST-ADR-001", "--root", str(tmp_path), "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "resolve"
+    assert payload["data"]["document_id"] == "TEST-ADR-001"
+
+
+@patch("meminit.cli.main.ResolveDocumentUseCase")
+def test_cli_link_json_output(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = SimpleNamespace(
+        path="docs/45-adr/adr-001.md"
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["link", "TEST-ADR-001", "--root", str(tmp_path), "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "link"
+    assert payload["data"]["document_id"] == "TEST-ADR-001"
+    assert payload["data"]["link"].startswith("[TEST-ADR-001]")
+
+
+@patch("meminit.cli.main.InstallOrgProfileUseCase")
+def test_cli_org_install_json_output(mock_use_case):
+    report = SimpleNamespace(as_dict=lambda: {"profile": "default"})
+    mock_use_case.return_value.execute.return_value = report
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["org", "install", "--format", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "org install"
+    assert payload["data"]["profile"] == "default"
+
+
+@patch("meminit.cli.main.VendorOrgProfileUseCase")
+def test_cli_org_vendor_json_output(mock_use_case, tmp_path):
+    report = SimpleNamespace(as_dict=lambda: {"profile": "default"})
+    mock_use_case.return_value.execute.return_value = report
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["org", "vendor", "--root", str(tmp_path), "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "org vendor"
+    assert payload["data"]["profile"] == "default"
+
+
+@patch("meminit.cli.main.OrgStatusUseCase")
+def test_cli_org_status_json_output(mock_use_case, tmp_path):
+    report = SimpleNamespace(as_dict=lambda: {"profile": "default", "status": "ok"})
+    mock_use_case.return_value.execute.return_value = report
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["org", "status", "--root", str(tmp_path), "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "org status"
+    assert payload["data"]["status"] == "ok"
 
 
 class TestCliVerboseJsonStderr:

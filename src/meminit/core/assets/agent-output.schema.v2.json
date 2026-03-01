@@ -3,11 +3,23 @@
   "$id": "https://meminit.io/schemas/agent-output.schema.v2.json",
   "title": "Meminit Agent Output Envelope v2",
   "type": "object",
-  "required": ["output_schema_version", "success", "command", "run_id", "root", "data", "warnings", "violations", "advice"],
+  "required": [
+    "output_schema_version",
+    "success",
+    "command",
+    "run_id",
+    "root",
+    "data",
+    "warnings",
+    "violations",
+    "advice"
+  ],
   "properties": {
     "output_schema_version": {
       "type": "string",
-      "enum": ["2.0"]
+      "enum": [
+        "2.0"
+      ]
     },
     "success": {
       "type": "boolean"
@@ -115,7 +127,9 @@
       },
       "then": {
         "not": {
-          "required": ["error"]
+          "required": [
+            "error"
+          ]
         }
       }
     },
@@ -130,7 +144,9 @@
       "then": {
         "anyOf": [
           {
-            "required": ["error"]
+            "required": [
+              "error"
+            ]
           },
           {
             "properties": {
@@ -149,9 +165,13 @@
             "const": "check"
           }
         },
-        "required": ["command"],
+        "required": [
+          "command"
+        ],
         "not": {
-          "required": ["error"]
+          "required": [
+            "error"
+          ]
         }
       },
       "then": {
@@ -166,6 +186,7 @@
           "files_with_warnings",
           "files_outside_docs_root_count",
           "checked_paths_count",
+          "checked_paths",
           "warnings",
           "violations"
         ]
@@ -175,7 +196,11 @@
   "definitions": {
     "issue": {
       "type": "object",
-      "required": ["code", "message", "path"],
+      "required": [
+        "code",
+        "message",
+        "path"
+      ],
       "properties": {
         "code": {
           "type": "string"
@@ -197,7 +222,10 @@
     },
     "advice": {
       "type": "object",
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
         "message": {
           "type": "string"
@@ -213,7 +241,10 @@
     },
     "error": {
       "type": "object",
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
         "code": {
           "type": "string"
@@ -229,7 +260,10 @@
     },
     "grouped_violations": {
       "type": "object",
-      "required": ["path", "violations"],
+      "required": [
+        "path",
+        "violations"
+      ],
       "properties": {
         "path": {
           "type": "string"
@@ -241,7 +275,10 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "properties": {
               "code": {
                 "type": "string"

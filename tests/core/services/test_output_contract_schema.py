@@ -185,6 +185,111 @@ docops_version: 2.0
     assert not errors
 
 
+def test_check_json_output_is_deterministic_ignoring_run_id(tmp_path):
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+type_directories:
+  ADR: 45-adr
+""",
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "required": [
+                    "document_id",
+                    "type",
+                    "title",
+                    "status",
+                    "version",
+                    "last_updated",
+                    "owner",
+                    "docops_version",
+                ],
+                "properties": {
+                    "document_id": {"type": "string"},
+                    "type": {"type": "string"},
+                    "title": {"type": "string"},
+                    "status": {"type": "string"},
+                    "version": {"type": "string"},
+                    "last_updated": {"type": "string", "format": "date"},
+                    "owner": {"type": "string"},
+                    "docops_version": {"type": "string"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "45-adr" / "adr-001-valid.md").write_text(
+        """---
+document_id: TEST-ADR-001
+type: ADR
+title: Valid
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: TestOwner
+docops_version: 2.0
+---
+# Valid
+""",
+        encoding="utf-8",
+    )
+
+    runner_kwargs = {}
+    if "mix_stderr" in inspect.signature(CliRunner).parameters:
+        runner_kwargs["mix_stderr"] = False
+    runner = CliRunner(**runner_kwargs)
+
+    result1 = runner.invoke(
+        cli,
+        [
+            "check",
+            "docs/45-adr/adr-001-valid.md",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--include-timestamp",
+        ],
+    )
+    result2 = runner.invoke(
+        cli,
+        [
+            "check",
+            "docs/45-adr/adr-001-valid.md",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--include-timestamp",
+        ],
+    )
+
+    assert result1.exit_code == 0
+    assert result2.exit_code == 0
+
+    payload1 = json.loads(result1.output.strip().splitlines()[-1])
+    payload2 = json.loads(result2.output.strip().splitlines()[-1])
+    assert "run_id" in payload1
+    assert "run_id" in payload2
+    assert "timestamp" in payload1
+    assert "timestamp" in payload2
+    payload1.pop("run_id", None)
+    payload2.pop("run_id", None)
+    payload1.pop("timestamp", None)
+    payload2.pop("timestamp", None)
+    assert payload1 == payload2
+
 def test_operational_error_envelope_conforms_to_agent_schema_v2(tmp_path):
     schema_path = (
         Path(__file__).resolve().parents[3] / "docs" / "20-specs" / "agent-output.schema.v2.json"
