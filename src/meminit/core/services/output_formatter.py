@@ -56,12 +56,11 @@ _ENVELOPE_KEY_ORDER = [
 ]
 
 _SCHEMA_VALIDATOR: Draft7Validator | None = None
-_SCHEMA_LOAD_FAILED: bool = False
 
 
-def _get_schema_validator() -> Draft7Validator | None:
-    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED
-    if _SCHEMA_VALIDATOR is not None or _SCHEMA_LOAD_FAILED:
+def _get_schema_validator() -> Draft7Validator:
+    global _SCHEMA_VALIDATOR
+    if _SCHEMA_VALIDATOR is not None:
         return _SCHEMA_VALIDATOR
 
     try:
@@ -72,23 +71,19 @@ def _get_schema_validator() -> Draft7Validator | None:
         )
         schema = json.loads(schema_text)
         _SCHEMA_VALIDATOR = Draft7Validator(schema)
-    except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError):
-        _SCHEMA_LOAD_FAILED = True
-        return None
+    except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError) as e:
+        raise RuntimeError("Failed to load or parse output schema") from e
     return _SCHEMA_VALIDATOR
 
 
 def _reset_schema_cache() -> None:
     """Reset the module-level schema validator cache (for testing only)."""
-    global _SCHEMA_VALIDATOR, _SCHEMA_LOAD_FAILED
+    global _SCHEMA_VALIDATOR
     _SCHEMA_VALIDATOR = None
-    _SCHEMA_LOAD_FAILED = False
 
 
 def _validate_envelope(envelope: dict[str, Any]) -> None:
     validator = _get_schema_validator()
-    if validator is None:
-        return
     errors = sorted(validator.iter_errors(envelope), key=str)
     if errors:
         messages = "; ".join(error.message for error in errors[:3])
@@ -328,7 +323,8 @@ def format_envelope(
     try:
         _validate_envelope(ordered)
     except ValueError:
-        logger.exception("Envelope schema validation failed")
+        import logging
+        logging.getLogger(__name__).exception("Envelope schema validation failed")
         raise
 
     return json.dumps(ordered, separators=(",", ":"), default=str)

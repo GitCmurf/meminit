@@ -186,6 +186,7 @@
           "files_with_warnings",
           "files_outside_docs_root_count",
           "checked_paths_count",
+          "checked_paths",
           "warnings",
           "violations"
         ]

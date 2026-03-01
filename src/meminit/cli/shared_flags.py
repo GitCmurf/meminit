@@ -74,7 +74,12 @@ def with_log_silence():
         def wrapper(*args, **kwargs):
             previous = os.environ.get("MEMINIT_LOG_SILENT")
             format_value = kwargs.get("format")
-            verbose_value = kwargs.get("verbose", False)
+            
+            verbose_value = False
+            ctx = click.get_current_context(silent=True)
+            if ctx and ctx.parent:
+                verbose_value = ctx.parent.params.get("verbose", False)
+
             output_value = kwargs.get("output")
             silence_logs = (
                 not verbose_value and (format_value == "json" or bool(output_value))
