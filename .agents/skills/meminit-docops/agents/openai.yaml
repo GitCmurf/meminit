@@ -1,0 +1,10 @@
+interface:
+  display_name: "Meminit DocOps"
+  short_description: "Governed documentation migration, compliance, and lifecycle management"
+  icon_small: "📋"
+  brand_color: "#2563EB"
+  default_prompt: "Use the $meminit-docops skill to check this repository for DocOps compliance"
+
+policy:
+  allow_implicit_invocation: true
+

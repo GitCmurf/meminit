@@ -20,7 +20,7 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
 
 
 def test_codex_skill_manifest_exists_and_has_required_fields():
-    skill_path = Path(".codex/skills/meminit-docops/SKILL.md")
+    skill_path = Path(".agents/skills/meminit-docops/SKILL.md")
     assert skill_path.exists()
 
     meta, body = _split_frontmatter(skill_path.read_text(encoding="utf-8"))
@@ -31,5 +31,11 @@ def test_codex_skill_manifest_exists_and_has_required_fields():
     assert "\n" not in meta["description"]
     assert len(meta["name"]) <= 100
     assert len(meta["description"]) <= 500
+    assert set(meta.keys()) == {"name", "description"}
     assert "meminit scan" in body
     assert "meminit check" in body
+    assert "meminit scan --plan" in body
+    assert "migrate-ids --no-dry-run" in body
+    assert "meminit adr new" in body
+    assert "## How to Use" in body
+    assert '"1.0" for others' not in body
