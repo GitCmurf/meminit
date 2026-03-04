@@ -82,6 +82,10 @@ Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
 - [ ] Agent interface phase: JSON schema for outputs; agent protocol spec; `meminit context`.
 - [ ] Templates for other doc types (e.g., `prd`, `fdd`, `task`) -- develop a common 'syntax' that can apply equally to Project `Architext` and possibly also Project `HypoGraph`.
 
+**Notes:** The other lingering Phase 1 items to close out the foundation are:
+
+- **Public Repo Best Practices:** Finalizing the public README, community health files (issue templates), and running a final AI consistency pass in preparation for opening the repository up.
+
 ## Phase 2: Core Tooling
 
 - [ ] Linter Implementation (Constitution compliance beyond schema; include structural rules and constitution alignment)

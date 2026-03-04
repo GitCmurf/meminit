@@ -2,11 +2,16 @@ from importlib import resources
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Mapping, Optional
+import logging
 
 import yaml
 
 from meminit.core.services.org_profiles import resolve_org_profile
 from meminit.core.services.safe_fs import ensure_safe_write_path
+
+# Agent skill paths
+_AGENTS_SKILLS_DIR = Path(".agents") / "skills"
+_MEMINIT_DOCOPS_SKILL = "meminit-docops"
 
 _FALLBACK_SCHEMA_JSON = b"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -88,6 +93,7 @@ class InitRepositoryUseCase:
             "05-planning/tasks",
             "08-security",
             "10-prd",
+            "12-notes",
             "20-specs",
             "30-design",
             "40-decisions",
@@ -136,6 +142,7 @@ class InitRepositoryUseCase:
                     "RESEARCH": "10-prd",
                     "PLAN": "05-planning",
                     "TASK": "05-planning/tasks",
+                    "NOTES": "12-notes",
                     "SPEC": "20-specs",
                     "DESIGN": "30-design",
                     "DECISION": "40-decisions",
@@ -172,8 +179,12 @@ class InitRepositoryUseCase:
         # This must still behave reasonably even if packaged resources are unavailable (e.g., in
         # constrained environments or tests that simulate missing assets).
         try:
-            profile = resolve_org_profile(profile_name="default", env=self._env, prefer_global=True)
-            schema_bytes = profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
+            profile = resolve_org_profile(
+                profile_name="default", env=self._env, prefer_global=True
+            )
+            schema_bytes = (
+                profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
+            )
             template_bytes = {
                 rel: (profile.files.get(rel) or _FALLBACK_TEMPLATES[rel])
                 for rel in _FALLBACK_TEMPLATES
@@ -201,18 +212,68 @@ class InitRepositoryUseCase:
                 record(dest, created=False)
 
         # 4. Create AGENTS.md
+        repo_prefix = self._load_repo_prefix_from_config()
         agents_path = self.root_dir / "AGENTS.md"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_path)
         if not agents_path.exists():
-            repo_prefix = self._load_repo_prefix_from_config()
             agents_content = self._load_agents_template()
-            agents_content = agents_content.replace("{{PROJECT_NAME}}", self.root_dir.name).replace(
-                "{{REPO_PREFIX}}", repo_prefix
-            )
+            agents_content = agents_content.replace(
+                "{{PROJECT_NAME}}", self.root_dir.name
+            ).replace("{{REPO_PREFIX}}", repo_prefix)
             agents_path.write_text(agents_content, encoding="utf-8")
             record(agents_path, created=True)
         else:
             record(agents_path, created=False)
+
+        # 5. Create agent skills directory
+        # Codex expects .agents/skills/ in latest versions
+        agents_skills_dir = self.root_dir / _AGENTS_SKILLS_DIR / _MEMINIT_DOCOPS_SKILL
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_skills_dir)
+        created = True
+        try:
+            agents_skills_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            if not agents_skills_dir.is_dir():
+                raise
+            created = False
+        record(agents_skills_dir, created=created)
+
+        # 5a. Install SKILL.md (even if directory already exists)
+        self._install_optional_asset(
+            target_path=agents_skills_dir / "SKILL.md",
+            package_resource_path="meminit-docops-skill.md",
+            record_fn=record,
+            error_context="meminit-docops SKILL.md",
+        )
+
+        # 5b. Install scripts directory and brownfield helper script
+        scripts_dir = agents_skills_dir / "scripts"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=scripts_dir)
+        created = True
+        try:
+            scripts_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            if not scripts_dir.is_dir():
+                raise
+            created = False
+        record(scripts_dir, created=created)
+
+        self._install_optional_asset(
+            target_path=scripts_dir / "meminit_brownfield_plan.sh",
+            package_resource_path="scripts/meminit_brownfield_plan.sh",
+            record_fn=record,
+            error_context="brownfield helper script",
+            make_executable=True,
+        )
+
+        # 6. Install gov-001 constitution document
+        self._install_optional_asset(
+            target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
+            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+            record_fn=record,
+            error_context="gov-001 constitution",
+            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+        )
 
         created_paths_sorted = sorted(set(created_paths))
         skipped_paths_sorted = sorted(set(skipped_paths))
@@ -220,6 +281,52 @@ class InitRepositoryUseCase:
             created_paths=created_paths_sorted,
             skipped_paths=skipped_paths_sorted,
         )
+
+    def _install_optional_asset(
+        self,
+        target_path: Path,
+        package_resource_path: str,
+        record_fn,
+        error_context: str,
+        content_transform=None,
+        make_executable: bool = False,
+    ) -> None:
+        """
+        Install a file from package resources if it doesn't exist.
+
+        Args:
+            target_path: Where to install the file
+            package_resource_path: Resource path within the package
+            record_fn: Function to record creation status
+            error_context: Description for error messages
+            content_transform: Optional function to transform content before writing
+            make_executable: If True, set executable permissions (0o755)
+        """
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
+
+        if target_path.exists():
+            if not target_path.is_file():
+                raise FileExistsError(f"{target_path} exists and is not a file")
+            if make_executable:
+                self._set_executable_permission(target_path)
+            record_fn(target_path, created=False)
+            return
+
+        try:
+            content = (
+                resources.files("meminit.core.assets")
+                .joinpath(package_resource_path)
+                .read_text(encoding="utf-8")
+            )
+            if content_transform:
+                content = content_transform(content)
+            target_path.write_text(content, encoding="utf-8")
+            if make_executable:
+                target_path.chmod(0o755)
+            record_fn(target_path, created=True)
+        except (OSError, FileNotFoundError) as e:
+            logging.warning(f"Failed to install {error_context}: {e}")
+            record_fn(target_path, created=False)
 
     def _load_agents_template(self) -> str:
         """
@@ -261,3 +368,15 @@ class InitRepositoryUseCase:
             except Exception:
                 pass
         return self._derive_repo_prefix(self.root_dir.name)
+
+    def _set_executable_permission(self, path: Path) -> None:
+        """Set executable permission bits on a file, preserving existing permissions."""
+        try:
+            current_mode = path.stat().st_mode
+            path.chmod(current_mode | 0o111)
+        except OSError as e:
+            logging.warning(
+                "Failed to set executable permissions on %s: %s",
+                path.as_posix(),
+                e,
+            )

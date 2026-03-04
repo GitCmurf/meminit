@@ -18,6 +18,7 @@ DEFAULT_TYPE_DIRECTORIES: Dict[str, str] = {
     "RESEARCH": "10-prd",
     "PLAN": "05-planning",
     "TASK": "05-planning/tasks",
+    "NOTES": "12-notes",
     "SPEC": "20-specs",
     "DESIGN": "30-design",
     "DECISION": "40-decisions",
@@ -217,8 +218,12 @@ def _build_namespace_config(
     else:
         repo_prefix_norm = _derive_repo_prefix(project_name)
 
-    docops_version_raw = raw_namespace.get("docops_version", defaults.get("docops_version"))
-    if isinstance(docops_version_raw, (int, float)) and not isinstance(docops_version_raw, bool):
+    docops_version_raw = raw_namespace.get(
+        "docops_version", defaults.get("docops_version")
+    )
+    if isinstance(docops_version_raw, (int, float)) and not isinstance(
+        docops_version_raw, bool
+    ):
         docops_version_norm = str(docops_version_raw)
     elif isinstance(docops_version_raw, str) and docops_version_raw.strip():
         docops_version_norm = docops_version_raw.strip()
@@ -239,7 +244,9 @@ def _build_namespace_config(
         if schema_path_raw is not None
         else f"{docs_root_norm}/00-governance/metadata.schema.json"
     )
-    schema_path_norm = schema_path or f"{docs_root_norm}/00-governance/metadata.schema.json"
+    schema_path_norm = (
+        schema_path or f"{docs_root_norm}/00-governance/metadata.schema.json"
+    )
 
     excluded_paths: list[str] = []
     for item in _normalize_string_list(defaults.get("excluded_paths")):
@@ -270,7 +277,9 @@ def _build_namespace_config(
         _normalize_type_directories(docs_root_norm, defaults.get("type_directories"))
     )
     type_directories.update(
-        _normalize_type_directories(docs_root_norm, raw_namespace.get("type_directories"))
+        _normalize_type_directories(
+            docs_root_norm, raw_namespace.get("type_directories")
+        )
     )
 
     templates: Dict[str, str] = {}
@@ -330,14 +339,19 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
 
     namespaces: list[RepoConfig] = []
     raw_namespaces = data.get("namespaces")
-    if isinstance(raw_namespaces, Sequence) and not isinstance(raw_namespaces, (str, bytes)):
+    if isinstance(raw_namespaces, Sequence) and not isinstance(
+        raw_namespaces, (str, bytes)
+    ):
         for i, item in enumerate(raw_namespaces):
             if not isinstance(item, Mapping):
                 continue
             ns_defaults = dict(defaults)
-            ns_defaults["namespace"] = f"ns{i+1}"
+            ns_defaults["namespace"] = f"ns{i + 1}"
             ns = _build_namespace_config(
-                root=root, project_name=project_name, raw_namespace=item, defaults=ns_defaults
+                root=root,
+                project_name=project_name,
+                raw_namespace=item,
+                defaults=ns_defaults,
             )
             if ns:
                 namespaces.append(ns)
@@ -355,7 +369,9 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
 
     index_path_raw = data.get("index_path")
     index_path = (
-        _safe_repo_relative_path(root, index_path_raw) if index_path_raw is not None else None
+        _safe_repo_relative_path(root, index_path_raw)
+        if index_path_raw is not None
+        else None
     )
     if not index_path:
         chosen = None

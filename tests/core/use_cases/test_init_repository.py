@@ -35,19 +35,10 @@ def test_init_creates_structure(empty_repo):
 
     # Check AGENTS.md content
     agents = (empty_repo / "AGENTS.md").read_text()
-    assert "# Agentic Coding Rules" in agents
-    assert "docs/45-adr/" in agents
-    assert "docs/00-governance/templates/template-001-adr.md" in agents
+    assert "Meminit DocOps" in agents
+    assert "{{PROJECT_NAME}}" not in agents
+    assert "{{REPO_PREFIX}}" not in agents
     assert config["repo_prefix"] in agents
-
-    template_content = (
-        resources.files("meminit.core.assets")
-        .joinpath("AGENTS.md")
-        .read_text(encoding="utf-8")
-        .replace("{{PROJECT_NAME}}", config["project_name"])
-        .replace("{{REPO_PREFIX}}", config["repo_prefix"])
-    )
-    assert agents == template_content
 
     # Check Schema Existence
     schema_path = empty_repo / "docs/00-governance/metadata.schema.json"
@@ -56,6 +47,46 @@ def test_init_creates_structure(empty_repo):
     assert "docops.config.yaml" in report.created_paths
     assert "AGENTS.md" in report.created_paths
     assert "docs/00-governance" in report.created_paths
+
+
+def test_init_creates_12_notes_directory(empty_repo):
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    report = use_case.execute()
+
+    assert (empty_repo / "docs/12-notes").is_dir()
+    assert "docs/12-notes" in report.created_paths
+
+
+def test_init_creates_agent_skills_directory(empty_repo):
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    # Codex expects .agents/skills/
+    skill_path = empty_repo / ".agents/skills/meminit-docops/SKILL.md"
+    assert skill_path.exists()
+    assert "meminit-docops" in skill_path.read_text()
+
+    # Verify brownfield helper script is installed with executable permissions
+    script_path = (
+        empty_repo / ".agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh"
+    )
+    assert script_path.exists()
+    assert script_path.read_text(encoding="utf-8").startswith("#!/usr/bin/env bash")
+    # Check script is executable (owner has execute permission)
+    assert script_path.stat().st_mode & 0o100 != 0
+
+
+def test_init_installs_gov_001_constitution(empty_repo):
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    constitution_path = empty_repo / "docs/00-governance/DocOps_Constitution.md"
+    assert constitution_path.exists()
+    content = constitution_path.read_text()
+    assert "DocOps Constitution" in content
+    config = yaml.safe_load((empty_repo / "docops.config.yaml").read_text())
+    repo_prefix = config["repo_prefix"]
+    assert f"{repo_prefix}-GOV-001" in content
 
 
 def test_init_idempotent(empty_repo):

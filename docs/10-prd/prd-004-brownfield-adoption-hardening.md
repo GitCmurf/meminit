@@ -90,7 +90,7 @@ Out of scope:
 
 ### FR-1 Scan Report v2
 
-Requirement: `meminit scan` MUST produce a per-file scan report that includes a recommended type, recommended target directory, and missing metadata fields. The report MUST include a confidence score and rationale for each recommendation.
+Requirement: [x] `meminit scan` MUST produce a per-file scan report that includes a recommended type, recommended target directory, and missing metadata fields. The report MUST include a confidence score and rationale for each recommendation.
 
 Plain English: The scan should tell you what to do with each file and why it thinks that is correct.
 
@@ -98,7 +98,7 @@ Implementation notes: Use heuristics from path segments, existing frontmatter, f
 
 ### FR-2 Migration Plan Artifact
 
-Requirement: `meminit scan` MUST be able to write a migration plan artifact to disk. The plan MUST be deterministic, machine-readable, and safe to re-run. It MUST include a list of actions, required metadata changes, and any file moves or renames.
+Requirement: [x] `meminit scan` MUST be able to write a migration plan artifact to disk. The plan MUST be deterministic, machine-readable, and safe to re-run. It MUST include a list of actions, required metadata changes, and any file moves or renames.
 
 Plain English: The scan should output a concrete plan that a human or agent can review and then apply.
 
@@ -106,7 +106,7 @@ Implementation notes: Add a `--plan <path>` flag that writes a JSON plan. The pl
 
 ### FR-3 Plan-Driven Fixes
 
-Requirement: `meminit fix` MUST accept a migration plan and apply it when `--no-dry-run` is set. In dry-run mode, it MUST report the actions it would take.
+Requirement: [x] `meminit fix` MUST accept a migration plan and apply it when `--no-dry-run` is set. In dry-run mode, it MUST report the actions it would take.
 
 Plain English: Fix should be able to apply the scan plan, or at least show exactly what it would do.
 
@@ -114,7 +114,7 @@ Implementation notes: Introduce a `--plan` option that reads the scan plan and e
 
 ### FR-4 Expanded Auto-Fix Coverage
 
-Requirement: `meminit fix` MUST expand beyond current behavior to address common brownfield issues, including missing frontmatter blocks, missing document IDs, non-conforming filenames, and simple type-directory mismatches.
+Requirement: [x] `meminit fix` MUST expand beyond current behavior to address common brownfield issues, including missing frontmatter blocks, missing document IDs, non-conforming filenames, and simple type-directory mismatches.
 
 Plain English: Fix should handle the most common issues automatically, without rewriting the document body.
 
@@ -122,7 +122,7 @@ Implementation notes: Use existing `FixRepositoryUseCase` and extend it with saf
 
 ### FR-5 Safety Invariants
 
-Requirement: No action in `scan` or `fix` may delete content. `fix` MUST remain dry-run by default. All moves and renames MUST be safe-path-validated.
+Requirement: [x] No action in `scan` or `fix` may delete content. `fix` MUST remain dry-run by default. All moves and renames MUST be safe-path-validated.
 
 Plain English: The tool should never destroy or silently rewrite content.
 
@@ -130,7 +130,7 @@ Implementation notes: Reuse `ensure_safe_write_path` and log all actions in the 
 
 ### FR-6 Config Guidance
 
-Requirement: The scan report MUST include recommended updates to `docops.config.yaml`, including `docs_root`, `type_directories`, and `namespaces` where relevant.
+Requirement: [x] The scan report MUST include recommended updates to `docops.config.yaml`, including `docs_root`, `type_directories`, and `namespaces` where relevant.
 
 Plain English: The scan should tell you how to configure Meminit for the repo you already have.
 
@@ -138,7 +138,7 @@ Implementation notes: Extend the existing config suggestion logic in `ScanReposi
 
 ### FR-7 Deterministic Outputs
 
-Requirement: Scan and fix outputs MUST be deterministic and stable, aligning with the output contract defined in MEMINIT-PRD-003.
+Requirement: [x] Scan and fix outputs MUST be deterministic and stable, aligning with the output contract defined in MEMINIT-PRD-003.
 
 Plain English: Agents should not have to normalize outputs to understand what changed.
 
@@ -146,7 +146,7 @@ Implementation notes: Sort plan actions by path and action type. Use stable IDs 
 
 ### FR-8 Performance Targets
 
-Requirement: For repos with up to 200 governed Markdown files, `meminit scan` MUST complete in under 10 seconds on a typical developer machine.
+Requirement: [x] For repos with up to 200 governed Markdown files, `meminit scan` MUST complete in under 10 seconds on a typical developer machine.
 
 Plain English: Scans should be fast enough to run as part of a migration loop.
 
