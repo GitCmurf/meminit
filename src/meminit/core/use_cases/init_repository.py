@@ -2,6 +2,7 @@ from importlib import resources
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Mapping, Optional
+import logging
 
 import yaml
 
@@ -212,8 +213,6 @@ class InitRepositoryUseCase:
 
         # 4. Create AGENTS.md
         repo_prefix = self._load_repo_prefix_from_config()
-        if not repo_prefix:
-            repo_prefix = self._derive_repo_prefix(self.root_dir.name)
         agents_path = self.root_dir / "AGENTS.md"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_path)
         if not agents_path.exists():
@@ -240,23 +239,12 @@ class InitRepositoryUseCase:
         record(agents_skills_dir, created=created)
 
         # 5a. Install SKILL.md (even if directory already exists)
-        skill_path = agents_skills_dir / "SKILL.md"
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=skill_path)
-        if not skill_path.exists():
-            try:
-                skill_content = (
-                    resources.files("meminit.core.assets")
-                    .joinpath("meminit-docops-skill.md")
-                    .read_text(encoding="utf-8")
-                )
-                skill_path.write_text(skill_content, encoding="utf-8")
-                record(skill_path, created=True)
-            except (OSError, FileNotFoundError) as e:
-                # Log but don't fail init if skill installation fails
-                import logging
-                logging.warning(f"Failed to install meminit-docops SKILL.md: {e}")
-        else:
-            record(skill_path, created=False)
+        self._install_optional_asset(
+            target_path=agents_skills_dir / "SKILL.md",
+            package_resource_path="meminit-docops-skill.md",
+            record_fn=record,
+            error_context="meminit-docops SKILL.md",
+        )
 
         # 5b. Install scripts directory and brownfield helper script
         scripts_dir = agents_skills_dir / "scripts"
@@ -270,50 +258,22 @@ class InitRepositoryUseCase:
             created = False
         record(scripts_dir, created=created)
 
-        brownfield_script = scripts_dir / "meminit_brownfield_plan.sh"
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=brownfield_script)
-        if not brownfield_script.exists():
-            try:
-                script_content = (
-                    resources.files("meminit.core.assets")
-                    .joinpath("scripts")
-                    .joinpath("meminit_brownfield_plan.sh")
-                    .read_text(encoding="utf-8")
-                )
-                brownfield_script.write_text(script_content, encoding="utf-8")
-                # Make script executable
-                brownfield_script.chmod(0o755)
-                record(brownfield_script, created=True)
-            except (OSError, FileNotFoundError) as e:
-                # Log but don't fail init if script installation fails
-                import logging
-                logging.warning(f"Failed to install brownfield helper script: {e}")
-        else:
-            record(brownfield_script, created=False)
+        self._install_optional_asset(
+            target_path=scripts_dir / "meminit_brownfield_plan.sh",
+            package_resource_path="scripts/meminit_brownfield_plan.sh",
+            record_fn=record,
+            error_context="brownfield helper script",
+            make_executable=True,
+        )
 
         # 6. Install gov-001 constitution document
-        gov_001_path = self.docs_dir / "00-governance" / "DocOps_Constitution.md"
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=gov_001_path)
-        if not gov_001_path.exists():
-            try:
-                gov_001_content = (
-                    resources.files("meminit.core.assets")
-                    .joinpath("org_profiles")
-                    .joinpath("default")
-                    .joinpath("org_docs")
-                    .joinpath("org-gov-001-constitution.md")
-                    .read_text(encoding="utf-8")
-                )
-                # Replace org prefix with repo prefix
-                gov_001_content = gov_001_content.replace("ORG-", f"{repo_prefix}-")
-                gov_001_path.write_text(gov_001_content, encoding="utf-8")
-                record(gov_001_path, created=True)
-            except (OSError, FileNotFoundError) as e:
-                # Log but don't fail init if constitution installation fails
-                import logging
-                logging.warning(f"Failed to install gov-001 constitution: {e}")
-        else:
-            record(gov_001_path, created=False)
+        self._install_optional_asset(
+            target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
+            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+            record_fn=record,
+            error_context="gov-001 constitution",
+            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+        )
 
         created_paths_sorted = sorted(set(created_paths))
         skipped_paths_sorted = sorted(set(skipped_paths))
@@ -321,6 +281,50 @@ class InitRepositoryUseCase:
             created_paths=created_paths_sorted,
             skipped_paths=skipped_paths_sorted,
         )
+
+    def _install_optional_asset(
+        self,
+        target_path: Path,
+        package_resource_path: str,
+        record_fn,
+        error_context: str,
+        content_transform=None,
+        make_executable: bool = False,
+    ) -> None:
+        """
+        Install a file from package resources if it doesn't exist.
+
+        Args:
+            target_path: Where to install the file
+            package_resource_path: Resource path within the package
+            record_fn: Function to record creation status
+            error_context: Description for error messages
+            content_transform: Optional function to transform content before writing
+            make_executable: If True, set executable permissions (0o755)
+        """
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
+
+        if target_path.exists():
+            if not target_path.is_file():
+                raise FileExistsError(f"{target_path} exists and is not a file")
+            record_fn(target_path, created=False)
+            return
+
+        try:
+            content = (
+                resources.files("meminit.core.assets")
+                .joinpath(package_resource_path)
+                .read_text(encoding="utf-8")
+            )
+            if content_transform:
+                content = content_transform(content)
+            target_path.write_text(content, encoding="utf-8")
+            if make_executable:
+                target_path.chmod(0o755)
+            record_fn(target_path, created=True)
+        except (OSError, FileNotFoundError) as e:
+            logging.warning(f"Failed to install {error_context}: {e}")
+            record_fn(target_path, created=False)
 
     def _load_agents_template(self) -> str:
         """
