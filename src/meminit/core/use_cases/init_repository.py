@@ -88,6 +88,7 @@ class InitRepositoryUseCase:
             "05-planning/tasks",
             "08-security",
             "10-prd",
+            "12-notes",
             "20-specs",
             "30-design",
             "40-decisions",
@@ -136,6 +137,7 @@ class InitRepositoryUseCase:
                     "RESEARCH": "10-prd",
                     "PLAN": "05-planning",
                     "TASK": "05-planning/tasks",
+                    "NOTES": "12-notes",
                     "SPEC": "20-specs",
                     "DESIGN": "30-design",
                     "DECISION": "40-decisions",
@@ -172,8 +174,12 @@ class InitRepositoryUseCase:
         # This must still behave reasonably even if packaged resources are unavailable (e.g., in
         # constrained environments or tests that simulate missing assets).
         try:
-            profile = resolve_org_profile(profile_name="default", env=self._env, prefer_global=True)
-            schema_bytes = profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
+            profile = resolve_org_profile(
+                profile_name="default", env=self._env, prefer_global=True
+            )
+            schema_bytes = (
+                profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
+            )
             template_bytes = {
                 rel: (profile.files.get(rel) or _FALLBACK_TEMPLATES[rel])
                 for rel in _FALLBACK_TEMPLATES
@@ -201,18 +207,64 @@ class InitRepositoryUseCase:
                 record(dest, created=False)
 
         # 4. Create AGENTS.md
+        repo_prefix = self._load_repo_prefix_from_config()
+        if not repo_prefix:
+            repo_prefix = self._derive_repo_prefix(self.root_dir.name)
         agents_path = self.root_dir / "AGENTS.md"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_path)
         if not agents_path.exists():
-            repo_prefix = self._load_repo_prefix_from_config()
             agents_content = self._load_agents_template()
-            agents_content = agents_content.replace("{{PROJECT_NAME}}", self.root_dir.name).replace(
-                "{{REPO_PREFIX}}", repo_prefix
-            )
+            agents_content = agents_content.replace(
+                "{{PROJECT_NAME}}", self.root_dir.name
+            ).replace("{{REPO_PREFIX}}", repo_prefix)
             agents_path.write_text(agents_content, encoding="utf-8")
             record(agents_path, created=True)
         else:
             record(agents_path, created=False)
+
+        # 5. Create agent skills directory
+        # Codex expects .agents/skills/ in latest versions
+        agents_skills_dir = self.root_dir / ".agents" / "skills" / "meminit-docops"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_skills_dir)
+        if not agents_skills_dir.exists():
+            agents_skills_dir.mkdir(parents=True, exist_ok=True)
+            record(agents_skills_dir, created=True)
+
+            try:
+                skill_content = (
+                    resources.files("meminit.core.assets")
+                    .joinpath("meminit-docops-skill.md")
+                    .read_text(encoding="utf-8")
+                )
+                skill_path = agents_skills_dir / "SKILL.md"
+                skill_path.write_text(skill_content, encoding="utf-8")
+                record(skill_path, created=True)
+            except Exception:
+                pass
+        else:
+            record(agents_skills_dir, created=False)
+
+        # 6. Install gov-001 constitution document
+        gov_001_path = self.docs_dir / "00-governance" / "DocOps_Constitution.md"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=gov_001_path)
+        if not gov_001_path.exists():
+            try:
+                gov_001_content = (
+                    resources.files("meminit.core.assets")
+                    .joinpath("org_profiles")
+                    .joinpath("default")
+                    .joinpath("org_docs")
+                    .joinpath("org-gov-001-constitution.md")
+                    .read_text(encoding="utf-8")
+                )
+                # Replace org prefix with repo prefix
+                gov_001_content = gov_001_content.replace("ORG-", f"{repo_prefix}-")
+                gov_001_path.write_text(gov_001_content, encoding="utf-8")
+                record(gov_001_path, created=True)
+            except Exception:
+                pass
+        else:
+            record(gov_001_path, created=False)
 
         created_paths_sorted = sorted(set(created_paths))
         skipped_paths_sorted = sorted(set(skipped_paths))

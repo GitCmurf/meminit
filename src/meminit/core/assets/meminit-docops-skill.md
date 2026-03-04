@@ -42,11 +42,12 @@ Activate this skill when the user asks to:
 - Repo readiness: `meminit doctor --format json`
 - Repo discovery: `meminit context --format json` (add `--deep` for per-namespace document counts)
 - Compliance: `meminit check --format json` (add `--strict` to promote warnings to errors)
-- Generate migration plan: `meminit scan --plan <PLAN_PATH> --format json` (use `--plan <PLAN_PATH>` to generate a plan file)
+- Generate migration plan: `meminit scan --plan <PLAN_PATH> --format json`
 - Safe preview: `meminit fix --dry-run --format json`
 - Safe preview from plan: `meminit fix --plan <PLAN_PATH> --format json` (add `--namespace <NS>` for monorepo safety)
 - Apply mechanical fixes: `meminit fix --no-dry-run --format json`
 - Apply plan: `meminit fix --plan <PLAN_PATH> --no-dry-run --format json` (add `--namespace <NS>` for monorepo safety)
+- Migration planning: `meminit scan --format json`
 - Create governed doc: `meminit new <TYPE> <TITLE> --format json` (key flags: `--owner`, `--area`, `--description`, `--status`, `--keywords`, `--related-ids`, `--id`, `--dry-run`, `--namespace`)
 - Type discovery: `meminit new --list-types --format json`
 - ADR shortcut: `meminit adr new <TITLE> --format json`
@@ -77,7 +78,7 @@ Default flow:
 If you want a quick brownfield bootstrap, use the bundled helper script:
 
 ```bash
-.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh .
+.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh . /tmp/meminit-migration-plan.json
 ```
 
 ## Decision tree (brownfield migration)

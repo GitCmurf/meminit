@@ -109,7 +109,6 @@ Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
 - [ ] GitHub Actions
 - [ ] Web Dashboard
 
-
 Notes:
 the other lingering Phase 1 items to close out the foundation are:
 
