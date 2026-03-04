@@ -229,20 +229,57 @@ class InitRepositoryUseCase:
         if not agents_skills_dir.exists():
             agents_skills_dir.mkdir(parents=True, exist_ok=True)
             record(agents_skills_dir, created=True)
+        else:
+            record(agents_skills_dir, created=False)
 
+        # 5a. Install SKILL.md (even if directory already exists)
+        skill_path = agents_skills_dir / "SKILL.md"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=skill_path)
+        if not skill_path.exists():
             try:
                 skill_content = (
                     resources.files("meminit.core.assets")
                     .joinpath("meminit-docops-skill.md")
                     .read_text(encoding="utf-8")
                 )
-                skill_path = agents_skills_dir / "SKILL.md"
                 skill_path.write_text(skill_content, encoding="utf-8")
                 record(skill_path, created=True)
-            except Exception:
-                pass
+            except (OSError, FileNotFoundError) as e:
+                # Log but don't fail init if skill installation fails
+                import logging
+                logging.warning(f"Failed to install meminit-docops SKILL.md: {e}")
         else:
-            record(agents_skills_dir, created=False)
+            record(skill_path, created=False)
+
+        # 5b. Install scripts directory and brownfield helper script
+        scripts_dir = agents_skills_dir / "scripts"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=scripts_dir)
+        if not scripts_dir.exists():
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            record(scripts_dir, created=True)
+        else:
+            record(scripts_dir, created=False)
+
+        brownfield_script = scripts_dir / "meminit_brownfield_plan.sh"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=brownfield_script)
+        if not brownfield_script.exists():
+            try:
+                script_content = (
+                    resources.files("meminit.core.assets")
+                    .joinpath("scripts")
+                    .joinpath("meminit_brownfield_plan.sh")
+                    .read_text(encoding="utf-8")
+                )
+                brownfield_script.write_text(script_content, encoding="utf-8")
+                # Make script executable
+                brownfield_script.chmod(0o755)
+                record(brownfield_script, created=True)
+            except (OSError, FileNotFoundError) as e:
+                # Log but don't fail init if script installation fails
+                import logging
+                logging.warning(f"Failed to install brownfield helper script: {e}")
+        else:
+            record(brownfield_script, created=False)
 
         # 6. Install gov-001 constitution document
         gov_001_path = self.docs_dir / "00-governance" / "DocOps_Constitution.md"
@@ -261,8 +298,10 @@ class InitRepositoryUseCase:
                 gov_001_content = gov_001_content.replace("ORG-", f"{repo_prefix}-")
                 gov_001_path.write_text(gov_001_content, encoding="utf-8")
                 record(gov_001_path, created=True)
-            except Exception:
-                pass
+            except (OSError, FileNotFoundError) as e:
+                # Log but don't fail init if constitution installation fails
+                import logging
+                logging.warning(f"Failed to install gov-001 constitution: {e}")
         else:
             record(gov_001_path, created=False)
 

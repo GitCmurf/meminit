@@ -32,7 +32,7 @@ Activate this skill when the user asks to:
    - showing a dry-run preview, and
    - explicit user confirmation.
 3. Never attempt to “fix” semantic governance manually (ownership, approvals, status promotion) without asking.
-4. Do not introduce fake markdown links like `[text](path)` unless the target exists.
+4. Do not introduce fake Markdown links like `[text](path)` unless the target exists.
 5. Prefer `--format json` for automation, treat STDOUT as machine output, and keep verbose reasoning on STDERR only.
 6. For brownfield repos, prefer plan-driven changes (`scan --plan` then `fix --plan`) over ad hoc write operations.
 
@@ -78,7 +78,7 @@ Default flow:
 If you want a quick brownfield bootstrap, use the bundled helper script:
 
 ```bash
-.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh . /tmp/meminit-migration-plan.json
+bash .agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh . /tmp/meminit-migration-plan.json
 ```
 
 ## Decision tree (brownfield migration)

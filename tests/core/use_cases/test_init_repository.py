@@ -59,7 +59,7 @@ def test_init_creates_12_notes_directory(empty_repo):
 
 def test_init_creates_agent_skills_directory(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
-    report = use_case.execute()
+    use_case.execute()
 
     # Codex expects .agents/skills/
     skill_path = empty_repo / ".agents/skills/meminit-docops/SKILL.md"
@@ -69,7 +69,7 @@ def test_init_creates_agent_skills_directory(empty_repo):
 
 def test_init_installs_gov_001_constitution(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
-    report = use_case.execute()
+    use_case.execute()
 
     constitution_path = empty_repo / "docs/00-governance/DocOps_Constitution.md"
     assert constitution_path.exists()
