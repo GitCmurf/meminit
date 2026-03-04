@@ -1802,6 +1802,14 @@ def new_doc(
                 "keywords": result.keywords or [],
                 "related_ids": result.related_ids or [],
             }
+
+            # Add Templates v2 fields if available
+            if result.content:
+                response_data["rendered_content"] = result.content
+            if result.content_sha256:
+                response_data["content_sha256"] = result.content_sha256
+            if result.template_info:
+                response_data["template"] = result.template_info
             if dry_run:
                 response_data["dry_run"] = True
                 response_data["would_create"] = {

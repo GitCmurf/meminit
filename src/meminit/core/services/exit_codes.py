@@ -39,5 +39,12 @@ def exit_code_for_error(error_code: ErrorCode) -> int:
         ErrorCode.DIRECTORY_MISMATCH: EX_DATAERR,
         ErrorCode.VALIDATION_ERROR: EX_DATAERR,
         ErrorCode.UNKNOWN_ERROR: EX_DATAERR,
+        # Templates v2 error codes
+        ErrorCode.LEGACY_CONFIG_UNSUPPORTED: EX_USAGE,
+        ErrorCode.INVALID_TEMPLATE_PLACEHOLDER: EX_DATAERR,
+        ErrorCode.UNKNOWN_TEMPLATE_VARIABLE: EX_DATAERR,
+        ErrorCode.INVALID_TEMPLATE_FILE: EX_DATAERR,
+        ErrorCode.DUPLICATE_SECTION_ID: EX_DATAERR,
+        ErrorCode.AMBIGUOUS_SECTION_BOUNDARY: EX_DATAERR,
     }
     return mapping.get(error_code, EX_DATAERR)

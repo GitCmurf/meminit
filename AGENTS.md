@@ -5,7 +5,7 @@ This file defines the operational parameters for AI agents working within the Me
 The **rules of this repository** are:
 
 - Production-grade, professional best practices, always: SOLID+DRY+KISS.
-- All design decisions must be documented in the appropriate `docs/` directories following the templates provided (e.g., ADRs should be placed in `docs/45-adr/` using template `docs/00-governance/templates/template-001-adr.md`).
+- All design decisions must be documented in the appropriate `docs/` directories following the templates provided (e.g., ADRs should be placed in `docs/45-adr/` using template `docs/00-governance/templates/adr.template.md`).
 - The repo is _public_: Never commit secrets or PII. Use `MEMINIT-GOV-003` at `docs/00-governance/gov-003-security-practices.md` as a guide.
 - The **atomic unit** of work is: **Code + Documentation + Tests**. Code, documentation and tests are equal-class citizens and must stay in mutual sync in each PR. Do not consider a task complete unless all three are in sync.
 
@@ -79,7 +79,7 @@ The JSON envelope includes:
 
 Use `meminit context --format json` at the start of a session to discover:
 - `namespaces`: governed subtrees, their docs roots, and prefixes.
-- `templates`: type-to-template mappings.
+- `document_types`: type-to-directory and type-to-template mappings (Templates v2).
 - `allowed_types`: valid document types.
 - `repo_prefix`: default ID prefix.
 
@@ -90,6 +90,76 @@ Agents SHOULD use this data to avoid hardcoding paths or prefixes.
 - Expect schema friction: if your existing docs use extra frontmatter keys (e.g., `approvers`), either remove them or extend `docs/00-governance/metadata.schema.json` to allow them.
 - `meminit fix` may write placeholder values (e.g., `owner: __TBD__`) to make documents schema-valid; replace placeholders as part of the migration.
 - Avoid writing “example links” in markdown using `[text](target)` unless the target exists, because `meminit check` validates filesystem links. Prefer inline code for examples (e.g., `[text](target)`) unless you mean a real link.
+
+## Templates v2 (Agent Interface)
+
+Meminit Templates v2 provides a stable, machine-parseable template system for document creation.
+
+### Template Resolution Precedence
+
+When creating documents, templates are resolved in this order:
+1. **Config**: Explicit `template` path in `document_types.<type>.template`
+2. **Convention**: `<docs_root>/00-governance/templates/<type>.template.md`
+3. **Built-in**: Package templates (ADR, PRD, FDD)
+4. **None**: Minimal skeleton template
+
+### JSON Output (Templates v2 Fields)
+
+When `--format json` is used with `meminit new`, the response includes:
+
+- `data.rendered_content`: Full rendered document content
+- `data.content_sha256`: SHA-256 hash of rendered content
+- `data.template`: Template provenance object
+  - `applied`: Boolean indicating template usage
+  - `source`: “config” | “convention” | “builtin” | “none”
+  - `path`: Template file path (or null)
+  - `content_preview`: First 200 characters of template
+  - `sections`: Array of parsed section markers with:
+    - `id`, `heading`, `line`, `marker_line`
+    - `content_start_line`, `content_end_line`
+    - `required`, `agent_prompt`
+
+### Interpolation Syntax
+
+Templates use **only** `{{variable}}` syntax. Legacy syntax is rejected:
+
+| Variable | Description |
+|----------|-------------|
+| `{{title}}` | Document title |
+| `{{document_id}}` | Full document ID |
+| `{{owner}}` | Document owner |
+| `{{status}}` | Document status |
+| `{{date}}` | Current date (ISO 8601) |
+| `{{repo_prefix}}` | Repository prefix |
+| `{{seq}}` | Sequence number |
+| `{{type}}` | Document type |
+| `{{area}}` | Document area |
+| `{{description}}` | Document description |
+| `{{keywords}}` | Comma-separated keywords |
+| `{{related_ids}}` | Comma-separated related IDs |
+
+Legacy syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.) raises `INVALID_TEMPLATE_PLACEHOLDER` error.
+
+### Section Markers
+
+Templates may include stable section markers for agent orchestration:
+
+```markdown
+<!-- MEMINIT_SECTION: context -->
+## Context
+...
+<!-- MEMINIT_SECTION: decision -->
+## Decision
+...
+```
+
+Agents can parse sections to:
+- Identify document structure
+- Extract content spans by section ID
+- Preserve `<!-- AGENT: ... -->` guidance prompts
+- Validate section completeness
+
+See `docs/20-specs/spec-007-templates-v2.md` for complete specification.
 
 ## Codex Skills
 

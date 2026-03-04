@@ -79,7 +79,7 @@ Apply:
 What it writes (by default):
 
 - `docs/00-governance/metadata.schema.json`
-- `docs/00-governance/templates/template-001-*.md`
+- `docs/00-governance/templates/*.template.md` (e.g., `adr.template.md`, `prd.template.md`, `fdd.template.md`)
 - `docs/00-governance/org/org-gov-001-constitution.md`
 - `docs/00-governance/org/org-gov-002-metadata-schema.md`
 - `.meminit/org-profile.lock.json`

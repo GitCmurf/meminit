@@ -184,13 +184,14 @@ Plain English: Advice is informative only and should not be treated as a violati
 
 ## 8. Command Payload Profiles
 
-Current v2 scope includes `check` only. The `check` counters/findings are emitted at the top level (not nested under `data`).
+Current v2 scope includes `check` and `new`. The `check` counters/findings are emitted at the top level (not nested under `data`). The `new` command emits its payload within `data`.
 
 | Command | Required top-level fields                                                                                                                                                                                            | Type     |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `check` | `files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count` | integers |
+| `new`   | `data.document_id`, `data.path`, `data.type`, `data.title`                                                                                                                                                           | strings  |
 
-Plain English: in v2 today, `check` is the migrated command and its counters are top-level fields.
+Plain English: in v2 today, `check` and `new` are migrated commands. `check` counters are top-level fields; `new` data is nested under `data`.
 
 ### 8.1 `check` Counter Semantics
 
@@ -204,6 +205,36 @@ For `command: check`, these counter semantics are normative:
 - `success` is `false` if any file-level failures, missing paths, or schema failures exist, or when strict mode promotes warnings.
 
 Plain English: `files_checked` is now strictly file-validation count, and repository-level failures are tracked separately.
+
+### 8.2 `new` Command Payload (Templates v2)
+
+For `command: new`, the following `data` fields are normative for Templates v2:
+
+Required fields:
+- `document_id` (string) — The allocated document ID
+- `path` (string) — Relative path to the created document
+- `type` (string) — Document type
+- `title` (string) — Document title
+
+Optional Templates v2 fields:
+- `rendered_content` (string) — Full rendered document content
+- `content_sha256` (string) — SHA-256 hash of rendered content
+- `template` (object) — Template provenance information
+  - `applied` (boolean) — Whether a template was applied
+  - `source` (string) — Template source: "config" | "convention" | "builtin" | "none"
+  - `path` (string | null) — Path to template file used
+  - `content_preview` (string) — First 200 characters of template content
+  - `sections` (array) — Parsed section markers with fields:
+    - `id` (string) — Section identifier
+    - `heading` (string) — Section heading text
+    - `line` (integer) — Line number
+    - `marker_line` (integer) — Marker line number
+    - `content_start_line` (integer) — Content start line
+    - `content_end_line` (integer) — Content end line
+    - `required` (boolean) — Whether section is required
+    - `agent_prompt` (string | null) — Agent guidance prompt
+
+Plain English: `new` returns the created document metadata and optionally the full content and template provenance for agent workflows.
 
 ## 9. Determinism Rules
 

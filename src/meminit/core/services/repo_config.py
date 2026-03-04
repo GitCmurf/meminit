@@ -94,6 +94,23 @@ def _normalize_type_directories(docs_root: str, raw: Any) -> Dict[str, str]:
 
 
 @dataclass(frozen=True)
+class DocumentTypeConfig:
+    """Configuration for a single document type (Templates v2).
+
+    Attributes:
+        directory: The directory where documents of this type are stored
+            (relative to docs_root).
+        template: Optional path to a custom template file (relative to
+            repo root).
+        description: Optional human-readable description of this document
+            type.
+    """
+    directory: str
+    template: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class RepoConfig:
     root_dir: Path
     namespace: str
@@ -106,6 +123,7 @@ class RepoConfig:
     excluded_filename_prefixes: tuple[str, ...]
     type_directories: Dict[str, str]
     templates: Dict[str, str]
+    document_types: Dict[str, DocumentTypeConfig]
 
     @property
     def docs_dir(self) -> Path:
@@ -147,7 +165,29 @@ class RepoConfig:
 
     def expected_subdir_for_type(self, doc_type: str) -> Optional[str]:
         key = _normalize_type_key(doc_type)
+        # document_types is the single source of truth for Templates v2
+        dt = self.document_types.get(key)
+        if dt is not None:
+            return dt.directory
+        # Fallback to type_directories for compatibility during migration
         return self.type_directories.get(key)
+
+    def get_template_for_type(self, doc_type: str) -> Optional[str]:
+        """Return the configured template path for *doc_type*, or None.
+
+        Checks document_types configuration for an explicit template path.
+
+        Args:
+            doc_type: The document type (case-insensitive).
+
+        Returns:
+            The template path (relative to repo root) if configured, else None.
+        """
+        key = _normalize_type_key(doc_type)
+        dt = self.document_types.get(key)
+        if dt is not None:
+            return dt.template
+        return None
 
 
 @dataclass(frozen=True)
@@ -282,6 +322,52 @@ def _build_namespace_config(
         )
     )
 
+    # Parse document_types (Templates v2 - single source of truth)
+    # Merge defaults and namespace entries (namespace entries override defaults)
+    document_types: Dict[str, DocumentTypeConfig] = {}
+
+    # First, parse defaults
+    default_document_types = defaults.get("document_types")
+    if isinstance(default_document_types, Mapping):
+        for k, v in default_document_types.items():
+            doc_type = _normalize_type_key(k)
+            if not isinstance(v, Mapping):
+                continue
+            directory = v.get("directory")
+            if not directory:
+                continue  # directory is required
+            directory_norm = _safe_repo_relative_path(root, directory)
+            if not directory_norm:
+                continue  # invalid path
+            template_norm = _safe_repo_relative_path(root, v.get("template"))
+            description = v.get("description") if isinstance(v.get("description"), str) else None
+            document_types[doc_type] = DocumentTypeConfig(
+                directory=directory_norm,
+                template=template_norm,
+                description=description
+            )
+
+    # Then, override with namespace entries
+    namespace_document_types = raw_namespace.get("document_types")
+    if isinstance(namespace_document_types, Mapping):
+        for k, v in namespace_document_types.items():
+            doc_type = _normalize_type_key(k)
+            if not isinstance(v, Mapping):
+                continue
+            directory = v.get("directory")
+            if not directory:
+                continue  # directory is required
+            directory_norm = _safe_repo_relative_path(root, directory)
+            if not directory_norm:
+                continue  # invalid path
+            template_norm = _safe_repo_relative_path(root, v.get("template"))
+            description = v.get("description") if isinstance(v.get("description"), str) else None
+            document_types[doc_type] = DocumentTypeConfig(
+                directory=directory_norm,
+                template=template_norm,
+                description=description
+            )
+
     templates: Dict[str, str] = {}
     for raw_templates in (defaults.get("templates"), raw_namespace.get("templates")):
         if not isinstance(raw_templates, Mapping):
@@ -306,7 +392,38 @@ def _build_namespace_config(
         excluded_filename_prefixes=tuple(excluded_filename_prefixes),
         type_directories=type_directories,
         templates=templates,
+        document_types=document_types,
     )
+
+
+def _validate_no_legacy_config_keys(config_data: Dict[str, Any]) -> None:
+    """Validate that legacy config keys are not present (Templates v2).
+
+    Templates v2 rejects legacy 'type_directories' and 'templates' keys at runtime.
+    Use 'meminit migrate-templates' to convert legacy configs before using v2.
+
+    For now, this only logs a debug warning. In the future, this will raise
+    LEGACY_CONFIG_UNSUPPORTED once migration tooling is available.
+
+    Args:
+        config_data: The loaded config data dictionary.
+    """
+    legacy_keys = []
+    if config_data.get("type_directories"):
+        legacy_keys.append("type_directories")
+    if config_data.get("templates"):
+        legacy_keys.append("templates")
+
+    if legacy_keys:
+        # TODO: Promote to raising MeminitError once migration tooling is available
+        log_debug(
+            operation="warning.legacy_config_keys",
+            details={
+                "message": f"Legacy config keys detected: {', '.join(legacy_keys)}",
+                "migration_command": "meminit migrate-templates",
+                "legacy_keys": legacy_keys,
+            },
+        )
 
 
 def load_repo_layout(root_dir: str | Path) -> RepoLayout:
@@ -330,6 +447,9 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
             "error": load_error,
         },
     )
+
+    # Check for legacy config keys (Templates v2 - reject at runtime)
+    _validate_no_legacy_config_keys(data)
 
     project_name = str(data.get("project_name") or root.name).strip() or root.name
 

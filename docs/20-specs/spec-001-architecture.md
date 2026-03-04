@@ -35,7 +35,10 @@ Arg parsing.
 Delegates to core functions.
 Handles output modes (human vs JSON).
 
-**Templates module** (`meminit.templates`)
+**Templates module** (`meminit.core.services`)
+- `TemplateResolver` — Resolves templates via precedence chain (config → convention → builtin → skeleton).
+- `TemplateInterpolator` — Interpolates `{{variable}}` placeholders with legacy syntax rejection.
+- `SectionParser` — Parses `<!-- MEMINIT_SECTION: id -->` markers with code-fence awareness.
 Loads templates from repo; falls back to org-level defaults.
 Performs variable substitution.
 
@@ -53,7 +56,17 @@ CI examples (GitHub Actions YAML).
 ## 3.2 Data structures
 
     `OrgConfig` (docops\_version, allowed\_types, default\_directories).
-    `RepoConfig` (docops\_version, config\_version, repo\_prefix, areas, types, directories, kg\_tags).
+    `RepoConfig` (docops\_version, config\_version, repo\_prefix, areas, types, directories, kg\_tags, document_types).
+    `DocumentTypeConfig` (Templates v2)
+        `directory` — Directory where documents of this type are stored (relative to docs_root).
+        `template` — Optional path to custom template file (relative to repo root).
+        `description` — Optional human-readable description.
+    `SectionMarker` (Templates v2)
+        `id` — Section identifier.
+        `heading` — Section heading text.
+        `line`, `marker_line`, `content_start_line`, `content_end_line` — Line numbers.
+        `required` — Whether section is required.
+        `agent_prompt` — Agent guidance prompt.
     `Document`
         `document\_id`, `owner`, `approvers`, `status`, `last\_updated`, `version`, `type`, `docops\_version`, plus extra.
         parsed body as simple string (no need for AST initially).

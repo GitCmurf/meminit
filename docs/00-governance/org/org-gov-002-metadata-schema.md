@@ -42,6 +42,9 @@ This document defines the schema for the YAML frontmatter of all governed docume
 | `description` | String | Summary | Free text. |
 | `template_type` | String | Template Identifier | e.g. `adr-minimal` |
 | `template_version` | String | Template Version | e.g. `1.0` |
+| `template_source` | String | Template provenance source (Templates v2) | "config" \| "convention" \| "builtin" \| "none" |
+| `template_path` | String | Template file path (Templates v2) | Relative path to template used |
+| `sections_count` | Integer | Number of sections in document (Templates v2) | Non-negative integer |
 | `keywords` | List[Str] | Knowledge Graph Topics | Must match `docops.config.yaml` keywords (if strict). |
 | `tags` | List[Str] | Loose grouping | Free text. |
 | `superseded_by`| String | ID of replacement doc | Must be a valid Document ID. |

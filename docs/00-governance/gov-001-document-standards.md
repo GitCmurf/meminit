@@ -100,7 +100,7 @@ This repository MAY contain the following structure (only directories that are u
 ```
 docs/
   00-governance/  # GOV, RFC
-  00-governance/templates/  # TEMPLATES
+  00-governance/templates/  # *.template.md (adr.template.md, prd.template.md, fdd.template.md)
   01-indices/
   02-strategy/    # STRAT
   05-planning/    # PLAN, TASK

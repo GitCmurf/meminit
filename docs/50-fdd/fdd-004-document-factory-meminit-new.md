@@ -35,17 +35,17 @@ Create new governed documents with schema-valid frontmatter, predictable filenam
 ## Functional Scope (v0.1)
 
 - Command: `meminit new <TYPE> <TITLE>`
-- Chooses target directory by type (default: `ADR` → `docs/45-adr/`), overridable via `docops.config.yaml:type_directories` for brownfield repos (e.g., `ADR` → `docs/adrs/`).
+- Chooses target directory by type (default: `ADR` → `docs/45-adr/`), overridable via `docops.config.yaml:document_types` for brownfield repos (e.g., `ADR` → `docs/adrs/`).
 - Generates a new `document_id` using `repo_prefix` from `docops.config.yaml`:
   - `MEMINIT-ADR-001`, `MEMINIT-PRD-002`, etc.
 - Generates filename `type-seq-slug.md` (e.g., `adr-001-my-decision.md`).
 - Safety: must not overwrite an existing file at the target path; fail fast if the file already exists.
 - Prepends schema-valid frontmatter.
-- Loads a type-specific template when configured; otherwise uses a default skeleton.
+- Loads a type-specific template when configured via `document_types`; otherwise uses a default skeleton.
   - Template keys are treated as case-insensitive document types (e.g., `ADR` and `adr` behave the same).
-- Supports basic placeholder substitution:
-  - `{title}`, `{status}`
-  - legacy tokens like `<REPO>`, `<SEQ>`, `<YYYY-MM-DD>`, `<Decision Title>`
+- Supports placeholder substitution via `{{variable}}` syntax (Templates v2):
+  - `{{title}}`, `{{status}}`, `{{document_id}}`, `{{owner}}`, `{{date}}`, `{{repo_prefix}}`, `{{seq}}`, `{{type}}`, `{{area}}`, `{{description}}`, `{{keywords}}`, `{{related_ids}}`
+  - Legacy syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.) is rejected with `INVALID_TEMPLATE_PLACEHOLDER` error.
 
 ## Functional Scope (v0.3)
 
@@ -58,8 +58,10 @@ Create new governed documents with schema-valid frontmatter, predictable filenam
 - Human UX: `--interactive`, `--edit` (with documented incompatibilities).
 - Visible metadata block replacement when template contains
   `<!-- MEMINIT_METADATA_BLOCK -->`.
-- Template frontmatter merge and placeholders:
-  `{owner}`, `{area}`, `{description}`, `{keywords}`, `{related_ids}`.
+- Template frontmatter merge and placeholders via `{{variable}}` syntax (Templates v2):
+  `{{owner}}`, `{{area}}`, `{{description}}`, `{{keywords}}`, `{{related_ids}}`.
+- Template resolution precedence chain (Templates v2): config → convention → builtin → skeleton.
+- Section marker parsing (`<!-- MEMINIT_SECTION: id -->`) with code-fence awareness.
 - Concurrency safety via directory lock.
 
 ## Non-goals (v0.3)
@@ -71,7 +73,13 @@ Create new governed documents with schema-valid frontmatter, predictable filenam
 
 - Use case: `src/meminit/core/use_cases/new_document.py`
 - Config file: root `docops.config.yaml`
+- Templates v2 implementation:
+  - `TemplateResolver` service (`src/meminit/core/services/template_resolver.py`)
+  - `TemplateInterpolator` service (`src/meminit/core/services/template_interpolation.py`)
+  - `SectionParser` service (`src/meminit/core/services/section_parser.py`)
+  - `DocumentTypeConfig` dataclass in `RepoConfig` for `document_types` configuration
 
 ## Tests
 
 - Unit tests cover ID auto-increment, template usage, and placeholder substitution.
+- Templates v2 tests cover template resolution, interpolation syntax, and section parsing.

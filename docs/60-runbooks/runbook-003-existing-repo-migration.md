@@ -36,7 +36,9 @@ Review the list of violations (e.g., bad filenames, missing frontmatter).
 If your repo uses a nonstandard docs layout (e.g., `docs/adrs/` instead of `docs/45-adr/`), adjust `docops.config.yaml` to match before you start migrating:
 
 - `excluded_paths`: ignore template folders and other non-governed markdown
-- `type_directories`: map doc types to the folders you actually use (e.g., `ADR: adrs`)
+- `document_types`: map doc types to their directories and templates (e.g., `ADR: {directory: adrs}`)
+
+Note: Legacy `type_directories` and `templates` config keys are no longer supported in Templates v2. Use `document_types` instead.
 
 ### 2. Initialization
 
@@ -73,6 +75,22 @@ meminit fix --plan /tmp/meminit_migration_plan.json --no-dry-run
 ### 4. Manual Remediation
 
 For violations that `fix` cannot handle (e.g., moving files to correct directories), edit the files manually. If `fix` initializes missing frontmatter fields, review and replace placeholder values like `owner: Unknown`.
+
+### 4a. Template Migration (Templates v2)
+
+If your repository uses legacy template placeholder syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.), migrate to Templates v2:
+
+```bash
+meminit migrate-templates
+```
+
+This command:
+- Converts legacy `type_directories` config to `document_types` format
+- Converts legacy `templates` config to `document_types.<type>.template` format
+- Renames template files from `template-001-*.md` to `*.template.md`
+- Migrates placeholder syntax from `{title}` to `{{title}}` and `<REPO>` to `{{repo_prefix}}`
+
+Review the changes and commit them.
 
 ### 5. Validation
 

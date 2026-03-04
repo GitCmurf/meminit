@@ -3,19 +3,26 @@ project_name: Meminit
 repo_prefix: MEMINIT
 schema_path: docs/00-governance/metadata.schema.json
 
-# Monorepo-style namespaces: Meminit’s repo includes both repo-local docs (MEMINIT-*)
+# Monorepo-style namespaces: Meminit's repo includes both repo-local docs (MEMINIT-*)
 # and organisation-level governance docs (ORG-*). Namespaces keep prefix enforcement
 # deterministic without moving to a separate repository.
 namespaces:
   - name: meminit
     repo_prefix: MEMINIT
     docs_root: docs
-  - name: org
-    repo_prefix: ORG
-    docs_root: docs/00-governance/org
-    type_directories:
-      GOV: .
-templates:
-  adr: docs/00-governance/templates/template-001-adr.md
-  fdd: docs/00-governance/templates/template-001-fdd.md
-  prd: docs/00-governance/templates/template-001-prd.md
+
+# Templates v2: document_types is the single source of truth
+# Legacy 'templates' and 'type_directories' keys are not supported in Templates v2
+document_types:
+  ADR:
+    directory: "45-adr"
+    template: "docs/00-governance/templates/adr.template.md"
+    description: "Architecture Decision Record"
+  PRD:
+    directory: "10-prd"
+    template: "docs/00-governance/templates/prd.template.md"
+    description: "Product Requirements Document"
+  FDD:
+    directory: "50-fdd"
+    template: "docs/00-governance/templates/fdd.template.md"
+    description: "Feature Description Document"

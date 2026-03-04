@@ -12,12 +12,17 @@ import frontmatter
 import yaml
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 
+import hashlib
+
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
 from meminit.core.services.observability import get_current_run_id, log_debug, log_operation
 from meminit.core.services.repo_config import RepoConfig, load_repo_config, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.section_parser import SectionParser
+from meminit.core.services.template_interpolation import TemplateInterpolator
+from meminit.core.services.template_resolver import TemplateResolver
 from meminit.core.services.validators import SchemaValidator
 
 try:
@@ -1223,3 +1228,204 @@ class NewDocumentUseCase:
             body = body.replace(k, v)
 
         return body
+
+    # ========== Templates v2 Methods ==========
+
+    def _load_template_v2(
+        self,
+        doc_type: str,
+        title: str,
+        doc_id: str,
+        ns: RepoConfig,
+        owner: str = "__TBD__",
+        status: str = "Draft",
+        area: Optional[str] = None,
+        description: Optional[str] = None,
+        keywords: Optional[List[str]] = None,
+        related_ids: Optional[List[str]] = None,
+        superseded_by: Optional[str] = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Load and interpolate a template using Templates v2 system.
+
+        Uses the TemplateResolver for precedence chain resolution and
+        TemplateInterpolator for {{variable}} interpolation.
+
+        Args:
+            doc_type: Document type (case-insensitive).
+            title: Document title.
+            doc_id: Full document ID (e.g., REPO-PRD-001).
+            ns: Namespace configuration.
+            owner: Document owner.
+            status: Document status.
+            area: Optional area classification.
+            description: Optional document description.
+            keywords: Optional list of keywords.
+            related_ids: Optional list of related document IDs.
+            superseded_by: Optional superseding document ID.
+
+        Returns:
+            A tuple of (rendered_content, template_info_dict).
+
+        Raises:
+            MeminitError: For template resolution or interpolation errors.
+        """
+        # Resolve template using precedence chain
+        resolver = TemplateResolver(ns)
+        resolution = resolver.resolve(doc_type)
+
+        # Get template content or use skeleton
+        if resolution.content:
+            template_content = resolution.content
+        else:
+            template_content = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
+
+        # Parse document ID for interpolation
+        parts = doc_id.split("-")
+        repo_prefix = parts[0] if len(parts) >= 1 else ns.repo_prefix or ""
+        seq = parts[-1] if len(parts) >= 3 else "001"
+
+        # Interpolate using {{variable}} syntax
+        interpolator = TemplateInterpolator()
+        try:
+            body = interpolator.interpolate(
+                template_content,
+                title=title,
+                document_id=doc_id,
+                owner=owner,
+                status=status,
+                repo_prefix=repo_prefix,
+                seq=seq,
+                doc_type=doc_type,
+                area=area,
+                description=description,
+                keywords=keywords or [],
+                related_ids=related_ids or [],
+            )
+        except MeminitError:
+            # Re-raise interpolation errors
+            raise
+
+        # Parse frontmatter if present
+        template_frontmatter: Dict[str, Any] = {}
+        if body.strip().startswith("---"):
+            try:
+                post = safe_frontmatter_loads(body)
+            except (yaml.YAMLError, ValueError):
+                pass
+            else:
+                template_frontmatter = dict(post.metadata) if post.metadata else {}
+                body = post.content
+
+        # Build generated metadata
+        docops_version = str(ns.docops_version or "2.0")
+        generated_metadata: Dict[str, Any] = {
+            "document_id": doc_id,
+            "type": doc_type,
+            "title": title,
+            "status": status,
+            "version": "0.1",
+            "last_updated": date.today().isoformat(),
+            "owner": owner,
+            "docops_version": docops_version,
+        }
+
+        if area is not None:
+            generated_metadata["area"] = area
+        if description is not None:
+            generated_metadata["description"] = description
+        if keywords is not None:
+            generated_metadata["keywords"] = keywords
+        if related_ids is not None:
+            generated_metadata["related_ids"] = related_ids
+        if superseded_by is not None:
+            generated_metadata["superseded_by"] = superseded_by
+
+        # Merge frontmatter (generated takes precedence for required fields)
+        metadata = {**template_frontmatter, **generated_metadata}
+
+        # Generate visible metadata block
+        visible_block = self._generate_visible_metadata_block(metadata)
+
+        # Replace or insert metadata block (FR-8)
+        if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
+            # Replace existing blockquote placeholder
+            body = body.replace("<!-- MEMINIT_METADATA_BLOCK -->", visible_block)
+        else:
+            # Insert after frontmatter (no comment placeholder)
+            body = f"{visible_block}\n\n{body.lstrip()}"
+
+        # Build final document with frontmatter
+        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
+        rendered_content = f"---\n{fm_yaml}\n---\n\n{body}"
+
+        # Parse sections for JSON output
+        section_parser = SectionParser()
+        sections = section_parser.parse_sections(rendered_content)
+
+        # Build template info for JSON output
+        template_info = self._build_template_info(
+            resolution=resolution,
+            sections=sections,
+            rendered_content=rendered_content,
+        )
+
+        return rendered_content, template_info
+
+    def _build_template_info(
+        self,
+        resolution: Any,
+        sections: List[Any],
+        rendered_content: str,
+    ) -> dict[str, Any]:
+        """Build template info dictionary for JSON output.
+
+        Args:
+            resolution: TemplateResolution object from TemplateResolver.
+            sections: List of SectionMarker objects from SectionParser.
+            rendered_content: The final rendered document content.
+
+        Returns:
+            Template info dictionary for inclusion in JSON response.
+        """
+        info = {
+            "applied": resolution.source != "none",
+            "source": resolution.source,
+            "path": str(resolution.path) if resolution.path else None,
+            "sections": [],
+        }
+
+        # Add section info
+        for section in sections:
+            section_dict = {
+                "id": section.id,
+                "heading": section.heading,
+                "line": section.line,
+                "marker_line": section.marker_line,
+                "content_start_line": section.content_start_line,
+                "content_end_line": section.content_end_line,
+                "required": section.required,
+                "agent_prompt": section.agent_prompt,
+                "initial_content": section.initial_content,
+            }
+            info["sections"].append(section_dict)
+
+        # Add content preview (first 200 chars)
+        if rendered_content:
+            preview_len = 200
+            if len(rendered_content) > preview_len:
+                info["content_preview"] = rendered_content[:preview_len] + "..."
+            else:
+                info["content_preview"] = rendered_content
+
+        return info
+
+    def _compute_content_sha256(self, content: str) -> str:
+        """Compute SHA-256 hash of content.
+
+        Args:
+            content: The content to hash.
+
+        Returns:
+            Hexadecimal SHA-256 digest.
+        """
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
