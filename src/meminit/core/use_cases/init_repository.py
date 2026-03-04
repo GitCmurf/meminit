@@ -8,6 +8,10 @@ import yaml
 from meminit.core.services.org_profiles import resolve_org_profile
 from meminit.core.services.safe_fs import ensure_safe_write_path
 
+# Agent skill paths
+_AGENTS_SKILLS_DIR = Path(".agents") / "skills"
+_MEMINIT_DOCOPS_SKILL = "meminit-docops"
+
 _FALLBACK_SCHEMA_JSON = b"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://meminit.io/schemas/metadata.schema.json",
@@ -224,13 +228,16 @@ class InitRepositoryUseCase:
 
         # 5. Create agent skills directory
         # Codex expects .agents/skills/ in latest versions
-        agents_skills_dir = self.root_dir / ".agents" / "skills" / "meminit-docops"
+        agents_skills_dir = self.root_dir / _AGENTS_SKILLS_DIR / _MEMINIT_DOCOPS_SKILL
         ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_skills_dir)
-        if not agents_skills_dir.exists():
-            agents_skills_dir.mkdir(parents=True, exist_ok=True)
-            record(agents_skills_dir, created=True)
-        else:
-            record(agents_skills_dir, created=False)
+        created = True
+        try:
+            agents_skills_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            if not agents_skills_dir.is_dir():
+                raise
+            created = False
+        record(agents_skills_dir, created=created)
 
         # 5a. Install SKILL.md (even if directory already exists)
         skill_path = agents_skills_dir / "SKILL.md"
@@ -254,11 +261,14 @@ class InitRepositoryUseCase:
         # 5b. Install scripts directory and brownfield helper script
         scripts_dir = agents_skills_dir / "scripts"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=scripts_dir)
-        if not scripts_dir.exists():
-            scripts_dir.mkdir(parents=True, exist_ok=True)
-            record(scripts_dir, created=True)
-        else:
-            record(scripts_dir, created=False)
+        created = True
+        try:
+            scripts_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            if not scripts_dir.is_dir():
+                raise
+            created = False
+        record(scripts_dir, created=created)
 
         brownfield_script = scripts_dir / "meminit_brownfield_plan.sh"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=brownfield_script)

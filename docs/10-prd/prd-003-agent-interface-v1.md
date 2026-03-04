@@ -420,7 +420,7 @@ This repo currently uses (or may use) multiple protocol surfaces:
 | Surface                                                                                                    | Primary audience   | Role                                                                            |
 | ---------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------- |
 | [`AGENTS.md`](../../AGENTS.md)                                                                             | Any agent + humans | Repo-wide operating rules; safety, governance, "how to work here".              |
-| `.codex/skills/*/SKILL.md` (e.g., [example skill](../../.codex/skills/meminit-docops/SKILL.md) if present) | Codex CLI          | Host-specific step-by-step playbooks that can be selected/invoked as a “skill”. |
+| `.agents/skills/*/SKILL.md` (e.g., [example skill](../../.agents/skills/meminit-docops/SKILL.md) if present) | Codex CLI          | Host-specific step-by-step playbooks that can be selected/invoked as a “skill”. |
 | Tool-specific folders (e.g., `.claude/`, `.vscode/`)                                                       | Tool-specific      | Convenience configuration; not normative for Meminit.                           |
 
 > [!IMPORTANT]
@@ -2008,12 +2008,12 @@ The exact signature is not normative; the behavioral requirements in §14 and
 - Update [`AGENTS.md`](../../AGENTS.md) to document the JSON output mode and `context`
   command for agents.
 - Update repo-scoped agent protocol files (for example Codex skills under
-  `.codex/skills/`) to rely on the v2 envelope contract rather than
+  `.agents/skills/`) to rely on the v2 envelope contract rather than
   pre-contract JSON shapes, and to document the new/standardized flags
   (notably `--output` and `--include-timestamp`).
   - Concrete targets in this repo:
     - [`docs/60-runbooks/runbook-006-codex-skills-setup.md`](../60-runbooks/runbook-006-codex-skills-setup.md)
-    - `.codex/skills/meminit-docops/SKILL.md` (non-governed, but treated as operational protocol for agents)
+    - `.agents/skills/meminit-docops/SKILL.md` (non-governed, but treated as operational protocol for agents)
 
 ### 22.3 Testing Requirements
 

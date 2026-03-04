@@ -66,6 +66,15 @@ def test_init_creates_agent_skills_directory(empty_repo):
     assert skill_path.exists()
     assert "meminit-docops" in skill_path.read_text()
 
+    # Verify brownfield helper script is installed with executable permissions
+    script_path = (
+        empty_repo / ".agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh"
+    )
+    assert script_path.exists()
+    assert script_path.read_text(encoding="utf-8").startswith("#!/usr/bin/env bash")
+    # Check script is executable (owner has execute permission)
+    assert script_path.stat().st_mode & 0o100 != 0
+
 
 def test_init_installs_gov_001_constitution(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
