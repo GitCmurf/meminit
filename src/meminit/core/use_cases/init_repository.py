@@ -307,6 +307,8 @@ class InitRepositoryUseCase:
         if target_path.exists():
             if not target_path.is_file():
                 raise FileExistsError(f"{target_path} exists and is not a file")
+            if make_executable:
+                self._set_executable_permission(target_path)
             record_fn(target_path, created=False)
             return
 
@@ -366,3 +368,15 @@ class InitRepositoryUseCase:
             except Exception:
                 pass
         return self._derive_repo_prefix(self.root_dir.name)
+
+    def _set_executable_permission(self, path: Path) -> None:
+        """Set executable permission bits on a file, preserving existing permissions."""
+        try:
+            current_mode = path.stat().st_mode
+            path.chmod(current_mode | 0o111)
+        except OSError as e:
+            logging.warning(
+                "Failed to set executable permissions on %s: %s",
+                path.as_posix(),
+                e,
+            )
