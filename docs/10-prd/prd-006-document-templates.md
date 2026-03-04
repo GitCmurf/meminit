@@ -3,12 +3,12 @@ document_id: MEMINIT-PRD-006
 type: PRD
 title: Document Templates v2 — Content Archetypes for Human & Machine Authoring
 status: In Review
-version: "1.0"
-last_updated: 2026-03-02
+version: "1.3"
+last_updated: 2026-03-04
 owner: GitCmurf
 docops_version: "2.0"
 area: DOCS
-description: "Defines a template contract for meminit new that produces deterministic, agent-friendly document bodies: stable section IDs, explicit placeholders, and embedded prompt guidance. Specifies backward-compatible evolution from templates v1 to a unified document_types schema with built-in fallback templates."
+description: "Defines a template contract for meminit new that produces deterministic, agent-friendly document bodies: stable section IDs, explicit placeholders, and embedded prompt guidance. Specifies evolution from templates v1 to a unified document_types schema (single source of truth) with built-in fallback templates, a single {{variable}} interpolation syntax, and robust section parsing for orchestrators."
 keywords:
   - templates
   - archetypes
@@ -36,8 +36,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-006
 > **Owner:** GitCmurf
 > **Status:** In Review
-> **Version:** 1.0
-> **Last Updated:** 2026-03-02
+> **Version:** 1.3
+> **Last Updated:** 2026-03-04
 > **Type:** PRD
 > **Area:** DOCS
 
@@ -106,18 +106,20 @@ related_ids:
 > **What:** Template system evolution from v1 to v2
 >
 > - Adds stable section IDs for agent orchestration
-> - Unifies config under `document_types` schema
+> - Unifies config under `document_types` as single source of truth
+> - Standardises on `{{variable}}` interpolation syntax (legacy runtime syntax removed; optional migration helper)
 > - Ships built-in fallback templates (ADR/PRD/FDD)
-> - Preserves 100% backward compatibility
+> - Uses marker-to-marker section spans (code-fence-aware; headings are informational only)
 >
 > **Impact:**
 >
 > - Agent error rate: 15-20% → <2% (90%+ reduction)
-> - Config reduction: 50% (two keys → one schema)
+> - Config reduction: 100% (two keys → one schema; legacy keys rejected at runtime)
 > - No-config repos: Generic skeleton → meaningful scaffold
+> - Orchestrator extra file reads: eliminated (`data.rendered_content` + section spans in JSON)
 >
-> **Investment:** 8 work packages, phased rollout
-> **Risk:** Low - backward compatible, incremental delivery
+> **Investment:** 6 consolidated work packages + migration tooling, phased rollout
+> **Risk:** Low - pre-alpha with minimal users; backward compatibility relaxed
 >
 > **Recommendation: APPROVE**
 
@@ -131,29 +133,32 @@ related_ids:
 
 ### 1.1 TL;DR
 
-**What's changing:** Meminit's template system evolves from a simple placeholder-replacement mechanism (v1) to a deterministic, agent-friendly contract (v2) with stable section identifiers (`<!-- MEMINIT_SECTION: id -->`), unified `document_types` configuration, embedded agent guidance prompts, and built-in fallback templates — shipped across 8 work packages as backward-compatible PRs.
+**What's changing:** Meminit's template system evolves from a simple placeholder-replacement mechanism (v1) to a deterministic, agent-friendly contract (v2) with stable section identifiers (`<!-- MEMINIT_SECTION: id -->`), unified `document_types` configuration (single source of truth), a single `{{variable}}` interpolation syntax, embedded agent guidance prompts, and built-in fallback templates — shipped across 6 consolidated work packages plus migration tooling.
 
 **Why now:** Agentic orchestrators need predictable, parseable document scaffolds to reliably generate governed documentation. Today, agents must parse headings with regex, producing an estimated ~15-20% structural error rate (based on manual review of agent-generated documents across early adopter repos). Templates v2 eliminates this class of failure entirely.
+
+**Backward compatibility note:** The project is in pre-alpha with minimal users. Backward compatibility is NOT a hard constraint. Templates v2 removes mixed-mode runtime support: `document_types` and `{{variable}}` are the only supported runtime contract. Legacy configs and templates must be migrated before use; `meminit migrate-templates` is a pre-upgrade helper, not a compatibility layer.
 
 **Impact on key personas:**
 
 - **Human Authors**: Get pre-structured scaffolds with guidance prompts, reducing blank-page syndrome and structural drift (~30 min saved per document)
-- **Agent Orchestrators**: Receive stable section IDs via JSON output, eliminating regex heuristics and reducing estimated error rate from ~15-20% to <2% (projected 90%+ reduction)
-- **Repo Owners**: Configure document types with a single `document_types` block instead of two separate keys, achieving 50% config reduction while preserving full backward compatibility
+- **Agent Orchestrators**: Receive stable section IDs and `initial_content` via JSON output, eliminating regex heuristics and file I/O; estimated error rate from ~15-20% to <2% (projected 90%+ reduction)
+- **Repo Owners**: Configure document types with a single `document_types` block (single source of truth), achieving 100% config reduction from two keys to one schema
 
 ### 1.2 Before vs After
 
 <!-- MEMINIT_SECTION: before_vs_after -->
 
-| Aspect                     | Before (Templates v1)                   | After (Templates v2)                                        |
-| -------------------------- | --------------------------------------- | ----------------------------------------------------------- |
-| **Section Identification** | Agents parse headings (brittle)         | Stable `<!-- MEMINIT_SECTION: id -->` markers               |
-| **Template Discovery**     | Config-only or generic skeleton         | Config → Convention → Built-in → Skeleton                   |
-| **Configuration**          | Split: `type_directories` + `templates` | Unified: `document_types` (optional) + legacy support       |
-| **Agent Guidance**         | None                                    | Embedded `<!-- AGENT: ... -->` prompts                      |
-| **JSON Output**            | V2 envelope exists, but no template provenance/sections | Includes `data.template.source`, `data.template.sections`, `data.template.content_preview` |
-| **No-Config Experience**   | Generic skeleton                        | Type-specific built-in templates                            |
-| **Interpolation Syntax**   | `{title}`, `<REPO>` (inconsistent)      | `{{title}}`, `{{repo_prefix}}` (preferred) + legacy support |
+| Aspect                     | Before (Templates v1)                                   | After (Templates v2)                                                                                                                                |
+| -------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Section Identification** | Agents parse headings (brittle)                         | Stable `<!-- MEMINIT_SECTION: id -->` markers                                                                                                       |
+| **Template Discovery**     | Config-only or generic skeleton                         | Config → Convention → Built-in → Skeleton                                                                                                           |
+| **Configuration**          | Split: `type_directories` + `templates`                 | Unified: `document_types` (single source of truth); legacy keys rejected by v2 runtime                                                              |
+| **Agent Guidance**         | None                                                    | Embedded `<!-- AGENT: ... -->` prompts                                                                                                              |
+| **JSON Output**            | V2 envelope exists, but no template provenance/sections | Includes `data.rendered_content`, `data.content_sha256`, `data.template.sections` (with spans + `initial_content`), `data.template.content_preview` |
+| **No-Config Experience**   | Generic skeleton                                        | Type-specific built-in templates                                                                                                                    |
+| **Interpolation Syntax**   | `{title}`, `<REPO>` (inconsistent)                      | `{{variable}}` only; legacy syntax rejected by v2 runtime                                                                                           |
+| **Section Parsing**        | N/A                                                     | Code-fence-aware; whitespace-tolerant heading detection                                                                                             |
 
 ### 1.3 Key Deliverables
 
@@ -171,12 +176,12 @@ related_ids:
 
 <!-- AGENT: Quantify the value for each persona. Use concrete numbers where possible. -->
 
-| Persona                | Before Templates v2                              | After Templates v2                         | Time Saved                                     |
-| ---------------------- | ------------------------------------------------ | ------------------------------------------ | ---------------------------------------------- |
-| **Human Author**       | Copy/paste from old docs, structural drift       | Pre-structured scaffold with guidance      | ~30 min per document (est.)                    |
-| **Agent Orchestrator** | Heading regex parsing, ~15-20% error rate (est.) | Stable section IDs, <2% error rate (proj.) | ~80% reduction in format review cycles (proj.) |
-| **Repo Owner**         | Two config keys to maintain per type             | Single `document_types` block              | 50% config reduction                           |
-| **Tool Integrator**    | Fragile DOM parsing, section boundary errors     | Marker-based parsing, reliable boundaries  | ~90% reduction in parsing errors (proj.)       |
+| Persona                | Before Templates v2                              | After Templates v2                                     | Time Saved                                     |
+| ---------------------- | ------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------- |
+| **Human Author**       | Copy/paste from old docs, structural drift       | Pre-structured scaffold with guidance                  | ~30 min per document (est.)                    |
+| **Agent Orchestrator** | Heading regex parsing, ~15-20% error rate (est.) | Stable section IDs, <2% error rate (proj.)             | ~80% reduction in format review cycles (proj.) |
+| **Repo Owner**         | Two config keys to maintain per type             | Single `document_types` block (single source of truth) | 100% config reduction (legacy keys removed)    |
+| **Tool Integrator**    | Fragile DOM parsing, section boundary errors     | Marker-based parsing, reliable boundaries              | ~90% reduction in parsing errors (proj.)       |
 
 ### 1.5 Success Definition
 
@@ -186,24 +191,21 @@ Templates v2 succeeds when:
 
 - An orchestrator can generate a PRD scaffold without repo config and receive meaningful structure (AC-8)
 - An orchestrator can parse section boundaries without heading heuristics (AC-1)
-- All existing repos continue working without config changes (AC-9)
-- Unit + integration tests cover all resolution paths and interpolation syntaxes (100% coverage target)
+- An orchestrator can act on JSON output alone without an additional file read (`data.rendered_content`, `data.content_sha256`, and explicit section spans)
+- Legacy repos can migrate using `meminit migrate-templates` (AC-17)
+- Unit + integration tests cover all resolution paths and the single `{{variable}}` interpolation syntax (100% coverage target)
 
 ### 1.6 Visual Architecture Diagram
 
 ```mermaid
 graph TD
     A[User / Agent<br>meminit new TYPE 'Title'] --> B[Config Lookup<br>docops.config.yaml]
-    B --> C{document_types<br>NEW}
-    B --> D{type_dirs<br>LEGACY}
-    B --> E{templates<br>LEGACY}
+    B --> C{document_types}
 
     C --> F[Template Resolution Chain]
-    D --> F
-    E --> F
 
     F --> G[1. CONFIG<br>document_types.template]
-    F --> H[2. CONVENTION<br>type.tmpl / template-001-type]
+    F --> H[2. CONVENTION<br><type>.template.md]
     F --> I[3. BUILT-IN<br>Package assets]
     F --> J[4. SKELETON<br>Minimal scaffold]
 
@@ -216,7 +218,7 @@ graph TD
     I --> K
     J --> K
 
-    K --> L[JSON Response<br>success, data.template.source, data.template.sections]
+    K --> L[JSON Response<br>success, data.rendered_content, data.template.sections]
 ```
 
 ### 1.7 Quick-Start Guide
@@ -271,15 +273,18 @@ document_types:
 
 <!-- AGENT: Maintain a chronological changelog with version, date, and description of changes. Include migration notes for breaking changes. -->
 
-| Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Migration Required |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| **1.0**     | 2026-03-02 | Critical review pass: Fixed `fill_sections()` document corruption bug; corrected FR-3 tokenization (independent `<REPO>`/`<SEQ>` substitution); improved `_extract_sections()` heading detection; extracted inline ADR template body to reference; added cross-WP integration test (AC-16); retitled "Open Questions" to "Resolved Design Questions"; marked soft metrics as estimates; corrected parallelization claims; added per-WP rollback guidance. | None               |
-| **0.9**     | 2026-03-02 | PRD enhancements: Replaced ASCII diagrams with native Mermaid.js visualizations for better orchestrator parsing and display; added Pydantic schemas for Agentic WPs; refined executive summary styling; strengthened error recovery workflows.                                                                                                                                                                                                            | None               |
-| **0.8**     | 2026-03-02 | PRD enhancements: added Executive Summary box, Visual Architecture Diagram, Quick-Start Guide, Key Architectural Decisions section; added verification commands to all WPs; added cross-reference links between FRs/ACs/WPs; enhanced test fixtures table; updated status to "In Review"                                                                                                                                                                  | None               |
-| **0.7**     | 2026-03-02 | Fixed factual inaccuracies against codebase; corrected FR-3 interpolation table; fixed TemplateInterpolator and get_template_for_type code samples; added edge-case tests; added orchestrator operational guidance (11.4); strengthened Executive Summary; consistency pass                                                                                                                                                                               | None               |
-| **0.6**     | 2026-03-02 | Added section markers throughout; enhanced AGENT guidance; added Error Scenarios appendix; improved visual diagrams                                                                                                                                                                                                                                                                                                                                       | None               |
-| **0.5**     | 2026-03-01 | Initial comprehensive draft with work packages                                                                                                                                                                                                                                                                                                                                                                                                            | None               |
-| **0.1**     | 2026-02-20 | Concept document created                                                                                                                                                                                                                                                                                                                                                                                                                                  | None               |
+| Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Migration Required                                                               |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **1.3** | 2026-03-04 | Engineering-readiness review: rewrote `_extract_sections()` to use marker-to-marker boundaries (FR-15) and emit all `SectionMarker` fields; fixed code fence tracking for nested fences (FR-12); added FR-16 (`check`/`fix` must use `document_types`) with AC-22/AC-23; added FR-17 (`INVALID_TEMPLATE_FILE`) with AC-24 and E-8 error scenario; loosened FR-10 config-path constraint to repo root; removed contradictory `type_directories` fallback; added `encoding="utf-8"` to `read_text()` calls; fixed WP verification comment numbering; fixed version mismatch. | None |
+| **1.2** | 2026-03-04 | Critical architecture and security review: removed mixed-mode runtime compatibility (`document_types` + `{{variable}}` are now the only supported runtime contract); strengthened FR-10 with template-root allowlisting, regular-file/extension checks, and size caps; expanded FR-7 with `data.rendered_content`, `data.content_sha256`, and explicit section span metadata; replaced heading-based fill guidance with marker-to-marker span replacement; added explicit errors for duplicate section IDs, invalid/unknown placeholders, and stale/ambiguous section contracts. | Legacy repos must migrate config and templates before adopting Templates v2 |
+| **1.1** | 2026-03-04 | Architectural simplification: `document_types` as single source of truth (legacy keys deprecated); single `{{variable}}` interpolation syntax (legacy deprecated with warnings); code-fence-aware section parsing (FR-12); duplicate section ID detection (FR-13); missing required sections warning (FR-14); `initial_content` in JSON section output; consolidated WP-1/2/3 into Core Template Engine; added WP-7 migration tooling (`meminit migrate-templates`); security note on no code execution in templates; updated rollout strategy for pre-alpha status. | Run `meminit migrate-templates` to convert legacy configs and placeholder syntax |
+| **1.0** | 2026-03-02 | Critical review pass: Fixed `fill_sections()` document corruption bug; corrected FR-3 tokenization (independent `<REPO>`/`<SEQ>` substitution); improved `_extract_sections()` heading detection; extracted inline ADR template body to reference; added cross-WP integration test (AC-16); retitled "Open Questions" to "Resolved Design Questions"; marked soft metrics as estimates; corrected parallelization claims; added per-WP rollback guidance.                                                                                                            | None                                                                             |
+| **0.9** | 2026-03-02 | PRD enhancements: Replaced ASCII diagrams with native Mermaid.js visualizations for better orchestrator parsing and display; added Pydantic schemas for Agentic WPs; refined executive summary styling; strengthened error recovery workflows.                                                                                                                                                                                                                                                                                                                       | None                                                                             |
+| **0.8** | 2026-03-02 | PRD enhancements: added Executive Summary box, Visual Architecture Diagram, Quick-Start Guide, Key Architectural Decisions section; added verification commands to all WPs; added cross-reference links between FRs/ACs/WPs; enhanced test fixtures table; updated status to "In Review"                                                                                                                                                                                                                                                                             | None                                                                             |
+| **0.7** | 2026-03-02 | Fixed factual inaccuracies against codebase; corrected FR-3 interpolation table; fixed TemplateInterpolator and get_template_for_type code samples; added edge-case tests; added orchestrator operational guidance (11.4); strengthened Executive Summary; consistency pass                                                                                                                                                                                                                                                                                          | None                                                                             |
+| **0.6** | 2026-03-02 | Added section markers throughout; enhanced AGENT guidance; added Error Scenarios appendix; improved visual diagrams                                                                                                                                                                                                                                                                                                                                                                                                                                                  | None                                                                             |
+| **0.5** | 2026-03-01 | Initial comprehensive draft with work packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | None                                                                             |
+| **0.1** | 2026-02-20 | Concept document created                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | None                                                                             |
 
 **Notes for Future Versions:**
 
@@ -454,52 +459,52 @@ As agentic orchestrators become primary authors of governed documentation, the t
 
 <!-- MEMINIT_SECTION: goals -->
 
-| ID      | Goal                                                                 | Measurable Outcome                                                          |
-| ------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **G-1** | Define a stable template contract for human and agent authoring      | Template spec with formal syntax for sections, placeholders, markers        |
-| **G-2** | Make template resolution deterministic with a clear precedence chain | Resolution always follows: config → convention → built-in → skeleton        |
-| **G-3** | Provide stable section IDs for orchestrators                         | `<!-- MEMINIT_SECTION: <id> -->` markers in all built-in templates          |
-| **G-4** | Unify type configuration under `document_types` schema               | Optional `document_types` block with `directory`, `template`, `description` |
-| **G-5** | Ship built-in fallback templates for common types                    | ADR, PRD, FDD templates included in package                                 |
-| **G-6** | Ensure safe, non-executable template application                     | No code execution; path validation; string-only interpolation               |
-| **G-7** | Provide orchestrator-friendly JSON output                            | `data.template.source`, section inventory, content preview                  |
-| **G-8** | Maintain 100% backward compatibility                                 | All existing repos continue working without changes                         |
+| ID      | Goal                                                                   | Measurable Outcome                                                          |
+| ------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **G-1** | Define a stable template contract for human and agent authoring        | Template spec with formal syntax for sections, placeholders, markers        |
+| **G-2** | Make template resolution deterministic with a clear precedence chain   | Resolution always follows: config → convention → built-in → skeleton        |
+| **G-3** | Provide stable section IDs for orchestrators                           | `<!-- MEMINIT_SECTION: <id> -->` markers in all built-in templates          |
+| **G-4** | Unify type configuration under `document_types` schema                 | Optional `document_types` block with `directory`, `template`, `description` |
+| **G-5** | Ship built-in fallback templates for common types                      | ADR, PRD, FDD templates included in package                                 |
+| **G-6** | Ensure safe, non-executable template application                       | No code execution; path validation; string-only interpolation               |
+| **G-7** | Provide orchestrator-friendly JSON output                              | `data.rendered_content`, `data.content_sha256`, and explicit section spans  |
+| **G-8** | Provide pre-upgrade migration tooling for legacy configs and templates | `meminit migrate-templates` rewrites legacy syntax and config before v2 use |
 
 ### 5.2 Non-Goals
 
 <!-- MEMINIT_SECTION: nongoals -->
 
-| ID       | Non-Goal                                               | Rationale                                                                         |
-| -------- | ------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| **NG-1** | Structural linting in `meminit check`                  | Valuable future feature; separate complexity (validate sections exist, not empty) |
-| **NG-2** | Full template language (conditionals, loops, includes) | Keep engine simple; complexity doesn't justify cost                               |
-| **NG-3** | LLM/tool calls during template application             | Templates are static scaffolding; generation is orchestrator's job                |
-| **NG-4** | Automatic Architext sync                               | Repos can align manually; auto-sync is separate project                           |
-| **NG-5** | Template inheritance or composition                    | Keep templates flat; repo can copy/modify as needed                               |
-| **NG-6** | Breaking changes to existing configs                   | All changes must be backward compatible                                           |
-| **NG-7** | Template versioning/rollback                           | Repos manage templates; version control handles history                           |
+| ID       | Non-Goal                                                      | Rationale                                                                         |
+| -------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **NG-1** | Structural linting in `meminit check`                         | Valuable future feature; separate complexity (validate sections exist, not empty) |
+| **NG-2** | Full template language (conditionals, loops, includes)        | Keep engine simple; complexity doesn't justify cost                               |
+| **NG-3** | LLM/tool calls during template application                    | Templates are static scaffolding; generation is orchestrator's job                |
+| **NG-4** | Automatic Architext sync                                      | Repos can align manually; auto-sync is separate project                           |
+| **NG-5** | Template inheritance or composition                           | Keep templates flat; repo can copy/modify as needed                               |
+| **NG-6** | Runtime support for legacy config keys and placeholder syntax | Pre-alpha status allows a clean cutover; migration is handled before runtime      |
+| **NG-7** | Template versioning/rollback                                  | Repos manage templates; version control handles history                           |
 
 ### 5.3 Success Metrics
 
 <!-- MEMINIT_SECTION: success_metrics -->
 
-| Metric                              | Target                                                     | Measurement                                                 |
-| ----------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| **Agent success rate**              | >95% of scaffold fills succeed without heading heuristics  | Orchestrator test suite generates 10 docs, measures success |
-| **Review friction**                 | <10% of new docs have format-related review comments       | Sample of 20 PRs before/after rollout                       |
-| **No-config adoption**              | 100% of common types (ADR/PRD/FDD) get meaningful scaffold | Fresh repo with no config runs `meminit new ADR/PRD/FDD`    |
-| **Backward compatibility**          | 100% of existing repos continue working                    | Test suite with 5 real-world repo configs                   |
-| **JSON output usability**           | Orchestrator can resolve template and sections in one call | Integration test with mock orchestrator                     |
-| **Template resolution performance** | <100ms for typical repos                                   | Benchmark test                                              |
+| Metric                              | Target                                                                 | Measurement                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Agent success rate**              | >95% of scaffold fills succeed without heading heuristics              | Orchestrator test suite generates 10 docs, measures success |
+| **Review friction**                 | <10% of new docs have format-related review comments                   | Sample of 20 PRs before/after rollout                       |
+| **No-config adoption**              | 100% of common types (ADR/PRD/FDD) get meaningful scaffold             | Fresh repo with no config runs `meminit new ADR/PRD/FDD`    |
+| **Migration success**               | 100% of legacy configs migrate cleanly via `meminit migrate-templates` | Migration test suite with 5 legacy repo configs             |
+| **JSON output usability**           | Orchestrator can resolve template and sections in one call             | Integration test with mock orchestrator                     |
+| **Template resolution performance** | <100ms for typical repos                                               | Benchmark test                                              |
 
 ### 5.4 Key Architectural Decisions
 
-| Decision                                  | Rationale                                                                                                                                                                                                                                                                         |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Why HTML comments for section markers** | HTML comments (`<!-- -->`) are invisible in rendered Markdown, preserving visual cleanliness while providing machine-parseable identifiers. They don't interfere with Markdown processors or GitHub's preview.                                                                    |
-| **Why four-tier resolution precedence**   | The chain (config → convention → built-in → skeleton) ensures: (1) repos retain full control via explicit config, (2) organic template discovery works without config, (3) meaningful defaults exist for common types, (4) the system never fails - skeleton is always available. |
-| **Why `document_types` is optional**      | Backward compatibility requires supporting existing `type_directories` + `templates` configs indefinitely. Making `document_types` optional allows gradual migration without forcing users to change their working configs.                                                       |
-| **Why two placeholder syntaxes**          | Legacy templates use `{title}` and `<REPO>` syntax. New templates should use `{{title}}` for clarity. Supporting both ensures existing repos continue working while enabling future templates to use the cleaner syntax.                                                          |
+| Decision                                               | Rationale                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Why HTML comments for section markers**              | HTML comments (`<!-- -->`) are invisible in rendered Markdown, preserving visual cleanliness while providing machine-parseable identifiers. They don't interfere with Markdown processors or GitHub's preview.                                                                               |
+| **Why four-tier resolution precedence**                | The chain (config → convention → built-in → skeleton) ensures: (1) repos retain full control via explicit config, (2) organic template discovery works without config, (3) meaningful defaults exist for common types, (4) the system never fails - skeleton is always available.            |
+| **Why `document_types` is the single source of truth** | Pre-alpha status means backward compatibility is relaxed. A single configuration schema eliminates "split-brain" ambiguity. Legacy `type_directories` and `templates` keys are rejected by the v2 runtime. Any migration happens before execution, not inside the hot path.                  |
+| **Why single `{{variable}}` syntax**                   | Multiple placeholder syntaxes (`{title}`, `<REPO>`, `{{title}}`) created ambiguity and implementation complexity. Standardising on `{{variable}}` only simplifies the interpolation engine and template authoring. Legacy syntax is migrated ahead of time rather than supported at runtime. |
 
 ---
 
@@ -548,13 +553,16 @@ result = subprocess.run(
 )
 data = json.loads(result.stdout)
 
-# Orchestrator parses sections:
+# Orchestrator uses the JSON contract directly:
 doc_path = Path(data["root"]) / data["data"]["path"]
+document = data["data"]["rendered_content"]
 sections = data.get("data", {}).get("template", {}).get("sections", [])
 for section in sections:
     section_id = section["id"]
     content = generate_content(section_id, section["agent_prompt"])
-    update_section(doc_path, section_id, content)
+    document = replace_declared_span(document, section, content)
+
+doc_path.write_text(document, encoding="utf-8")
 
 # Orchestrator validates:
 check_result = subprocess.run(
@@ -645,18 +653,14 @@ flowchart TD
 
     subgraph S1[1. CONFIG Highest Priority]
         C1[Check docops.config.yaml] --> C2[New: document_types.PRD.template]
-        C1 --> C3[Legacy: templates.prd]
         C2 --> |Found| End1((Return template))
-        C3 --> |Found| End1
     end
 
     S1 -.->|Not Found| S2
 
     subgraph S2[2. CONVENTION Medium Priority]
         V1[Check docs/00-governance/templates/prd.template.md]
-        V2[Check docs/00-governance/templates/template-001-prd.md]
         V1 --> |Found| End2((Return template))
-        V2 --> |Found| End2
     end
 
     S2 -.->|Not Found| S3
@@ -717,34 +721,34 @@ Template application MUST NOT execute code, import modules, or evaluate expressi
 
 #### FR-3: Interpolation Vocabulary
 
-Meminit MUST support the following interpolation variables:
+Meminit MUST support the following interpolation variables using **`{{variable}}` syntax only**:
 
-| Variable    | Legacy Syntax(es)                                | Preferred Syntax  | Description                         |
-| ----------- | ------------------------------------------------ | ----------------- | ----------------------------------- |
-| Title       | `{title}`, `<Decision Title>`, `<Feature Title>` | `{{title}}`       | Document title                      |
-| Document ID | _(not a single v1 token — see note below)_       | `{{document_id}}` | Full document ID (new in v2)        |
-| Owner       | `{owner}`, `<Team or Person>`                    | `{{owner}}`       | Document owner                      |
-| Status      | `{status}`                                       | `{{status}}`      | Document status                     |
-| Date        | `<YYYY-MM-DD>`                                   | `{{date}}`        | Current date (ISO 8601)             |
-| Repo prefix | `<REPO>`, `<PROJECT>`                            | `{{repo_prefix}}` | Repository prefix                   |
-| Sequence    | `<SEQ>`                                          | `{{seq}}`         | Document sequence number            |
-| Type        | —                                                | `{{type}}`        | Document type                       |
-| Area        | `{area}`                                         | `{{area}}`        | Document area                       |
-| Description | `{description}`                                  | `{{description}}` | Document description (optional)     |
-| Keywords    | `{keywords}`                                     | `{{keywords}}`    | Comma-separated keywords (optional) |
-| Related IDs | `{related_ids}`                                  | `{{related_ids}}` | Comma-separated IDs (optional)      |
+| Variable    | Syntax            | Description                         |
+| ----------- | ----------------- | ----------------------------------- |
+| Title       | `{{title}}`       | Document title                      |
+| Document ID | `{{document_id}}` | Full document ID                    |
+| Owner       | `{{owner}}`       | Document owner                      |
+| Status      | `{{status}}`      | Document status                     |
+| Date        | `{{date}}`        | Current date (ISO 8601)             |
+| Repo prefix | `{{repo_prefix}}` | Repository prefix                   |
+| Sequence    | `{{seq}}`         | Document sequence number            |
+| Type        | `{{type}}`        | Document type                       |
+| Area        | `{{area}}`        | Document area                       |
+| Description | `{{description}}` | Document description (optional)     |
+| Keywords    | `{{keywords}}`    | Comma-separated keywords (optional) |
+| Related IDs | `{{related_ids}}` | Comma-separated IDs (optional)      |
 
-> **Critical implementation note:** In the current codebase (`_apply_common_template_substitutions()`), there is **no** single `{document_id}` v1 token. Instead, the document ID is composed by independently substituting `<REPO>`, the normalized type, and `<SEQ>` — which the interpolation engine must continue to handle as **three separate tokens** for backward compatibility. The preferred `{{document_id}}` syntax is **new in v2** and is a convenience alias that substitutes the fully-composed ID directly. Implementors MUST NOT replace the independent `<REPO>` / `<SEQ>` substitution logic — `{{document_id}}` is additive.
+> **CHANGE FROM v1:** Legacy syntaxes (`{title}`, `<REPO>`, `<SEQ>`, `<YYYY-MM-DD>`, `<Decision Title>`, `<Feature Title>`, `<Team or Person>`, `<PROJECT>`) are **not supported** by the Templates v2 runtime. Encountering them is a template validation error. `meminit migrate-templates` MAY be provided as a pre-upgrade helper to rewrite them to `{{variable}}` before the runtime path is entered.
 
-**Backward compatibility:** All legacy syntaxes MUST continue to work.
+**Single syntax:** `{{variable}}` is the **only** supported runtime form.
 
-**New syntax:** `{{variable}}` is the preferred form for new templates.
+**Legacy syntax:** Encountering legacy placeholder forms MUST raise `INVALID_TEMPLATE_PLACEHOLDER` with the offending token and line number.
 
-**Unrecognized variables:** MUST be preserved verbatim in output.
+**Unrecognized variables:** MUST raise `UNKNOWN_TEMPLATE_VARIABLE` with the variable name and line number. Silent pass-through is not allowed because it hides template authoring mistakes from orchestrators.
 
-**Rationale:** Backward compatibility; clear intent; graceful degradation.
+**Rationale:** Single syntax eliminates ambiguity, simplifies the interpolation engine, and reduces template authoring errors. Pre-alpha status makes this the right time to standardise.
 
-**Verification:** Unit test `test_interpolation_all_syntaxes()`.
+**Verification:** Unit test `test_interpolation_preferred_syntax_only()`, `test_legacy_placeholder_syntax_rejected()`, `test_unknown_variables_raise_error()`.
 
 #### FR-4: Agent Prompt Blocks
 
@@ -764,7 +768,9 @@ Templates MUST support stable section identifiers using HTML comments.
 
 **Normative marker format:** `<!-- MEMINIT_SECTION: <archetype_id> -->`
 
-**Placement:** SHOULD appear immediately after the section heading it applies to.
+**Placement:** MUST appear on their own line, with only surrounding whitespace, and SHOULD appear immediately after the section heading it applies to.
+
+**Standalone-line rule:** Marker lines prefixed by other Markdown syntax (for example `>`, list bullets, or four-space indentation) are invalid and MUST NOT be treated as section markers.
 
 **Archetype ID:** MUST be a valid identifier from Appendix A or a repo-defined extension.
 
@@ -784,9 +790,9 @@ Templates MUST support stable section identifiers using HTML comments.
 
 **Verification:** Unit test `test_section_marker_preservation()`.
 
-#### FR-6: Unified `document_types` Config
+#### FR-6: Unified `document_types` Config (Single Source of Truth)
 
-`docops.config.yaml` MUST support an optional `document_types` block:
+`docops.config.yaml` MUST use `document_types` as the **single source of truth** for document type configuration:
 
 ```yaml
 document_types:
@@ -796,13 +802,17 @@ document_types:
     description: "<text>" # optional
 ```
 
-**Precedence:** When `document_types.<TYPE>` exists, it MUST take precedence over legacy `type_directories` and `templates` for overlapping keys.
+**Runtime behavior:** Legacy `type_directories` and `templates` keys are **invalid** in the Templates v2 runtime. When encountered, the engine MUST:
 
-**Backward compatibility:** Existing configs using `type_directories` and `templates` MUST continue to work.
+1. Raise `LEGACY_CONFIG_UNSUPPORTED`
+2. Include the offending key names in `error.details`
+3. Recommend running `meminit migrate-templates` before retrying
 
-**Rationale:** Unified configuration; easier for agents to understand; optional migration path.
+**Migration:** The `meminit migrate-templates` command (WP-7) is a pre-upgrade helper that rewrites legacy config keys to `document_types` format before v2 is enabled.
 
-**Verification:** Unit test `test_document_types_config_precedence()`.
+**Rationale:** Single source of truth eliminates "split-brain" configuration ambiguity. Pre-alpha status makes this the right time to consolidate.
+
+**Verification:** Unit test `test_document_types_config_single_source()`, `test_legacy_config_rejected()`.
 
 #### FR-7: Agent-Friendly JSON Output
 
@@ -820,6 +830,8 @@ When `--format json` is used with `meminit new`, the output MUST include:
     "title": "Widget Platform",
     "document_id": "REPO-PRD-001",
     "path": "docs/10-prd/prd-001-widget-platform.md",
+    "content_sha256": "0e35f7f6d5f5e6b6d6c22ac3f03fbad2f8a6518c09a3639c4f93b4e6a4f0f5cc",
+    "rendered_content": "---\\ndocument_id: REPO-PRD-001\\n...\\n",
     "template": {
       "applied": true,
       "source": "config",
@@ -830,8 +842,12 @@ When `--format json` is used with `meminit new`, the output MUST include:
           "id": "executive_summary",
           "heading": "## 1. Executive Summary",
           "line": 42,
+          "marker_line": 44,
+          "content_start_line": 48,
+          "content_end_line": 52,
           "required": true,
-          "agent_prompt": "Write a 2-3 sentence summary..."
+          "agent_prompt": "Write a 2-3 sentence summary...",
+          "initial_content": "[One paragraph summary.]"
         }
       ]
     }
@@ -842,9 +858,17 @@ When `--format json` is used with `meminit new`, the output MUST include:
 }
 ```
 
+**Full document payload:** `data.rendered_content` MUST contain the complete rendered document content exactly as written to disk. `data.content_sha256` MUST be the SHA-256 of `rendered_content`. This lets orchestrators operate on the authoritative generated content without a follow-up read.
+
+**Section span fields:** Each section in `data.template.sections` MUST include `marker_line`, `content_start_line`, and `content_end_line` (all 1-based, inclusive). These fields define the editable span using the marker-to-marker boundary contract in FR-15.
+
+**Section `initial_content` field:** Each section in the `sections` array MUST include an `initial_content` field containing the template's default content for that section (text in the editable span, excluding `<!-- AGENT: -->` blocks). This enables orchestrators to plan fills without reparsing the file.
+
+**`content_preview` semantics:** `content_preview` is advisory for UX and logs only. Orchestrators MUST NOT use it as the source of truth for edits.
+
 **Contract compatibility:** This extends the v2 envelope defined in MEMINIT-SPEC-004. The top-level envelope shape MUST remain unchanged; all template-specific details MUST be nested under `data.template`. The `warnings` array MUST contain Issue objects (`code`, `message`, `path`), not strings.
 
-**Rationale:** Enables orchestrators to understand what was generated without reading the file.
+**Rationale:** Enables orchestrators to understand what was generated and act on it without reading the file.
 
 **Verification:** Integration test `test_json_output_includes_template_info()`.
 
@@ -878,7 +902,9 @@ Meminit MUST ensure the final document contains exactly one visible metadata blo
 
 **Rationale:** Prevents duplicate metadata blocks; supports future tooling.
 
-**Verification:** Unit test `test_metadata_block_no_duplicates()`.
+**Enforcement:** The engine MUST validate that the final output contains exactly one `<!-- MEMINIT_METADATA_BLOCK -->` marker and exactly one blockquote metadata block. If a duplicate is detected, the engine MUST raise an explicit error (not silently drop the duplicate).
+
+**Verification:** Unit test `test_metadata_block_no_duplicates()`, `test_metadata_block_duplicate_raises_error()`.
 
 #### FR-9: Template Frontmatter Merging
 
@@ -901,35 +927,122 @@ Template paths MUST be validated to ensure they cannot escape the repository roo
 **Validation rules:**
 
 - Absolute paths MUST be rejected
-- Paths with `..` components MUST be resolved and validated
-- Symlinks outside the repo MUST be rejected
+- Paths with `..` components MUST be normalized before validation and rejected if they escape the repo root
+- **Config-specified** template paths (`document_types.<TYPE>.template`) MUST resolve under the repo root
+- **Convention-discovered** template paths MUST resolve under `docs/00-governance/templates/`
+- Every path component MUST be non-symlink after canonicalization
+- The final target MUST be a regular `.md` file encoded as UTF-8
+- Files larger than 256 KiB MUST be rejected with `INVALID_TEMPLATE_FILE`
+- Device files, FIFOs, sockets, and unreadable files MUST be rejected with `INVALID_TEMPLATE_FILE`
 
-**Rationale:** Security; prevents reading arbitrary files.
+**Rationale:** Autonomous agents amplify the blast radius of weak path checks. Config paths are constrained to the repo root (repo owners must be able to place templates anywhere in-repo); convention paths are further restricted to the governance subtree. Symlink, regular-file, extension, and size checks apply to all sources.
 
 **Verification:** Unit test `test_path_traversal_rejected()`.
+
+> **Security note — No code execution in templates:** The template engine performs **text substitution only**. Templates MUST NOT support any form of code execution, expression evaluation, conditional logic, or loops. The `{{variable}}` syntax is a simple find-and-replace mechanism, not a template language like Jinja2 or Handlebars. This is a deliberate security constraint: templates are user-supplied content and must never be able to execute arbitrary code. If conditional or computed content is needed in the future, it MUST be implemented as a separate, sandboxed feature with its own security review (see MEMINIT-GOV-003).
 
 #### FR-11: Convention Discovery
 
 When no template is configured, Meminit MUST attempt convention discovery:
 
-1. Check `docs/00-governance/templates/<type>.template.md` (new convention)
-2. Check `docs/00-governance/templates/template-001-<type>.md` (legacy convention)
+1. Check `docs/00-governance/templates/<type>.template.md`
 
 **Case sensitivity:** Type lookup MUST be case-insensitive.
 
-**Rationale:** Allows zero-config template customization; supports existing templates.
+Legacy `template-001-<type>.md` filenames are migration inputs, not runtime inputs. They MUST be renamed before Templates v2 is enabled.
 
-**Verification:** Unit test `test_convention_discovery()`.
+**Rationale:** Allows zero-config template customization without keeping two filename conventions in the runtime path.
+
+**Verification:** Unit test `test_convention_discovery()`, `test_legacy_convention_filename_rejected()`.
+
+#### FR-12: Code Fence Protection in Section Parsing
+
+Section marker detection (`<!-- MEMINIT_SECTION: -->`) MUST ignore markers that appear inside Markdown code fences (triple backticks or more). The parser MUST track code fence state (open/close) and skip any markers encountered while inside a fenced code block.
+
+**Example (marker inside code fence — MUST be ignored):**
+
+````markdown
+```markdown
+<!-- MEMINIT_SECTION: example -->
+
+This is example code, not a real section marker.
+```
+````
+
+**Rationale:** Templates and documents frequently contain code examples that reference section markers. Parsing these as real markers would corrupt section boundaries.
+
+**Verification:** Unit test `test_section_markers_inside_code_fences_ignored()`.
+
+#### FR-13: Duplicate Section ID Detection
+
+When a template contains two or more `<!-- MEMINIT_SECTION: -->` markers with the same `id`, the engine MUST:
+
+1. Emit an explicit error (not a warning) with the duplicate ID and line numbers
+2. Reject the template (do not silently use the first occurrence)
+
+**Rationale:** Duplicate section IDs create ambiguous section boundaries and would cause `fill_sections()` to produce unpredictable results.
+
+**Verification:** Unit test `test_duplicate_section_id_raises_error()`.
+
+#### FR-14: Missing Required Sections After Agent Fill
+
+When an orchestrator fills sections via `fill_sections()`, the engine SHOULD validate that all sections marked `required: true` have non-empty content. If any required section remains empty (placeholder text only), the engine MUST emit a warning in the `warnings` array.
+
+**Rationale:** Catches incomplete agent fills before commit, reducing review friction.
+
+**Verification:** Unit test `test_missing_required_sections_emits_warning()`.
+
+#### FR-15: Marker-to-Marker Section Boundary Contract
+
+The editable span for a section is defined exclusively by explicit markers outside code fences.
+
+**Normative boundary rule:**
+
+1. A section begins at the first content line after its `<!-- MEMINIT_SECTION: ... -->` marker and any immediately following `<!-- AGENT: ... -->` blocks
+2. A section ends at the line immediately before the next `<!-- MEMINIT_SECTION: ... -->` marker outside code fences, or EOF
+3. Only standalone marker lines count; marker-like text embedded in prose, blockquotes, list items, or other comments MUST be ignored
+4. Headings are descriptive only and MUST NOT be used to infer section boundaries
+5. Parent/child "overlapping" editable regions are not supported; if a template depends on a parent marker owning content that also contains child markers, the template MUST be rejected with `AMBIGUOUS_SECTION_BOUNDARY`
+
+**Rationale:** Heading-based boundary inference is brittle and can corrupt documents when nested headings, examples, or whitespace vary. Marker-to-marker spans give orchestrators a deterministic edit contract.
+
+**Verification:** Unit test `test_section_boundaries_are_marker_to_marker()`, `test_ambiguous_section_boundary_rejected()`.
+
+#### FR-16: `check` and `fix` MUST Use `document_types`
+
+All commands that resolve document-type-to-directory mappings — including `meminit check` and `meminit fix` — MUST use `document_types` as their source of truth. Specifically:
+
+1. `meminit check` MUST validate directory mappings using `expected_subdir_for_type()` (which reads `document_types`)
+2. `meminit fix` MUST infer document types using `document_types` (not `type_directories`)
+3. Both commands MUST trigger `LEGACY_CONFIG_UNSUPPORTED` if legacy keys are present
+
+**Rationale:** `check` and `fix` currently use `ns.type_directories` directly. When `RepoConfig` is migrated to `document_types`, these commands would break silently without this requirement.
+
+**Verification:** Unit tests `test_check_uses_document_types()`, `test_fix_uses_document_types()`, `test_check_rejects_legacy_config()`.
+
+#### FR-17: Invalid Template File Characteristics
+
+When a template file passes path validation (FR-10) but fails file-characteristic checks, the engine MUST raise `INVALID_TEMPLATE_FILE` with details about the specific failure:
+
+- File exceeds 256 KiB size limit → include `actual_size` and `max_size` in `error.details`
+- File is not a `.md` file → include `actual_extension` in `error.details`
+- File is not a regular file (device, FIFO, socket) → include `file_type` in `error.details`
+- File is not valid UTF-8 → include `encoding_error` in `error.details`
+
+**Rationale:** These are distinct from path traversal errors and need actionable error messages for orchestrators.
+
+**Verification:** Unit tests `test_oversized_template_rejected()`, `test_non_md_template_rejected()`, `test_non_regular_file_rejected()`, `test_non_utf8_template_rejected()`.
 
 ### 8.2 Non-Functional Requirements
 
-| ID        | Requirement                                                                    | Verification                    |
-| --------- | ------------------------------------------------------------------------------ | ------------------------------- |
-| **NFR-1** | **Determinism:** Same inputs + template → byte-identical output (except dates) | Unit test with template caching |
-| **NFR-2** | **Security:** Template paths cannot escape repo root                           | Unit test with malicious paths  |
-| **NFR-3** | **Performance:** Template resolution < 100ms for typical repos                 | Benchmark test                  |
-| **NFR-4** | **UX:** Errors are actionable and machine-parseable in JSON mode               | Integration test                |
-| **NFR-5** | **Compatibility:** 100% backward compatible with existing configs              | Test suite with real configs    |
+| ID        | Requirement                                                                    | Verification                       |
+| --------- | ------------------------------------------------------------------------------ | ---------------------------------- |
+| **NFR-1** | **Determinism:** Same inputs + template → byte-identical output (except dates) | Unit test with template caching    |
+| **NFR-2** | **Security:** Template paths cannot escape repo root                           | Unit test with malicious paths     |
+| **NFR-3** | **Performance:** Template resolution < 100ms for typical repos                 | Benchmark test                     |
+| **NFR-4** | **UX:** Errors are actionable and machine-parseable in JSON mode               | Integration test                   |
+| **NFR-5** | **Migration:** Legacy configs migrate cleanly via `meminit migrate-templates`  | Migration test suite               |
+| **NFR-6** | **Robustness:** Section parsing handles code fences and whitespace correctly   | Unit tests with edge-case fixtures |
 
 ---
 
@@ -943,12 +1056,11 @@ When no template is configured, Meminit MUST attempt convention discovery:
 
 Templates are Markdown files. The following locations are supported, in order of precedence:
 
-| Source                  | Path Pattern                                          | Example                                                 |
-| ----------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
-| **Config (explicit)**   | Configured path                                       | `templates: {prd: "custom/path/prd.md"}`                |
-| **Convention (new)**    | `docs/00-governance/templates/<type>.template.md`     | `prd.template.md`                                       |
-| **Convention (legacy)** | `docs/00-governance/templates/template-001-<type>.md` | `template-001-prd.md`                                   |
-| **Built-in**            | Package assets                                        | `src/meminit/core/assets/.../templates/prd.template.md` |
+| Source                | Path Pattern                                      | Example                                                 |
+| --------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| **Config (explicit)** | `docs/00-governance/templates/<name>.template.md` | `docs/00-governance/templates/prd.template.md`          |
+| **Convention (new)**  | `docs/00-governance/templates/<type>.template.md` | `prd.template.md`                                       |
+| **Built-in**          | Package assets                                    | `src/meminit/core/assets/.../templates/prd.template.md` |
 
 ### 9.2 Template Structure
 
@@ -1117,7 +1229,7 @@ docops_version: "2.0"
 <!-- MEMINIT_METADATA_BLOCK -->
 
 > **Document ID:** REPO-CUSTOM-001
-> **Owner:** __TBD__
+> **Owner:** **TBD**
 > **Status:** Draft
 > **Version:** 0.1
 > **Last Updated:** 2026-03-02
@@ -1140,6 +1252,8 @@ Templates MUST satisfy:
 4. **Placeholders** use supported syntax (Section 9.3)
 5. **Section markers** (if present) follow format `<!-- MEMINIT_SECTION: <id> -->`
 6. **Agent guidance** (if present) follows format `<!-- AGENT: <text> -->`
+7. **Legacy placeholders are forbidden** in runtime templates
+8. **Unknown `{{variable}}` names are forbidden** in runtime templates
 
 Templates SHOULD:
 
@@ -1154,7 +1268,9 @@ Templates SHOULD:
 
 <!-- MEMINIT_SECTION: config_spec -->
 
-### 10.1 `document_types` Schema (Preferred)
+### 10.1 `document_types` Schema (Single Source of Truth)
+
+`document_types` is the **only** supported configuration schema for document type definitions. All type-related configuration (directory, template, description) MUST be specified here.
 
 ```yaml
 # Full example with all document types
@@ -1181,66 +1297,51 @@ document_types:
     description: "Data migration plan"
 ```
 
-### 10.2 Legacy Compatibility
+### 10.2 Legacy Keys (Migration Only)
 
-Existing configs remain valid:
+> **⚠️ NOT SUPPORTED AT RUNTIME:** The `type_directories` and `templates` keys are migration inputs only. Templates v2 rejects them during normal command execution. Use `meminit migrate-templates` before enabling v2.
+
+When legacy keys are encountered in the v2 runtime, the engine MUST:
+
+1. Fail fast with `LEGACY_CONFIG_UNSUPPORTED`
+2. Report which keys were found
+3. Avoid merging or partially applying them
 
 ```yaml
-# Legacy config (still supported)
-type_directories:
+# Legacy input accepted by migration tooling only
+type_directories: # → use document_types.<TYPE>.directory instead
   ADR: "45-adr"
   PRD: "10-prd"
-  SPEC: "20-specs"
 
-templates:
+templates: # → use document_types.<TYPE>.template instead
   adr: "docs/00-governance/templates/template-001-adr.md"
   prd: "docs/00-governance/templates/template-001-prd.md"
-  # spec will use convention discovery or built-in
 ```
 
-### 10.3 Mixed Config (Migration Path)
+**Automatic migration:**
 
-```yaml
-# Gradual migration: some types use new schema, others use legacy
-document_types:
-  PRD:
-    directory: "10-prd"
-    template: "docs/00-governance/templates/prd.template.md"
-    description: "Product Requirements Document"
-
-# Legacy still works for types not in document_types
-type_directories:
-  ADR: "45-adr"
-  SPEC: "20-specs"
-
-templates:
-  adr: "docs/00-governance/templates/template-001-adr.md"
+```bash
+# Convert legacy config to document_types format
+meminit migrate-templates --format json
 ```
 
-### 10.4 Resolution Rules
+### 10.3 Resolution Rules
 
-Given a `doc_type`, resolution follows:
+Given a `doc_type`, template resolution follows:
 
 ```
-1. If document_types.<TYPE> exists:
-   - Use document_types.<TYPE>.directory if present
-   - Use document_types.<TYPE>.template if present
-   - Otherwise, fall through to step 2 for template
+1. document_types.<TYPE>.template (if configured)
 
-2. Else (no document_types or TYPE not in it):
-   - Use type_directories.<TYPE> for directory
-   - Use templates.<type> for template (if present)
-   - Otherwise, fall through to step 3
-
-3. Convention discovery:
+2. Convention discovery:
    - Check docs/00-governance/templates/<type>.template.md
-   - Check docs/00-governance/templates/template-001-<type>.md
 
-4. Built-in fallback:
+3. Built-in fallback:
    - Check package templates (ADR, PRD, FDD)
 
-5. Skeleton:
+4. Skeleton:
    - Use minimal template
+
+Note: If legacy `type_directories` or `templates` keys are present, resolution MUST stop with `LEGACY_CONFIG_UNSUPPORTED`. Migration happens before resolution, not during it.
 ```
 
 ---
@@ -1254,24 +1355,13 @@ Given a `doc_type`, resolution follows:
 ### 11.1 Recommended Orchestrator Flow
 
 ```python
-import subprocess
 import json
-import re
+import subprocess
 from pathlib import Path
 
-def create_governed_document(doc_type: str, title: str, content_map: dict) -> dict:
-    """
-    Create a governed document with agent-generated content.
 
-    Args:
-        doc_type: Document type (e.g., "PRD", "ADR")
-        title: Document title
-        content_map: Map of section_id -> generated content
-
-    Returns:
-        Result dict with path and validation status
-    """
-    # Step 1: Generate scaffold
+def create_governed_document(doc_type: str, title: str, content_map: dict[str, str]) -> dict:
+    """Create, fill, and validate a governed document using Meminit's JSON contract."""
     result = subprocess.run(
         ["meminit", "new", doc_type, title, "--format", "json"],
         capture_output=True,
@@ -1279,181 +1369,59 @@ def create_governed_document(doc_type: str, title: str, content_map: dict) -> di
         check=False,
     )
     env = json.loads(result.stdout)
-
     if not env.get("success", False):
         return {"success": False, "error": env.get("error"), "warnings": env.get("warnings", [])}
 
-    repo_root = Path(env["root"])
-    doc_path = repo_root / env["data"]["path"]
-    original_content = doc_path.read_text()
+    data = env["data"]
+    doc_path = Path(env["root"]) / data["path"]
+    rendered_content = data["rendered_content"]
+    content_sha256 = data["content_sha256"]
+    sections = data.get("template", {}).get("sections", [])
 
-    # Step 2: Parse sections
-    sections = parse_sections(original_content)
+    updated_content = fill_sections(rendered_content, sections, content_map)
+    doc_path.write_text(updated_content, encoding="utf-8")
 
-    # Step 3: Fill content
-    updated_content = fill_sections(original_content, sections, content_map)
-
-    # Step 4: Write updated document
-    doc_path.write_text(updated_content)
-
-    # Step 5: Validate
     check_result = subprocess.run(
         ["meminit", "check", str(doc_path), "--format", "json"],
         capture_output=True,
-        text=True
+        text=True,
+        check=False,
     )
     check_env = json.loads(check_result.stdout)
 
     return {
         "success": True,
         "path": str(doc_path),
+        "content_sha256": content_sha256,
         "valid": bool(check_env.get("success", False)),
         "warnings": check_env.get("warnings", []),
         "violations": check_env.get("violations", []),
     }
 
 
-def parse_sections(content: str) -> list[dict]:
+def fill_sections(content: str, sections: list[dict], content_map: dict[str, str]) -> str:
     """
-    Parse section markers from document content.
+    Replace section content using Meminit-provided spans.
 
-    Returns:
-        List of {id, heading, line_number, content}
-    """
-    sections = []
-    lines = content.splitlines()
-
-    current_section = None
-    current_heading = None
-    current_content = []
-    section_start_line = 0
-
-    for i, line in enumerate(lines):
-        # Check for section marker
-        marker_match = re.match(
-            r'<!--\s*MEMINIT_SECTION:\s*([a-z0-9_]+)\s*-->',
-            line,
-            flags=re.IGNORECASE,
-        )
-        if marker_match:
-            # Save previous section
-            if current_section:
-                sections.append({
-                    "id": current_section,
-                    "heading": current_heading,
-                    "line": section_start_line + 1,  # 1-based line number
-                    "content": "\n".join(current_content).strip()
-                })
-
-            # Start new section
-            current_section = marker_match.group(1).lower()
-            current_heading = lines[i - 1] if i > 0 else "Unknown"
-            section_start_line = max(i - 1, 0)
-            current_content = []
-        elif current_section:
-            current_content.append(line)
-
-    # Save last section
-    if current_section:
-        sections.append({
-            "id": current_section,
-            "heading": current_heading,
-            "line": section_start_line + 1,  # 1-based line number
-            "content": "\n".join(current_content).strip()
-        })
-
-    return sections
-
-
-def fill_sections(content: str, sections: list[dict], content_map: dict) -> str:
-    """
-    Replace section content with generated content.
-
-    Preserves:
-    - All content outside targeted sections (including unfilled sections)
-    - Section headings
-    - Section markers
-    - Agent guidance blocks
-
-    Algorithm:
-    1. Build a map of section_id -> (marker_line, next_boundary_line)
-    2. Walk the document once, copying lines and replacing only
-       sections that have entries in content_map.
+    Safety properties:
+    - Uses Meminit's explicit section spans instead of reparsing headings
+    - Replaces only the editable span (FR-15), preserving headings, markers,
+      and AGENT comments
+    - Applies replacements from bottom to top so line numbers remain stable
     """
     lines = content.splitlines()
 
-    # --- Phase 1: Build section boundary map ---
-    marker_positions: dict[str, tuple[int, int]] = {}  # id -> (marker_line, next_boundary)
-    marker_order: list[tuple[int, str]] = []  # (line_no, id) for ordering
-
-    for i, line in enumerate(lines):
-        match = re.match(
-            r'<!--\s*MEMINIT_SECTION:\s*([a-z0-9_]+)\s*-->',
-            line,
-            flags=re.IGNORECASE,
-        )
-        if match:
-            marker_order.append((i, match.group(1).lower()))
-
-    # Compute each section's end boundary (next heading or next marker)
-    for idx, (marker_line, section_id) in enumerate(marker_order):
-        next_boundary = len(lines)  # default: end of document
-        for j in range(marker_line + 1, len(lines)):
-            if re.match(r"^#{1,6}\s", lines[j]) or "MEMINIT_SECTION:" in lines[j]:
-                next_boundary = j
-                # If this line is a marker, back up to include its heading
-                if (
-                    "MEMINIT_SECTION:" in lines[j]
-                    and j > 0
-                    and re.match(r"^#{1,6}\s", lines[j - 1])
-                ):
-                    next_boundary = j - 1
-                break
-        marker_positions[section_id] = (marker_line, next_boundary)
-
-    # --- Phase 2: Rebuild document ---
-    output_lines: list[str] = []
-    skip_until: int | None = None
-
-    for i, line in enumerate(lines):
-        # If we're inside a replaced region, skip original lines
-        if skip_until is not None and i < skip_until:
+    for section in sorted(sections, key=lambda item: item["content_start_line"], reverse=True):
+        section_id = section["id"]
+        if section_id not in content_map:
             continue
-        skip_until = None
 
-        # Check if this line is a section marker we need to fill
-        match = re.match(
-            r'<!--\s*MEMINIT_SECTION:\s*([a-z0-9_]+)\s*-->',
-            line,
-            flags=re.IGNORECASE,
-        )
-        if match and match.group(1).lower() in content_map:
-            section_id = match.group(1).lower()
-            marker_line, next_boundary = marker_positions[section_id]
+        start_idx = section["content_start_line"] - 1
+        end_idx = section["content_end_line"]  # inclusive in contract, exclusive in slice
+        replacement_lines = content_map[section_id].splitlines() or [""]
+        lines[start_idx:end_idx] = replacement_lines
 
-            # Keep the marker line
-            output_lines.append(line)
-
-            # Extract and preserve agent guidance from original content
-            agent_guidance = []
-            for j in range(marker_line + 1, next_boundary):
-                if "<!-- AGENT:" in lines[j]:
-                    agent_guidance.append(lines[j])
-
-            # Emit: blank line, guidance, blank line, new content, blank line
-            output_lines.append("")
-            for guidance in agent_guidance:
-                output_lines.append(guidance)
-            output_lines.append("")
-            output_lines.append(content_map[section_id])
-            output_lines.append("")
-
-            # Skip original section content
-            skip_until = next_boundary
-        else:
-            output_lines.append(line)
-
-    return "\n".join(output_lines)
+    return "\n".join(lines) + "\n"
 ```
 
 ### 11.2 Pydantic Schemas for Orchestrators
@@ -1468,8 +1436,12 @@ class SectionMarker(BaseModel):
     id: str = Field(..., description="Stable section ID, e.g., 'executive_summary'")
     heading: str = Field(..., description="The markdown heading text")
     line: int = Field(..., description="Line number where the heading appears")
+    marker_line: int = Field(..., description="Line number where the section marker appears")
+    content_start_line: int = Field(..., description="First editable line for this section")
+    content_end_line: int = Field(..., description="Last editable line for this section")
     required: bool = Field(True, description="Whether this section must be filled")
     agent_prompt: Optional[str] = Field(None, description="Optional agent guidance for this section")
+    initial_content: Optional[str] = Field(None, description="Template default content for this section (enables orchestrators to act without file I/O)")
 
 class Issue(BaseModel):
     code: str
@@ -1495,6 +1467,8 @@ class NewData(BaseModel):
     title: str
     document_id: str
     path: str
+    content_sha256: str
+    rendered_content: str
     template: Optional[TemplateInfo] = None
 
 class MeminitNewEnvelope(BaseModel):
@@ -1528,6 +1502,8 @@ By feeding this schema to your agent framework, you ensure the LLM understands e
     "title": "Widget Platform",
     "document_id": "REPO-PRD-001",
     "path": "docs/10-prd/prd-001-widget-platform.md",
+    "content_sha256": "0e35f7f6d5f5e6b6d6c22ac3f03fbad2f8a6518c09a3639c4f93b4e6a4f0f5cc",
+    "rendered_content": "---\\ndocument_id: REPO-PRD-001\\n...\\n",
     "template": {
       "applied": true,
       "source": "convention",
@@ -1537,15 +1513,23 @@ By feeding this schema to your agent framework, you ensure the LLM understands e
           "id": "executive_summary",
           "heading": "## 1. Executive Summary",
           "line": 42,
+          "marker_line": 44,
+          "content_start_line": 48,
+          "content_end_line": 52,
           "required": true,
-          "agent_prompt": "Write a 2-3 sentence summary..."
+          "agent_prompt": "Write a 2-3 sentence summary...",
+          "initial_content": "[One paragraph summary.]"
         },
         {
           "id": "problem_statement",
           "heading": "## 2. Problem Statement",
           "line": 52,
+          "marker_line": 54,
+          "content_start_line": 58,
+          "content_end_line": 62,
           "required": true,
-          "agent_prompt": "Quantify the problem with data..."
+          "agent_prompt": "Quantify the problem with data...",
+          "initial_content": "[Describe the problem.]"
         }
       ],
       "content_preview": "# PRD: Widget Platform\\n\\n## Table of Contents\\n\\n1. [Executive Summary](#1-executive-summary)\\n..."
@@ -1571,6 +1555,8 @@ By feeding this schema to your agent framework, you ensure the LLM understands e
     "title": "Custom Doc",
     "document_id": "REPO-CUSTOM-001",
     "path": "docs/99-custom/custom-001-custom-doc.md",
+    "content_sha256": "d5c72ba595f4ff90f7db2d97a5655e1f8d6f96963a4f4d236f9128dc7315c7c2",
+    "rendered_content": "---\\ndocument_id: REPO-CUSTOM-001\\n...\\n",
     "template": {
       "applied": false,
       "source": "none",
@@ -1617,17 +1603,18 @@ By feeding this schema to your agent framework, you ensure the LLM understands e
 
 ### 11.4 Guardrails for Agents
 
-| Rule                               | Description                                                |
-| ---------------------------------- | ---------------------------------------------------------- |
-| **Never invent sections**          | Only fill sections defined in the template                 |
-| **Never reorder sections**         | Preserve template order                                    |
-| **Preserve markers**               | Keep `<!-- MEMINIT_SECTION: ... -->` intact                |
-| **Preserve guidance**              | Keep `<!-- AGENT: ... -->` blocks for future reference     |
-| **Treat requirements as testable** | Every requirement/AC should be verifiable                  |
-| **No secrets/PII**                 | Never insert credentials or personal data                  |
-| **Use JSON output**                | Always use `--format json` for programmatic calls          |
-| **Validate before commit**         | Run `meminit check` before considering document complete   |
-| **Handle errors gracefully**       | Unknown types, missing templates → fail with clear message |
+| Rule                               | Description                                                                             |
+| ---------------------------------- | --------------------------------------------------------------------------------------- |
+| **Never invent sections**          | Only fill sections defined in the template                                              |
+| **Never reorder sections**         | Preserve template order                                                                 |
+| **Preserve markers**               | Keep `<!-- MEMINIT_SECTION: ... -->` intact                                             |
+| **Preserve guidance**              | Keep `<!-- AGENT: ... -->` blocks for future reference                                  |
+| **Treat requirements as testable** | Every requirement/AC should be verifiable                                               |
+| **No secrets/PII**                 | Never insert credentials or personal data                                               |
+| **Use JSON output**                | Always use `--format json` for programmatic calls                                       |
+| **Edit by declared spans**         | Use `content_start_line` / `content_end_line`, never re-derive boundaries from headings |
+| **Validate before commit**         | Run `meminit check` before considering document complete                                |
+| **Handle errors gracefully**       | Unknown types, missing templates → fail with clear message                              |
 
 ### 11.5 Operational Notes for Orchestrators
 
@@ -1635,7 +1622,7 @@ By feeding this schema to your agent framework, you ensure the LLM understands e
 
 **Timeouts:** `meminit new` is expected to complete in <2 seconds for local repos. Orchestrators SHOULD set a timeout of **10 seconds** and treat longer execution as an error. `meminit check` may take longer for large repos; a **30-second** timeout is recommended.
 
-**Idempotency:** In default (sequential ID) mode, `meminit new` is **not idempotent** — calling it twice with the same arguments creates two documents with different IDs. In deterministic mode (`meminit new ... --id REPO-TYPE-SEQ`), the command can be idempotent when the target file already exists and the generated content matches (it returns success without changing the file). Orchestrators MUST track created document paths and avoid duplicate calls; when retrying after an ambiguous failure (e.g., timeout), first check whether the expected path already exists.
+**Idempotency:** In default (sequential ID) mode, `meminit new` is **not idempotent** — calling it twice with the same arguments creates two documents with different IDs. In deterministic mode (`meminit new ... --id REPO-TYPE-SEQ`), the command can be idempotent when the target file already exists and the generated content matches (it returns success without changing the file). Orchestrators MUST track created document paths and avoid duplicate calls; when retrying after an ambiguous failure (e.g., timeout), first check whether the expected path already exists and compare the returned `content_sha256` before applying any edits.
 
 **Error handling pattern:**
 
@@ -1689,24 +1676,30 @@ This plan is written to be directly consumable as a work queue by an agentic orc
 Templates v2 is "done" when:
 
 - [ ] `meminit new` deterministically produces scaffolds with stable section IDs for ADR, PRD, FDD (even without repo config)
-- [ ] Legacy repos continue working with existing `templates` mappings and placeholder syntaxes
-- [ ] `--format json` exposes template provenance and section inventory
-- [ ] Unit and integration tests cover all resolution paths and interpolation syntaxes
+- [ ] `document_types` is the single source of truth; legacy keys are rejected at runtime
+- [ ] `{{variable}}` is the only interpolation syntax; legacy and unknown placeholders are explicit errors
+- [ ] `--format json` exposes template provenance, `data.rendered_content`, `data.content_sha256`, and section inventory with explicit spans
+- [ ] Section parsing is code-fence-aware and handles whitespace between headings and markers
+- [ ] Duplicate section IDs produce explicit errors
+- [ ] Section replacement uses marker-to-marker spans only; heading heuristics are not used in writes
+- [ ] `meminit migrate-templates` converts legacy configs and placeholder syntax
+- [ ] Unit and integration tests cover all resolution paths, edge cases, and error modes
 - [ ] Built-in templates include section markers and agent guidance
 - [ ] This PRD is updated to reflect final implementation
 
 ### 12.2 Work Packages (Suggested PR Boundaries)
 
-| WP       | Deliverable                     | Key Files                                                                                                                                     | Implements FR(s)   | Estimated Complexity |
-| -------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | -------------------- |
-| **WP-1** | Config: `document_types` schema | `src/meminit/core/services/repo_config.py`, `tests/core/services/test_repo_config.py`                                                         | FR-6               | Medium               |
-| **WP-2** | Template resolver service       | `src/meminit/core/services/template_resolver.py`, `tests/core/services/test_template_resolution.py`                                           | FR-1, FR-10, FR-11 | High                 |
-| **WP-3** | Interpolation engine refactor   | `src/meminit/core/services/template_interpolation.py`, `tests/core/services/test_interpolation.py`                                            | FR-2, FR-3, FR-9   | Medium               |
-| **WP-4** | Metadata block rule             | `src/meminit/core/use_cases/new_document.py`, `tests/core/use_cases/test_metadata_block.py`                                                   | FR-2, FR-8         | Medium               |
-| **WP-5** | Built-in templates              | `src/meminit/core/assets/org_profiles/default/templates/*.md`, `tests/core/assets/test_builtin_templates.py`                                  | FR-4, FR-5         | Low                  |
-| **WP-6** | JSON output enhancements        | `src/meminit/core/use_cases/new_document.py`, `src/meminit/core/services/output_contracts.py`, `tests/core/use_cases/test_new_json_output.py` | FR-7               | Medium               |
-| **WP-7** | Update vendored templates       | `docs/00-governance/templates/*.md`                                                                                                           | FR-4, FR-5         | Low                  |
-| **WP-8** | Docs and PRD update             | This PRD, README                                                                                                                              | —                  | Low                  |
+> **Note:** WP-1, WP-2, and WP-3 from the original plan have been consolidated into a single "Core Template Engine" work package (WP-1) since backward compatibility is relaxed and these components are tightly coupled. WP-7 is new: migration tooling for legacy configs and placeholder syntax.
+
+| WP       | Deliverable               | Key Files                                                                                                                                     | Implements FR(s)                    | Estimated Complexity |
+| -------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- |
+| **WP-1** | Core Template Engine      | `src/meminit/core/services/repo_config.py`, `template_resolver.py`, `template_interpolation.py`, `tests/core/services/test_*.py`              | FR-1, FR-3, FR-6, FR-9–FR-13, FR-15 | High                 |
+| **WP-2** | Metadata block rule       | `src/meminit/core/use_cases/new_document.py`, `tests/core/use_cases/test_metadata_block.py`                                                   | FR-2, FR-8                          | Medium               |
+| **WP-3** | Built-in templates        | `src/meminit/core/assets/org_profiles/default/templates/*.md`, `tests/core/assets/test_builtin_templates.py`                                  | FR-4, FR-5                          | Low                  |
+| **WP-4** | JSON output enhancements  | `src/meminit/core/use_cases/new_document.py`, `src/meminit/core/services/output_contracts.py`, `tests/core/use_cases/test_new_json_output.py` | FR-7, FR-14                         | Medium               |
+| **WP-5** | Update vendored templates | `docs/00-governance/templates/*.md`                                                                                                           | FR-4, FR-5                          | Low                  |
+| **WP-6** | Docs and PRD update       | This PRD, README                                                                                                                              | —                                   | Low                  |
+| **WP-7** | Migration tooling         | `src/meminit/cli/commands/migrate_templates.py`, `tests/cli/test_migrate_templates.py`                                                        | G-8 (migration)                     | Medium               |
 
 ### 12.3 Agent Checklist (Per WP)
 
@@ -1721,14 +1714,19 @@ For each work package:
 
 ### 12.4 Detailed Work Packages
 
-#### WP-1: Config Model - `document_types` Schema
+#### WP-1: Core Template Engine (Consolidated)
+
+> **Consolidation note:** This WP merges the original WP-1 (Config Model), WP-2 (Template Resolver), and WP-3 (Interpolation Engine) into a single deliverable. These components are tightly coupled and benefit from being developed and tested together, especially since backward compatibility is relaxed.
 
 **Pre-conditions:**
 
 - `src/meminit/core/services/repo_config.py` exists with current `type_directories` and `templates` support
+- `src/meminit/core/use_cases/new_document.py` has `_load_template()` and `_apply_common_template_substitutions()` methods
 - Tests exist in `tests/core/services/test_repo_config.py`
 
 **Implementation steps:**
+
+**Part A: Config Model — `document_types` as single source of truth**
 
 1. **Extend `RepoConfig` dataclass** (`src/meminit/core/services/repo_config.py`):
 
@@ -1785,11 +1783,11 @@ def _build_namespace_config(...) -> Optional[RepoConfig]:
 ```python
 def expected_subdir_for_type(self, doc_type: str) -> Optional[str]:
     key = _normalize_type_key(doc_type)
-    # Check document_types first
-    if key in self.document_types:
-        return self.document_types[key].directory
-    # Fall back to type_directories
-    return self.type_directories.get(key)
+    # document_types is the single source of truth (no legacy fallback)
+    dt = self.document_types.get(key)
+    if dt is not None:
+        return dt.directory
+    return None
 ```
 
 4. **Add `get_template_for_type()` method**:
@@ -1806,8 +1804,7 @@ def get_template_for_type(self, doc_type: str) -> Optional[str]:
     dt = self.document_types.get(key)
     if dt is not None:
         return dt.template
-    # Fall back to legacy templates map (keyed lowercase)
-    return self.templates.get(key.lower())
+    return None
 ```
 
 **Tests to add:**
@@ -1815,19 +1812,16 @@ def get_template_for_type(self, doc_type: str) -> Optional[str]:
 ```python
 # tests/core/services/test_repo_config.py
 
-def test_document_types_config_precedence():
-    """document_types takes precedence over type_directories"""
+def test_document_types_config_single_source():
+    """document_types is the single source of truth"""
     config = load_repo_config("fixtures/repo_with_document_types")
     assert config.expected_subdir_for_type("PRD") == "10-prd"
     assert config.expected_subdir_for_type("ADR") == "45-adr"
 
-def test_document_types_partial():
-    """Can mix document_types with legacy type_directories"""
-    config = load_repo_config("fixtures/repo_mixed_config")
-    # PRD from document_types
-    assert config.expected_subdir_for_type("PRD") == "10-prd"
-    # ADR from type_directories (legacy)
-    assert config.expected_subdir_for_type("ADR") == "45-adr"
+def test_legacy_config_rejected():
+    """Legacy type_directories/templates keys are rejected in Templates v2."""
+    with pytest.raises(LegacyConfigUnsupportedError):
+        load_repo_config("fixtures/repo_legacy_config")
 
 def test_document_types_template_resolution():
     """Template path from document_types is respected"""
@@ -1836,30 +1830,9 @@ def test_document_types_template_resolution():
     assert template == "docs/00-governance/templates/prd.template.md"
 ```
 
-**Verification:**
+**Part B: Template Resolver Service**
 
-- Run existing tests: `pytest tests/core/services/test_repo_config.py`
-- Test with actual config file in fixture directory
-
-**Post-conditions:**
-
-- `RepoConfig` has `document_types` field
-- `document_types` config is parsed correctly
-- Precedence: `document_types` > `type_directories` for directory resolution
-- Precedence: `document_types` > `templates` for template resolution
-
----
-
-#### WP-2: Template Resolver Service
-
-**Pre-conditions:**
-
-- `src/meminit/core/services/repo_config.py` supports `document_types` (from WP-1)
-- `src/meminit/core/use_cases/new_document.py` has `_load_template()` method
-
-**Implementation steps:**
-
-1. **Create new service** `src/meminit/core/services/template_resolver.py`:
+Create `src/meminit/core/services/template_resolver.py`:
 
 ```python
 from dataclasses import dataclass
@@ -1911,7 +1884,7 @@ class TemplateResolver:
                 return TemplateResolution(
                     source="config",
                     path=full_path,
-                    content=full_path.read_text()
+                    content=full_path.read_text(encoding="utf-8")
                 )
         return None
 
@@ -1926,16 +1899,7 @@ class TemplateResolver:
             return TemplateResolution(
                 source="convention",
                 path=new_path,
-                content=new_path.read_text()
-            )
-
-        # Legacy convention: template-001-<type>.md
-        legacy_path = self.config.docs_dir / "00-governance/templates" / f"template-001-{type_key}.md"
-        if legacy_path.exists():
-            return TemplateResolution(
-                source="convention",
-                path=legacy_path,
-                content=legacy_path.read_text()
+                content=new_path.read_text(encoding="utf-8")
             )
 
         return None
@@ -1957,18 +1921,7 @@ class TemplateResolver:
                 content=template_content
             )
         except FileNotFoundError:
-            # Try legacy convention
-            try:
-                template_content = files("meminit.core.assets.org_profiles.default.templates").joinpath(
-                    f"template-001-{type_key}.md"
-                ).read_text()
-                return TemplateResolution(
-                    source="builtin",
-                    path=None,
-                    content=template_content
-                )
-            except FileNotFoundError:
-                return None
+            return None
 ```
 
 2. **Update `new_document.py`** to use `TemplateResolver`:
@@ -2023,15 +1976,15 @@ def test_resolution_none_for_unknown_type():
     # Setup: no config, no convention, no built-in for CUSTOM type
     # Assert: source="none", content=None
 
-def test_legacy_convention_supported(tmp_path):
-    """Legacy template-001-<type>.md is discovered."""
-    # Setup: legacy template exists
-    # Assert: legacy template is used
+def test_legacy_convention_filename_rejected(tmp_path):
+    """Legacy template-001-<type>.md filename is rejected in Templates v2."""
+    # Setup: only a legacy filename exists
+    # Assert: resolution ignores it and returns the next valid fallback
 
 def test_path_traversal_rejected(tmp_path):
     """Template paths with .. are rejected."""
     # Setup: config has ../../../etc/passwd as template path
-    # Assert: path is rejected, falls back to next option
+    # Assert: path is rejected with explicit error
 ```
 
 **Verification:**
@@ -2044,21 +1997,14 @@ def test_path_traversal_rejected(tmp_path):
 - `TemplateResolver` service exists
 - Resolution follows: config → convention → builtin → skeleton
 - Path traversal is prevented
-- Both legacy and new conventions are supported
+- Legacy convention filenames are rejected
 - Convention discovery is namespace-scoped: `docs_dir` (derived from `RepoConfig.docs_root`) determines the template search path, so monorepo namespaces with distinct `docs_root` values will discover different convention templates
 
----
+**Part C: Interpolation Engine (Single `{{variable}}` Syntax)**
 
-#### WP-3: Interpolation Engine Refactor
+> **CHANGE FROM v1:** The interpolation engine now uses `{{variable}}` as the **only** supported syntax. Legacy patterns (`{title}`, `<REPO>`, etc.) are rejected in the Templates v2 runtime. Use `meminit migrate-templates` (WP-7) to rewrite legacy templates before use.
 
-**Pre-conditions:**
-
-- `src/meminit/core/use_cases/new_document.py` has `_apply_common_template_substitutions()` method
-- Tests exist for current interpolation behavior
-
-**Implementation steps:**
-
-1. **Extract interpolation logic** to `src/meminit/core/services/template_interpolation.py`:
+Extract interpolation logic to `src/meminit/core/services/template_interpolation.py`:
 
 ```python
 import re
@@ -2066,59 +2012,30 @@ from datetime import date
 from typing import Dict, Optional
 
 class TemplateInterpolator:
-    """Handles template placeholder interpolation."""
+    """Handles template placeholder interpolation.
 
-    # All supported patterns — preferred ({{…}}) listed before legacy ({…}, <…>)
-    PATTERNS = [
-        # Title
-        (r'\{\{\s*title\s*\}\}', 'title'),           # Preferred
-        (r'\{\s*title\s*\}', 'title'),               # Legacy
-        (r'<Decision Title>', 'title'),              # Legacy (ADR)
-        (r'<Feature Title>', 'title'),               # Legacy (FDD)
-        # Document ID (new in v2 — NOT a legacy token; see FR-3 note)
-        (r'\{\{\s*document_id\s*\}\}', 'document_id'),  # Preferred (new in v2)
-        # NOTE: <REPO>, <TYPE>, <SEQ> are handled independently below
-        # (repo_prefix, type, seq). There is NO single legacy composite
-        # token for document_id. {{document_id}} is a v2 convenience alias.
-        # Owner
+    Uses {{variable}} as the ONLY supported syntax.
+    Legacy or unknown patterns raise explicit template validation errors.
+    """
+
+    # Preferred patterns — {{variable}} syntax only
+    PREFERRED_PATTERNS = [
+        (r'\{\{\s*title\s*\}\}', 'title'),
+        (r'\{\{\s*document_id\s*\}\}', 'document_id'),
         (r'\{\{\s*owner\s*\}\}', 'owner'),
-        (r'\{\s*owner\s*\}', 'owner'),
-        (r'<Team or Person>', 'owner'),              # Legacy (ADR)
-        # Status
         (r'\{\{\s*status\s*\}\}', 'status'),
-        (r'\{\s*status\s*\}', 'status'),
-        # Date
         (r'\{\{\s*date\s*\}\}', 'date'),
-        (r'<YYYY-MM-DD>', 'date'),                   # Legacy
-        # Repo prefix
         (r'\{\{\s*repo_prefix\s*\}\}', 'repo_prefix'),
-        (r'<REPO>', 'repo_prefix'),                  # Legacy
-        (r'<PROJECT>', 'repo_prefix'),               # Legacy alias
-        # Sequence
         (r'\{\{\s*seq\s*\}\}', 'seq'),
-        (r'<SEQ>', 'seq'),                           # Legacy
-        # Type
         (r'\{\{\s*type\s*\}\}', 'type'),
-        # Area
         (r'\{\{\s*area\s*\}\}', 'area'),
-        (r'\{\s*area\s*\}', 'area'),
-        # Description (optional)
         (r'\{\{\s*description\s*\}\}', 'description'),
-        (r'\{\s*description\s*\}', 'description'),
-        # Keywords (optional)
         (r'\{\{\s*keywords\s*\}\}', 'keywords'),
-        (r'\{\s*keywords\s*\}', 'keywords'),
-        # Related IDs (optional)
         (r'\{\{\s*related_ids\s*\}\}', 'related_ids'),
-        (r'\{\s*related_ids\s*\}', 'related_ids'),
     ]
 
     def __init__(self):
-        # Compile patterns for efficiency
-        self._compiled_patterns = [
-            (re.compile(pattern), key)
-            for pattern, key in self.PATTERNS
-        ]
+        self._preferred = [(re.compile(p), k) for p, k in self.PREFERRED_PATTERNS]
 
     def interpolate(
         self,
@@ -2135,12 +2052,7 @@ class TemplateInterpolator:
         keywords: Optional[str] = None,
         related_ids: Optional[str] = None,
     ) -> str:
-        """Apply all interpolations to template content.
-
-        Every compiled pattern is applied unconditionally so that
-        templates mixing ``{{title}}`` and ``{title}`` are handled
-        correctly (both syntaxes resolve to the same value).
-        """
+        """Apply all interpolations to template content or raise validation errors."""
         substitutions: Dict[str, str] = {
             'title': title,
             'document_id': document_id,
@@ -2157,18 +2069,17 @@ class TemplateInterpolator:
         }
 
         result = template
-
-        # Apply EVERY pattern — do NOT skip duplicates.
-        # A template may legitimately use both {{title}} and {title};
-        # both must resolve to the same value.
-        for pattern, key in self._compiled_patterns:
+        # Apply preferred {{variable}} patterns
+        for pattern, key in self._preferred:
             value = substitutions.get(key, '')
             result = pattern.sub(value, result)
 
+        self._raise_on_legacy_tokens(result)
+        self._raise_on_unknown_variables(result)
         return result
 ```
 
-2. **Update `new_document.py`** to use `TemplateInterpolator`:
+**Update `new_document.py`** to use `TemplateInterpolator`:
 
 ```python
 from meminit.core.services.template_interpolation import TemplateInterpolator
@@ -2181,7 +2092,7 @@ class NewDocumentUseCase:
     def _execute_internal_impl(self, params: NewDocumentParams, ...):
         # ... existing validation ...
 
-        # Apply interpolation
+        # Apply interpolation (raises on legacy/unknown syntax)
         template_body = self._interpolator.interpolate(
             template=template_content,
             title=params.title,
@@ -2218,72 +2129,61 @@ def test_preferred_syntax():
     )
     assert result == "# Test Doc\n\nOwner: Test Owner"
 
-def test_legacy_brace_syntax():
-    """Legacy {variable} syntax still works."""
+def test_legacy_placeholder_syntax_rejected():
+    """Legacy placeholder syntax is rejected."""
     interpolator = TemplateInterpolator()
-    result = interpolator.interpolate(
-        template="# {title}\nID: {document_id}",
-        title="Test Doc",
-        document_id="REPO-PRD-001",
-        owner="Test Owner",
-        status="Draft",
-        repo_prefix="REPO",
-        seq="001",
-        doc_type="PRD"
-    )
-    assert result == "# Test Doc\nID: REPO-PRD-001"
+    with pytest.raises(InvalidTemplatePlaceholderError):
+        interpolator.interpolate(
+            template="# {title}",
+            title="Test Doc",
+            document_id="REPO-PRD-001",
+            owner="Test Owner",
+            status="Draft",
+            repo_prefix="REPO",
+            seq="001",
+            doc_type="PRD"
+        )
 
-def test_legacy_angle_syntax():
-    """Legacy <VAR> syntax still works."""
+def test_unknown_variables_raise_error():
+    """Unknown {{variables}} are rejected."""
     interpolator = TemplateInterpolator()
-    result = interpolator.interpolate(
-        template="ID: <REPO>-<TYPE>-<SEQ>\nDate: <YYYY-MM-DD>",
-        title="Test",
-        document_id="REPO-PRD-001",
-        owner="Owner",
-        status="Draft",
-        repo_prefix="REPO",
-        seq="001",
-        doc_type="PRD"
-    )
-    assert "REPO-PRD-001" in result
-    assert result.count("REPO-PRD-001") == 1  # Not substituted multiple times
-
-def test_unknown_variables_preserved():
-    """Unknown {{variables}} are preserved verbatim."""
-    interpolator = TemplateInterpolator()
-    result = interpolator.interpolate(
-        template="{{title}} {{unknown}} {{also_unknown}}",
-        title="Test",
-        document_id="REPO-PRD-001",
-        owner="Owner",
-        status="Draft",
-        repo_prefix="REPO",
-        seq="001",
-        doc_type="PRD"
-    )
-    assert result == "Test {{unknown}} {{also_unknown}}"
+    with pytest.raises(UnknownTemplateVariableError):
+        interpolator.interpolate(
+            template="{{title}} {{unknown}} {{also_unknown}}",
+            title="Test",
+            document_id="REPO-PRD-001",
+            owner="Owner",
+            status="Draft",
+            repo_prefix="REPO",
+            seq="001",
+            doc_type="PRD"
+        )
 
 def test_all_supported_variables():
     """All documented variables are interpolated."""
-    # Test full set
+    # Test full set of {{variable}} patterns
 ```
 
 **Verification:**
 
 - Run tests: `pytest tests/core/services/test_interpolation.py`
-- Verify existing template behavior is preserved
+- Verify `{{variable}}` syntax works
+- Verify legacy and unknown syntax raise explicit errors
 
-**Post-conditions:**
+**Post-conditions (WP-1 overall):**
 
-- `TemplateInterpolator` service exists
-- All syntaxes work: `{{}}`, `{}`, `<>`
-- Unknown variables are preserved
+- `RepoConfig` has `document_types` as single source of truth
+- Legacy config keys are rejected
+- `TemplateResolver` service exists with config → convention → builtin → skeleton precedence
+- `TemplateInterpolator` uses `{{variable}}` only; legacy and unknown syntax are rejected
+- Section parsing is code-fence-aware (FR-12) and detects duplicate IDs (FR-13)
+- Path traversal is prevented (FR-10)
+- Unknown variables are rejected
 - No double-substitution issues
 
 ---
 
-#### WP-4: Metadata Block Rule
+#### WP-2: Metadata Block Rule
 
 **Pre-conditions:**
 
@@ -2431,7 +2331,7 @@ def test_no_duplicate_metadata_blocks():
 
 ---
 
-#### WP-5: Built-in Templates
+#### WP-3: Built-in Templates
 
 **Pre-conditions:**
 
@@ -2492,7 +2392,7 @@ def test_builtin_templates_have_agent_guidance():
 **Verification:**
 
 ```bash
-# WP-5 Verification
+# WP-3 Verification
 pytest tests/core/assets/test_builtin_templates.py -v
 # Test no-config repo gets built-in
 cd /tmp && rm -rf test_repo && mkdir test_repo && cd test_repo && \
@@ -2514,7 +2414,7 @@ cd /tmp && rm -rf test_repo && mkdir test_repo && cd test_repo && \
 
 ---
 
-#### WP-6: JSON Output Enhancements
+#### WP-4: JSON Output Enhancements
 
 **Pre-conditions:**
 
@@ -2541,39 +2441,112 @@ class NewDocumentResult:
 def _extract_sections(self, content: str) -> List[Dict[str, Any]]:
     """Extract section information from document content.
 
-    Handles the common pattern where a blank line separates
-    the heading from its section marker:
-
-        ## 2. Problem Statement
-                                     <-- blank line
-        <!-- MEMINIT_SECTION: problem_statement -->
+    Code-fence-aware (FR-12). Uses marker-to-marker boundaries (FR-15).
+    Includes initial_content and agent_prompt for each section (FR-7).
+    Detects duplicate section IDs (FR-13).
+    Returns all fields required by the SectionMarker Pydantic model.
     """
     sections = []
+    seen_ids: dict[str, int] = {}
     lines = content.splitlines()
-    last_heading = None
-    last_heading_line = 0
+    marker_positions: list[tuple[int, str]] = []
 
+    # Pass 1: find all markers (code-fence-aware, FR-12)
+    # Track opening fence delimiter to handle nested fences correctly
+    fence_delimiter: str | None = None
     for i, line in enumerate(lines):
         stripped = line.strip()
-
-        # Track the most recent heading (## or ###)
-        if stripped.startswith('##'):
-            last_heading = stripped
-            last_heading_line = i
+        if fence_delimiter is None:
+            fence_match = re.match(r'^(`{3,}|~{3,})', stripped)
+            if fence_match:
+                fence_delimiter = fence_match.group(1)
+                continue
+        else:
+            if stripped.startswith(fence_delimiter) and stripped.rstrip('`~ ') == '':
+                fence_delimiter = None
             continue
 
-        # Check for section marker
+        # Only match standalone marker lines (FR-5: no leading >, bullets, etc.)
         marker_match = re.match(
-            r'<!--\s*MEMINIT_SECTION:\s*(\w+)\s*-->', stripped
+            r'^\s*<!-{2}\s*MEMINIT_SECTION:\s*(\w+)\s*-{2}>\s*$', line
         )
         if marker_match:
-            section_id = marker_match.group(1)
-            sections.append({
-                "id": section_id,
-                "heading": last_heading or "Unknown",
-                "line": last_heading_line,
-                "required": True  # For now, all sections are required
-            })
+            section_id = marker_match.group(1).lower()
+            if section_id in seen_ids:
+                raise ValueError(
+                    f"Duplicate section ID '{section_id}' at lines "
+                    f"{seen_ids[section_id] + 1} and {i + 1}"
+                )
+            seen_ids[section_id] = i
+            marker_positions.append((i, section_id))
+
+    # Pass 2: build section entries with marker-to-marker boundaries (FR-15)
+    for idx, (marker_line_idx, section_id) in enumerate(marker_positions):
+        # Heading detection: search up to 3 lines backward from marker
+        heading = "Unknown"
+        heading_line_idx = marker_line_idx
+        for lookback in range(1, min(4, marker_line_idx + 1)):
+            candidate = lines[marker_line_idx - lookback].strip()
+            if candidate.startswith('##'):
+                heading = candidate
+                heading_line_idx = marker_line_idx - lookback
+                break
+
+        # Agent prompt extraction (immediately after marker)
+        agent_prompt: str | None = None
+        scan_start = marker_line_idx + 1
+        for j in range(scan_start, min(scan_start + 3, len(lines))):
+            stripped_j = lines[j].strip()
+            if not stripped_j:
+                continue  # skip blank lines between marker and AGENT block
+            # Single-line: <!-- AGENT: ... -->
+            single_match = re.match(r'^<!-{2}\s*AGENT:\s*(.+?)\s*-{2}>$', stripped_j)
+            if single_match:
+                agent_prompt = single_match.group(1)
+                scan_start = j + 1
+                break
+            # Multi-line: starts with <!-- AGENT: but no closing -->
+            multi_match = re.match(r'^<!-{2}\s*AGENT:\s*(.*)$', stripped_j)
+            if multi_match:
+                prompt_lines = [multi_match.group(1)]
+                for k in range(j + 1, len(lines)):
+                    if '-->' in lines[k]:
+                        prompt_lines.append(lines[k].replace('-->', '').strip())
+                        scan_start = k + 1
+                        break
+                    prompt_lines.append(lines[k].strip())
+                agent_prompt = ' '.join(p for p in prompt_lines if p)
+                break
+            break  # non-blank, non-AGENT line: no prompt
+
+        # Content span: marker-to-marker (FR-15)
+        content_start_idx = scan_start  # first line after marker + AGENT blocks
+        if idx + 1 < len(marker_positions):
+            next_marker_idx = marker_positions[idx + 1][0]
+            # Editable span ends at line before next marker's heading
+            content_end_idx = next_marker_idx
+            for lookback in range(1, min(4, next_marker_idx - content_start_idx + 1)):
+                if lines[next_marker_idx - lookback].strip().startswith('##'):
+                    content_end_idx = next_marker_idx - lookback
+                    break
+        else:
+            content_end_idx = len(lines)
+
+        # Initial content (text in editable span, excluding blanks and AGENT blocks)
+        initial_lines = [lines[j] for j in range(content_start_idx, content_end_idx)]
+        initial_content = '\n'.join(initial_lines).strip()
+
+        sections.append({
+            "id": section_id,
+            "heading": heading,
+            "line": heading_line_idx + 1,         # 1-based
+            "marker_line": marker_line_idx + 1,   # 1-based
+            "content_start_line": content_start_idx + 1,  # 1-based
+            "content_end_line": content_end_idx,           # 1-based, inclusive
+            "required": True,
+            "agent_prompt": agent_prompt,
+            "initial_content": initial_content or None,
+        })
 
     return sections
 ```
@@ -2610,9 +2583,11 @@ data["template"] = {
     "path": "docs/00-governance/templates/prd.template.md" or None,
     "content_preview": "...",
     "sections": [
-        {"id": "executive_summary", "heading": "## 1. Executive Summary", "line": 42, "required": True, "agent_prompt": "..."},
+        {"id": "executive_summary", "heading": "## 1. Executive Summary", "line": 42, "marker_line": 44, "content_start_line": 48, "content_end_line": 52, "required": True, "agent_prompt": "...", "initial_content": "[One paragraph summary.]"},
     ],
 }
+data["rendered_content"] = "..."
+data["content_sha256"] = "..."
 ```
 
 **Tests to add:**
@@ -2625,13 +2600,18 @@ def test_json_output_includes_template_source(tmp_path):
     result = run_new_document_json(tmp_path, "PRD", "Test")
     assert result["data"]["template"]["source"] in ["config", "convention", "builtin", "none"]
 
-def test_json_output_includes_sections(tmp_path):
-    """JSON output includes sections array."""
+def test_json_output_includes_rendered_content_and_section_spans(tmp_path):
+    """JSON output includes rendered content and explicit section spans."""
     result = run_new_document_json(tmp_path, "PRD", "Test")
+    assert "rendered_content" in result["data"]
+    assert "content_sha256" in result["data"]
     sections = result["data"]["template"]["sections"]
     assert len(sections) > 0
     assert "id" in sections[0]
     assert "heading" in sections[0]
+    assert "content_start_line" in sections[0]
+    assert "content_end_line" in sections[0]
+    assert "initial_content" in sections[0]
 
 def test_json_output_includes_content_preview(tmp_path):
     """JSON output includes content_preview."""
@@ -2648,86 +2628,83 @@ def test_json_output_template_source_builtin(tmp_path):
 **Verification:**
 
 ```bash
-# WP-6 Verification
+# WP-4 Verification
 pytest tests/core/use_cases/test_new_json_output.py -v
 # Test JSON output manually
-meminit new PRD "Widget Platform" --format json | jq '.data.template.source, .data.template.sections[0], .data.template.content_preview'
+meminit new PRD "Widget Platform" --format json | jq '.data.template.source, .data.content_sha256, .data.template.sections[0]'
 ```
 
 - Run tests: `pytest tests/core/use_cases/test_new_json_output.py`
 - Test JSON output manually: `meminit new PRD "Test" --format json`
 - Verify `data.template.source` exists and has correct value
-- Verify `sections` array contains id, heading, line fields
+- Verify `sections` array contains id, heading, marker_line, and explicit content span fields
 - Verify `content_preview` is present and <= 500 chars
 
 **Post-conditions:**
 
 - JSON includes `data.template.source`
-- JSON includes `data.template.sections` with id, heading, line
+- JSON includes `data.template.sections` with id, heading, marker_line, content span fields, and initial_content
 - JSON includes `data.template.content_preview`
 - JSON schema is documented
 
 ---
 
-#### WP-7: Update Vendored Templates
+#### WP-5: Update Vendored Templates
 
 **Pre-conditions:**
 
-- Built-in templates exist (from WP-5)
+- Built-in templates exist (from WP-3)
 - Vendored templates exist in `docs/00-governance/templates/`
 
 **Implementation steps:**
 
-1. **Update `template-001-adr.md`** to match built-in template:
+1. **Rename and update `template-001-adr.md` to `adr.template.md`**:
    - Add section markers to all major sections
    - Add agent guidance blocks
-   - Convert placeholders to `{{}}` syntax (optional, can keep legacy)
+   - Convert all placeholders to `{{variable}}` syntax
 
-2. **Update `template-001-prd.md`** to match built-in template:
+2. **Rename and update `template-001-prd.md` to `prd.template.md`**:
    - Add comprehensive sections
    - Add section markers
    - Add agent guidance blocks
 
-3. **Update `template-001-fdd.md`** to match built-in template:
+3. **Rename and update `template-001-fdd.md` to `fdd.template.md`**:
    - Add section markers
    - Add agent guidance blocks
 
-4. **Add `.template.md` variants** (new convention):
-   - Copy updated templates to `adr.template.md`, `prd.template.md`, `fdd.template.md`
-   - This allows repos to use either convention
+4. **Remove legacy runtime filenames from active docs**:
+   - Keep `template-001-*.md` only as migration fixtures or delete them after migration
+   - The runtime convention is `*.template.md` only
 
 **Verification:**
 
 ```bash
-# WP-7 Verification
+# WP-5 Verification
 # Test convention discovery works
 meminit new ADR "Convention Test" --format json | jq '.data.template.source'
 # Should output: "convention"
 
-# Verify both conventions work
-meminit new PRD "Legacy Test" --format json | jq '.data.template.source'
-# Should output: "convention"
-
 # Check markers present
-meminit new ADR "Marker Test" --format json | jq -r '.content_preview' | grep -c "MEMINIT_SECTION"
+meminit new ADR "Marker Test" --format json | jq -r '.data.template.content_preview' | grep -c "MEMINIT_SECTION"
 # Should be > 0
 ```
 
 - Run: `meminit check` to verify PRD compliance
 - Test: `meminit new ADR "Test"` generates document with section markers
 - Test: `meminit new PRD "Test"` generates document with comprehensive structure
-- Verify both legacy (`template-001-*.md`) and new (`*.template.md`) conventions work
+- Verify legacy `template-001-*.md` filenames are rejected and canonical `*.template.md` files work
 
 **Post-conditions:**
 
 - Vendored templates match built-in templates
-- Both legacy and new conventions work
+- All templates use `{{variable}}` syntax
+- Only canonical `*.template.md` runtime filenames work
 - All templates have section markers
 - All templates have agent guidance
 
 ---
 
-#### WP-8: Documentation and PRD Update
+#### WP-6: Documentation and PRD Update
 
 **Pre-conditions:**
 
@@ -2742,37 +2719,27 @@ meminit new ADR "Marker Test" --format json | jq -r '.content_preview' | grep -c
    - Update status to "Approved" if approved
 
 2. **Update README** or user docs:
-   - Document template configuration options
-   - Document placeholder syntaxes
+   - Document `document_types` configuration (single source of truth)
+   - Document `{{variable}}` interpolation syntax
    - Provide template examples
+   - Document the hard cutover and migration path for legacy config keys and placeholder syntax
 
-3. **Add migration guide** (if needed):
-   - How to update from legacy to new config
-   - How to add custom templates
-
-4. **Update `meminit context` output** to include template info:
+3. **Update `meminit context` output** to include template info:
    - For each document type, show template source
    - Show template path if configured
 
 **Verification:**
 
 ```bash
-# WP-8 Verification
-# Final integration test
+# WP-6 Verification (corrected)
 pytest tests/ -v --tb=short
-
-# Verify meminit context includes template info
 meminit context --format json | jq '.document_types'
-
-# Verify this PRD is in review status
 grep "status:" docs/10-prd/prd-006-document-templates.md
-# Should output: "status: In Review"
 ```
 
 - Run: `meminit check` to verify PRD compliance
 - Run full test suite: `pytest tests/ -v`
 - Verify `meminit context --format json` shows template info
-- Review docs for clarity
 
 **Post-conditions:**
 
@@ -2782,45 +2749,163 @@ grep "status:" docs/10-prd/prd-006-document-templates.md
 
 ---
 
+#### WP-7: Migration Tooling (`meminit migrate-templates`)
+
+**Pre-conditions:**
+
+- WP-1 (Core Template Engine) is complete
+- `document_types` schema is defined
+- `{{variable}}` is the standard interpolation syntax
+
+**Implementation steps:**
+
+1. **Create `meminit migrate-templates` command** (`src/meminit/cli/commands/migrate_templates.py`):
+
+```python
+class MigrateTemplatesCommand:
+    """Converts legacy config and placeholder syntax to Templates v2 format.
+
+    Operations:
+    1. Config migration: type_directories + templates → document_types
+    2. Placeholder migration: {title}, <REPO>, etc. → {{variable}}
+    3. Dry-run mode: show changes without applying
+    """
+
+    def execute(self, dry_run: bool = True, format: str = "human") -> dict:
+        # 1. Read docops.config.yaml
+        # 2. Detect legacy keys (type_directories, templates)
+        # 3. Convert to document_types format
+        # 4. Scan template files for legacy placeholder syntax
+        # 5. Convert to {{variable}} syntax
+        # 6. Report changes (or apply if not dry_run)
+        pass
+
+    def _migrate_config(self, config_path: Path) -> list[ConfigChange]:
+        """Convert legacy config keys to document_types."""
+        pass
+
+    def _migrate_template_placeholders(self, template_path: Path) -> list[PlaceholderChange]:
+        """Convert legacy placeholder syntax to {{variable}}."""
+        LEGACY_TO_PREFERRED = {
+            r'{title}': '{{title}}',
+            r'<Decision Title>': '{{title}}',
+            r'<Feature Title>': '{{title}}',
+            r'{owner}': '{{owner}}',
+            r'<Team or Person>': '{{owner}}',
+            r'{status}': '{{status}}',
+            r'<YYYY-MM-DD>': '{{date}}',
+            r'<REPO>': '{{repo_prefix}}',
+            r'<PROJECT>': '{{repo_prefix}}',
+            r'<SEQ>': '{{seq}}',
+            r'{area}': '{{area}}',
+            r'{description}': '{{description}}',
+            r'{keywords}': '{{keywords}}',
+            r'{related_ids}': '{{related_ids}}',
+        }
+        pass
+```
+
+2. **Register CLI command**:
+
+```python
+# In CLI registration
+app.add_command("migrate-templates", MigrateTemplatesCommand)
+```
+
+**Tests to add:**
+
+```python
+# tests/cli/test_migrate_templates.py
+
+def test_migrate_config_dry_run(tmp_path):
+    """Dry run shows proposed config changes without applying."""
+    # Setup: legacy config
+    # Assert: changes listed but file unchanged
+
+def test_migrate_config_applies_changes(tmp_path):
+    """Non-dry-run applies config changes."""
+    # Setup: legacy config
+    # Assert: document_types created, legacy keys removed
+
+def test_migrate_placeholders_dry_run(tmp_path):
+    """Dry run shows proposed placeholder changes."""
+    # Setup: template with {title} and <REPO>
+    # Assert: changes listed but file unchanged
+
+def test_migrate_placeholders_applies_changes(tmp_path):
+    """Non-dry-run converts placeholders."""
+    # Setup: template with {title} and <REPO>
+    # Assert: converted to {{title}} and {{repo_prefix}}
+
+def test_migrate_idempotent(tmp_path):
+    """Running migration twice produces same result."""
+    # Setup: already-migrated config and templates
+    # Assert: no changes on second run
+
+def test_migrate_json_output(tmp_path):
+    """JSON output includes change details."""
+    result = run_migrate_json(tmp_path)
+    assert result["success"] is True
+    assert "changes" in result["data"]
+```
+
+**Verification:**
+
+```bash
+# WP-7 Verification
+pytest tests/cli/test_migrate_templates.py -v
+# Test with a legacy repo
+meminit migrate-templates --dry-run --format json
+meminit migrate-templates --no-dry-run --format json
+```
+
+**Post-conditions:**
+
+- `meminit migrate-templates` command exists
+- Dry-run mode shows changes without applying
+- Config migration: `type_directories` + `templates` → `document_types`
+- Placeholder migration: legacy syntax → `{{variable}}`
+- Migration is idempotent
+- JSON output includes change details
+
+---
+
 ### 12.5 Work Package Dependencies
 
 ```mermaid
 graph TD
-    WP1[WP-1: document_types config] --> WP2[WP-2: template resolver]
-    WP1 --> WP3[WP-3: interpolation]
-    WP1 --> WP4[WP-4: metadata block]
+    WP1[WP-1: Core Template Engine] --> WP2[WP-2: metadata block]
+    WP1 --> WP3[WP-3: built-in templates]
+    WP1 --> WP4[WP-4: JSON output]
+    WP3 --> WP4
+    WP2 --> WP4
 
-    WP2 --> WP5[WP-5: built-in templates]
-    WP3 --> WP5
-    WP4 --> WP5
-
-    WP5 --> WP6[WP-6: JSON output]
-    WP6 --> WP7[WP-7: vendored templates]
-    WP6 --> WP8[WP-8: docs update]
+    WP4 --> WP5[WP-5: vendored templates]
+    WP4 --> WP6[WP-6: docs update]
+    WP1 --> WP7[WP-7: migration tooling]
 ```
 
-**Recommended execution order:** WP-1 → WP-2 → WP-3 → WP-4 → WP-5 → WP-6 → WP-7 → WP-8
+**Recommended execution order:** WP-1 → WP-2 & WP-3 (parallel) → WP-4 → WP-5 & WP-7 (parallel) → WP-6
 
 **Parallelization opportunities:**
 
-- WP-3, WP-4 can be done in parallel after WP-1
-- WP-5 template authoring (file creation) can begin in parallel, but its integration tests require WP-2 (`TemplateResolver`). Use mock resolver if parallelizing.
-- WP-7 can be done in parallel with WP-6
+- WP-2 and WP-3 can be done in parallel after WP-1
+- WP-5 and WP-7 can be done in parallel after WP-4
+- WP-7 (migration tooling) only depends on WP-1 and can start early
 
 **Rollback guidance (per WP):**
 
-If a WP introduces failing tests or breaks backward compatibility:
+If a WP introduces failing tests:
 
 | WP   | If it fails, revert...                                                                          |
 | ---- | ----------------------------------------------------------------------------------------------- |
-| WP-1 | `repo_config.py` changes only; existing `type_directories` / `templates` behavior is unaffected |
-| WP-2 | `template_resolver.py` (new file); restore `_load_template()` in `new_document.py`              |
-| WP-3 | `template_interpolation.py` (new file); restore `_apply_common_template_substitutions()`        |
-| WP-4 | `_process_template_metadata_block()` in `new_document.py`; revert to existing inline logic      |
-| WP-5 | Delete new template files from `src/meminit/core/assets/org_profiles/default/templates/`        |
-| WP-6 | Revert `NewDocumentResult` and `output_contracts.py` changes; JSON output returns to v1 shape   |
-| WP-7 | Revert updated files in `docs/00-governance/templates/`; existing templates restored via git    |
-| WP-8 | Documentation-only; no code rollback needed                                                     |
+| WP-1 | `repo_config.py`, `template_resolver.py`, `template_interpolation.py`; restore original methods |
+| WP-2 | `_process_template_metadata_block()` in `new_document.py`; revert to existing inline logic      |
+| WP-3 | Delete new template files from `src/meminit/core/assets/org_profiles/default/templates/`        |
+| WP-4 | Revert `NewDocumentResult` and `output_contracts.py` changes; JSON output returns to v1 shape   |
+| WP-5 | Revert updated files in `docs/00-governance/templates/`; existing templates restored via git    |
+| WP-6 | Documentation-only; no code rollback needed                                                     |
+| WP-7 | Delete `migrate_templates.py`; migration command removed                                        |
 
 ---
 
@@ -2830,24 +2915,32 @@ If a WP introduces failing tests or breaks backward compatibility:
 
 <!-- AGENT: Define "done" for this feature. Each criterion must be testable and linked to requirements. -->
 
-| ID        | Criterion                                                                       | Verification Command                                                                                   | Related FRs | Related WP(s) |
-| --------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------- | ------------- |
-| **AC-1**  | `meminit new ADR "X"` produces scaffold with stable section IDs                 | `pytest tests/core/services/test_template_resolution.py::test_resolution_precedence -v`                | FR-5        | WP-5          |
-| **AC-2**  | Legacy `{title}` and `<REPO>` placeholders interpolate correctly                | `pytest tests/core/services/test_interpolation.py::test_legacy_brace_syntax -v`                        | FR-3        | WP-3          |
-| **AC-3**  | New `{{title}}` placeholder syntax works                                        | `pytest tests/core/services/test_interpolation.py::test_preferred_syntax -v`                           | FR-3        | WP-3          |
-| **AC-4**  | Exactly one visible metadata block in final document                            | `pytest tests/core/use_cases/test_metadata_block.py::test_no_duplicate_metadata_blocks -v`             | FR-8        | WP-4          |
-| **AC-5**  | Template discovery follows precedence: config → convention → builtin → skeleton | `pytest tests/core/services/test_template_resolution.py::test_resolution_precedence_config_first -v`   | FR-1        | WP-2          |
-| **AC-6**  | `--format json` includes `data.template.source` and `data.template.sections`   | `pytest tests/core/use_cases/test_new_json_output.py::test_json_output_includes_template_source -v`    | FR-7        | WP-6          |
-| **AC-7**  | Path traversal via template path is rejected safely                             | `pytest tests/core/services/test_template_resolution.py::test_path_traversal_rejected -v`              | FR-10       | WP-2          |
-| **AC-8**  | `meminit new PRD "X"` without config produces meaningful scaffold               | `pytest tests/core/assets/test_builtin_templates.py::test_builtin_prd_template_has_section_markers -v` | FR-1, FR-5  | WP-2, WP-5    |
-| **AC-9**  | `document_types` config takes precedence over legacy config                     | `pytest tests/core/services/test_repo_config.py::test_document_types_config_precedence -v`             | FR-6        | WP-1          |
-| **AC-10** | `<!-- AGENT: ... -->` blocks preserved in output                                | `pytest tests/core/services/test_interpolation.py::test_agent_prompt_preservation -v`                  | FR-4        | WP-5          |
-| **AC-11** | Template frontmatter merged with generated metadata                             | `pytest tests/core/services/test_interpolation.py::test_frontmatter_merging -v`                        | FR-9        | WP-3          |
-| **AC-12** | Both legacy and new template file conventions supported                         | `pytest tests/core/services/test_template_resolution.py::test_legacy_convention_supported -v`          | FR-11       | WP-2          |
-| **AC-13** | JSON output section inventory matches document content                          | `pytest tests/core/use_cases/test_new_json_output.py::test_json_output_includes_sections -v`           | FR-7        | WP-6          |
-| **AC-14** | Unknown `{{variables}}` preserved verbatim                                      | `pytest tests/core/services/test_interpolation.py::test_unknown_variables_preserved -v`                | FR-3        | WP-3          |
-| **AC-15** | Built-in templates for ADR, PRD, FDD include section markers                    | `pytest tests/core/assets/test_builtin_templates.py -v`                                                | FR-5        | WP-5          |
-| **AC-16** | Full end-to-end flow: config → resolve → interpolate → metadata → JSON output   | `pytest tests/integration/test_templates_v2_e2e.py -v`                                                 | FR-1–FR-11  | WP-1–WP-6     |
+| ID        | Criterion                                                                                  | Verification Command                                                                                                   | Related FRs | Related WP(s) |
+| --------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ----------- | ------------- |
+| **AC-1**  | `meminit new ADR "X"` produces scaffold with stable section IDs                            | `pytest tests/core/services/test_template_resolution.py::test_resolution_precedence -v`                                | FR-5        | WP-3          |
+| **AC-2**  | Legacy placeholder syntax is rejected with `INVALID_TEMPLATE_PLACEHOLDER`                  | `pytest tests/core/services/test_interpolation.py::test_legacy_placeholder_syntax_rejected -v`                         | FR-3        | WP-1          |
+| **AC-3**  | `{{title}}` placeholder syntax works                                                       | `pytest tests/core/services/test_interpolation.py::test_preferred_syntax -v`                                           | FR-3        | WP-1          |
+| **AC-4**  | Exactly one visible metadata block in final document                                       | `pytest tests/core/use_cases/test_metadata_block.py::test_no_duplicate_metadata_blocks -v`                             | FR-8        | WP-2          |
+| **AC-5**  | Template discovery follows precedence: config → convention → builtin → skeleton            | `pytest tests/core/services/test_template_resolution.py::test_resolution_precedence_config_first -v`                   | FR-1        | WP-1          |
+| **AC-6**  | `--format json` includes `data.rendered_content`, `data.content_sha256`, and section spans | `pytest tests/core/use_cases/test_new_json_output.py::test_json_output_includes_rendered_content_and_section_spans -v` | FR-7        | WP-4          |
+| **AC-7**  | Path traversal via template path is rejected safely                                        | `pytest tests/core/services/test_template_resolution.py::test_path_traversal_rejected -v`                              | FR-10       | WP-1          |
+| **AC-8**  | `meminit new PRD "X"` without config produces meaningful scaffold                          | `pytest tests/core/assets/test_builtin_templates.py::test_builtin_prd_template_has_section_markers -v`                 | FR-1, FR-5  | WP-1, WP-3    |
+| **AC-9**  | `document_types` is single source of truth; legacy keys are rejected                       | `pytest tests/core/services/test_repo_config.py::test_legacy_config_rejected -v`                                       | FR-6        | WP-1          |
+| **AC-10** | `<!-- AGENT: ... -->` blocks preserved in output                                           | `pytest tests/core/services/test_interpolation.py::test_agent_prompt_preservation -v`                                  | FR-4        | WP-3          |
+| **AC-11** | Template frontmatter merged with generated metadata                                        | `pytest tests/core/services/test_interpolation.py::test_frontmatter_merging -v`                                        | FR-9        | WP-1          |
+| **AC-12** | Only the canonical `<type>.template.md` convention is supported at runtime                 | `pytest tests/core/services/test_template_resolution.py::test_legacy_convention_filename_rejected -v`                  | FR-11       | WP-1          |
+| **AC-13** | JSON output section inventory matches document content                                     | `pytest tests/core/use_cases/test_new_json_output.py::test_json_output_includes_sections -v`                           | FR-7        | WP-4          |
+| **AC-14** | Unknown `{{variables}}` raise `UNKNOWN_TEMPLATE_VARIABLE`                                  | `pytest tests/core/services/test_interpolation.py::test_unknown_variables_raise_error -v`                              | FR-3        | WP-1          |
+| **AC-15** | Built-in templates for ADR, PRD, FDD include section markers                               | `pytest tests/core/assets/test_builtin_templates.py -v`                                                                | FR-5        | WP-3          |
+| **AC-16** | Full end-to-end flow: config → resolve → interpolate → metadata → JSON output              | `pytest tests/integration/test_templates_v2_e2e.py -v`                                                                 | FR-1–FR-15  | WP-1–WP-7     |
+| **AC-17** | `meminit migrate-templates` converts legacy config and placeholders                        | `pytest tests/cli/test_migrate_templates.py -v`                                                                        | G-8         | WP-7          |
+| **AC-18** | Section markers inside code fences are ignored                                             | `pytest tests/core/services/test_template_resolution.py::test_section_markers_inside_code_fences_ignored -v`           | FR-12       | WP-1          |
+| **AC-19** | Duplicate section IDs produce explicit errors                                              | `pytest tests/core/services/test_template_resolution.py::test_duplicate_section_id_raises_error -v`                    | FR-13       | WP-1          |
+| **AC-20** | Missing required sections after fill emit warnings                                         | `pytest tests/core/use_cases/test_new_json_output.py::test_missing_required_sections_emits_warning -v`                 | FR-14       | WP-4          |
+| **AC-21** | Section updates replace only marker-declared spans                                         | `pytest tests/core/use_cases/test_new_json_output.py::test_section_updates_use_marker_spans_only -v`                   | FR-15       | WP-1, WP-4    |
+| **AC-22** | `meminit check` validates directory mappings using `document_types`                         | `pytest tests/core/use_cases/test_check_repository.py::test_check_uses_document_types -v`                              | FR-16       | WP-1          |
+| **AC-23** | `meminit fix` infers types via `document_types` and rejects legacy config                   | `pytest tests/core/use_cases/test_fix_repository.py::test_fix_uses_document_types -v`                                  | FR-16       | WP-1          |
+| **AC-24** | Invalid template file characteristics produce `INVALID_TEMPLATE_FILE` errors                | `pytest tests/core/services/test_template_resolution.py::test_invalid_template_file_rejected -v`                       | FR-17       | WP-1          |
 
 ---
 
@@ -2859,60 +2952,67 @@ If a WP introduces failing tests or breaks backward compatibility:
 
 ### 14.1 Unit Tests
 
-| Test Area                | Key Tests                                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Config parsing**       | `test_document_types_parsing`, `test_legacy_compat`, `test_mixed_config`                                    |
-| **Template resolution**  | `test_precedence_config`, `test_precedence_convention`, `test_precedence_builtin`, `test_fallback_skeleton` |
-| **Interpolation**        | `test_all_syntaxes`, `test_unknown_preserved`, `test_no_double_sub`                                         |
-| **Metadata block**       | `test_marker_with_placeholder`, `test_marker_only`, `test_no_marker`, `test_no_duplicates`                  |
-| **Section markers**      | `test_marker_preservation`, `test_section_extraction`                                                       |
-| **Path security**        | `test_path_traversal_rejected`, `test_symlink_rejected`                                                     |
-| **Frontmatter merging**  | `test_template_frontmatter_preserved`, `test_generated_overrides`                                           |
-| **Convention discovery** | `test_new_convention`, `test_legacy_convention`                                                             |
+| Test Area                 | Key Tests                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Config parsing**        | `test_document_types_single_source`, `test_legacy_config_rejected`                                          |
+| **Template resolution**   | `test_precedence_config`, `test_precedence_convention`, `test_precedence_builtin`, `test_fallback_skeleton` |
+| **Interpolation**         | `test_preferred_syntax`, `test_legacy_placeholder_syntax_rejected`, `test_unknown_variables_raise_error`    |
+| **Metadata block**        | `test_marker_with_placeholder`, `test_marker_only`, `test_no_marker`, `test_duplicate_raises_error`         |
+| **Section markers**       | `test_marker_preservation`, `test_section_extraction`, `test_initial_content_extraction`                    |
+| **Code fence protection** | `test_section_markers_inside_code_fences_ignored` (FR-12)                                                   |
+| **Duplicate section IDs** | `test_duplicate_section_id_raises_error` (FR-13)                                                            |
+| **Missing required**      | `test_missing_required_sections_emits_warning` (FR-14)                                                      |
+| **Path security**         | `test_path_traversal_rejected`, `test_symlink_rejected`                                                     |
+| **Frontmatter merging**   | `test_template_frontmatter_preserved`, `test_generated_overrides`                                           |
+| **Convention discovery**  | `test_new_convention`, `test_legacy_convention`                                                             |
+| **Migration tooling**     | `test_migrate_config`, `test_migrate_placeholders`, `test_migrate_idempotent`                               |
 
 ### 14.2 Integration Tests
 
-| Test                           | Description                                                 |
-| ------------------------------ | ----------------------------------------------------------- |
-| **CLI JSON output**            | `meminit new ... --format json` returns all required fields |
-| **No-config repo**             | Fresh repo produces meaningful scaffolds                    |
-| **Configured repo**            | Config overrides built-ins deterministically                |
-| **Legacy templates**           | Old templates with `{title}` still work                     |
-| **Mixed config**               | `document_types` + legacy config coexist                    |
-| **Convention discovery**       | Templates found in `docs/00-governance/templates/`          |
-| **Cross-WP full flow (AC-16)** | Config → resolve → interpolate → metadata → JSON output     |
-| **Dry-run mode**               | `--dry-run` doesn't write files, shows output               |
-| **Generated docs pass check**  | New docs pass `meminit check`                               |
+| Test                           | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| **CLI JSON output**            | `meminit new ... --format json` returns all required fields             |
+| **No-config repo**             | Fresh repo produces meaningful scaffolds                                |
+| **Configured repo**            | Config overrides built-ins deterministically                            |
+| **Legacy templates**           | Old templates with `{title}` fail fast with explicit placeholder errors |
+| **Deprecation warnings**       | Legacy config keys produce warnings in JSON `warnings` array            |
+| **Convention discovery**       | Templates found in `docs/00-governance/templates/`                      |
+| **Cross-WP full flow (AC-16)** | Config → resolve → interpolate → metadata → JSON output                 |
+| **Dry-run mode**               | `--dry-run` doesn't write files, shows output                           |
+| **Generated docs pass check**  | New docs pass `meminit check`                                           |
+| **Migration (AC-17)**          | `meminit migrate-templates` converts legacy configs and templates       |
 
 ### 14.3 Test Fixtures
 
-| Fixture                     | Location                                            | Contents                                       | Used By    |
-| --------------------------- | --------------------------------------------------- | ---------------------------------------------- | ---------- |
-| `repo_with_document_types/` | `tests/fixtures/repo_with_document_types/`          | Config with `document_types` block             | WP-1       |
-| `repo_with_legacy_config/`  | `tests/fixtures/repo_with_legacy_config/`           | Config with `type_directories` + `templates`   | WP-1       |
-| `repo_mixed_config/`        | `tests/fixtures/repo_mixed_config/`                 | Mixed `document_types` + legacy                | WP-1       |
-| `repo_with_templates/`      | `tests/fixtures/repo_with_templates/`               | Templates in convention paths                  | WP-2       |
-| `repo_empty/`               | `tests/fixtures/repo_empty/`                        | No config, no templates (tests built-ins)      | WP-5, WP-6 |
-| `template_legacy.md`        | `tests/fixtures/templates/template_legacy.md`       | Old template with `{title}` placeholders       | WP-3       |
-| `template_new.md`           | `tests/fixtures/templates/template_new.md`          | New template with `{{title}}` + markers        | WP-3, WP-4 |
-| `template_mixed_syntax.md`  | `tests/fixtures/templates/template_mixed_syntax.md` | Template with both `{title}` and `{{owner}}`   | WP-3       |
-| `template_with_markers.md`  | `tests/fixtures/templates/template_with_markers.md` | Template with section markers and AGENT blocks | WP-4, WP-6 |
+| Fixture                     | Location                                            | Contents                                          | Used By    |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------- | ---------- |
+| `repo_with_document_types/` | `tests/fixtures/repo_with_document_types/`          | Config with `document_types` block                | WP-1       |
+| `repo_with_legacy_config/`  | `tests/fixtures/repo_with_legacy_config/`           | Config with `type_directories` + `templates`      | WP-1       |
+| `repo_mixed_config/`        | `tests/fixtures/repo_mixed_config/`                 | Mixed `document_types` + legacy                   | WP-1       |
+| `repo_with_templates/`      | `tests/fixtures/repo_with_templates/`               | Templates in convention paths                     | WP-2       |
+| `repo_empty/`               | `tests/fixtures/repo_empty/`                        | No config, no templates (tests built-ins)         | WP-5, WP-6 |
+| `template_legacy.md`        | `tests/fixtures/templates/template_legacy.md`       | Old template with `{title}` placeholders          | WP-3       |
+| `template_new.md`           | `tests/fixtures/templates/template_new.md`          | New template with `{{title}}` + markers           | WP-3, WP-4 |
+| `template_mixed_syntax.md`  | `tests/fixtures/templates/template_mixed_syntax.md` | Legacy syntax fixture used to verify hard failure | WP-3       |
+| `template_with_markers.md`  | `tests/fixtures/templates/template_with_markers.md` | Template with section markers and AGENT blocks    | WP-4, WP-6 |
 
 ### 14.4 Edge-Case and Boundary Tests
 
-| Test Case                             | Description                                             | Expected Outcome                                          |
-| ------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
-| **Unicode/emoji in title**            | `meminit new PRD "🚀 Ünïcödé Plàtform" --format json`   | Title preserved verbatim in frontmatter and body          |
-| **Very long title (500+ chars)**      | Title exceeding typical filename limits                 | Filename truncated safely; title preserved in frontmatter |
-| **Mixed legacy + preferred syntax**   | Template contains both `{title}` and `{{owner}}`        | Both syntaxes interpolated correctly                      |
-| **Empty template body**               | Template file exists but has only frontmatter, no body  | Document created with frontmatter only; no crash          |
-| **Malformed YAML in template**        | Template frontmatter has invalid YAML (unclosed quotes) | Graceful error; no partial file written                   |
-| **Template with unknown variables**   | Template contains `{{custom_var}}` not in vocabulary    | Variable preserved verbatim in output                     |
-| **Nested section markers**            | Template contains markers inside code fences            | Code-fenced markers treated as content, not parsed        |
-| **Duplicate section IDs in template** | Two sections share the same `MEMINIT_SECTION` id        | Warning emitted; first occurrence used                    |
-| **Path traversal in template path**   | Config points to `../../etc/passwd`                     | Rejected with security error                              |
-| **Concurrent writes**                 | Two `meminit new` calls with same type + sequence       | Second call fails or increments sequence; no data loss    |
-| **Empty repo prefix**                 | Config has `repo_prefix: ""`                            | Document ID still valid; no leading hyphen                |
+| Test Case                             | Description                                                  | Expected Outcome                                             |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Unicode/emoji in title**            | `meminit new PRD "🚀 Ünïcödé Plàtform" --format json`        | Title preserved verbatim in frontmatter and body             |
+| **Very long title (500+ chars)**      | Title exceeding typical filename limits                      | Filename truncated safely; title preserved in frontmatter    |
+| **Mixed legacy + preferred syntax**   | Template contains both `{title}` and `{{owner}}`             | Explicit `INVALID_TEMPLATE_PLACEHOLDER`; no partial output   |
+| **Empty template body**               | Template file exists but has only frontmatter, no body       | Document created with frontmatter only; no crash             |
+| **Malformed YAML in template**        | Template frontmatter has invalid YAML (unclosed quotes)      | Graceful error; no partial file written                      |
+| **Template with unknown variables**   | Template contains `{{custom_var}}` not in vocabulary         | Explicit `UNKNOWN_TEMPLATE_VARIABLE`; no partial output      |
+| **Markers inside code fences**        | Template contains markers inside ``` blocks (FR-12)          | Code-fenced markers ignored; not parsed as sections          |
+| **Markers inside nested structures**  | Marker-like text inside blockquotes, list items, or comments | Ignored unless it is a standalone marker line                |
+| **Duplicate section IDs in template** | Two sections share the same `MEMINIT_SECTION` id (FR-13)     | **Explicit error** raised with duplicate ID and line numbers |
+| **Missing required sections**         | Agent fills some but not all required sections (FR-14)       | Warning emitted in `warnings` array; document still created  |
+| **Path traversal in template path**   | Config points to `../../etc/passwd`                          | Rejected with security error                                 |
+| **Concurrent writes**                 | Two `meminit new` calls with same type + sequence            | Second call fails or increments sequence; no data loss       |
+| **Empty repo prefix**                 | Config has `repo_prefix: ""`                                 | Document ID still valid; no leading hyphen                   |
 
 ---
 
@@ -2922,22 +3022,34 @@ If a WP introduces failing tests or breaks backward compatibility:
 
 ### 15.1 Rollout Strategy
 
-| Phase                           | Deliverables                                                   | Compatibility            |
-| ------------------------------- | -------------------------------------------------------------- | ------------------------ |
-| **Phase 1: Foundation**         | `{{}}` interpolation, convention discovery, built-in templates | 100% backward compatible |
-| **Phase 2: Unified Config**     | `document_types` schema, `meminit context` updates             | 100% backward compatible |
-| **Phase 3: Enhanced Templates** | Section markers, agent guidance in all templates               | 100% backward compatible |
-| **Phase 4: Polish**             | Updated docs, deprecation warnings (if any)                    | 100% backward compatible |
+| Phase                           | Deliverables                                                                                                                 | Compatibility                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Phase 1: Core Engine**        | `document_types` (single source of truth), `{{variable}}` interpolation, template resolver, code-fence-aware section parsing | Breaking change: legacy runtime inputs rejected |
+| **Phase 2: Templates & Output** | Built-in templates, JSON output with `initial_content`, `rendered_content`, section spans, metadata block rule               | Additive after Phase 1 cutover                  |
+| **Phase 3: Migration & Polish** | `meminit migrate-templates`, vendored template updates, docs                                                                 | Migration tooling provided                      |
 
-**No breaking changes are planned.**
+**Pre-alpha status:** Backward compatibility is relaxed. Templates v2 is a clean break: legacy config keys, legacy filename conventions, and legacy placeholder syntax are rejected by the runtime. Migration tooling is provided so repos can upgrade before enabling v2.
 
 ### 15.2 Migration Guide for Repo Owners
 
-#### Option A: Stay on Legacy Config (No Action Required)
+#### Option A: Automatic Migration (Recommended)
 
-Your existing config continues to work:
+Run the migration command to convert legacy config and templates:
+
+```bash
+# Preview changes
+meminit migrate-templates --dry-run --format json
+
+# Apply changes
+meminit migrate-templates --no-dry-run --format json
+```
+
+#### Option B: Manual Migration
+
+Update your config manually:
 
 ```yaml
+# BEFORE (legacy input):
 type_directories:
   ADR: "45-adr"
   PRD: "10-prd"
@@ -2947,39 +3059,20 @@ templates:
   prd: "docs/00-governance/templates/template-001-prd.md"
 ```
 
-#### Option B: Migrate to `document_types` (Optional)
-
-**Before:**
-
 ```yaml
-type_directories:
-  ADR: "45-adr"
-  PRD: "10-prd"
-
-templates:
-  adr: "docs/00-governance/templates/template-001-adr.md"
-  prd: "docs/00-governance/templates/template-001-prd.md"
-```
-
-**After:**
-
-```yaml
+# AFTER (required for Templates v2):
 document_types:
   ADR:
     directory: "45-adr"
-    template: "docs/00-governance/templates/template-001-adr.md"
+    template: "docs/00-governance/templates/adr.template.md"
     description: "Architecture Decision Record"
   PRD:
     directory: "10-prd"
-    template: "docs/00-governance/templates/template-001-prd.md"
+    template: "docs/00-governance/templates/prd.template.md"
     description: "Product Requirements Document"
 ```
 
-**Benefits of migration:**
-
-- Unified configuration per document type
-- `description` field for better `meminit context` output
-- Future-proof for additional per-type options
+Also rename legacy template filenames to `<type>.template.md` and convert placeholders: `{title}` → `{{title}}`, `<REPO>` → `{{repo_prefix}}`, etc.
 
 #### Option C: Enhance Your Templates
 
@@ -3021,13 +3114,15 @@ meminit check docs/
 
 ### 16.1 Security Considerations
 
-| Threat                   | Mitigation                                                          |
-| ------------------------ | ------------------------------------------------------------------- |
-| **Path traversal**       | Template paths validated as repo-relative; `..` components resolved |
-| **Symlink escapes**      | Symlinks outside repo root are rejected                             |
-| **Code execution**       | Templates are static text; no eval/exec                             |
-| **Template injection**   | User-provided templates not supported (repo-controlled only)        |
-| **Secrets in templates** | Warning in docs; agents instructed to avoid secrets                 |
+| Threat                          | Mitigation                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Path traversal**              | Template paths are normalized, canonicalized, and constrained to `docs/00-governance/templates/` |
+| **Symlink escapes**             | Any symlink in the configured template path is rejected                                          |
+| **Non-regular file reads**      | Only regular `.md` files under 256 KiB are accepted                                              |
+| **Code execution**              | Templates are static text; no eval/exec                                                          |
+| **Template injection**          | User-provided templates are repo-controlled and path-scoped                                      |
+| **Silent authoring corruption** | Agents edit only declared section spans; duplicate/ambiguous markers are explicit errors         |
+| **Secrets in templates**        | Warning in docs; agents instructed to avoid secrets                                              |
 
 ### 16.2 Safety Guidelines for Agents
 
@@ -3045,13 +3140,13 @@ meminit check docs/
 
 <!-- AGENT: Identify technical, product, and operational risks. Include mitigations. -->
 
-| Risk                                                 | Impact | Likelihood | Mitigation                                                                                                     |
-| ---------------------------------------------------- | ------ | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| **Template contract becomes "yet another standard"** | High   | Medium     | Treat templates as versioned artifacts (`template_type`/`template_version`); keep compatibility rules explicit |
-| **Orchestrators ignore section markers**             | Medium | Medium     | Expose section inventory in JSON; future: structural linting in `meminit check`                                |
-| **Added config complexity**                          | Medium | Low        | Keep `document_types` optional; legacy config supported indefinitely                                           |
-| **Built-in templates become opinionated**            | Low    | Medium     | Keep built-ins minimal; encourage repo overrides                                                               |
-| **Performance regression**                           | Low    | Low        | Template resolution is I/O-bound; caching can be added if needed                                               |
+| Risk                                                 | Impact | Likelihood | Mitigation                                                                                                        |
+| ---------------------------------------------------- | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Template contract becomes "yet another standard"** | High   | Medium     | Treat templates as versioned artifacts (`template_type`/`template_version`); keep compatibility rules explicit    |
+| **Orchestrators ignore section markers**             | Medium | Medium     | Expose section inventory in JSON; future: structural linting in `meminit check`                                   |
+| **Hard-cut migration friction**                      | Medium | Medium     | Keep migration tooling explicit and deterministic; fail fast with actionable errors instead of mixed-mode runtime |
+| **Built-in templates become opinionated**            | Low    | Medium     | Keep built-ins minimal; encourage repo overrides                                                                  |
+| **Performance regression**                           | Low    | Low        | Template resolution is I/O-bound; caching can be added if needed                                                  |
 
 ---
 
@@ -3067,6 +3162,7 @@ meminit check docs/
 | 2   | Should Meminit expose `meminit template resolve <TYPE> --format json` for debugging? | Deferred             | `meminit context` can be extended to surface template info (see WP-8). A dedicated command is premature.                                                                                                     |
 | 3   | Should template frontmatter be restricted to "template metadata" keys only?          | No restriction       | Templates can define arbitrary frontmatter. Only required fields (`document_id`, `type`, `title`, `status`, `owner`, `version`, `last_updated`, `docops_version`) are overridden by generated values (FR-9). |
 | 4   | Should section markers include an explicit order field?                              | No                   | Order is implied by document position. An explicit field adds maintenance burden with no clear benefit.                                                                                                      |
+| 5   | Should agents infer section boundaries from headings?                                | No                   | Heading-based writes are brittle. Meminit now publishes explicit marker-to-marker spans in JSON and headings are informational only (FR-15).                                                                 |
 
 ---
 
@@ -3162,38 +3258,52 @@ This inventory defines stable IDs that templates and agents can share.
 
 <!-- AGENT: Maintain traceability between requirements, work packages, and acceptance criteria. -->
 
-| FR                                           | WP(s)      | AC(s)             | Status  |
-| -------------------------------------------- | ---------- | ----------------- | ------- |
-| **FR-1: Template Resolution Precedence**     | WP-2       | AC-5, AC-8        | Pending |
-| **FR-2: Deterministic Template Application** | WP-3, WP-4 | AC-4              | Pending |
-| **FR-3: Interpolation Vocabulary**           | WP-3       | AC-2, AC-3, AC-14 | Pending |
-| **FR-4: Agent Prompt Blocks**                | WP-5       | AC-10             | Pending |
-| **FR-5: Stable Section IDs**                 | WP-5       | AC-1, AC-15       | Pending |
-| **FR-6: Unified document_types Config**      | WP-1       | AC-9              | Pending |
-| **FR-7: Agent-Friendly JSON Output**         | WP-6       | AC-6, AC-13       | Pending |
-| **FR-8: Metadata Block Rule**                | WP-4       | AC-4              | Pending |
-| **FR-9: Template Frontmatter Merging**       | WP-3       | AC-11             | Pending |
-| **FR-10: Path Traversal Protection**         | WP-2       | AC-7              | Pending |
-| **FR-11: Convention Discovery**              | WP-2       | AC-12             | Pending |
+| FR                                                    | WP(s)      | AC(s)             | Status  |
+| ----------------------------------------------------- | ---------- | ----------------- | ------- |
+| **FR-1: Template Resolution Precedence**              | WP-1       | AC-5, AC-8        | Pending |
+| **FR-2: Deterministic Template Application**          | WP-1, WP-2 | AC-4              | Pending |
+| **FR-3: Interpolation Vocabulary**                    | WP-1       | AC-2, AC-3, AC-14 | Pending |
+| **FR-4: Agent Prompt Blocks**                         | WP-3       | AC-10             | Pending |
+| **FR-5: Stable Section IDs**                          | WP-3       | AC-1, AC-15       | Pending |
+| **FR-6: Unified document_types Config**               | WP-1       | AC-9              | Pending |
+| **FR-7: Agent-Friendly JSON Output**                  | WP-4       | AC-6, AC-13       | Pending |
+| **FR-8: Metadata Block Rule**                         | WP-2       | AC-4              | Pending |
+| **FR-9: Template Frontmatter Merging**                | WP-1       | AC-11             | Pending |
+| **FR-10: Path Traversal Protection**                  | WP-1       | AC-7              | Pending |
+| **FR-11: Convention Discovery**                       | WP-1       | AC-12             | Pending |
+| **FR-12: Code Fence Protection**                      | WP-1       | AC-18             | Pending |
+| **FR-13: Duplicate Section ID Detection**             | WP-1       | AC-19             | Pending |
+| **FR-14: Missing Required Sections Warning**          | WP-4       | AC-20             | Pending |
+| **FR-15: Marker-to-Marker Section Boundary Contract** | WP-1, WP-4 | AC-21             | Pending |
+| **FR-16: check/fix MUST Use document_types**          | WP-1       | AC-22, AC-23      | Pending |
+| **FR-17: Invalid Template File Characteristics**      | WP-1       | AC-24             | Pending |
 
-| AC        | FR(s)      | WP(s)      | Test                                              |
-| --------- | ---------- | ---------- | ------------------------------------------------- |
-| **AC-1**  | FR-5       | WP-5       | `test_builtin_adr_template_has_section_markers()` |
-| **AC-2**  | FR-3       | WP-3       | `test_legacy_brace_syntax()`                      |
-| **AC-3**  | FR-3       | WP-3       | `test_preferred_syntax()`                         |
-| **AC-4**  | FR-2, FR-8 | WP-4       | `test_no_duplicate_metadata_blocks()`             |
-| **AC-5**  | FR-1       | WP-2       | `test_resolution_precedence()`                    |
-| **AC-6**  | FR-7       | WP-6       | `test_json_output_includes_template_source()`     |
-| **AC-7**  | FR-10      | WP-2       | `test_path_traversal_rejected()`                  |
-| **AC-8**  | FR-1, FR-5 | WP-2, WP-5 | `test_no_config_repo_gets_builtin_template()`     |
-| **AC-9**  | FR-6       | WP-1       | `test_document_types_config_precedence()`         |
-| **AC-10** | FR-4       | WP-5       | `test_agent_prompt_preservation()`                |
-| **AC-11** | FR-9       | WP-3       | `test_frontmatter_merging()`                      |
-| **AC-12** | FR-11      | WP-2       | `test_convention_discovery()`                     |
-| **AC-13** | FR-7       | WP-6       | `test_json_sections_match_document()`             |
-| **AC-14** | FR-3       | WP-3       | `test_unknown_variables_preserved()`              |
-| **AC-15** | FR-5       | WP-5       | `test_all_builtin_templates_have_markers()`       |
-| **AC-16** | FR-1–FR-11 | WP-1–WP-6  | `test_templates_v2_full_flow_e2e()`               |
+| AC        | FR(s)      | WP(s)      | Test                                                             |
+| --------- | ---------- | ---------- | ---------------------------------------------------------------- |
+| **AC-1**  | FR-5       | WP-3       | `test_builtin_adr_template_has_section_markers()`                |
+| **AC-2**  | FR-3       | WP-1       | `test_legacy_placeholder_syntax_rejected()`                      |
+| **AC-3**  | FR-3       | WP-1       | `test_preferred_syntax()`                                        |
+| **AC-4**  | FR-2, FR-8 | WP-2       | `test_no_duplicate_metadata_blocks()`                            |
+| **AC-5**  | FR-1       | WP-1       | `test_resolution_precedence()`                                   |
+| **AC-6**  | FR-7       | WP-4       | `test_json_output_includes_rendered_content_and_section_spans()` |
+| **AC-7**  | FR-10      | WP-1       | `test_path_traversal_rejected()`                                 |
+| **AC-8**  | FR-1, FR-5 | WP-1, WP-3 | `test_no_config_repo_gets_builtin_template()`                    |
+| **AC-9**  | FR-6       | WP-1       | `test_legacy_config_rejected()`                                  |
+| **AC-10** | FR-4       | WP-3       | `test_agent_prompt_preservation()`                               |
+| **AC-11** | FR-9       | WP-1       | `test_frontmatter_merging()`                                     |
+| **AC-12** | FR-11      | WP-1       | `test_legacy_convention_filename_rejected()`                     |
+| **AC-13** | FR-7       | WP-4       | `test_json_sections_match_document()`                            |
+| **AC-14** | FR-3       | WP-1       | `test_unknown_variables_raise_error()`                           |
+| **AC-15** | FR-5       | WP-3       | `test_all_builtin_templates_have_markers()`                      |
+| **AC-16** | FR-1–FR-15 | WP-1–WP-7  | `test_templates_v2_full_flow_e2e()`                              |
+| **AC-17** | G-8        | WP-7       | `test_migrate_templates()`                                       |
+| **AC-18** | FR-12      | WP-1       | `test_section_markers_inside_code_fences_ignored()`              |
+| **AC-19** | FR-13      | WP-1       | `test_duplicate_section_id_raises_error()`                       |
+| **AC-20** | FR-14      | WP-4       | `test_missing_required_sections_emits_warning()`                 |
+| **AC-21** | FR-15      | WP-1, WP-4 | `test_section_updates_use_marker_spans_only()`                   |
+| **AC-22** | FR-16      | WP-1       | `test_check_uses_document_types()`                               |
+| **AC-23** | FR-16      | WP-1       | `test_fix_uses_document_types()`                                 |
+| **AC-24** | FR-17      | WP-1       | `test_invalid_template_file_rejected()`                          |
 
 ---
 
@@ -3222,8 +3332,15 @@ mindmap
         INVALID_STATUS
       Path Safety
         PATH_ESCAPE
+        INVALID_TEMPLATE_PATH
+        INVALID_TEMPLATE_FILE
       Templates
         TEMPLATE_NOT_FOUND
+        LEGACY_CONFIG_UNSUPPORTED
+        INVALID_TEMPLATE_PLACEHOLDER
+        UNKNOWN_TEMPLATE_VARIABLE
+        DUPLICATE_SECTION_ID
+        AMBIGUOUS_SECTION_BOUNDARY
       System / Unexpected
         UNKNOWN_ERROR
     Compliance Violations
@@ -3292,9 +3409,9 @@ mindmap
 
 **Recovery:**
 
-1. Fix template path in `docops.config.yaml` to be repo-relative
-2. Remove `..` components from path
-3. Avoid absolute paths; use repo-relative paths only
+1. Move the template into `docs/00-governance/templates/`
+2. Remove `..` components and any symlinked path segment
+3. Ensure the target is a regular `.md` file under the size limit
 
 #### E-3: Template Not Found (Fallback Used)
 
@@ -3338,7 +3455,7 @@ mindmap
 
 #### E-4: No Template Available
 
-**Scenario:** Unknown type with no built-in template
+**Scenario:** Known custom type with no configured or built-in template
 
 ```json
 {
@@ -3374,12 +3491,12 @@ mindmap
 **Recovery:**
 
 1. Create custom template in `docs/00-governance/templates/custom.template.md`
-2. Or add template to config: `templates: {custom: "path/to/template.md"}`
+2. Or add template to `document_types.CUSTOM.template`
 3. Or proceed with skeleton if structure not important
 
 #### E-5: Metadata Block Duplicate
 
-**Scenario:** Template has placeholder that creates duplicate metadata
+**Scenario:** Template or generated output contains duplicate metadata blocks
 
 **Before Fix:**
 
@@ -3389,14 +3506,15 @@ mindmap
 > **Document ID:** REPO-ADR-001 # Duplicate!
 ```
 
-**Recovery (automatic):**
+**Recovery:**
 
-- WP-4 implementation handles this automatically
-- No orchestrator action needed
+1. Treat this as a hard failure; do not continue writing content
+2. Fix the template so it contains exactly one metadata block marker/blockquote pair
+3. Re-run `meminit new` after the template is corrected
 
 #### E-6: Invalid Placeholder Syntax
 
-**Scenario:** Template uses unrecognized placeholder
+**Scenario:** Template uses an unsupported or unknown placeholder
 
 ```markdown
 # {{unknown_placeholder}}
@@ -3404,14 +3522,64 @@ mindmap
 
 **Result:**
 
-- Placeholder preserved verbatim in output
-- No error raised
-- Document created successfully
+- `meminit new` fails with `INVALID_TEMPLATE_PLACEHOLDER` for legacy syntax or `UNKNOWN_TEMPLATE_VARIABLE` for an unsupported `{{name}}`
+- The error includes the offending token and line number
+- No document is created
 
 **Recovery:**
 
-1. No action required if placeholder is intentional
-2. Or update template to use valid placeholders
+1. Replace the token with a supported `{{variable}}`
+2. If migrating a legacy template, run `meminit migrate-templates`
+
+#### E-7: Duplicate or Ambiguous Section Contract
+
+**Scenario:** Template contains duplicate section IDs or overlapping marker contracts
+
+**Result:**
+
+- `meminit new` fails with `DUPLICATE_SECTION_ID` or `AMBIGUOUS_SECTION_BOUNDARY`
+- The error includes the section ID and conflicting line numbers
+- No document is created
+
+**Recovery:**
+
+1. Ensure each `MEMINIT_SECTION` ID appears exactly once
+2. Split parent/child editable regions into distinct marker-to-marker spans
+3. Re-run after the template structure is corrected
+
+#### E-8: Invalid Template File
+
+**Scenario:** Template file passes path validation but fails file-characteristic checks
+
+```json
+{
+  "output_schema_version": "2.0",
+  "success": false,
+  "command": "new",
+  "run_id": "00000000-0000-0000-0000-000000000000",
+  "root": "/abs/path/to/repo",
+  "data": {},
+  "warnings": [],
+  "violations": [],
+  "advice": [],
+  "error": {
+    "code": "INVALID_TEMPLATE_FILE",
+    "message": "Template file exceeds maximum size of 256 KiB",
+    "details": {
+      "template_path": "docs/00-governance/templates/prd.template.md",
+      "actual_size": 524288,
+      "max_size": 262144
+    }
+  }
+}
+```
+
+**Recovery:**
+
+1. Reduce the template file size below 256 KiB
+2. For wrong extension: rename to `.md`
+3. For non-regular files: replace with a regular Markdown file
+4. For encoding errors: convert to UTF-8
 
 ### C.3 Recovery Decision Tree
 
@@ -3429,7 +3597,9 @@ graph TD
     E3_1 -->|YES| E3_2[Continue warning only]
     E3_1 -->|NO| E3_3[Create template or use skeleton]
 
-    E3 -->|NO| E4[All other errors: Report to user/retry]
+    E3 -->|NO| E4{Is error.code one of LEGACY_CONFIG_UNSUPPORTED / INVALID_TEMPLATE_PLACEHOLDER / UNKNOWN_TEMPLATE_VARIABLE / DUPLICATE_SECTION_ID / AMBIGUOUS_SECTION_BOUNDARY?}
+    E4 -->|YES| E4_1[Fix template or config] --> E4_2[Re-run meminit new]
+    E4 -->|NO| E5[All other errors: Report to user/retry]
 ```
 
 ---
@@ -3487,8 +3657,8 @@ templates:
 
 **Expected Behavior:**
 
-- Legacy config parses correctly
-- All existing tests pass
+- Runtime rejects the config with `LEGACY_CONFIG_UNSUPPORTED`
+- Migration tooling rewrites it to `document_types`
 
 ### D.3 Fixture: repo_mixed_config
 
@@ -3516,9 +3686,8 @@ templates:
 
 **Expected Behavior:**
 
-- PRD uses document_types (new schema)
-- ADR uses legacy config
-- No conflicts
+- Runtime rejects the config with `LEGACY_CONFIG_UNSUPPORTED`
+- Migration tooling can normalize the repo into a single `document_types` schema
 
 ### D.4 Fixture: template_legacy
 
@@ -3548,8 +3717,8 @@ Date: <YYYY-MM-DD>
 
 **Expected Behavior:**
 
-- `{title}`, `<REPO>`, `<SEQ>`, `<YYYY-MM-DD>` all interpolate correctly
-- Legacy syntax preserved for backward compatibility
+- Runtime rejects the template with `INVALID_TEMPLATE_PLACEHOLDER`
+- Migration tooling rewrites legacy tokens to the canonical `{{variable}}` form
 
 ### D.5 Fixture: template_new
 
@@ -3718,7 +3887,7 @@ Content C
 
 ---
 
-**Document Status:** In Review | **Version:** 1.0-rc3 | **Last Updated:** 2026-03-02
+**Document Status:** In Review | **Version:** 1.3 | **Last Updated:** 2026-03-04
 
 <!-- MEMINIT_SECTION: document_end -->
 
