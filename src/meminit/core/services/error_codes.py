@@ -52,6 +52,11 @@ class ErrorCode(str, Enum):
     DUPLICATE_SECTION_ID = "DUPLICATE_SECTION_ID"
     AMBIGUOUS_SECTION_BOUNDARY = "AMBIGUOUS_SECTION_BOUNDARY"
 
+    # Project State Dashboard error codes (PRD-007)
+    E_STATE_YAML_MALFORMED = "E_STATE_YAML_MALFORMED"
+    E_STATE_SCHEMA_VIOLATION = "E_STATE_SCHEMA_VIOLATION"
+    E_INVALID_FILTER_VALUE = "E_INVALID_FILTER_VALUE"
+
 
 class MeminitError(Exception):
     """Base exception for Meminit CLI errors.

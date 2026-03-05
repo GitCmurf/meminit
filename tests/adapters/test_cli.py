@@ -761,6 +761,46 @@ def test_cli_index_json_contract(tmp_path):
     assert data["data"]["document_count"] == 1
 
 
+def test_cli_index_json_warnings_schema_validity(tmp_path):
+    """PRD-007 + v2 Output Contract: Warnings in index --format json must include 'path'."""
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+    
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True)
+    (state_dir / "project-state.yaml").write_text(
+        "documents:\n"
+        "  UNKNOWN-001:\n"
+        "    impl_state: Done\n",
+        encoding="utf-8"
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["output_schema_version"] == "2.0"
+    assert data["data"]["document_count"] == 1
+    assert len(data["warnings"]) == 1
+    assert data["warnings"][0]["code"] == "W_STATE_UNKNOWN_DOC_ID"
+    assert "path" in data["warnings"][0]
+    assert data["warnings"][0]["path"] == "docs/01-indices/project-state.yaml"
+
+
 class TestCliNewJsonOutput:
     """Tests for F1: JSON output for meminit new"""
 

@@ -1265,7 +1265,31 @@ def install_precommit(root, format, output, include_timestamp):
 
 @cli.command()
 @agent_repo_options()
-def index(root, format, output, include_timestamp):
+@click.option(
+    "--status",
+    "status_filter",
+    default=None,
+    help="Filter by governance status (comma-separated, case-insensitive). E.g. 'Draft,Approved'.",
+)
+@click.option(
+    "--impl-state",
+    "impl_state_filter",
+    default=None,
+    help="Filter by implementation state (comma-separated, case-insensitive). E.g. 'In Progress,Blocked'.",
+)
+@click.option(
+    "--output-catalog",
+    is_flag=True,
+    default=False,
+    help="Generate catalog.md (table view).",
+)
+@click.option(
+    "--output-kanban",
+    is_flag=True,
+    default=False,
+    help="Generate kanban.md + kanban.css (board view).",
+)
+def index(root, format, output, include_timestamp, status_filter, impl_state_filter, output_catalog, output_kanban):
     """Build or update the repository index artifact."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
@@ -1280,7 +1304,13 @@ def index(root, format, output, include_timestamp):
             output=output,
         )
 
-        use_case = IndexRepositoryUseCase(root_dir=str(root_path))
+        use_case = IndexRepositoryUseCase(
+            root_dir=str(root_path),
+            output_catalog=output_catalog,
+            output_kanban=output_kanban,
+            status_filter=status_filter,
+            impl_state_filter=impl_state_filter,
+        )
         report = use_case.execute()
 
         rel_index_path = None
@@ -1289,16 +1319,30 @@ def index(root, format, output, include_timestamp):
         except Exception:
             rel_index_path = str(report.index_path)
 
+        data: Dict[str, Any] = {
+            "index_path": rel_index_path,
+            "document_count": report.document_count,
+            "documents": report.documents,
+        }
+        if report.catalog_path:
+            try:
+                data["catalog_path"] = report.catalog_path.relative_to(root_path).as_posix()
+            except Exception:
+                data["catalog_path"] = str(report.catalog_path)
+        if report.kanban_path:
+            try:
+                data["kanban_path"] = report.kanban_path.relative_to(root_path).as_posix()
+            except Exception:
+                data["kanban_path"] = str(report.kanban_path)
+
         if format == "json":
             _write_output(
                 format_envelope(
                     command="index",
                     root=str(root_path),
                     success=True,
-                    data={
-                        "index_path": rel_index_path,
-                        "document_count": report.document_count,
-                    },
+                    data=data,
+                    warnings=report.warnings,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
@@ -1307,13 +1351,18 @@ def index(root, format, output, include_timestamp):
             return
 
         if format == "md":
-            _write_output(
-                "# Meminit Index\n\n"
-                "- Status: ok\n"
-                f"- Index path: `{rel_index_path}`\n"
-                f"- Documents: {report.document_count}\n",
-                output,
-            )
+            lines = [
+                "# Meminit Index\n",
+                "- Status: ok",
+                f"- Index path: `{rel_index_path}`",
+                f"- Documents: {report.document_count}",
+            ]
+            if report.catalog_path:
+                lines.append(f"- Catalog: `{data.get('catalog_path')}`")
+            if report.kanban_path:
+                lines.append(f"- Kanban: `{data.get('kanban_path')}`")
+            lines.append("")
+            _write_output("\n".join(lines), output)
             return
 
         with maybe_capture(output, format):
@@ -1321,6 +1370,10 @@ def index(root, format, output, include_timestamp):
                 f"[bold green]Index written:[/bold green] {report.index_path} "
                 f"({report.document_count} documents)"
             )
+            if report.catalog_path:
+                get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")
+            if report.kanban_path:
+                get_console().print(f"[green]Kanban:[/green] {report.kanban_path}")
 
 
 @cli.command()
@@ -2101,6 +2154,203 @@ def org_status(root, profile, format, output, include_timestamp):
             get_console().print("[bold blue]Meminit Org Status[/bold blue]")
             get_console().print(f"Profile: {profile}")
             get_console().print(f"Global installed: {report.global_installed}")
+
+
+@cli.group()
+def state():
+    """Manage project-state.yaml document entries."""
+    pass
+
+
+@state.command("set")
+@click.argument("document_id")
+@agent_repo_options()
+@click.option("--impl-state", help="Set implementation state (e.g., 'In Progress').")
+@click.option("--notes", help="Set notes (max 500 chars).")
+@click.option("--actor", help="Override the updated_by actor identity.")
+def state_set(document_id, root, format, output, include_timestamp, impl_state, notes, actor):
+    """Set or update a document's implementation state."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler("state set", format, output, include_timestamp, run_id, root_path):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.set_state(document_id, impl_state=impl_state, notes=notes, actor=actor)
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state set",
+                    root=str(root_path),
+                    success=True,
+                    data=result.entry,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            _write_output(
+                f"# Meminit State Set\n\n"
+                f"- Document ID: `{document_id}`\n"
+                f"- Impl State: {result.entry.get('impl_state')}\n"
+                f"- Updated By: {result.entry.get('updated_by')}\n",
+                output,
+            )
+            return
+
+        with maybe_capture(output, format):
+            get_console().print(f"[bold green]Updated state for {document_id}[/bold green]")
+            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+            get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+            if result.entry.get("notes"):
+                get_console().print(f"Notes: {result.entry.get('notes')}")
+
+
+@state.command("get")
+@click.argument("document_id")
+@agent_repo_options()
+def state_get(document_id, root, format, output, include_timestamp):
+    """Get a document's implementation state."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler("state get", format, output, include_timestamp, run_id, root_path):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state get",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.get_state(document_id)
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state get",
+                    root=str(root_path),
+                    success=True,
+                    data=result.entry,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            _write_output(
+                f"# Meminit State Get\n\n"
+                f"- Document ID: `{document_id}`\n"
+                f"- Impl State: {result.entry.get('impl_state')}\n"
+                f"- Updated By: {result.entry.get('updated_by')}\n"
+                f"- Updated: {result.entry.get('updated')}\n",
+                output,
+            )
+            return
+
+        with maybe_capture(output, format):
+            get_console().print(f"[bold blue]{document_id}[/bold blue]")
+            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+            get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+            get_console().print(f"Updated: {result.entry.get('updated')}")
+            if result.entry.get("notes"):
+                get_console().print(f"Notes: {result.entry.get('notes')}")
+
+
+@state.command("list")
+@agent_repo_options()
+def state_list(root, format, output, include_timestamp):
+    """List all entries in project-state.yaml."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+    from rich.table import Table
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler("state list", format, output, include_timestamp, run_id, root_path):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state list",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.list_states()
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state list",
+                    root=str(root_path),
+                    success=True,
+                    data={"entries": result.entries},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            lines = ["# Meminit State List\n"]
+            if not result.entries:
+                lines.append("_No entries found._\n")
+            else:
+                rows = [
+                    [
+                        e.get("document_id", ""),
+                        e.get("impl_state", ""),
+                        e.get("updated_by", ""),
+                        e.get("updated", "")[:10]
+                    ]
+                    for e in result.entries
+                ]
+                lines.append(_md_table(["Document ID", "Impl State", "Updated By", "Updated Date"], rows))
+                lines.append("")
+            _write_output("\n".join(lines), output)
+            return
+
+        with maybe_capture(output, format):
+            if not result.entries:
+                get_console().print("[yellow]No entries found in project-state.yaml[/yellow]")
+                return
+
+            table = Table(title="Project State Entries")
+            table.add_column("Document ID", style="cyan")
+            table.add_column("Impl State", style="green")
+            table.add_column("Updated By")
+            table.add_column("Updated Date")
+            for e in result.entries:
+                table.add_row(
+                    e.get("document_id", ""),
+                    e.get("impl_state", ""),
+                    e.get("updated_by", ""),
+                    e.get("updated", "")[:10]
+                )
+            get_console().print(table)
 
 
 if __name__ == "__main__":

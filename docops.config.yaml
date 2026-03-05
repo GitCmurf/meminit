@@ -3,6 +3,11 @@ project_name: Meminit
 repo_prefix: MEMINIT
 schema_path: docs/00-governance/metadata.schema.json
 
+# Files excluded from governance (meminit check) validation.
+# project-state.yaml is mutable state, not a governed document.
+excluded_files:
+  - "docs/01-indices/project-state.yaml"
+
 # Monorepo-style namespaces: Meminit's repo includes both repo-local docs (MEMINIT-*)
 # and organisation-level governance docs (ORG-*). Namespaces keep prefix enforcement
 # deterministic without moving to a separate repository.

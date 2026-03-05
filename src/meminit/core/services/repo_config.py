@@ -122,6 +122,7 @@ class RepoConfig:
     schema_path: str
     excluded_paths: tuple[str, ...]
     excluded_filename_prefixes: tuple[str, ...]
+    excluded_files: tuple[str, ...]
     type_directories: Dict[str, str]
     templates: Dict[str, str]
     document_types: Dict[str, DocumentTypeConfig]
@@ -162,6 +163,13 @@ class RepoConfig:
                 continue
             if rel_parts[: len(ex_parts)] == ex_parts:
                 return True
+
+        # Exact file path exclusion (e.g., project-state.yaml).
+        rel_posix = rel.as_posix()
+        for excluded_file in self.excluded_files:
+            if rel_posix == excluded_file:
+                return True
+
         return False
 
     def expected_subdir_for_type(self, doc_type: str) -> Optional[str]:
@@ -377,6 +385,17 @@ def _build_namespace_config(
             if normalized:
                 templates[key] = normalized
 
+    # Parse excluded_files (exact file paths, e.g., project-state.yaml).
+    excluded_files: list[str] = []
+    for item in _normalize_string_list(defaults.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+    for item in _normalize_string_list(raw_namespace.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+
     return RepoConfig(
         root_dir=root,
         namespace=namespace_name,
@@ -387,6 +406,7 @@ def _build_namespace_config(
         schema_path=schema_path_norm,
         excluded_paths=tuple(excluded_paths),
         excluded_filename_prefixes=tuple(excluded_filename_prefixes),
+        excluded_files=tuple(excluded_files),
         type_directories=type_directories,
         templates=templates,
         document_types=document_types,

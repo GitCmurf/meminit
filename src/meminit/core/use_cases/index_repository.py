@@ -1,28 +1,477 @@
+"""Build or update the repository index with optional state merge, views, and filtering.
+
+PRD-007 enhancements:
+- Merge ``project-state.yaml`` into per-document records (additive only).
+- Generate ``catalog.md`` — table view with composite grouping and activity-recency sort.
+- Generate ``kanban.md`` — pure Markdown fallback + HTML kanban board (with CSS hiding).
+- Generate ``kanban.css`` — companion stylesheet.
+- Filter by ``--status`` and ``--impl-state``.
+- Sanitize all user-controlled fields in rendered output.
+
+Backward compatibility: existing ``meminit.index.json`` shape is preserved.
+New fields (``impl_state``, ``updated``, ``updated_by``, ``notes``) are additive/optional.
+"""
+
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence
 
 import frontmatter
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
+from meminit.core.services.project_state import (
+    ImplState,
+    ProjectState,
+    load_project_state,
+    validate_project_state,
+)
 from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.sanitization import sanitize_field, sanitize_html, validate_actor
+from meminit.core.services.warning_codes import WarningCode
 
+
+def _json_default(obj: Any) -> str:
+    """JSON serializer for date/datetime objects from frontmatter."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+# ---------------------------------------------------------------------------
+# Data types
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class IndexBuildReport:
     index_path: Path
     document_count: int
+    catalog_path: Optional[Path] = None
+    kanban_path: Optional[Path] = None
+    kanban_css_path: Optional[Path] = None
+    warnings: List[Dict[str, Any]] = field(default_factory=list)
+    documents: List[Dict[str, Any]] = field(default_factory=list)
 
+
+# ---------------------------------------------------------------------------
+# Composite grouping
+# ---------------------------------------------------------------------------
+
+_GROUP_ORDER = [
+    "Active Work",
+    "Governance Pending",
+    "Completed",
+    "Superseded",
+    "Reference",
+]
+
+
+def _assign_group(doc_status: str, impl_state: Optional[str]) -> str:
+    """Assign a composite group label per PRD-007 FR-3 grouping rules."""
+    status_lower = (doc_status or "").strip().lower()
+    state_lower = (impl_state or "").strip().lower()
+
+    if status_lower == "superseded":
+        return "Superseded"
+
+    if impl_state and state_lower == "done":
+        return "Completed"
+
+    if impl_state and state_lower in ("in progress", "blocked", "qa required", "not started"):
+        return "Active Work"
+
+    if status_lower in ("draft", "in review"):
+        return "Governance Pending"
+
+    # Approved docs with no impl_state entry.
+    return "Reference"
+
+
+# ---------------------------------------------------------------------------
+# Activity recency
+# ---------------------------------------------------------------------------
+
+def _activity_recency(
+    frontmatter_updated: Any,
+    state_updated: Optional[datetime],
+) -> datetime:
+    """Compute activity recency as max(state.updated, frontmatter.last_updated).
+
+    PRD-007 FR-3: table is sorted by activity recency.
+    """
+    fm_dt: Optional[datetime] = None
+    if isinstance(frontmatter_updated, datetime):
+        fm_dt = frontmatter_updated if frontmatter_updated.tzinfo else frontmatter_updated.replace(tzinfo=timezone.utc)
+    elif isinstance(frontmatter_updated, date):
+        fm_dt = datetime(
+            frontmatter_updated.year,
+            frontmatter_updated.month,
+            frontmatter_updated.day,
+            tzinfo=timezone.utc,
+        )
+    elif isinstance(frontmatter_updated, str):
+        try:
+            fm_dt = datetime.fromisoformat(frontmatter_updated)
+            if fm_dt.tzinfo is None:
+                fm_dt = fm_dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    candidates = [dt for dt in (fm_dt, state_updated) if dt is not None]
+    if not candidates:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return max(candidates)
+
+
+# ---------------------------------------------------------------------------
+# Filtering
+# ---------------------------------------------------------------------------
+
+def _canonicalize_filter(
+    raw_values: Optional[str],
+    valid_values: Sequence[str],
+    flag_name: str,
+) -> Optional[List[str]]:
+    """Parse and canonicalize a comma-separated filter string.
+
+    Returns None if *raw_values* is None (no filter applied).
+    Raises ``MeminitError`` with ``E_INVALID_FILTER_VALUE`` for unknown values.
+    """
+    if not raw_values:
+        return None
+    result: List[str] = []
+    seen: set[str] = set()
+    for part in raw_values.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        
+        # Normalize underscores to spaces for matching (e.g. IN_PROGRESS -> In Progress)
+        normalized_part = part.replace("_", " ").lower()
+        
+        matched = None
+        for valid in valid_values:
+            if valid.lower() == normalized_part:
+                matched = valid
+                break
+                
+        if matched is None:
+            raise MeminitError(
+                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                message=f"Unknown {flag_name} value: '{part}'",
+                details={
+                    "value": part,
+                    "valid_values": list(valid_values),
+                },
+            )
+            
+        if matched not in seen:
+            result.append(matched)
+            seen.add(matched)
+            
+    return result or None
+
+
+VALID_DOC_STATUSES = ["Draft", "In Review", "Approved", "Superseded"]
+
+
+def _apply_filters(
+    entries: List[Dict[str, Any]],
+    status_filter: Optional[List[str]],
+    impl_state_filter: Optional[List[str]],
+) -> List[Dict[str, Any]]:
+    """Filter entries by governance status and/or impl_state (AND semantics)."""
+    result = entries
+    if status_filter:
+        result = [e for e in result if e.get("status") in status_filter]
+    if impl_state_filter:
+        result = [e for e in result if e.get("impl_state") in impl_state_filter]
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Catalog (table view) generation
+# ---------------------------------------------------------------------------
+
+def _generate_catalog(
+    entries: List[Dict[str, Any]],
+    generated_at: str,
+    status_filter: Optional[List[str]] = None,
+    impl_state_filter: Optional[List[str]] = None,
+) -> str:
+    """Generate catalog.md content (FR-3)."""
+    lines: List[str] = []
+    lines.append("# Project Dashboard")
+    lines.append("")
+    lines.append(f"_Auto-generated by `meminit index`. Last built: {generated_at}._")
+    lines.append("")
+
+    # Filter header (FR-3 amendment).
+    filters_active: List[str] = []
+    if status_filter:
+        filters_active.append(f"status: {', '.join(status_filter)}")
+    if impl_state_filter:
+        filters_active.append(f"impl_state: {', '.join(impl_state_filter)}")
+    if filters_active:
+        lines.append(f"**Filters:** {'; '.join(filters_active)}")
+        lines.append("")
+
+    # Group entries.
+    groups: Dict[str, List[Dict[str, Any]]] = {g: [] for g in _GROUP_ORDER}
+    for entry in entries:
+        group = _assign_group(entry.get("status", ""), entry.get("impl_state"))
+        if group not in groups:
+            groups[group] = []
+        groups[group].append(entry)
+
+    # Sort within groups by activity recency (descending).
+    for group_entries in groups.values():
+        group_entries.sort(key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
+
+    # Render tables.
+    header = "| ID | Title | Type | Doc Status | Impl State | Last Active | Owner |"
+    sep = "| --- | --- | --- | --- | --- | --- | --- |"
+
+    for group_name in _GROUP_ORDER:
+        group_entries = groups.get(group_name, [])
+        if not group_entries:
+            continue
+
+        lines.append(f"## {group_name}")
+        lines.append("")
+        lines.append(header)
+        lines.append(sep)
+
+        for entry in group_entries:
+            doc_id = entry.get("document_id", "")
+            title = entry.get("title", "")
+            doc_type = entry.get("type", "")
+            doc_status = entry.get("status", "")
+            impl_state = entry.get("impl_state", "")
+            owner = entry.get("owner", "")
+
+            # Date-only display in Markdown (FR-3 timestamp policy).
+            recency: Optional[datetime] = entry.get("_recency")
+            last_active = recency.strftime("%Y-%m-%d") if recency else ""
+
+            lines.append(f"| {doc_id} | {title} | {doc_type} | {doc_status} | {impl_state} | {last_active} | {owner} |")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Kanban (board view) generation
+# ---------------------------------------------------------------------------
+
+_KANBAN_COLUMNS = ["Not Started", "In Progress", "Blocked", "QA Required", "Done"]
+
+
+def _generate_kanban(
+    entries: List[Dict[str, Any]],
+    generated_at: str,
+) -> str:
+    """Generate kanban.md content (FR-4).
+
+    Structure:
+    1. Pure Markdown fallback (wrapped in div.kanban-fallback, hidden by CSS)
+    2. Enhanced HTML kanban board
+    """
+    lines: List[str] = []
+    lines.append("# Kanban Board")
+    lines.append("")
+    lines.append(f"_Auto-generated by `meminit index`. Last built: {generated_at}._")
+    lines.append("")
+
+    # Bucket entries by impl_state.
+    columns: Dict[str, List[Dict[str, Any]]] = {col: [] for col in _KANBAN_COLUMNS}
+    for entry in entries:
+        impl = entry.get("impl_state", "")
+        if not impl:
+            continue
+        resolved = ImplState.from_string(impl)
+        col = resolved.value if resolved else "Not Started"
+        if col not in columns:
+            columns[col] = []
+        columns[col].append(entry)
+
+    # --- Pure Markdown fallback (hidden by kanban.css in rich renderers) ---
+    lines.append('<div class="kanban-fallback">')
+    lines.append("")
+    for col_name in _KANBAN_COLUMNS:
+        col_entries = columns.get(col_name, [])
+        lines.append(f"### {col_name}")
+        lines.append("")
+        if not col_entries:
+            lines.append("_No documents._")
+        else:
+            for entry in col_entries:
+                doc_id = entry.get("document_id", "")
+                title = entry.get("title", "")
+                status = entry.get("status", "")
+                notes = entry.get("notes", "")
+                line = f"- **{doc_id}** — {title} ({status})"
+                if notes:
+                    line += f" — _{notes}_"
+                lines.append(line)
+        lines.append("")
+
+    lines.append("</div>")
+    lines.append("")
+
+    # --- Enhanced HTML kanban board ---
+    lines.append('<div class="kanban-board" role="region" aria-label="Project Kanban Board">')
+    lines.append("")
+
+    for col_name in _KANBAN_COLUMNS:
+        col_entries = columns.get(col_name, [])
+        col_class = col_name.lower().replace(" ", "-")
+
+        lines.append(f'<section class="kanban-column kanban-{col_class}" aria-label="{col_name}">')
+        lines.append(f"<h3>{col_name}</h3>")
+
+        for entry in col_entries:
+            doc_id = entry.get("document_id", "")
+            title = entry.get("title", "")
+            status = entry.get("status", "")
+            notes = entry.get("notes", "")
+
+            lines.append(f'<article class="kanban-card" aria-label="{title}">')
+            lines.append(f'<strong class="card-id">{doc_id}</strong>')
+            lines.append(f'<span class="card-title">{title}</span>')
+            lines.append(f'<span class="card-status badge-{status.lower().replace(" ", "-")}">{status}</span>')
+            if notes:
+                lines.append(f'<p class="card-notes">{notes}</p>')
+            lines.append("</article>")
+
+        lines.append("</section>")
+        lines.append("")
+
+    lines.append("</div>")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Kanban CSS
+# ---------------------------------------------------------------------------
+
+KANBAN_CSS = """\
+/* kanban.css — companion stylesheet for kanban.md (PRD-007 FR-4) */
+
+/* Hide pure-Markdown fallback in rich renderers. */
+.kanban-fallback {
+  display: none;
+}
+
+.kanban-board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.kanban-column {
+  min-width: 200px;
+  flex: 1;
+  background: var(--md-code-bg-color, #f5f5f5);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.kanban-column h3 {
+  margin-top: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--md-primary-fg-color, #1976d2);
+  font-size: 0.95rem;
+}
+
+.kanban-card {
+  background: var(--md-default-bg-color, #fff);
+  border: 1px solid var(--md-default-fg-color--lightest, #ddd);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-id {
+  font-size: 0.8rem;
+  color: var(--md-primary-fg-color, #1976d2);
+}
+
+.card-title {
+  font-weight: 500;
+}
+
+.card-status {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.badge-draft { background: #fff3e0; color: #e65100; }
+.badge-in-review { background: #e3f2fd; color: #1565c0; }
+.badge-approved { background: #e8f5e9; color: #2e7d32; }
+.badge-superseded { background: #fce4ec; color: #c62828; }
+
+.card-notes {
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--light, #666);
+  margin: 0.25rem 0 0;
+}
+
+/* Responsive: single column on narrow viewports (FR-4 accessibility). */
+@media (max-width: 768px) {
+  .kanban-board {
+    flex-direction: column;
+  }
+  .kanban-column {
+    min-width: unset;
+  }
+}
+"""
+
+
+# ---------------------------------------------------------------------------
+# Use case
+# ---------------------------------------------------------------------------
 
 class IndexRepositoryUseCase:
-    def __init__(self, root_dir: str):
+    def __init__(
+        self,
+        root_dir: str,
+        *,
+        output_catalog: bool = False,
+        output_kanban: bool = False,
+        status_filter: Optional[str] = None,
+        impl_state_filter: Optional[str] = None,
+    ):
         self._layout = load_repo_layout(root_dir)
         self._root_dir = self._layout.root_dir
+        self._output_catalog = output_catalog
+        self._output_kanban = output_kanban
+
+        # Parse and canonicalize filters upfront (raises on invalid values).
+        self._status_filter = _canonicalize_filter(
+            status_filter, VALID_DOC_STATUSES, "--status"
+        )
+        self._impl_state_filter = _canonicalize_filter(
+            impl_state_filter, ImplState.canonical_values(), "--impl-state"
+        )
 
     def execute(self) -> IndexBuildReport:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
@@ -33,7 +482,13 @@ class IndexRepositoryUseCase:
         ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Load project state (gracefully optional).
+        project_state = load_project_state(self._root_dir)
+        warnings_list: List[Dict[str, Any]] = []
+
+        # Scan governed documents.
         entries: List[Dict[str, Any]] = []
+        known_doc_ids: set[str] = set()
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -52,23 +507,81 @@ class IndexRepositoryUseCase:
                 if not isinstance(doc_id, str) or not doc_id.strip():
                     continue
                 doc_id = doc_id.strip()
+                known_doc_ids.add(doc_id)
 
                 rel_path = path.relative_to(self._root_dir).as_posix()
-                entries.append(
-                    {
-                        "document_id": doc_id,
-                        "path": rel_path,
-                        "namespace": ns.namespace,
-                        "repo_prefix": ns.repo_prefix,
-                        "type": post.metadata.get("type"),
-                        "title": post.metadata.get("title"),
-                        "status": post.metadata.get("status"),
-                    }
+                entry: Dict[str, Any] = {
+                    "document_id": doc_id,
+                    "path": rel_path,
+                    "namespace": ns.namespace,
+                    "repo_prefix": ns.repo_prefix,
+                    "type": post.metadata.get("type"),
+                    "title": sanitize_field(post.metadata.get("title"), max_length=None, html_escape=True),
+                    "status": post.metadata.get("status"),
+                    "owner": sanitize_field(post.metadata.get("owner"), max_length=None, html_escape=True),
+                    "last_updated": post.metadata.get("last_updated"),
+                }
+
+                # Merge state (additive — new optional fields).
+                state_updated: Optional[datetime] = None
+                if project_state:
+                    state_entry = project_state.get(doc_id)
+                    if state_entry:
+                        if ImplState.from_string(state_entry.impl_state) is not None:
+                            entry["impl_state"] = state_entry.impl_state
+                        
+                        entry["updated"] = state_entry.updated.isoformat()
+                        
+                        if state_entry.updated_by and validate_actor(state_entry.updated_by):
+                            entry["updated_by"] = state_entry.updated_by
+                        elif state_entry.updated_by == "":
+                            entry["updated_by"] = ""  # preserve explicitly empty string if originally there
+                            
+                        if state_entry.notes is not None:
+                            sanitized_notes = sanitize_field(state_entry.notes, max_length=500, html_escape=True)
+                            if sanitized_notes:
+                                entry["notes"] = sanitized_notes
+                            
+                        state_updated = state_entry.updated
+
+                # Compute activity recency (used for sorting, not stored in JSON).
+                entry["_recency"] = _activity_recency(
+                    entry.get("last_updated"),
+                    state_updated,
                 )
 
+                entries.append(entry)
+
+        # Validate project state (advisory warnings).
+        if project_state:
+            validation_issues = validate_project_state(project_state, known_doc_ids)
+            for issue in validation_issues:
+                if issue.rule == ErrorCode.E_STATE_SCHEMA_VIOLATION.value:
+                    raise MeminitError(
+                        code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                        message=issue.message,
+                        details={"path": issue.file, "line": issue.line}
+                    )
+                warnings_list.append({
+                    "code": issue.rule,
+                    "message": issue.message,
+                    "severity": issue.severity.value,
+                    "path": issue.file,
+                    "line": issue.line,
+                })
+
+        # Apply filters.
+        filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
+
+        # Write main index JSON (recency field stripped — internal only).
+        sorted_entries = sorted(filtered, key=lambda e: e["document_id"])
+        json_entries = [
+            {k: v for k, v in e.items() if not k.startswith("_")}
+            for e in sorted_entries
+        ]
         payload = {
             "output_schema_version": OUTPUT_SCHEMA_VERSION,
-            "index_version": "0.1",
+            "index_version": "0.2",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "namespaces": [
                 {
@@ -78,8 +591,46 @@ class IndexRepositoryUseCase:
                 }
                 for ns in self._layout.namespaces
             ],
-            "documents": sorted(entries, key=lambda e: e["document_id"]),
+            "documents": json_entries,
         }
-        # End with a newline for git/formatter ergonomics.
-        index_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        return IndexBuildReport(index_path=index_path, document_count=len(entries))
+        if warnings_list:
+            payload["warnings"] = warnings_list
+        index_path.write_text(json.dumps(payload, indent=2, default=_json_default) + "\n", encoding="utf-8")
+
+        generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Generate catalog.md (FR-3).
+        catalog_path: Optional[Path] = None
+        if self._output_catalog:
+            catalog_path = index_path.parent / "catalog.md"
+            ensure_safe_write_path(root_dir=self._root_dir, target_path=catalog_path)
+            catalog_content = _generate_catalog(
+                filtered,
+                generated_at,
+                status_filter=self._status_filter,
+                impl_state_filter=self._impl_state_filter,
+            )
+            catalog_path.write_text(catalog_content, encoding="utf-8")
+
+        # Generate kanban.md + kanban.css (FR-4).
+        kanban_path: Optional[Path] = None
+        kanban_css_path: Optional[Path] = None
+        if self._output_kanban:
+            kanban_path = index_path.parent / "kanban.md"
+            ensure_safe_write_path(root_dir=self._root_dir, target_path=kanban_path)
+            kanban_content = _generate_kanban(filtered, generated_at)
+            kanban_path.write_text(kanban_content, encoding="utf-8")
+
+            kanban_css_path = index_path.parent / "kanban.css"
+            ensure_safe_write_path(root_dir=self._root_dir, target_path=kanban_css_path)
+            kanban_css_path.write_text(KANBAN_CSS, encoding="utf-8")
+
+        return IndexBuildReport(
+            index_path=index_path,
+            document_count=len(filtered),
+            catalog_path=catalog_path,
+            kanban_path=kanban_path,
+            kanban_css_path=kanban_css_path,
+            warnings=warnings_list,
+            documents=json_entries,
+        )
