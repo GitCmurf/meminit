@@ -57,13 +57,13 @@ class TemplateInterpolator:
 
     # Legacy patterns to detect and reject - compiled on initialization
     _LEGACY_PATTERNS: List[re.Pattern[str]] = [
-        re.compile(r'\{title\}'),
-        re.compile(r'\{status\}'),
-        re.compile(r'\{owner\}'),
-        re.compile(r'\{area\}'),
-        re.compile(r'\{description\}'),
-        re.compile(r'\{keywords\}'),
-        re.compile(r'\{related_ids\}'),
+        re.compile(r'(?<!\{)\{title\}(?!\})'),
+        re.compile(r'(?<!\{)\{status\}(?!\})'),
+        re.compile(r'(?<!\{)\{owner\}(?!\})'),
+        re.compile(r'(?<!\{)\{area\}(?!\})'),
+        re.compile(r'(?<!\{)\{description\}(?!\})'),
+        re.compile(r'(?<!\{)\{keywords\}(?!\})'),
+        re.compile(r'(?<!\{)\{related_ids\}(?!\})'),
         re.compile(r'<REPO>'),
         re.compile(r'<PROJECT>'),
         re.compile(r'<SEQ>'),
@@ -93,6 +93,14 @@ class TemplateInterpolator:
         Replaces all {{variable}} placeholders with their values.
         Raises errors for legacy syntax or unknown variables.
 
+        **Security note:** Substitution is safe against injection because:
+        1. Only an explicit allowlist of variable names is matched
+           (compiled regexes in ``_PREFERRED_PATTERNS``).
+        2. Replacement uses ``re.sub`` with a *lambda* callable, so
+           replacement strings cannot trigger backreference expansion.
+        3. Any ``{{...}}`` token not in the allowlist is rejected by
+           ``_raise_on_unknown_variables``.
+
         Args:
             template: The template content with {{variable}} placeholders.
             **kwargs: Variable values. Supported keys:
@@ -106,20 +114,22 @@ class TemplateInterpolator:
             MeminitError: With INVALID_TEMPLATE_PLACEHOLDER if legacy syntax found.
             MeminitError: With UNKNOWN_TEMPLATE_VARIABLE if unknown variables found.
         """
+        # Validate template tokens before injecting user-provided values.
+        # This prevents false positives if user data (e.g. title) contains placeholders.
+        self._raise_on_legacy_tokens(template)
+        self._raise_on_unknown_variables(template)
+
         substitutions: Dict[str, str] = self._build_substitutions(**kwargs)
         result = template
 
         # Apply preferred {{variable}} patterns
         # Use lambda to avoid backreference interpretation in replacement string
+        # Sanitize values to prevent injection into markdown comments and markers
         for pattern, key in self._preferred:
             value = substitutions.get(key, '')
-            result = pattern.sub(lambda m, v=value: v, result)
-
-        # Raise on legacy tokens
-        self._raise_on_legacy_tokens(result)
-
-        # Raise on unknown variables
-        self._raise_on_unknown_variables(result)
+            # Sanitize to prevent injection attacks
+            sanitized_value = value.replace("<!--", "&lt;!--").replace("-->", "--&gt;").replace("\n", " ").replace("\r", " ")
+            result = pattern.sub(lambda m, v=sanitized_value: v, result)
 
         return result
 

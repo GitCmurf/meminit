@@ -52,23 +52,23 @@ meminit migrate-templates [OPTIONS]
 
 ### Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--dry-run` | Show changes without applying them | `true` |
-| `--no-dry-run` | Apply changes | `false` |
-| `--config` | Path to config file | `docops.config.yaml` |
-| `--templates-dir` | Path to templates directory | `docs/00-governance/templates/` |
-| `--backup` | Create backup before modifying | `true` |
-| `--no-backup` | Skip backup | `false` |
-| `--legacy-type-dirs` | Migrate type_directories config | `true` |
-| `--no-legacy-type-dirs` | Skip type_directories migration | `false` |
-| `--legacy-templates` | Migrate templates config | `true` |
-| `--no-legacy-templates` | Skip templates migration | `false` |
-| `--placeholder-syntax` | Migrate placeholder syntax | `true` |
-| `--no-placeholder-syntax` | Skip placeholder syntax migration | `false` |
-| `--rename-files` | Rename template files to *.template.md | `true` |
-| `--no-rename-files` | Skip file renaming | `false` |
-| `--format` | Output format (text, json) | `text` |
+| Option                    | Description                             | Default                         |
+| ------------------------- | --------------------------------------- | ------------------------------- |
+| `--dry-run`               | Show changes without applying them      | `true`                          |
+| `--no-dry-run`            | Apply changes                           | `false`                         |
+| `--config`                | Path to config file                     | `docops.config.yaml`            |
+| `--templates-dir`         | Path to templates directory             | `docs/00-governance/templates/` |
+| `--backup`                | Create backup before modifying          | `true`                          |
+| `--no-backup`             | Skip backup                             | `false`                         |
+| `--legacy-type-dirs`      | Migrate type_directories config         | `true`                          |
+| `--no-legacy-type-dirs`   | Skip type_directories migration         | `false`                         |
+| `--legacy-templates`      | Migrate templates config                | `true`                          |
+| `--no-legacy-templates`   | Skip templates migration                | `false`                         |
+| `--placeholder-syntax`    | Migrate placeholder syntax              | `true`                          |
+| `--no-placeholder-syntax` | Skip placeholder syntax migration       | `false`                         |
+| `--rename-files`          | Rename template files to \*.template.md | `true`                          |
+| `--no-rename-files`       | Skip file renaming                      | `false`                         |
+| `--format`                | Output format (text, json)              | `text`                          |
 
 ### Migration Steps
 
@@ -77,6 +77,7 @@ meminit migrate-templates [OPTIONS]
 Convert legacy `type_directories` configuration to `document_types` format.
 
 **Before:**
+
 ```yaml
 type_directories:
   ADR: "45-adr"
@@ -88,6 +89,7 @@ templates:
 ```
 
 **After:**
+
 ```yaml
 document_types:
   ADR:
@@ -102,6 +104,7 @@ document_types:
 ```
 
 **Preservation Rules:**
+
 - If a `document_types` key already exists, merge legacy entries into it
 - Namespace-level `type_directories` take precedence over defaults
 - Custom template paths are preserved
@@ -111,12 +114,14 @@ document_types:
 Rename template files from `template-001-*.md` to `*.template.md`.
 
 **Mappings:**
+
 - `template-001-adr.md` → `adr.template.md`
 - `template-001-prd.md` → `prd.template.md`
 - `template-001-fdd.md` → `fdd.template.md`
 - `template-001-<type>.md` → `<type>.template.md`
 
 **Conflict Resolution:**
+
 - If target file exists, append suffix: `adr.template.1.md`
 - Log conflicts in output
 
@@ -125,6 +130,7 @@ Rename template files from `template-001-*.md` to `*.template.md`.
 Convert legacy placeholder syntax to `{{variable}}` format.
 
 **Legacy → New:**
+
 - `{title}` → `{{title}}`
 - `{status}` → `{{status}}`
 - `{owner}` → `{{owner}}`
@@ -142,6 +148,7 @@ Convert legacy placeholder syntax to `{{variable}}` format.
 - `<AREA>` → `{{area}}`
 
 **Extraction Rules:**
+
 - Replace exact matches only (case-sensitive)
 - Preserve whitespace around placeholders
 - Skip replacements inside code fences (marked as boundaries)
@@ -150,7 +157,7 @@ Convert legacy placeholder syntax to `{{variable}}` format.
 
 ### Text Output (default)
 
-```
+```text
 Template Migration Tool (meminit migrate-templates)
 =====================================================
 
@@ -247,7 +254,7 @@ Run with --no-dry-run to apply changes.
 
 ## Implementation Notes
 
-- Use case: `src/meminit/core/use_cases/migrate_templates.py`
+- Use case: `src/meminit/core/use_cases/migrate_templates.py` (Planned, not yet implemented)
 - Config file: root `docops.config.yaml`
 - Backup location: `.meminit/migrations/backup-<timestamp>/`
 
@@ -260,12 +267,12 @@ Run with --no-dry-run to apply changes.
 
 ## Error Handling
 
-| Error Code | Condition | Resolution |
-|------------|-----------|------------|
+| Error Code       | Condition                     | Resolution                 |
+| ---------------- | ----------------------------- | -------------------------- |
 | `CONFIG_MISSING` | No `docops.config.yaml` found | Create with `meminit init` |
-| `PATH_ESCAPE` | Backup path outside repo | Fail with error |
-| `FILE_EXISTS` | Target template file exists | Append suffix, log warning |
-| `INVALID_CONFIG` | Config cannot be parsed | Fail with error details |
+| `PATH_ESCAPE`    | Backup path outside repo      | Fail with error            |
+| `FILE_EXISTS`    | Target template file exists   | Append suffix, log warning |
+| `INVALID_CONFIG` | Config cannot be parsed       | Fail with error details    |
 
 ## Tests
 

@@ -41,6 +41,7 @@ Plain English: This is the single source of truth for how templates work in Memi
 ## 2. Scope
 
 In scope:
+
 - Template resolution precedence chain (config → convention → builtin → skeleton)
 - `{{variable}}` interpolation syntax (legacy syntax rejection)
 - `<!-- MEMINIT_SECTION: id -->` marker format
@@ -49,6 +50,7 @@ In scope:
 - Code-fence-aware marker detection
 
 Out of scope:
+
 - Template content authoring guidelines (covered by governance docs)
 - Legacy v1 template behavior
 
@@ -58,12 +60,12 @@ Templates are resolved in a deterministic 4-step chain. The first match wins.
 
 ### 3.1 Resolution Order
 
-| Priority | Source | Description |
-|----------|--------|-------------|
-| 1 | Config | Explicit `template` path in `document_types.<type>.template` |
-| 2 | Convention | `<docs_root>/00-governance/templates/<type>.template.md` |
-| 3 | Built-in | Package assets (ADR, PRD, FDD) |
-| 4 | None | Minimal skeleton template |
+| Priority | Source     | Description                                                  |
+| -------- | ---------- | ------------------------------------------------------------ |
+| 1        | Config     | Explicit `template` path in `document_types.<type>.template` |
+| 2        | Convention | `<docs_root>/00-governance/templates/<type>.template.md`     |
+| 3        | Built-in   | Package assets (ADR, PRD, FDD)                               |
+| 4        | None       | Minimal skeleton template                                    |
 
 ### 3.2 Source Values
 
@@ -111,12 +113,12 @@ When no template is found, a minimal skeleton is used:
 
 ```markdown
 ---
-document_id: {{document_id}}
-type: {{type}}
-title: {{title}}
-status: {{status}}
-date: {{date}}
-owner: {{owner}}
+document_id: { { document_id } }
+type: { { type } }
+title: { { title } }
+status: { { status } }
+last_updated: { { date } }
+owner: { { owner } }
 docops_version: 2.0
 ---
 
@@ -140,20 +142,20 @@ Templates use **only** double-brace `{{variable}}` syntax. Legacy syntax is reje
 
 ### 4.1 Supported Variables
 
-| Variable | Type | Description | Example |
-|----------|------|-------------|---------|
-| `{{title}}` | string | Document title | `{{title}}` → "My Feature" |
-| `{{document_id}}` | string | Full document ID | `{{document_id}}` → "REPO-PRD-001" |
-| `{{owner}}` | string | Document owner | `{{owner}}` → "Team A" |
-| `{{status}}` | string | Document status | `{{status}}` → "Draft" |
-| `{{date}}` | string | Current date (ISO 8601) | `{{date}}` → "2026-03-04" |
-| `{{repo_prefix}}` | string | Repository prefix | `{{repo_prefix}}` → "REPO" |
-| `{{seq}}` | string | Sequence number | `{{seq}}` → "001" |
-| `{{type}}` | string | Document type | `{{type}}` → "PRD" |
-| `{{area}}` | string | Document area | `{{area}}` → "Engineering" |
-| `{{description}}` | string | Document description | `{{description}}` → "A feature" |
-| `{{keywords}}` | string | Comma-separated keywords | `{{keywords}}` → "api, cli" |
-| `{{related_ids}}` | string | Comma-separated IDs | `{{related_ids}}` → "REPO-ADR-001, REPO-ADR-002" |
+| Variable          | Type   | Description              | Example                                          |
+| ----------------- | ------ | ------------------------ | ------------------------------------------------ |
+| `{{title}}`       | string | Document title           | `{{title}}` → "My Feature"                       |
+| `{{document_id}}` | string | Full document ID         | `{{document_id}}` → "REPO-PRD-001"               |
+| `{{owner}}`       | string | Document owner           | `{{owner}}` → "Team A"                           |
+| `{{status}}`      | string | Document status          | `{{status}}` → "Draft"                           |
+| `{{date}}`        | string | Current date (ISO 8601)  | `{{date}}` → "2026-03-04"                        |
+| `{{repo_prefix}}` | string | Repository prefix        | `{{repo_prefix}}` → "REPO"                       |
+| `{{seq}}`         | string | Sequence number          | `{{seq}}` → "001"                                |
+| `{{type}}`        | string | Document type            | `{{type}}` → "PRD"                               |
+| `{{area}}`        | string | Document area            | `{{area}}` → "Engineering"                       |
+| `{{description}}` | string | Document description     | `{{description}}` → "A feature"                  |
+| `{{keywords}}`    | string | Comma-separated keywords | `{{keywords}}` → "api, cli"                      |
+| `{{related_ids}}` | string | Comma-separated IDs      | `{{related_ids}}` → "REPO-ADR-001, REPO-ADR-002" |
 
 ### 4.2 Variable Normalization
 
@@ -165,23 +167,23 @@ Templates use **only** double-brace `{{variable}}` syntax. Legacy syntax is reje
 
 Legacy placeholder syntax raises `INVALID_TEMPLATE_PLACEHOLDER` error:
 
-| Legacy Syntax | Correct Syntax |
-|---------------|----------------|
-| `{title}` | `{{title}}` |
-| `{status}` | `{{status}}` |
-| `{owner}` | `{{owner}}` |
-| `{area}` | `{{area}}` |
-| `{description}` | `{{description}}` |
-| `{keywords}` | `{{keywords}}` |
-| `{related_ids}` | `{{related_ids}}` |
-| `<REPO>` | `{{repo_prefix}}` |
-| `<PROJECT>` | `{{repo_prefix}}` |
-| `<SEQ>` | `{{seq}}` |
-| `<YYYY-MM-DD>` | `{{date}}` |
-| `<Decision Title>` | `{{title}}` |
-| `<Feature Title>` | `{{title}}` |
-| `<Team or Person>` | `{{owner}}` |
-| `<AREA>` | `{{area}}` |
+| Legacy Syntax      | Correct Syntax    |
+| ------------------ | ----------------- |
+| `{title}`          | `{{title}}`       |
+| `{status}`         | `{{status}}`      |
+| `{owner}`          | `{{owner}}`       |
+| `{area}`           | `{{area}}`        |
+| `{description}`    | `{{description}}` |
+| `{keywords}`       | `{{keywords}}`    |
+| `{related_ids}`    | `{{related_ids}}` |
+| `<REPO>`           | `{{repo_prefix}}` |
+| `<PROJECT>`        | `{{repo_prefix}}` |
+| `<SEQ>`            | `{{seq}}`         |
+| `<YYYY-MM-DD>`     | `{{date}}`        |
+| `<Decision Title>` | `{{title}}`       |
+| `<Feature Title>`  | `{{title}}`       |
+| `<Team or Person>` | `{{owner}}`       |
+| `<AREA>`           | `{{area}}`        |
 
 ### 4.4 Unknown Variables
 
@@ -232,16 +234,16 @@ Markers are placed **before** the section heading:
 
 Each parsed section includes:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Section identifier |
-| `heading` | string | Section heading text (including `#` markers) |
-| `line` | integer | Line number of heading |
-| `marker_line` | integer | Line number of marker |
-| `content_start_line` | integer | Line number of first content line |
-| `content_end_line` | integer | Line number of last content line |
-| `required` | boolean | Whether section is required |
-| `agent_prompt` | string \| null | Agent guidance prompt |
+| Field                | Type           | Description                                  |
+| -------------------- | -------------- | -------------------------------------------- |
+| `id`                 | string         | Section identifier                           |
+| `heading`            | string         | Section heading text (including `#` markers) |
+| `line`               | integer        | Line number of heading                       |
+| `marker_line`        | integer        | Line number of marker                        |
+| `content_start_line` | integer        | Line number of first content line            |
+| `content_end_line`   | integer        | Line number of last content line             |
+| `required`           | boolean        | Whether section is required                  |
+| `agent_prompt`       | string \| null | Agent guidance prompt                        |
 
 ### 5.4 Section Boundaries
 
@@ -251,7 +253,7 @@ Section content spans from the line **after** the marker to the line **before** 
 
 Markers inside code fences are **ignored**:
 
-```markdown
+````markdown
 <!-- MEMINIT_SECTION: real -->
 
 ## Real Section
@@ -265,9 +267,10 @@ Markers inside code fences are **ignored**:
 <!-- MEMINIT_SECTION: another -->
 
 ## Another Section
-```
+````
 
 In this example:
+
 - `real` section is parsed
 - `fake` section is ignored (inside code fence)
 - `another` section is parsed
@@ -395,21 +398,21 @@ When `--format json` is used with `meminit new`, the response includes Templates
 
 ### 8.1 Top-Level Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `data.rendered_content` | string \| null | Full rendered document content |
-| `data.content_sha256` | string \| null | SHA-256 hash of rendered content |
-| `data.template` | object \| null | Template provenance object |
+| Field                   | Type           | Description                      |
+| ----------------------- | -------------- | -------------------------------- |
+| `data.rendered_content` | string \| null | Full rendered document content   |
+| `data.content_sha256`   | string \| null | SHA-256 hash of rendered content |
+| `data.template`         | object \| null | Template provenance object       |
 
 ### 8.2 Template Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `applied` | boolean | Whether a template was applied |
-| `source` | string | Template source: "config" \| "convention" \| "builtin" \| "none" |
-| `path` | string \| null | Path to template file (relative to repo root) |
-| `content_preview` | string | First 200 characters of template content |
-| `sections` | array | Parsed section markers (see §5.3) |
+| Field             | Type           | Description                                                      |
+| ----------------- | -------------- | ---------------------------------------------------------------- |
+| `applied`         | boolean        | Whether a template was applied                                   |
+| `source`          | string         | Template source: "config" \| "convention" \| "builtin" \| "none" |
+| `path`            | string \| null | Path to template file (relative to repo root)                    |
+| `content_preview` | string         | First 200 characters of template content                         |
+| `sections`        | array          | Parsed section markers (see §5.3)                                |
 
 ### 8.3 Example Output
 
@@ -454,14 +457,14 @@ When `--format json` is used with `meminit new`, the response includes Templates
 
 ## 9. Error Codes (Templates v2)
 
-| Code | Description |
-|------|-------------|
-| `INVALID_TEMPLATE_PLACEHOLDER` | Legacy placeholder syntax detected |
-| `UNKNOWN_TEMPLATE_VARIABLE` | Unknown `{{variable}}` placeholder |
-| `INVALID_TEMPLATE_FILE` | Template validation failure |
-| `DUPLICATE_SECTION_ID` | Duplicate section ID in template |
-| `AMBIGUOUS_SECTION_BOUNDARY` | Ambiguous section boundary |
-| `LEGACY_CONFIG_UNSUPPORTED` | Legacy `type_directories`/`templates` keys |
+| Code                           | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| `INVALID_TEMPLATE_PLACEHOLDER` | Legacy placeholder syntax detected         |
+| `UNKNOWN_TEMPLATE_VARIABLE`    | Unknown `{{variable}}` placeholder         |
+| `INVALID_TEMPLATE_FILE`        | Template validation failure                |
+| `DUPLICATE_SECTION_ID`         | Duplicate section ID in template           |
+| `AMBIGUOUS_SECTION_BOUNDARY`   | Ambiguous section boundary                 |
+| `LEGACY_CONFIG_UNSUPPORTED`    | Legacy `type_directories`/`templates` keys |
 
 See `docs/20-specs/spec-006-errorcode-enum.md` for complete error code inventory.
 

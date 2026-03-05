@@ -393,8 +393,9 @@ def test_fix_infers_type_from_configured_type_directory(tmp_path):
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 docs_root: docs
-type_directories:
-  ADR: adrs
+document_types:
+  ADR:
+    directory: adrs
 """
     )
 

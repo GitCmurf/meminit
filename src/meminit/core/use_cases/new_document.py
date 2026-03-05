@@ -300,7 +300,7 @@ class NewDocumentUseCase:
                                 "source": owner_source,
                             }
                         )
-                    content = self._load_template(
+                    content, template_info = self._load_template_v2(
                         normalized_type,
                         params.title,
                         doc_id,
@@ -314,8 +314,9 @@ class NewDocumentUseCase:
                         superseded_by=params.superseded_by,
                     )
                     if reasoning is not None:
-                        template_path_str = ns.templates.get(normalized_type.lower())
-                        template_name = template_path_str if template_path_str else "default"
+                        # Use document_types for v2 consistency in reasoning
+                        dt_config = ns.document_types.get(normalized_type.upper())
+                        template_name = dt_config.template if dt_config and dt_config.template else "default"
                         reasoning.append(
                             {
                                 "decision": "template_loaded",
@@ -349,6 +350,8 @@ class NewDocumentUseCase:
                             related_ids=params.related_ids,
                             superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
+                            content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                            template_info=template_info,
                             reasoning=reasoning,
                         )
                     raise MeminitError(
@@ -388,7 +391,7 @@ class NewDocumentUseCase:
                         "source": owner_source,
                     }
                 )
-            content = self._load_template(
+            content, template_info = self._load_template_v2(
                 normalized_type,
                 params.title,
                 doc_id,
@@ -402,8 +405,9 @@ class NewDocumentUseCase:
                 superseded_by=params.superseded_by,
             )
             if reasoning is not None:
-                template_path_str = ns.templates.get(normalized_type.lower())
-                template_name = template_path_str if template_path_str else "default"
+                # Use document_types for v2 consistency in reasoning
+                dt_config = ns.document_types.get(normalized_type.upper())
+                template_name = dt_config.template if dt_config and dt_config.template else "default"
                 reasoning.append(
                     {
                         "decision": "template_loaded",
@@ -436,6 +440,8 @@ class NewDocumentUseCase:
                     superseded_by=params.superseded_by,
                     dry_run=True,
                     content=content,
+                    content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                    template_info=template_info,
                     reasoning=reasoning,
                 )
 
@@ -504,6 +510,8 @@ class NewDocumentUseCase:
                 related_ids=params.related_ids,
                 superseded_by=params.superseded_by,
                 dry_run=False,
+                content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                template_info=template_info,
                 reasoning=reasoning,
             )
         finally:
@@ -1286,24 +1294,20 @@ class NewDocumentUseCase:
 
         # Interpolate using {{variable}} syntax
         interpolator = TemplateInterpolator()
-        try:
-            body = interpolator.interpolate(
-                template_content,
-                title=title,
-                document_id=doc_id,
-                owner=owner,
-                status=status,
-                repo_prefix=repo_prefix,
-                seq=seq,
-                doc_type=doc_type,
-                area=area,
-                description=description,
-                keywords=keywords or [],
-                related_ids=related_ids or [],
-            )
-        except MeminitError:
-            # Re-raise interpolation errors
-            raise
+        body = interpolator.interpolate(
+            template_content,
+            title=title,
+            document_id=doc_id,
+            owner=owner,
+            status=status,
+            repo_prefix=repo_prefix,
+            seq=seq,
+            doc_type=doc_type,
+            area=area,
+            description=description,
+            keywords=keywords or [],
+            related_ids=related_ids or [],
+        )
 
         # Parse frontmatter if present
         template_frontmatter: Dict[str, Any] = {}
@@ -1343,13 +1347,21 @@ class NewDocumentUseCase:
         # Merge frontmatter (generated takes precedence for required fields)
         metadata = {**template_frontmatter, **generated_metadata}
 
+        # Drop None values to avoid schema validation errors mapping to null in YAML
+        metadata = {k: v for k, v in metadata.items() if v is not None}
+
         # Generate visible metadata block
         visible_block = self._generate_visible_metadata_block(metadata)
 
         # Replace or insert metadata block (FR-8)
         if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
             # Replace existing blockquote placeholder
-            body = body.replace("<!-- MEMINIT_METADATA_BLOCK -->", visible_block)
+            body = re.sub(
+                r"<!-- MEMINIT_METADATA_BLOCK -->\s*(?:>.*(?:\n|$))*",
+                visible_block + "\n\n",
+                body,
+                count=1,
+            )
         else:
             # Insert after frontmatter (no comment placeholder)
             body = f"{visible_block}\n\n{body.lstrip()}"
@@ -1390,9 +1402,15 @@ class NewDocumentUseCase:
         info = {
             "applied": resolution.source != "none",
             "source": resolution.source,
-            "path": str(resolution.path) if resolution.path else None,
+            "path": None,
             "sections": [],
         }
+
+        if resolution.path:
+            try:
+                info["path"] = str(resolution.path.resolve().relative_to(self.root_dir.resolve()))
+            except ValueError:
+                info["path"] = str(resolution.path)
 
         # Add section info
         for section in sections:
@@ -1410,12 +1428,13 @@ class NewDocumentUseCase:
             info["sections"].append(section_dict)
 
         # Add content preview (first 200 chars)
-        if rendered_content:
+        template_content = resolution.content if resolution.content else ""
+        if template_content:
             preview_len = 200
-            if len(rendered_content) > preview_len:
-                info["content_preview"] = rendered_content[:preview_len] + "..."
+            if len(template_content) > preview_len:
+                info["content_preview"] = template_content[:preview_len] + "..."
             else:
-                info["content_preview"] = rendered_content
+                info["content_preview"] = template_content
 
         return info
 

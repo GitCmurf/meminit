@@ -17,8 +17,9 @@ def test_check_json_output_conforms_to_agent_schema_v2(tmp_path):
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """,
         encoding="utf-8",
     )
@@ -104,8 +105,9 @@ def test_check_json_failure_without_error_conforms_to_agent_schema_v2(tmp_path):
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """,
         encoding="utf-8",
     )
@@ -194,8 +196,9 @@ def test_check_json_output_is_deterministic_ignoring_run_id(tmp_path):
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """,
         encoding="utf-8",
     )

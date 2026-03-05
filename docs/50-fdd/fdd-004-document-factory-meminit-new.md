@@ -3,12 +3,22 @@ document_id: MEMINIT-FDD-004
 type: FDD
 title: Document Factory (meminit new)
 status: Superseded
-version: 0.3
-last_updated: 2026-02-18
-owner: GitCmurf
+version: "1.0"
+last_updated: 2026-03-05
+owner: Product Team
 docops_version: 2.0
-superseded_by: MEMINIT-PRD-002
+superseded_by: MEMINIT-FDD-011
 ---
+
+<!-- MEMINIT_METADATA_BLOCK -->
+
+> **Document ID:** MEMINIT-FDD-004
+> **Owner:** Product Team
+> **Status:** Superseded
+> **Version:** 1.0
+> **Last Updated:** 2026-03-05
+> **Type:** FDD
+> **Superseded By:** [MEMINIT-FDD-011](file:///home/cmf/code/Meminit/docs/50-fdd/fdd-011-document-factory-v2.md)
 
 # FDD: Document Factory (meminit new)
 

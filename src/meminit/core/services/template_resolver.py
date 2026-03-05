@@ -121,19 +121,29 @@ class TemplateResolver:
                 resolved_full = full_path.resolve()
                 repo_root_resolved = self._repo_root.resolve()
                 resolved_full.relative_to(repo_root_resolved)
-            except (ValueError, OSError):
+            except (ValueError, OSError) as e:
                 # Path escapes repo root
-                return None
+                raise MeminitError(
+                    code=ErrorCode.INVALID_TEMPLATE_FILE,
+                    message=f"Configured template path escapes repository root: {template_path}",
+                    details={"doc_type": doc_type, "template_path": str(template_path)},
+                ) from e
 
-            if full_path.exists():
-                self._validate_template_file(full_path, allow_root=True)
-                # Read content after validation to avoid duplicate reads
-                content = full_path.read_text(encoding="utf-8")
-                return TemplateResolution(
-                    source=SOURCE_CONFIG,
-                    path=full_path,
-                    content=content
+            if not full_path.exists():
+                 raise MeminitError(
+                    code=ErrorCode.TEMPLATE_NOT_FOUND,
+                    message=f"Configured template not found: {template_path}",
+                    details={"doc_type": doc_type, "template_path": str(template_path)},
                 )
+            
+            self._validate_template_file(full_path, allow_root=True)
+            # Read content after validation to avoid duplicate reads
+            content = self._read_template_text(full_path)
+            return TemplateResolution(
+                source=SOURCE_CONFIG,
+                path=full_path,
+                content=content
+            )
         return None
 
     def _resolve_from_convention(self, doc_type: str) -> Optional[TemplateResolution]:
@@ -147,7 +157,7 @@ class TemplateResolver:
         if new_path.exists():
             self._validate_template_file(new_path, allow_root=False)
             # Read content after validation to avoid duplicate reads
-            content = new_path.read_text(encoding="utf-8")
+            content = self._read_template_text(new_path)
             return TemplateResolution(
                 source=SOURCE_CONVENTION,
                 path=new_path,
@@ -155,12 +165,37 @@ class TemplateResolver:
             )
         return None
 
+    def _read_template_text(self, path: Path) -> str:
+        """Read template file content as UTF-8 string.
+
+        Args:
+            path: Absolute path to template file.
+
+        Returns:
+            File content as string.
+
+        Raises:
+            MeminitError: With INVALID_TEMPLATE_FILE if decode fails.
+        """
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise MeminitError(
+                code=ErrorCode.INVALID_TEMPLATE_FILE,
+                message=f"Template is not valid UTF-8: {path.relative_to(self._repo_root)}",
+                details={"path": str(path)},
+            ) from exc
+
     def _resolve_from_builtin(self, doc_type: str) -> Optional[TemplateResolution]:
         """Check built-in package templates.
 
         Loads templates from the package assets. Returns None if not found.
+        Sanitises *doc_type* to prevent path-traversal via joinpath().
         """
         type_key = doc_type.lower()
+        # Reject path separators and traversal components in doc_type.
+        if "/" in type_key or "\\" in type_key or ".." in type_key:
+            return None
         try:
             template_content = files("meminit.core.assets.org_profiles.default.templates").joinpath(
                 f"{type_key}.template.md"

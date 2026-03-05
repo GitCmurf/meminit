@@ -768,7 +768,11 @@ class TestCliNewJsonOutput:
     def repo_for_new(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            "# ADR: {title}\n"
+            """<!-- MEMINIT_METADATA_BLOCK -->
+> Metadata goes here
+<!-- END_MEMINIT_METADATA_BLOCK -->
+# ADR
+"""
         )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             """
@@ -798,13 +802,14 @@ class TestCliNewJsonOutput:
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
 
     def test_new_format_json_output(self, repo_for_new):
@@ -916,10 +921,13 @@ class TestCliNewListTypes:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
-  PRD: 10-prd
-  FDD: 50-fdd
+document_types:
+  ADR:
+    directory: 45-adr
+  PRD:
+    directory: 10-prd
+  FDD:
+    directory: 50-fdd
 """
         )
         return tmp_path
@@ -972,7 +980,11 @@ class TestCliNewDryRun:
     def repo_for_dry_run(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            "# ADR: {title}\n"
+            """<!-- MEMINIT_METADATA_BLOCK -->
+> Metadata goes here
+<!-- END_MEMINIT_METADATA_BLOCK -->
+# ADR
+"""
         )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             """
@@ -1002,13 +1014,14 @@ class TestCliNewDryRun:
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
 
     def test_new_dry_run_no_file_created(self, repo_for_dry_run):
@@ -1023,6 +1036,7 @@ type_directories:
                 str(repo_for_dry_run),
                 "--dry-run",
             ],
+            catch_exceptions=False,
         )
 
         assert result.exit_code == 0
@@ -1144,8 +1158,9 @@ class TestCliCheckTargeted:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
 
@@ -1357,8 +1372,9 @@ class TestCliFlagIncompatibilities:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
         return tmp_path
@@ -1541,8 +1557,9 @@ class TestCliJsonOutputFormat:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
 
@@ -1563,6 +1580,7 @@ docops_version: 2.0
 # Valid
 """
         )
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
 
         return tmp_path
 
@@ -1634,13 +1652,15 @@ class TestCliSinglePathNotFound:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
 
         return tmp_path
 
@@ -1722,13 +1742,15 @@ class TestCliAbsolutePathEscape:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
 
         return tmp_path
 
@@ -2050,7 +2072,11 @@ class TestCliVerboseJsonStderr:
     def repo_for_verbose_json(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            "# ADR: {title}\n"
+            """<!-- MEMINIT_METADATA_BLOCK -->
+> Metadata goes here
+<!-- END_MEMINIT_METADATA_BLOCK -->
+# ADR
+"""
         )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             """
@@ -2075,13 +2101,14 @@ class TestCliVerboseJsonStderr:
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
 
     def test_verbose_json_routes_reasoning_to_stderr(self, repo_for_verbose_json):

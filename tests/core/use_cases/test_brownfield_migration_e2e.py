@@ -48,8 +48,9 @@ repo_prefix: EXAMPLE
 docops_version: '2.0'
 docs_root: docs
 schema_path: docs/00-governance/metadata.schema.json
-type_directories:
-  ADR: adrs
+document_types:
+  ADR:
+    directory: adrs
 """,
         encoding="utf-8",
     )

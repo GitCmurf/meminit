@@ -240,12 +240,19 @@ class SectionParser:
                     content_lines.append(lines[i])
             initial_content = "\n".join(content_lines)
 
+        # Calculate correct content start line (strictly after heading, falling back to marker)
+        actual_start_line = content_start
+        if actual_start_line > 0:
+            if heading and actual_start_line <= heading_line:
+                # Content must start after the heading
+                actual_start_line = heading_line + 1
+
         return SectionMarker(
             id=section_id,
             heading=heading,
             line=heading_line,
             marker_line=marker_line,
-            content_start_line=content_start if content_start > 0 else marker_line,
+            content_start_line=actual_start_line if actual_start_line > 0 else marker_line,
             content_end_line=content_end,
             required=True,  # Can be made configurable later
             agent_prompt="\n".join(agent_prompts) if agent_prompts else None,

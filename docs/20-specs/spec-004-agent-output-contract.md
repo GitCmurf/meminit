@@ -2,13 +2,14 @@
 document_id: MEMINIT-SPEC-004
 type: SPEC
 title: Agent Output Contract
-status: Approved
+status: Superseded
 version: "1.1"
-last_updated: 2026-02-26
+last_updated: 2026-03-05
 owner: Product Team
 docops_version: "2.0"
 area: Agentic Integration
 description: "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check)."
+superseded_by: MEMINIT-SPEC-008
 keywords:
   - agent
   - output
@@ -23,21 +24,24 @@ related_ids:
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** MEMINIT-SPEC-004
-> **Owner:** Product Team
-> **Status:** Approved
-> **Version:** 1.1
-> **Last Updated:** 2026-02-26
-> **Type:** SPEC
-> **Area:** Agentic Integration
+> **Document ID:** MEMINIT-SPEC-004  
+> **Owner:** Product Team  
+> **Status:** Superseded  
+> **Version:** 1.1  
+> **Last Updated:** 2026-03-05  
+> **Type:** SPEC  
+> **Area:** Agentic Integration  
+> **Superseded By:** [MEMINIT-SPEC-008](spec-008-agent-output-contract-v2.md)
 
 # SPEC: Agent Output Contract
+
+> [!IMPORTANT]
+> This document is **Superseded** by [MEMINIT-SPEC-008](spec-008-agent-output-contract-v2.md).
+> Content below is preserved for historical audit purposes only.
 
 ## 1. Purpose
 
 This document defines the normative JSON output contract for v2-migrated Meminit CLI commands when `--format json` is used (currently `check`). It specifies the output envelope, error envelope, field semantics, determinism rules, and minimum required payloads per command.
-
-Plain English: This is the single source of truth for what agents can rely on when they parse Meminit output.
 
 ## 2. Scope
 
@@ -49,153 +53,50 @@ In scope:
 
 Out of scope:
 
-- Human-readable text or markdown output.
-- Logging and telemetry formats.
-- Runbook workflows.
-- Full normative definition of legacy v1 envelopes for non-migrated commands (covered by `docs/20-specs/agent-output.schema.v1.json`).
+- Table or text output formats.
+- Future v2 commands not yet migrated (e.g., `new`, `context`).
 
-## 3. Terminology and Conventions
+## 3. High-Level Design
 
-- "MUST", "SHOULD", "MAY" are used as normative terms.
-- "Envelope" refers to the top-level JSON object emitted by the CLI.
-- "Command" refers to the Meminit CLI subcommand invoked (for example `check`, `scan`, `new`).
-- "Agent" refers to an automated tool that consumes JSON output.
+The contract uses a single, stable JSON envelope for all commands. This envelope contains metadata (run ID, timestamp, root path) and a command-specific `data` object.
 
-Plain English: When this spec says MUST, the output is required to follow it.
+## 4. Output Envelope Structure
 
-## 4. Output Envelope
+Every successful or partially successful execution MUST return a JSON object with the following top-level fields:
 
-### 4.1 Required Top-Level Fields
+- `output_schema_version` (string): Current version of the output contract (e.g., "2.0").
+- `success` (boolean): `true` if the command completed its primary task without blocking errors.
+- `command` (string): The name of the command executed.
+- `run_id` (string): UUID v4 uniquely identifying this execution.
+- `timestamp` (string): ISO 8601 timestamp of execution.
+- `root` (string): Absolute path to the repository root.
+- `data` (object): Command-specific payload.
+- `warnings` (array): List of non-blocking issues found.
+- `violations` (array): List of document or repository violations.
+- `advice` (array): List of recommended actions.
 
-All v2 JSON outputs MUST include the following top-level fields.
+## 5. Error Envelope Structure
 
-1. `output_schema_version` (string)
-2. `success` (boolean)
-3. `command` (string) — the subcommand name, normalized to the canonical CLI name
-4. `run_id` (string, UUIDv4)
-5. `root` (string) — absolute path to the repository root
-6. `data` (object) — command-specific payload (empty `{}` when not applicable)
-7. `warnings` (array) — non-fatal issues (empty `[]` when none)
-8. `violations` (array) — fatal or error-level issues (empty `[]` when none)
-9. `advice` (array) — non-binding recommendations (empty `[]` when none)
+When a command fails with a blocking error (e.g., `git` not found, file permission denied), the envelope MUST include:
 
-For `command: check`, successful and validation-failure outputs MUST additionally include:
+- `success`: `false`
+- `error` (object):
+  - `code` (string): Stable error identifier.
+  - `message` (string): Human-readable error message.
+  - `details` (object): Key-value pairs with error context.
 
-1. `files_checked`, `files_passed`, `files_failed`
-2. `missing_paths_count`, `schema_failures_count`
-3. `warnings_count`, `violations_count`
-4. `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`
-5. `warnings` (array)
-6. `violations` (array)
+## 6. Field Semantics
 
-Plain English: the stable base envelope is small, and `check` adds the normative counters/findings fields.
+- **UUIDs**: All `run_id` and document IDs MUST be unique.
+- **Paths**: All paths in the output MUST be relative to `root` and use forward slashes `/`.
+- **Enums**: Error and violation codes MUST use UPPER_SNAKE_CASE.
 
-### 4.2 Optional Top-Level Fields
+## 7. Performance Considerations
 
-- `timestamp` (string, ISO 8601 UTC) MAY be present. Included only when `--include-timestamp` is passed. When present it MUST be in the form `YYYY-MM-DDTHH:MM:SS[.sss]Z` (fractional seconds optional).
-- `error` (object) MAY be present for operational failures (see §5).
-
-For `command: check`, additional top-level counter fields are REQUIRED (see §4.1).
-Check counters (`files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count`) are REQUIRED for successful `check` responses and validation-failure responses, and MAY be omitted only when a top-level operational `error` object is present.
-
-Plain English: Timestamp is allowed but not required, and it must be UTC.
-
-Examples: `2026-02-18T14:30:45Z`, `2026-02-18T14:30:45.123Z`.
-
-### 4.3 Top-Level Field Semantics
-
-- `output_schema_version` identifies the contract version used to serialize the response.
-- `success` indicates whether the command completed without fatal error.
-- `run_id` is a unique identifier for correlating output and logs within a single invocation.
-- `command` is the subcommand name used by the user, normalized to the canonical CLI name.
-- `root` is the absolute path to the repository root used for the command.
-- `data` contains command-specific payload details; empty `{}` when not applicable.
-- `warnings` is a list of non-fatal issues; empty `[]` when none.
-- `violations` is a list of fatal or error-level issues; empty `[]` when none.
-- `advice` is a list of non-binding recommendations; empty `[]` when none.
-
-Plain English: The envelope tells you what command ran, where it ran, and what it found.
-
-## 5. Error Envelope
-
-Successful outputs MUST include the top-level fields listed in Section 4.1. Failed outputs MUST be a single JSON object and follow one of two shapes: an **error envelope** (with top-level `error`) for operational failures, or a **validation-failure envelope** (with top-level `violations`) for non-operational compliance findings.
-
-### 5.1 Error Taxonomy
-
-Meminit distinguishes between two types of failures to allow agents to handle them appropriately:
-
-1. **Operational Errors**: Prevent the command from executing.
-   - **JSON**: `success: false`, `error` object present.
-   - **Arrays**: `warnings`, `violations`, `advice` are empty `[]`.
-   - **Examples**: `CONFIG_MISSING`, `PATH_ESCAPE`, `UNKNOWN_TYPE`.
-2. **Compliance Violations**: Successful execution that found non-compliant documents.
-   - **JSON**: `success: false` (for `check`), `error` object absent.
-   - **Arrays**: `violations` populated with findings.
-   - **Examples**: `MISSING_FIELD`, `SCHEMA_INVALID`, `BROKEN_LINK`.
-
-Plain English: If `error` exists, the tool failed; if `violations` exist, the documents failed.
-
-### 5.2 Error Object
-
-The `error` object MUST include:
-
-1. `code` (string, from `ErrorCode` enum)
-2. `message` (string)
-
-The `error` object MAY include:
-
-- `details` (object) with structured context
-
-Plain English: Errors always have a stable code and a human-readable explanation.
-
-## 6. Issue Object Format
-
-`warnings` MUST be an array of Issue objects with the following fields.
-
-1. `code` (string)
-2. `message` (string)
-3. `path` (string, relative to repo root)
-
-Optional fields:
-
-- `line` (integer)
-- `severity` (string, one of `warning` or `error`)
-
-For `check`, `violations` MAY contain grouped objects of the shape:
-
-1. `path` (string)
-2. `violations` (array of objects with required `code` and `message`, optional `line`)
-3. optional `document_id` (string)
-
-Plain English: warnings are flat issue objects; violations can be flat issues or grouped by file path.
-
-## 7. Advice Object Format
-
-`advice` MUST be an array of objects with these fields.
-
-1. `code` (string) — stable identifier for deterministic sorting and agent handling
-2. `message` (string)
-
-Optional fields:
-
-- `details` (object)
-
-Plain English: Advice is informative only and should not be treated as a violation.
+- JSON generation SHOULD NOT add more than 50ms to command execution time.
+- Large datasets (e.g., thousands of files) MUST be streamed or batched if memory limits are a concern, though current scope assumes in-memory JSON construction is acceptable.
 
 ## 8. Command Payload Profiles
-
-Current v2 scope includes `check` and `new`. The `check` counters/findings are emitted at the top level (not nested under `data`). The `new` command emits its payload within `data`.
-
-| Command | Required top-level fields                                                                                                                                                                                            | Type     |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `check` | `files_checked`, `files_passed`, `files_failed`, `missing_paths_count`, `schema_failures_count`, `warnings_count`, `violations_count`, `files_with_warnings`, `files_outside_docs_root_count`, `checked_paths_count` | integers |
-| `new`   | `data.document_id`, `data.path`, `data.type`, `data.title`                                                                                                                                                           | strings  |
-
-Plain English: in v2 today, `check` and `new` are migrated commands. `check` counters are top-level fields; `new` data is nested under `data`.
-
-### 8.1 `check` Counter Semantics
-
-For `command: check`, these counter semantics are normative:
 
 - `files_checked` counts existing markdown files that were actually parsed and validated.
 - `files_failed` counts only file-level failures among existing files.
@@ -205,36 +106,6 @@ For `command: check`, these counter semantics are normative:
 - `success` is `false` if any file-level failures, missing paths, or schema failures exist, or when strict mode promotes warnings.
 
 Plain English: `files_checked` is now strictly file-validation count, and repository-level failures are tracked separately.
-
-### 8.2 `new` Command Payload (Templates v2)
-
-For `command: new`, the following `data` fields are normative for Templates v2:
-
-Required fields:
-- `document_id` (string) — The allocated document ID
-- `path` (string) — Relative path to the created document
-- `type` (string) — Document type
-- `title` (string) — Document title
-
-Optional Templates v2 fields:
-- `rendered_content` (string) — Full rendered document content
-- `content_sha256` (string) — SHA-256 hash of rendered content
-- `template` (object) — Template provenance information
-  - `applied` (boolean) — Whether a template was applied
-  - `source` (string) — Template source: "config" | "convention" | "builtin" | "none"
-  - `path` (string | null) — Path to template file used
-  - `content_preview` (string) — First 200 characters of template content
-  - `sections` (array) — Parsed section markers with fields:
-    - `id` (string) — Section identifier
-    - `heading` (string) — Section heading text
-    - `line` (integer) — Line number
-    - `marker_line` (integer) — Marker line number
-    - `content_start_line` (integer) — Content start line
-    - `content_end_line` (integer) — Content end line
-    - `required` (boolean) — Whether section is required
-    - `agent_prompt` (string | null) — Agent guidance prompt
-
-Plain English: `new` returns the created document metadata and optionally the full content and template provenance for agent workflows.
 
 ## 9. Determinism Rules
 
@@ -286,7 +157,10 @@ In v2, check counters are required for non-error payloads when `command` is
     "output_schema_version": { "type": "string" },
     "success": { "type": "boolean" },
     "command": { "type": "string" },
-    "run_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
     "timestamp": { "type": "string", "format": "date-time" },
     "root": { "type": "string" },
     "data": { "type": "object" },

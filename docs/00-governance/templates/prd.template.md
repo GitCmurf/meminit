@@ -1,12 +1,12 @@
 ---
-document_id: {{document_id}}
-type: {{type}}
-title: {{title}}
-status: {{status}}
+document_id: { { document_id } }
+type: { { type } }
+title: { { title } }
+status: { { status } }
 version: "0.1"
-last_updated: {{date}}
-owner: {{owner}}
-area: {{area}}
+last_updated: { { date } }
+owner: { { owner } }
+area: { { area } }
 docops_version: "2.0"
 template_type: prd-standard
 template_version: "2.0"
@@ -21,15 +21,15 @@ template_version: "2.0"
 > **Last Updated:** {{date}}
 > **Type:** {{type}}
 
-# PRD: {{title}}
-
 <!-- MEMINIT_SECTION: title -->
+
+# PRD: {{title}}
 
 <!-- AGENT: The title should be concise and descriptive of the feature or product. -->
 
-## Table of Contents
-
 <!-- MEMINIT_SECTION: toc -->
+
+## Table of Contents
 
 <!-- AGENT: Generate a table of contents with anchor links to all numbered sections. -->
 
@@ -42,25 +42,25 @@ template_version: "2.0"
 7. [Open Questions](#7-open-questions)
 8. [Version History](#8-version-history)
 
-## 1. Executive Summary
-
 <!-- MEMINIT_SECTION: executive_summary -->
+
+## 1. Executive Summary
 
 <!-- AGENT: Write a 2-3 sentence summary. What is being built, for whom, and why now? Include quantified impact if possible. -->
 
 [Summary here]
 
-## 2. Problem Statement
-
 <!-- MEMINIT_SECTION: problem_statement -->
+
+## 2. Problem Statement
 
 <!-- AGENT: Quantify the problem with data. State who is impacted and how. What is the current gap? -->
 
 [Describe the problem here]
 
-## 3. Goals and Success Metrics
-
 <!-- MEMINIT_SECTION: goals -->
+
+## 3. Goals and Success Metrics
 
 <!-- AGENT: Define clear, measurable goals. Include success metrics with targets. -->
 
@@ -72,22 +72,22 @@ template_version: "2.0"
 
 ### Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
+| Metric     | Target   | Measurement      |
+| ---------- | -------- | ---------------- |
 | [Metric 1] | [Target] | [How to measure] |
 | [Metric 2] | [Target] | [How to measure] |
 
-## 4. Proposed Solution
-
 <!-- MEMINIT_SECTION: solution -->
+
+## 4. Proposed Solution
 
 <!-- AGENT: Describe the solution approach. Include high-level architecture and key features. -->
 
 [Describe the solution here]
 
-## 5. Requirements
-
 <!-- MEMINIT_SECTION: requirements -->
+
+## 5. Requirements
 
 <!-- AGENT: List functional and non-functional requirements. Prioritize with must/should/could. -->
 
@@ -101,30 +101,30 @@ template_version: "2.0"
 - [NFR-1] [Performance, security, or other quality attribute requirement]
 - [NFR-2] [Requirement description]
 
-## 6. Alternatives Considered
-
 <!-- MEMINIT_SECTION: alternatives -->
+
+## 6. Alternatives Considered
 
 <!-- AGENT: Describe alternative approaches and why they were not chosen. -->
 
 - [Alternative 1]: [Reason for rejection]
 - [Alternative 2]: [Reason for rejection]
 
-## 7. Open Questions
-
 <!-- MEMINIT_SECTION: open_questions -->
+
+## 7. Open Questions
 
 <!-- AGENT: List unresolved questions that need answers before implementation. -->
 
 - [Question 1]
 - [Question 2]
 
-## 8. Version History
-
 <!-- MEMINIT_SECTION: version_history -->
+
+## 8. Version History
 
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | {{date}} | {{owner}} | Initial draft |
+| Version | Date     | Author    | Changes       |
+| ------- | -------- | --------- | ------------- |
+| 0.1     | {{date}} | {{owner}} | Initial draft |

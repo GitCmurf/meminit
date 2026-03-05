@@ -56,7 +56,7 @@ SCHEMA_JSON = """{
 def repo_with_config_and_template(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-        "# ADR: {title}\n\n## Context\n"
+        "# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n## Context\n"
     )
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
@@ -66,10 +66,10 @@ def repo_with_config_and_template(tmp_path):
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
     )
     (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
@@ -287,10 +287,10 @@ repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
 default_owner: ConfigOwner
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
@@ -315,10 +315,10 @@ repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
 default_owner: ConfigOwner
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
@@ -383,14 +383,16 @@ namespaces:
     repo_prefix: TEST
     docs_root: docs
     schema_path: docs/00-governance/metadata.schema.json
-    type_directories:
-      ADR: 45-adr
+    document_types:
+      ADR:
+        directory: 45-adr
   - name: phyla
     repo_prefix: TEST
     docs_root: packages/phyla/docs
     schema_path: packages/phyla/docs/00-governance/metadata.schema.json
-    type_directories:
-      ADR: 45-adr
+    document_types:
+      ADR:
+        directory: 45-adr
 """,
             encoding="utf-8",
         )
@@ -518,7 +520,7 @@ docops_version: 2.0
     ):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            "# ADR: {title}\n\n- Date decided: <YYYY-MM-DD>\n",
+            "# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date decided: {{date}}\n",
             encoding="utf-8",
         )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
@@ -529,10 +531,10 @@ docops_version: 2.0
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """,
             encoding="utf-8",
         )
@@ -553,6 +555,7 @@ type_directories:
                 return real_date(2026, 2, 20)
 
         monkeypatch.setattr(new_document_module, "date", DayOneDate)
+        monkeypatch.setattr("meminit.core.services.template_interpolation.date", DayOneDate)
         use_case = NewDocumentUseCase(str(tmp_path))
         params = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-009")
         first = use_case.execute_with_params(params)
@@ -561,6 +564,7 @@ type_directories:
         assert "Date decided: 2026-02-19" in first.path.read_text(encoding="utf-8")
 
         monkeypatch.setattr(new_document_module, "date", DayTwoDate)
+        monkeypatch.setattr("meminit.core.services.template_interpolation.date", DayTwoDate)
         second = use_case.execute_with_params(params)
         assert second.success is True
         assert second.path == first.path
@@ -761,8 +765,8 @@ def test_new_fdd_uses_template(repo_with_init):
     doc_path = use_case.execute("FDD", "Feature ABC")
 
     content = doc_path.read_text()
-    assert "# FDD: Feature ABC" in content
-    assert "## Feature Description" in content
+    assert "# TESTNEWFDD-FDD-001: Feature ABC" in content
+    assert "## 2. Feature Overview" in content
 
 
 def test_unknown_type_fails(repo_with_init):
@@ -771,11 +775,11 @@ def test_unknown_type_fails(repo_with_init):
         use_case.execute("UNKNOWN", "Fail")
 
 
-def test_new_adr_template_angle_bracket_placeholders(tmp_path):
+def test_new_adr_template_mustache_placeholders(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
     template.write_text(
-        "# <REPO>-ADR-<SEQ>: <Decision Title>\n\n- Date: <YYYY-MM-DD>\n- Owner: <Team or Person>\n"
+        "# {{repo_prefix}}-ADR-{{seq}}: {{title}}\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date: {{date}}\n- Owner: {{owner}}\n"
     )
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
@@ -786,8 +790,10 @@ def test_new_adr_template_angle_bracket_placeholders(tmp_path):
 repo_prefix: MEMINIT
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/custom-adr.md
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/custom-adr.md
 """
     )
 
@@ -802,7 +808,7 @@ templates:
 def test_new_uses_uppercase_template_key(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
-    template.write_text("# ADR: {title}\n\n## Custom Template Marker\n", encoding="utf-8")
+    template.write_text("# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n## Custom Template Marker\n", encoding="utf-8")
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
     )
@@ -812,8 +818,10 @@ def test_new_uses_uppercase_template_key(tmp_path):
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  ADR: docs/00-governance/templates/custom-adr.md
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/custom-adr.md
 """,
         encoding="utf-8",
     )
@@ -838,7 +846,7 @@ def test_new_does_not_overwrite_existing_file(repo_with_init, monkeypatch):
 def test_new_uses_configured_type_directory(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md").write_text(
-        "# ADR: {title}\n"
+        "# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n"
     )
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
@@ -850,10 +858,10 @@ repo_prefix: EXAMPLE
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
 docs_root: docs
-type_directories:
-  ADR: adrs
-templates:
-  adr: docs/00-governance/templates/custom-adr.md
+document_types:
+  ADR:
+    directory: adrs
+    template: docs/00-governance/templates/custom-adr.md
 """
     )
 
@@ -907,7 +915,7 @@ class TestVisibleMetadataBlock:
     def repo_with_metadata_block_template(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            """# {title}
+            """# ADR Title
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
@@ -925,10 +933,10 @@ class TestVisibleMetadataBlock:
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
@@ -998,7 +1006,7 @@ owner: TemplateOwner
 area: TemplateArea
 ---
 
-# {title}
+# PRD Title
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
@@ -1016,10 +1024,10 @@ area: TemplateArea
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  prd: docs/00-governance/templates/prd.md
-type_directories:
-  PRD: 10-prd
+document_types:
+  PRD:
+    directory: 10-prd
+    template: docs/00-governance/templates/prd.md
 """
         )
         (tmp_path / "docs" / "10-prd").mkdir(parents=True, exist_ok=True)
@@ -1054,11 +1062,13 @@ type_directories:
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "fdd.md").write_text(
             """---
-custom_title: "{title}"
-custom_owner: "<Team or Person>"
+custom_title: "{{title}}"
+custom_owner: "{{owner}}"
 ---
 
-# {title}
+# FDD Title
+
+<!-- MEMINIT_METADATA_BLOCK -->
 
 ## Feature Description
 """,
@@ -1072,10 +1082,10 @@ custom_owner: "<Team or Person>"
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  fdd: docs/00-governance/templates/fdd.md
-type_directories:
-  FDD: 50-fdd
+document_types:
+  FDD:
+    directory: 50-fdd
+    template: docs/00-governance/templates/fdd.md
 """
         )
         (tmp_path / "docs" / "50-fdd").mkdir(parents=True, exist_ok=True)
@@ -1104,7 +1114,7 @@ class TestFileLocking:
     def repo_for_locking(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "00-governance" / "templates" / "adr.md").write_text(
-            "# ADR: {title}\n"
+            "# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n"
         )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
@@ -1114,10 +1124,10 @@ class TestFileLocking:
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
-templates:
-  adr: docs/00-governance/templates/adr.md
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/adr.md
 """
         )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)

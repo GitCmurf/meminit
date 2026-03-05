@@ -13,7 +13,7 @@ def test_plan_driven_migration_e2e(tmp_path: Path):
     docs_dir.mkdir(parents=True)
     
     config_file = tmp_path / "docops.config.yaml"
-    config_file.write_text("namespaces:\n  - namespace: default\n    docs_root: docs\n    type_directories:\n      ADR: 45-adr", encoding="utf-8")
+    config_file.write_text("namespaces:\n  - namespace: default\n    docs_root: docs\n    document_types:\n      ADR:\n        directory: 45-adr", encoding="utf-8")
     
     # 1. Missing frontmatter file
     missing_fm = docs_dir / "adr-001.md"

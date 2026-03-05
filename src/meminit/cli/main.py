@@ -1804,11 +1804,11 @@ def new_doc(
             }
 
             # Add Templates v2 fields if available
-            if result.content:
+            if result.content is not None:
                 response_data["rendered_content"] = result.content
-            if result.content_sha256:
+            if result.content_sha256 is not None:
                 response_data["content_sha256"] = result.content_sha256
-            if result.template_info:
+            if result.template_info is not None:
                 response_data["template"] = result.template_info
             if dry_run:
                 response_data["dry_run"] = True

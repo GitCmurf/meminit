@@ -6,6 +6,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import yaml
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import log_debug
 
 DEFAULT_DOCS_ROOT = "docs"
@@ -325,48 +326,44 @@ def _build_namespace_config(
     # Parse document_types (Templates v2 - single source of truth)
     # Merge defaults and namespace entries (namespace entries override defaults)
     document_types: Dict[str, DocumentTypeConfig] = {}
+    
+    def parse_document_types(target: Optional[Mapping]) -> None:
+        if isinstance(target, Mapping):
+            for k, v in target.items():
+                doc_type = _normalize_type_key(k)
+                if not isinstance(v, Mapping):
+                    continue
+                def _normalize_document_type_directory(root: Path, docs_root: str, raw: Any) -> Optional[str]:
+                    if not isinstance(raw, str):
+                        return None
+                    value = raw.strip().replace("\\", "/")
+                    if not value:
+                        return None
+                    if value.startswith(f"{docs_root}/"):
+                        value = value[len(docs_root) + 1 :]
+                    if value.startswith("./"):
+                        value = value[2:]
+                    return _safe_repo_relative_path(root, value)
 
-    # First, parse defaults
-    default_document_types = defaults.get("document_types")
-    if isinstance(default_document_types, Mapping):
-        for k, v in default_document_types.items():
-            doc_type = _normalize_type_key(k)
-            if not isinstance(v, Mapping):
-                continue
-            directory = v.get("directory")
-            if not directory:
-                continue  # directory is required
-            directory_norm = _safe_repo_relative_path(root, directory)
-            if not directory_norm:
-                continue  # invalid path
-            template_norm = _safe_repo_relative_path(root, v.get("template"))
-            description = v.get("description") if isinstance(v.get("description"), str) else None
-            document_types[doc_type] = DocumentTypeConfig(
-                directory=directory_norm,
-                template=template_norm,
-                description=description
-            )
+                directory_norm = _normalize_document_type_directory(root, docs_root_norm, v.get("directory"))
+                if not directory_norm:
+                    continue
 
-    # Then, override with namespace entries
-    namespace_document_types = raw_namespace.get("document_types")
-    if isinstance(namespace_document_types, Mapping):
-        for k, v in namespace_document_types.items():
-            doc_type = _normalize_type_key(k)
-            if not isinstance(v, Mapping):
-                continue
-            directory = v.get("directory")
-            if not directory:
-                continue  # directory is required
-            directory_norm = _safe_repo_relative_path(root, directory)
-            if not directory_norm:
-                continue  # invalid path
-            template_norm = _safe_repo_relative_path(root, v.get("template"))
-            description = v.get("description") if isinstance(v.get("description"), str) else None
-            document_types[doc_type] = DocumentTypeConfig(
-                directory=directory_norm,
-                template=template_norm,
-                description=description
-            )
+                # Reject directory values that escape docs_root via ..
+                if ".." in Path(directory_norm).parts:
+                    continue
+                    
+                template_norm = _safe_repo_relative_path(root, v.get("template"))
+                description = v.get("description") if isinstance(v.get("description"), str) else None
+                document_types[doc_type] = DocumentTypeConfig(
+                    directory=directory_norm,
+                    template=template_norm,
+                    description=description
+                )
+                type_directories[doc_type] = directory_norm
+    
+    parse_document_types(defaults.get("document_types"))
+    parse_document_types(raw_namespace.get("document_types"))
 
     templates: Dict[str, str] = {}
     for raw_templates in (defaults.get("templates"), raw_namespace.get("templates")):
@@ -397,32 +394,29 @@ def _build_namespace_config(
 
 
 def _validate_no_legacy_config_keys(config_data: Dict[str, Any]) -> None:
-    """Validate that legacy config keys are not present (Templates v2).
+    """Warn if legacy config keys are present (Templates v2).
 
-    Templates v2 rejects legacy 'type_directories' and 'templates' keys at runtime.
-    Use 'meminit migrate-templates' to convert legacy configs before using v2.
-
-    For now, this only logs a debug warning. In the future, this will raise
-    LEGACY_CONFIG_UNSUPPORTED once migration tooling is available.
+    Templates v2 prefers 'document_types' over legacy 'type_directories' and
+    'templates' keys.  This emits a DeprecationWarning so brownfield and
+    migration workflows are not blocked.  A future major release will reject
+    these keys outright once migration tooling is stable.
 
     Args:
         config_data: The loaded config data dictionary.
     """
     legacy_keys = []
-    if config_data.get("type_directories"):
+    if "type_directories" in config_data:
         legacy_keys.append("type_directories")
-    if config_data.get("templates"):
+    if "templates" in config_data:
         legacy_keys.append("templates")
 
     if legacy_keys:
-        # TODO: Promote to raising MeminitError once migration tooling is available
-        log_debug(
-            operation="warning.legacy_config_keys",
-            details={
-                "message": f"Legacy config keys detected: {', '.join(legacy_keys)}",
-                "migration_command": "meminit migrate-templates",
-                "legacy_keys": legacy_keys,
-            },
+        import warnings
+        warnings.warn(
+            f"Legacy config keys detected: {', '.join(legacy_keys)}. "
+            "Use 'meminit migrate-templates' to convert to 'document_types'.",
+            DeprecationWarning,
+            stacklevel=3,
         )
 
 

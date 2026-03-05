@@ -24,9 +24,9 @@ related_ids:
 > **Last Updated:** 2026-03-04
 > **Type:** ADR
 
-# MEMINIT-ADR-014: Templates v2 Architecture
-
 <!-- MEMINIT_SECTION: title -->
+
+# MEMINIT-ADR-014: Templates v2 Architecture
 
 <!-- AGENT: The title should be concise and descriptive of the decision being made. -->
 
@@ -37,13 +37,14 @@ related_ids:
 - **Informed:** All Meminit users
 - **References:** MEMINIT-PRD-006, MEMINIT-SPEC-007
 
-## 1. Context & Problem Statement
-
 <!-- MEMINIT_SECTION: context -->
+
+## 1. Context & Problem Statement
 
 <!-- AGENT: Describe the motivating problem, constraints, and forces. State the scope and what is explicitly out of scope. -->
 
 Meminit v1 template system had several limitations:
+
 - Dual syntax support (`{title}` and `{{title}}`) created confusion
 - Template configuration split between `type_directories` and `templates` keys
 - No stable section markers for agent orchestration
@@ -53,6 +54,7 @@ Meminit v1 template system had several limitations:
 Given Meminit's pre-alpha status, we have an opportunity to establish clean, breaking changes without backward compatibility constraints.
 
 Scope:
+
 - Template resolution precedence chain
 - Interpolation syntax standardization
 - Section marker format for agent orchestration
@@ -60,12 +62,13 @@ Scope:
 - Configuration model unification
 
 Out of scope:
+
 - Template content authoring guidelines
 - Legacy v1 template behavior
 
-## 2. Decision Drivers
-
 <!-- MEMINIT_SECTION: decision_drivers -->
+
+## 2. Decision Drivers
 
 <!-- AGENT: List the key forces that influence the decision (e.g., latency, cost, safety, operability, compliance, UX, delivery risk). -->
 
@@ -76,9 +79,9 @@ Out of scope:
 - **Pre-alpha freedom**: Breaking changes acceptable for clean architecture
 - **Extensibility**: Design must support future template features
 
-## 3. Options Considered
-
 <!-- MEMINIT_SECTION: options -->
+
+## 3. Options Considered
 
 <!-- AGENT: For each option, capture summary, evidence, pros, cons, and risks. Present options fairly. -->
 
@@ -100,9 +103,9 @@ Out of scope:
 
 **Chosen option:** Option C
 
-## 4. Decision Outcome
-
 <!-- MEMINIT_SECTION: decision -->
+
+## 4. Decision Outcome
 
 <!-- AGENT: Clearly state the chosen option with rationale tied to decision drivers. Include scope/applicability and status gates. -->
 
@@ -120,9 +123,9 @@ Out of scope:
   - Draft → In Review: Migration tool available
   - In Review → Approved: All built-in templates migrated
 
-## 5. Consequences
-
 <!-- MEMINIT_SECTION: consequences -->
+
+## 5. Consequences
 
 <!-- AGENT: Document positive outcomes, negative trade-offs, and any follow-up work needed. -->
 
@@ -141,9 +144,9 @@ Out of scope:
   - Documentation updates for template authors
   - Migration guide for existing repositories
 
-## 6. Implementation Notes
-
 <!-- MEMINIT_SECTION: implementation -->
+
+## 6. Implementation Notes
 
 <!-- AGENT: Include implementation plan, owners, rollout strategy, and monitoring needs. -->
 
@@ -164,9 +167,9 @@ Out of scope:
   - Track template resolution source (config/convention/builtin/none)
   - Monitor validation failures (size, encoding, symlink)
 
-## 7. Validation & Compliance
-
 <!-- MEMINIT_SECTION: validation -->
+
+## 7. Validation & Compliance
 
 <!-- AGENT: Specify tests, tooling checks, operational checks, and success metrics. -->
 
@@ -186,9 +189,9 @@ Out of scope:
   - All built-in templates include section markers
   - Migration tool converts legacy configs successfully
 
-## 8. Alternatives Rejected
-
 <!-- MEMINIT_SECTION: alternatives -->
+
+## 8. Alternatives Rejected
 
 <!-- AGENT: List rejected options with one-line reason each. -->
 
@@ -196,18 +199,18 @@ Out of scope:
 - **Gradual deprecation**: Rejected due to complexity and pre-alpha freedom
 - **Keep legacy config keys**: Rejected due to configuration duplication
 
-## 9. Supersession
-
 <!-- MEMINIT_SECTION: supersession -->
+
+## 9. Supersession
 
 <!-- AGENT: Track what this ADR supersedes and what supersedes it. -->
 
 - Supersedes: None (new template system)
 - Superseded by: None
 
-## 10. Notes for Agents
-
 <!-- MEMINIT_SECTION: agent_notes -->
+
+## 10. Notes for Agents
 
 <!-- AGENT: Include key entities/terms for RAG, code anchors this ADR governs, and known gaps/TODOs. -->
 
@@ -226,12 +229,12 @@ Out of scope:
   - Migration tool (`meminit migrate-templates`) not yet implemented
   - Legacy config rejection currently logs warning only (should raise error)
 
-## 11. Version History
-
 <!-- MEMINIT_SECTION: version_history -->
+
+## 11. Version History
 
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-03-04 | Product Team | Initial draft |
+| Version | Date       | Author       | Changes       |
+| ------- | ---------- | ------------ | ------------- |
+| 0.1     | 2026-03-04 | Product Team | Initial draft |
