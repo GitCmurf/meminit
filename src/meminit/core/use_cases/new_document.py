@@ -1402,6 +1402,7 @@ class NewDocumentUseCase:
             "source": resolution.source,
             "path": None,
             "sections": [],
+            "content_preview": "",
         }
 
         if resolution.path:
@@ -1429,10 +1430,11 @@ class NewDocumentUseCase:
         template_content = resolution.content if resolution.content else ""
         if template_content:
             preview_len = 200
-            if len(template_content) > preview_len:
-                info["content_preview"] = template_content[:preview_len] + "..."
-            else:
-                info["content_preview"] = template_content
+            info["content_preview"] = (
+                template_content[:preview_len] + "..."
+                if len(template_content) > preview_len
+                else template_content
+            )
 
         return info
 

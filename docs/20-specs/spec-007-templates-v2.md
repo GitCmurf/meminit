@@ -93,7 +93,7 @@ Path is relative to repository root. Must resolve within repo bounds.
 
 Convention templates use this pattern:
 
-```
+```text
 <docs_root>/00-governance/templates/<type>.template.md
 ```
 
@@ -263,12 +263,10 @@ Markers inside code fences are **ignored**:
 
 ## Fake Section (inside code fence, ignored)
 ```
-````
 
 <!-- MEMINIT_SECTION: another -->
 
 ## Another Section
-
 ````
 
 In this example:
@@ -289,7 +287,7 @@ Duplicate section IDs raise `DUPLICATE_SECTION_ID` error:
 <!-- MEMINIT_SECTION: title -->
 
 ## Title 2
-````
+```
 
 Error response:
 
@@ -340,7 +338,7 @@ Multiple `<!-- AGENT: ... -->` markers are combined with newlines:
 
 Combined prompt:
 
-```
+```text
 Describe the problem or opportunity.
 Include relevant context and constraints.
 Reference related decisions.
@@ -468,7 +466,7 @@ When `--format json` is used with `meminit new`, the response includes Templates
 | `AMBIGUOUS_SECTION_BOUNDARY`   | Ambiguous section boundary                 |
 | `LEGACY_CONFIG_UNSUPPORTED`    | Legacy `type_directories`/`templates` keys |
 
-See `docs/20-specs/spec-006-errorcode-enum.md` for complete error code inventory.
+See MEMINIT-SPEC-006 for complete error code inventory.
 
 ## 10. Compliance Checklist
 

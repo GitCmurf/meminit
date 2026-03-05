@@ -1,12 +1,12 @@
 ---
-document_id: { { document_id } }
-type: { { type } }
-title: { { title } }
-status: { { status } }
+document_id: {{document_id}}
+type: {{type}}
+title: {{title}}
+status: {{status}}
 version: "0.1"
-last_updated: { { date } }
-owner: { { owner } }
-area: { { area } }
+last_updated: {{date}}
+owner: {{owner}}
+area: {{area}}
 docops_version: "2.0"
 template_type: fdd-standard
 template_version: "2.0"

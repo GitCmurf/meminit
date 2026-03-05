@@ -283,10 +283,10 @@ class TemplateResolver:
                         message=f"Convention templates must be under docs/{_CONVENTION_DIR}/: {path.relative_to(self._repo_root)}",
                         details={"path": str(path)}
                     )
-            except ValueError:
+            except ValueError as exc:
                 # path.relative_to failed - outside docs_dir
                 raise MeminitError(
                     code=ErrorCode.INVALID_TEMPLATE_FILE,
                     message=f"Convention template outside docs directory: {path.relative_to(self._repo_root)}",
                     details={"path": str(path)}
-                ) from ValueError
+                ) from exc

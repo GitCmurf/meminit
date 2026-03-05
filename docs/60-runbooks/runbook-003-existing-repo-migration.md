@@ -43,7 +43,7 @@ If your repo uses a nonstandard docs layout (e.g., `docs/adrs/` instead of `docs
 - `excluded_paths`: ignore template folders and other non-governed markdown
 - `type_directories`: map doc types to the folders you actually use (e.g., `ADR: adrs`)
 
-Note: Legacy `type_directories` and `templates` config keys are no longer supported in Templates v2. Use `document_types` instead.
+Note: Legacy `type_directories` and `templates` config keys are deprecated in Templates v2 and remain temporarily supported for migration compatibility. Prefer `document_types`.
 
 ### 2. Initialization
 

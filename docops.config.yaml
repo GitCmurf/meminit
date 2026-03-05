@@ -10,6 +10,13 @@ namespaces:
   - name: meminit
     repo_prefix: MEMINIT
     docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+    document_types:
+      GOV:
+        directory: "."
+        description: "Organisation-level governance document"
 
 # Templates v2: document_types is the single source of truth
 # Legacy 'templates' and 'type_directories' keys are not supported in Templates v2

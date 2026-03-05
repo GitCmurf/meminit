@@ -30,8 +30,8 @@ implementation reference aligned to the current CLI behavior.
 Maintenance note: This document is reference-only. New design decisions and
 requirements must be recorded in MEMINIT-PRD-002.
 
-Version 0.3 and the 2026-02-18 `last_updated` date capture the final implemented
-state before supersession; MEMINIT-PRD-002 is the authoritative source.
+The frontmatter version (0.1) and date (2026-03-04) reflect the supersession edit;
+the original final version was 0.3 (2026-02-18). MEMINIT-PRD-002 is the authoritative source.
 
 ## Feature Description
 
