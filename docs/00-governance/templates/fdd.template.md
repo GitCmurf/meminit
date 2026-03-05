@@ -22,16 +22,14 @@ template_version: "2.0"
 > **Type:** {{type}}
 
 <!-- MEMINIT_SECTION: title -->
+<!-- AGENT: The title should be concise and descriptive of the feature. -->
 
 # {{document_id}}: {{title}}
 
-<!-- AGENT: The title should be concise and descriptive of the feature. -->
-
 <!-- MEMINIT_SECTION: toc -->
+<!-- AGENT: Generate a table of contents with anchor links to all numbered sections. -->
 
 ## Table of Contents
-
-<!-- AGENT: Generate a table of contents with anchor links to all numbered sections. -->
 
 1. [Executive Summary](#1-executive-summary)
 2. [Feature Overview](#2-feature-overview)
@@ -43,26 +41,23 @@ template_version: "2.0"
 8. [Version History](#8-version-history)
 
 <!-- MEMINIT_SECTION: executive_summary -->
+<!-- AGENT: Write a 2-3 sentence summary. What is being built, for whom, and why now? -->
 
 ## 1. Executive Summary
-
-<!-- AGENT: Write a 2-3 sentence summary. What is being built, for whom, and why now? -->
 
 [Summary here]
 
 <!-- MEMINIT_SECTION: overview -->
+<!-- AGENT: Describe the feature at a high level. What problem does it solve? Who is it for? -->
 
 ## 2. Feature Overview
-
-<!-- AGENT: Describe the feature at a high level. What problem does it solve? Who is it for? -->
 
 [Describe the feature here]
 
 <!-- MEMINIT_SECTION: user_stories -->
+<!-- AGENT: List user stories with acceptance criteria. -->
 
 ## 3. User Stories
-
-<!-- AGENT: List user stories with acceptance criteria. -->
 
 | Story     | As a   | I want to | So that   | Acceptance Criteria |
 | --------- | ------ | --------- | --------- | ------------------- |
@@ -70,10 +65,9 @@ template_version: "2.0"
 | [Story 2] | [role] | [action]  | [benefit] | [criteria]          |
 
 <!-- MEMINIT_SECTION: requirements -->
+<!-- AGENT: List functional requirements with clear acceptance criteria. -->
 
 ## 4. Functional Requirements
-
-<!-- AGENT: List functional requirements with clear acceptance criteria. -->
 
 - [FR-1] [Requirement description]
   - Acceptance Criteria: [criteria]
@@ -81,10 +75,9 @@ template_version: "2.0"
   - Acceptance Criteria: [criteria]
 
 <!-- MEMINIT_SECTION: design -->
+<!-- AGENT: Describe the technical approach. Include architecture, data models, and key algorithms. -->
 
 ## 5. Technical Design
-
-<!-- AGENT: Describe the technical approach. Include architecture, data models, and key algorithms. -->
 
 ### Architecture
 
@@ -99,28 +92,25 @@ template_version: "2.0"
 [API endpoints if applicable]
 
 <!-- MEMINIT_SECTION: dependencies -->
+<!-- AGENT: List internal and external dependencies. -->
 
 ## 6. Dependencies
-
-<!-- AGENT: List internal and external dependencies. -->
 
 - [Dependency 1]: [Description and impact]
 - [Dependency 2]: [Description and impact]
 
 <!-- MEMINIT_SECTION: open_questions -->
+<!-- AGENT: List unresolved questions that need answers before implementation. -->
 
 ## 7. Open Questions
-
-<!-- AGENT: List unresolved questions that need answers before implementation. -->
 
 - [Question 1]
 - [Question 2]
 
 <!-- MEMINIT_SECTION: version_history -->
+<!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 ## 8. Version History
-
-<!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 | Version | Date     | Author    | Changes       |
 | ------- | -------- | --------- | ------------- |

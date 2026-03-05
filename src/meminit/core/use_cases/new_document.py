@@ -314,13 +314,10 @@ class NewDocumentUseCase:
                         superseded_by=params.superseded_by,
                     )
                     if reasoning is not None:
-                        # Use document_types for v2 consistency in reasoning
-                        dt_config = ns.document_types.get(normalized_type.upper())
-                        template_name = dt_config.template if dt_config and dt_config.template else "default"
                         reasoning.append(
                             {
                                 "decision": "template_loaded",
-                                "value": template_name,
+                                "value": self._get_template_display_name(template_info),
                             }
                         )
                     post = safe_frontmatter_loads(content)
@@ -405,13 +402,10 @@ class NewDocumentUseCase:
                 superseded_by=params.superseded_by,
             )
             if reasoning is not None:
-                # Use document_types for v2 consistency in reasoning
-                dt_config = ns.document_types.get(normalized_type.upper())
-                template_name = dt_config.template if dt_config and dt_config.template else "default"
                 reasoning.append(
                     {
                         "decision": "template_loaded",
-                        "value": template_name,
+                        "value": self._get_template_display_name(template_info),
                     }
                 )
 
@@ -579,6 +573,17 @@ class NewDocumentUseCase:
                 return (str(config_owner), "config")
 
         return ("__TBD__", "default")
+
+    def _get_template_display_name(self, template_info: Dict[str, Any]) -> str:
+        """Extract a display name from template_info for reasoning output.
+
+        Args:
+            template_info: Dictionary with 'path' and 'source' keys from _build_template_info.
+
+        Returns:
+            The template path if available, otherwise the source, or 'none'.
+        """
+        return template_info.get("path") or template_info.get("source", "none")
 
     def _load_config_yaml(self) -> Optional[Dict[str, Any]]:
         """Load the docops.config.yaml file from the repository root.

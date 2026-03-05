@@ -22,16 +22,14 @@ template_version: "2.0"
 > **Type:** {{type}}
 
 <!-- MEMINIT_SECTION: title -->
+<!-- AGENT: The title should be concise and descriptive of the feature or product. -->
 
 # PRD: {{title}}
 
-<!-- AGENT: The title should be concise and descriptive of the feature or product. -->
-
 <!-- MEMINIT_SECTION: toc -->
+<!-- AGENT: Generate a table of contents with anchor links to all numbered sections. -->
 
 ## Table of Contents
-
-<!-- AGENT: Generate a table of contents with anchor links to all numbered sections. -->
 
 1. [Executive Summary](#1-executive-summary)
 2. [Problem Statement](#2-problem-statement)
@@ -43,26 +41,23 @@ template_version: "2.0"
 8. [Version History](#8-version-history)
 
 <!-- MEMINIT_SECTION: executive_summary -->
+<!-- AGENT: Write a 2-3 sentence summary. What is being built, for whom, and why now? Include quantified impact if possible. -->
 
 ## 1. Executive Summary
-
-<!-- AGENT: Write a 2-3 sentence summary. What is being built, for whom, and why now? Include quantified impact if possible. -->
 
 [Summary here]
 
 <!-- MEMINIT_SECTION: problem_statement -->
+<!-- AGENT: Quantify the problem with data. State who is impacted and how. What is the current gap? -->
 
 ## 2. Problem Statement
-
-<!-- AGENT: Quantify the problem with data. State who is impacted and how. What is the current gap? -->
 
 [Describe the problem here]
 
 <!-- MEMINIT_SECTION: goals -->
+<!-- AGENT: Define clear, measurable goals. Include success metrics with targets. -->
 
 ## 3. Goals and Success Metrics
-
-<!-- AGENT: Define clear, measurable goals. Include success metrics with targets. -->
 
 ### Goals
 
@@ -78,18 +73,16 @@ template_version: "2.0"
 | [Metric 2] | [Target] | [How to measure] |
 
 <!-- MEMINIT_SECTION: solution -->
+<!-- AGENT: Describe the solution approach. Include high-level architecture and key features. -->
 
 ## 4. Proposed Solution
-
-<!-- AGENT: Describe the solution approach. Include high-level architecture and key features. -->
 
 [Describe the solution here]
 
 <!-- MEMINIT_SECTION: requirements -->
+<!-- AGENT: List functional and non-functional requirements. Prioritize with must/should/could. -->
 
 ## 5. Requirements
-
-<!-- AGENT: List functional and non-functional requirements. Prioritize with must/should/could. -->
 
 ### Functional Requirements
 
@@ -102,28 +95,25 @@ template_version: "2.0"
 - [NFR-2] [Requirement description]
 
 <!-- MEMINIT_SECTION: alternatives -->
+<!-- AGENT: Describe alternative approaches and why they were not chosen. -->
 
 ## 6. Alternatives Considered
-
-<!-- AGENT: Describe alternative approaches and why they were not chosen. -->
 
 - [Alternative 1]: [Reason for rejection]
 - [Alternative 2]: [Reason for rejection]
 
 <!-- MEMINIT_SECTION: open_questions -->
+<!-- AGENT: List unresolved questions that need answers before implementation. -->
 
 ## 7. Open Questions
-
-<!-- AGENT: List unresolved questions that need answers before implementation. -->
 
 - [Question 1]
 - [Question 2]
 
 <!-- MEMINIT_SECTION: version_history -->
+<!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 ## 8. Version History
-
-<!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 | Version | Date     | Author    | Changes       |
 | ------- | -------- | --------- | ------------- |
