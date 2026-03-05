@@ -113,12 +113,12 @@ When no template is found, a minimal skeleton is used:
 
 ```markdown
 ---
-document_id: { { document_id } }
-type: { { type } }
-title: { { title } }
-status: { { status } }
-last_updated: { { date } }
-owner: { { owner } }
+document_id: {{document_id}}
+type: {{type}}
+title: {{title}}
+status: {{status}}
+last_updated: {{date}}
+owner: {{owner}}
 docops_version: 2.0
 ---
 

@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import os
 import re
 import sys
@@ -11,8 +12,6 @@ from typing import Any, Dict, List, Optional
 import frontmatter
 import yaml
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
-
-import hashlib
 
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -1001,146 +1000,6 @@ class NewDocumentUseCase:
 
         return "\n".join(lines)
 
-    def _load_template(
-        self,
-        doc_type: str,
-        title: str,
-        doc_id: str,
-        ns: RepoConfig,
-        owner: str = "__TBD__",
-        status: str = "Draft",
-        area: Optional[str] = None,
-        description: Optional[str] = None,
-        keywords: Optional[List[str]] = None,
-        related_ids: Optional[List[str]] = None,
-        superseded_by: Optional[str] = None,
-        strict: bool = False,
-    ) -> str:
-        template_path_str = ns.templates.get(doc_type.lower())
-        template_content = ""
-        template_frontmatter: Dict[str, Any] = {}
-        template_path: Optional[Path] = None
-        template_found = False
-
-        if template_path_str:
-            template_path = self.root_dir / template_path_str
-            if template_path.exists():
-                template_content = template_path.read_text(encoding="utf-8")
-                template_found = True
-            elif strict:
-                raise MeminitError(
-                    code=ErrorCode.TEMPLATE_NOT_FOUND,
-                    message=f"Template not found for type '{doc_type}': {template_path}",
-                    details={"doc_type": doc_type, "template_path": str(template_path)},
-                )
-        log_debug(
-            operation="debug.template_resolution",
-            details={
-                "doc_type": doc_type,
-                "template_path": str(template_path) if template_path else None,
-                "template_found": template_found,
-            },
-        )
-
-        body = template_content
-        if body.strip().startswith("---"):
-            try:
-                post = safe_frontmatter_loads(body)
-            except (yaml.YAMLError, ValueError):
-                pass
-            else:
-                template_frontmatter = dict(post.metadata) if post.metadata else {}
-                body = post.content
-
-        if not body.strip():
-            body = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
-            log_debug(
-                operation="debug.template_resolution",
-                details={
-                    "doc_type": doc_type,
-                    "fallback": "default_skeleton",
-                },
-            )
-
-        docops_version = str(ns.docops_version or "2.0")
-
-        generated_metadata: Dict[str, Any] = {
-            "document_id": doc_id,
-            "type": doc_type,
-            "title": title,
-            "status": status,
-            "version": "0.1",
-            "last_updated": date.today().isoformat(),
-            "owner": owner,
-            "docops_version": docops_version,
-        }
-
-        if area is not None:
-            generated_metadata["area"] = area
-        if description is not None:
-            generated_metadata["description"] = description
-        if keywords is not None:
-            generated_metadata["keywords"] = keywords
-        if related_ids is not None:
-            generated_metadata["related_ids"] = related_ids
-        if superseded_by is not None:
-            generated_metadata["superseded_by"] = superseded_by
-
-        for key, value in list(template_frontmatter.items()):
-            if isinstance(value, str):
-                template_frontmatter[key] = self._apply_common_template_substitutions(
-                    value,
-                    doc_type=doc_type,
-                    title=title,
-                    doc_id=doc_id,
-                    status=status,
-                    owner=owner,
-                    area=area,
-                    description=description,
-                    keywords=keywords,
-                    related_ids=related_ids,
-                )
-            elif isinstance(value, list):
-                template_frontmatter[key] = [
-                    self._apply_common_template_substitutions(
-                        v,
-                        doc_type=doc_type,
-                        title=title,
-                        doc_id=doc_id,
-                        status=status,
-                        owner=owner,
-                        area=area,
-                        description=description,
-                        keywords=keywords,
-                        related_ids=related_ids,
-                    )
-                    if isinstance(v, str)
-                    else v
-                    for v in value
-                ]
-
-        metadata = {**template_frontmatter, **generated_metadata}
-
-        body = self._apply_common_template_substitutions(
-            body,
-            doc_type=doc_type,
-            title=title,
-            doc_id=doc_id,
-            status=status,
-            owner=owner,
-            area=area,
-            description=description,
-            keywords=keywords,
-            related_ids=related_ids,
-        )
-
-        visible_block = self._generate_visible_metadata_block(metadata)
-        if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
-            body = body.replace("<!-- MEMINIT_METADATA_BLOCK -->", visible_block)
-
-        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
-        return f"---\n{fm_yaml}\n---\n\n{body.lstrip()}"
-
     def _id_type_segment(self, doc_type: str) -> str:
         """Extract the type segment for document ID generation.
 
@@ -1397,7 +1256,6 @@ class NewDocumentUseCase:
         Args:
             resolution: TemplateResolution object from TemplateResolver.
             sections: List of SectionMarker objects from SectionParser.
-            rendered_content: The final rendered document content.
 
         Returns:
             Template info dictionary for inclusion in JSON response.
