@@ -2,14 +2,19 @@
 document_id: MEMINIT-RUNBOOK-003
 type: RUNBOOK
 docops_version: "2.0"
-last_updated: "2026-03-01"
-status: Approved
+last_updated: "2026-03-05"
+status: Superseded
 title: Existing Repository Migration
 owner: GitCmurf
 version: "1.0"
+superseded_by: MEMINIT-RUNBOOK-007
 ---
 
 # Runbook: Existing Repository Migration
+
+> [!IMPORTANT]
+> This document is **Superseded** by [MEMINIT-RUNBOOK-007](../60-runbooks/runbook-007-existing-repo-migration-v2.md).
+> Content below is preserved for historical audit purposes only.
 
 ## Goal
 
@@ -37,6 +42,8 @@ If your repo uses a nonstandard docs layout (e.g., `docs/adrs/` instead of `docs
 
 - `excluded_paths`: ignore template folders and other non-governed markdown
 - `type_directories`: map doc types to the folders you actually use (e.g., `ADR: adrs`)
+
+Note: Legacy `type_directories` and `templates` config keys are deprecated in Templates v2 and remain temporarily supported for migration compatibility. Prefer `document_types`.
 
 ### 2. Initialization
 

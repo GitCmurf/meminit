@@ -193,8 +193,9 @@ docops_version: '2.0'
 docs_root: docs
 excluded_paths:
   - docs/templates
-type_directories:
-  ADR: adrs
+document_types:
+  ADR:
+    directory: adrs
 """
     )
 
@@ -404,9 +405,11 @@ class TestTargetedCheck:
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
-  PRD: 10-prd
+document_types:
+  ADR:
+    directory: 45-adr
+  PRD:
+    directory: 10-prd
 """
         )
 
@@ -553,8 +556,9 @@ docops_version: 2.0
             """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
-type_directories:
-  ADR: 45-adr
+document_types:
+  ADR:
+    directory: 45-adr
 """
         )
 

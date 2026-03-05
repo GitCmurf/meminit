@@ -67,6 +67,12 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `INVALID_STATUS`           | New-only   | The provided status value is not valid.                         |
 | `INVALID_RELATED_ID`       | New-only   | A related_id references a non-existent document.                |
 | `TEMPLATE_NOT_FOUND`       | New-only   | No template found for the requested document type.              |
+| `LEGACY_CONFIG_UNSUPPORTED`| New-only   | Legacy config keys (type_directories, templates) rejected at runtime. |
+| `INVALID_TEMPLATE_PLACEHOLDER` | New-only | Legacy placeholder syntax ({title}, <REPO>) detected in template. |
+| `UNKNOWN_TEMPLATE_VARIABLE` | New-only  | Unknown {{variable}} placeholder in template.                   |
+| `INVALID_TEMPLATE_FILE`    | New-only   | Template file validation failure (symlink, size, encoding).     |
+| `DUPLICATE_SECTION_ID`     | New-only   | Duplicate section ID in template.                               |
+| `AMBIGUOUS_SECTION_BOUNDARY` | New-only | Ambiguous section boundary detected.                            |
 | `SCHEMA_INVALID`           | Check-only | The metadata schema JSON is malformed or unreadable.            |
 | `LOCK_TIMEOUT`             | Shared     | A file lock could not be acquired within the timeout period.    |
 | `FILE_NOT_FOUND`           | Check-only | A targeted file path does not exist.                            |

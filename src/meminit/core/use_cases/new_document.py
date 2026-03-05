@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import os
 import re
 import sys
@@ -18,6 +19,9 @@ from meminit.core.services.metadata_normalization import normalize_yaml_scalar_f
 from meminit.core.services.observability import get_current_run_id, log_debug, log_operation
 from meminit.core.services.repo_config import RepoConfig, load_repo_config, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.section_parser import SectionParser
+from meminit.core.services.template_interpolation import TemplateInterpolator
+from meminit.core.services.template_resolver import TemplateResolver
 from meminit.core.services.validators import SchemaValidator
 
 try:
@@ -295,7 +299,7 @@ class NewDocumentUseCase:
                                 "source": owner_source,
                             }
                         )
-                    content = self._load_template(
+                    content, template_info = self._load_template_v2(
                         normalized_type,
                         params.title,
                         doc_id,
@@ -309,12 +313,10 @@ class NewDocumentUseCase:
                         superseded_by=params.superseded_by,
                     )
                     if reasoning is not None:
-                        template_path_str = ns.templates.get(normalized_type.lower())
-                        template_name = template_path_str if template_path_str else "default"
                         reasoning.append(
                             {
                                 "decision": "template_loaded",
-                                "value": template_name,
+                                "value": self._get_template_display_name(template_info),
                             }
                         )
                     post = safe_frontmatter_loads(content)
@@ -344,6 +346,8 @@ class NewDocumentUseCase:
                             related_ids=params.related_ids,
                             superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
+                            content_sha256=self._compute_content_sha256(existing_content),
+                            template_info=template_info,
                             reasoning=reasoning,
                         )
                     raise MeminitError(
@@ -383,7 +387,7 @@ class NewDocumentUseCase:
                         "source": owner_source,
                     }
                 )
-            content = self._load_template(
+            content, template_info = self._load_template_v2(
                 normalized_type,
                 params.title,
                 doc_id,
@@ -397,12 +401,10 @@ class NewDocumentUseCase:
                 superseded_by=params.superseded_by,
             )
             if reasoning is not None:
-                template_path_str = ns.templates.get(normalized_type.lower())
-                template_name = template_path_str if template_path_str else "default"
                 reasoning.append(
                     {
                         "decision": "template_loaded",
-                        "value": template_name,
+                        "value": self._get_template_display_name(template_info),
                     }
                 )
 
@@ -431,6 +433,8 @@ class NewDocumentUseCase:
                     superseded_by=params.superseded_by,
                     dry_run=True,
                     content=content,
+                    content_sha256=self._compute_content_sha256(content),
+                    template_info=template_info,
                     reasoning=reasoning,
                 )
 
@@ -499,6 +503,8 @@ class NewDocumentUseCase:
                 related_ids=params.related_ids,
                 superseded_by=params.superseded_by,
                 dry_run=False,
+                content_sha256=self._compute_content_sha256(content),
+                template_info=template_info,
                 reasoning=reasoning,
             )
         finally:
@@ -566,6 +572,17 @@ class NewDocumentUseCase:
                 return (str(config_owner), "config")
 
         return ("__TBD__", "default")
+
+    def _get_template_display_name(self, template_info: Dict[str, Any]) -> str:
+        """Extract a display name from template_info for reasoning output.
+
+        Args:
+            template_info: Dictionary with 'path' and 'source' keys from _build_template_info.
+
+        Returns:
+            The template path if available, otherwise the source, or 'none'.
+        """
+        return template_info.get("path") or template_info.get("source", "none")
 
     def _load_config_yaml(self) -> Optional[Dict[str, Any]]:
         """Load the docops.config.yaml file from the repository root.
@@ -983,146 +1000,6 @@ class NewDocumentUseCase:
 
         return "\n".join(lines)
 
-    def _load_template(
-        self,
-        doc_type: str,
-        title: str,
-        doc_id: str,
-        ns: RepoConfig,
-        owner: str = "__TBD__",
-        status: str = "Draft",
-        area: Optional[str] = None,
-        description: Optional[str] = None,
-        keywords: Optional[List[str]] = None,
-        related_ids: Optional[List[str]] = None,
-        superseded_by: Optional[str] = None,
-        strict: bool = False,
-    ) -> str:
-        template_path_str = ns.templates.get(doc_type.lower())
-        template_content = ""
-        template_frontmatter: Dict[str, Any] = {}
-        template_path: Optional[Path] = None
-        template_found = False
-
-        if template_path_str:
-            template_path = self.root_dir / template_path_str
-            if template_path.exists():
-                template_content = template_path.read_text(encoding="utf-8")
-                template_found = True
-            elif strict:
-                raise MeminitError(
-                    code=ErrorCode.TEMPLATE_NOT_FOUND,
-                    message=f"Template not found for type '{doc_type}': {template_path}",
-                    details={"doc_type": doc_type, "template_path": str(template_path)},
-                )
-        log_debug(
-            operation="debug.template_resolution",
-            details={
-                "doc_type": doc_type,
-                "template_path": str(template_path) if template_path else None,
-                "template_found": template_found,
-            },
-        )
-
-        body = template_content
-        if body.strip().startswith("---"):
-            try:
-                post = safe_frontmatter_loads(body)
-            except (yaml.YAMLError, ValueError):
-                pass
-            else:
-                template_frontmatter = dict(post.metadata) if post.metadata else {}
-                body = post.content
-
-        if not body.strip():
-            body = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
-            log_debug(
-                operation="debug.template_resolution",
-                details={
-                    "doc_type": doc_type,
-                    "fallback": "default_skeleton",
-                },
-            )
-
-        docops_version = str(ns.docops_version or "2.0")
-
-        generated_metadata: Dict[str, Any] = {
-            "document_id": doc_id,
-            "type": doc_type,
-            "title": title,
-            "status": status,
-            "version": "0.1",
-            "last_updated": date.today().isoformat(),
-            "owner": owner,
-            "docops_version": docops_version,
-        }
-
-        if area is not None:
-            generated_metadata["area"] = area
-        if description is not None:
-            generated_metadata["description"] = description
-        if keywords is not None:
-            generated_metadata["keywords"] = keywords
-        if related_ids is not None:
-            generated_metadata["related_ids"] = related_ids
-        if superseded_by is not None:
-            generated_metadata["superseded_by"] = superseded_by
-
-        for key, value in list(template_frontmatter.items()):
-            if isinstance(value, str):
-                template_frontmatter[key] = self._apply_common_template_substitutions(
-                    value,
-                    doc_type=doc_type,
-                    title=title,
-                    doc_id=doc_id,
-                    status=status,
-                    owner=owner,
-                    area=area,
-                    description=description,
-                    keywords=keywords,
-                    related_ids=related_ids,
-                )
-            elif isinstance(value, list):
-                template_frontmatter[key] = [
-                    self._apply_common_template_substitutions(
-                        v,
-                        doc_type=doc_type,
-                        title=title,
-                        doc_id=doc_id,
-                        status=status,
-                        owner=owner,
-                        area=area,
-                        description=description,
-                        keywords=keywords,
-                        related_ids=related_ids,
-                    )
-                    if isinstance(v, str)
-                    else v
-                    for v in value
-                ]
-
-        metadata = {**template_frontmatter, **generated_metadata}
-
-        body = self._apply_common_template_substitutions(
-            body,
-            doc_type=doc_type,
-            title=title,
-            doc_id=doc_id,
-            status=status,
-            owner=owner,
-            area=area,
-            description=description,
-            keywords=keywords,
-            related_ids=related_ids,
-        )
-
-        visible_block = self._generate_visible_metadata_block(metadata)
-        if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
-            body = body.replace("<!-- MEMINIT_METADATA_BLOCK -->", visible_block)
-
-        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
-        return f"---\n{fm_yaml}\n---\n\n{body.lstrip()}"
-
     def _id_type_segment(self, doc_type: str) -> str:
         """Extract the type segment for document ID generation.
 
@@ -1223,3 +1100,214 @@ class NewDocumentUseCase:
             body = body.replace(k, v)
 
         return body
+
+    # ========== Templates v2 Methods ==========
+
+    def _load_template_v2(
+        self,
+        doc_type: str,
+        title: str,
+        doc_id: str,
+        ns: RepoConfig,
+        owner: str = "__TBD__",
+        status: str = "Draft",
+        area: Optional[str] = None,
+        description: Optional[str] = None,
+        keywords: Optional[List[str]] = None,
+        related_ids: Optional[List[str]] = None,
+        superseded_by: Optional[str] = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Load and interpolate a template using Templates v2 system.
+
+        Uses the TemplateResolver for precedence chain resolution and
+        TemplateInterpolator for {{variable}} interpolation.
+
+        Args:
+            doc_type: Document type (case-insensitive).
+            title: Document title.
+            doc_id: Full document ID (e.g., REPO-PRD-001).
+            ns: Namespace configuration.
+            owner: Document owner.
+            status: Document status.
+            area: Optional area classification.
+            description: Optional document description.
+            keywords: Optional list of keywords.
+            related_ids: Optional list of related document IDs.
+            superseded_by: Optional superseding document ID.
+
+        Returns:
+            A tuple of (rendered_content, template_info_dict).
+
+        Raises:
+            MeminitError: For template resolution or interpolation errors.
+        """
+        # Resolve template using precedence chain
+        resolver = TemplateResolver(ns)
+        resolution = resolver.resolve(doc_type)
+
+        # Get template content or use skeleton
+        if resolution.content:
+            template_content = resolution.content
+        else:
+            template_content = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
+
+        # Parse document ID for interpolation
+        parts = doc_id.split("-")
+        repo_prefix = parts[0] if len(parts) >= 1 else ns.repo_prefix or ""
+        seq = parts[-1] if len(parts) >= 3 else "001"
+
+        # Interpolate using {{variable}} syntax
+        interpolator = TemplateInterpolator()
+        body = interpolator.interpolate(
+            template_content,
+            title=title,
+            document_id=doc_id,
+            owner=owner,
+            status=status,
+            repo_prefix=repo_prefix,
+            seq=seq,
+            doc_type=doc_type,
+            area=area,
+            description=description,
+            keywords=keywords or [],
+            related_ids=related_ids or [],
+        )
+
+        # Parse frontmatter if present
+        template_frontmatter: Dict[str, Any] = {}
+        if body.strip().startswith("---"):
+            try:
+                post = safe_frontmatter_loads(body)
+            except (yaml.YAMLError, ValueError):
+                pass
+            else:
+                template_frontmatter = dict(post.metadata) if post.metadata else {}
+                body = post.content
+
+        # Build generated metadata
+        docops_version = str(ns.docops_version or "2.0")
+        generated_metadata: Dict[str, Any] = {
+            "document_id": doc_id,
+            "type": doc_type,
+            "title": title,
+            "status": status,
+            "version": "0.1",
+            "last_updated": date.today().isoformat(),
+            "owner": owner,
+            "docops_version": docops_version,
+        }
+
+        if area is not None:
+            generated_metadata["area"] = area
+        if description is not None:
+            generated_metadata["description"] = description
+        if keywords is not None:
+            generated_metadata["keywords"] = keywords
+        if related_ids is not None:
+            generated_metadata["related_ids"] = related_ids
+        if superseded_by is not None:
+            generated_metadata["superseded_by"] = superseded_by
+
+        # Merge frontmatter (generated takes precedence for required fields)
+        metadata = {**template_frontmatter, **generated_metadata}
+
+        # Drop None values to avoid schema validation errors mapping to null in YAML
+        metadata = {k: v for k, v in metadata.items() if v is not None}
+
+        # Generate visible metadata block
+        visible_block = self._generate_visible_metadata_block(metadata)
+
+        # Replace or insert metadata block (FR-8)
+        if "<!-- MEMINIT_METADATA_BLOCK -->" in body:
+            # Replace existing blockquote placeholder
+            body = re.sub(
+                r"<!-- MEMINIT_METADATA_BLOCK -->\s*(?:>.*(?:\n|$))*",
+                visible_block + "\n\n",
+                body,
+                count=1,
+            )
+        else:
+            # Insert after frontmatter (no comment placeholder)
+            body = f"{visible_block}\n\n{body.lstrip()}"
+
+        # Build final document with frontmatter
+        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
+        rendered_content = f"---\n{fm_yaml}\n---\n\n{body}"
+
+        # Parse sections for JSON output
+        section_parser = SectionParser()
+        sections = section_parser.parse_sections(rendered_content)
+
+        # Build template info for JSON output
+        template_info = self._build_template_info(
+            resolution=resolution,
+            sections=sections,
+        )
+
+        return rendered_content, template_info
+
+    def _build_template_info(
+        self,
+        resolution: Any,
+        sections: List[Any],
+    ) -> dict[str, Any]:
+        """Build template info dictionary for JSON output.
+
+        Args:
+            resolution: TemplateResolution object from TemplateResolver.
+            sections: List of SectionMarker objects from SectionParser.
+
+        Returns:
+            Template info dictionary for inclusion in JSON response.
+        """
+        info = {
+            "applied": resolution.source != "none",
+            "source": resolution.source,
+            "path": None,
+            "sections": [],
+            "content_preview": "",
+        }
+
+        if resolution.path:
+            try:
+                info["path"] = str(resolution.path.resolve().relative_to(self.root_dir.resolve()))
+            except ValueError:
+                info["path"] = str(resolution.path)
+
+        # Add section info
+        for section in sections:
+            section_dict = {
+                "id": section.id,
+                "heading": section.heading,
+                "line": section.line,
+                "marker_line": section.marker_line,
+                "content_start_line": section.content_start_line,
+                "content_end_line": section.content_end_line,
+                "required": section.required,
+                "agent_prompt": section.agent_prompt,
+                "initial_content": section.initial_content,
+            }
+            info["sections"].append(section_dict)
+
+        # Add content preview (first 200 chars)
+        template_content = resolution.content if resolution.content else ""
+        if template_content:
+            preview_len = 200
+            info["content_preview"] = (
+                template_content[:preview_len] + "..."
+                if len(template_content) > preview_len
+                else template_content
+            )
+
+        return info
+
+    def _compute_content_sha256(self, content: str) -> str:
+        """Compute SHA-256 hash of content.
+
+        Args:
+            content: The content to hash.
+
+        Returns:
+            Hexadecimal SHA-256 digest.
+        """
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()

@@ -40,7 +40,7 @@ def test_scan_reports_ambiguous_type_directories(tmp_path):
 def test_scan_uses_configured_type_directories(tmp_path):
     (tmp_path / "docs" / "decisions").mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
-        "type_directories:\n  ADR: decisions\n",
+        "document_types:\n  ADR:\n    directory: decisions\n",
         encoding="utf-8",
     )
 

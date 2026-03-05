@@ -49,14 +49,9 @@ _FALLBACK_SCHEMA_JSON = b"""{
 """
 
 _FALLBACK_TEMPLATES: dict[str, bytes] = {
-    "templates/template-001-adr.md": b"# <REPO>-ADR-<SEQ>: <Decision Title>\\n\\n"
-    b"## 1. Context & Problem Statement\\n\\n"
-    b"## 2. Decision Drivers\\n\\n"
-    b"## 3. Options Considered\\n\\n"
-    b"## 4. Decision Outcome\\n\\n"
-    b"## 5. Consequences\\n",
-    "templates/template-001-fdd.md": b"# FDD: {title}\\n\\n## Feature Description\\n",
-    "templates/template-001-prd.md": b"# PRD: {title}\\n\\n## Product Requirements\\n",
+    "templates/adr.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## 1. Context & Problem Statement\\n\\n## 2. Decision Drivers\\n\\n## 3. Options Considered\\n\\n## 4. Decision Outcome\\n\\n## 5. Consequences\\n",
+    "templates/fdd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Feature Description\\n",
+    "templates/prd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Product Requirements\\n",
 }
 
 
@@ -134,31 +129,26 @@ class InitRepositoryUseCase:
                 "schema_path": f"{docs_root}/00-governance/metadata.schema.json",
                 "excluded_paths": [f"{docs_root}/00-governance/templates"],
                 "excluded_filename_prefixes": ["WIP-"],
-                "type_directories": {
-                    "GOV": "00-governance",
-                    "RFC": "00-governance",
-                    "STRAT": "02-strategy",
-                    "PRD": "10-prd",
-                    "RESEARCH": "10-prd",
-                    "PLAN": "05-planning",
-                    "TASK": "05-planning/tasks",
-                    "NOTES": "12-notes",
-                    "SPEC": "20-specs",
-                    "DESIGN": "30-design",
-                    "DECISION": "40-decisions",
-                    "ADR": "45-adr",
-                    "FDD": "50-fdd",
-                    "INDEX": "01-indices",
-                    "TESTING": "55-testing",
-                    "LOG": "58-logs",
-                    "GUIDE": "60-runbooks",
-                    "RUNBOOK": "60-runbooks",
-                    "REF": "70-devex",
-                },
-                "templates": {
-                    "adr": "docs/00-governance/templates/template-001-adr.md",
-                    "fdd": "docs/00-governance/templates/template-001-fdd.md",
-                    "prd": "docs/00-governance/templates/template-001-prd.md",
+                "document_types": {
+                    "GOV": {"directory": "00-governance"},
+                    "RFC": {"directory": "00-governance"},
+                    "STRAT": {"directory": "02-strategy"},
+                    "PRD": {"directory": "10-prd", "template": "docs/00-governance/templates/prd.template.md"},
+                    "RESEARCH": {"directory": "10-prd"},
+                    "PLAN": {"directory": "05-planning"},
+                    "TASK": {"directory": "05-planning/tasks"},
+                    "NOTES": {"directory": "12-notes"},
+                    "SPEC": {"directory": "20-specs"},
+                    "DESIGN": {"directory": "30-design"},
+                    "DECISION": {"directory": "40-decisions"},
+                    "ADR": {"directory": "45-adr", "template": "docs/00-governance/templates/adr.template.md"},
+                    "FDD": {"directory": "50-fdd", "template": "docs/00-governance/templates/fdd.template.md"},
+                    "INDEX": {"directory": "01-indices"},
+                    "TESTING": {"directory": "55-testing"},
+                    "LOG": {"directory": "58-logs"},
+                    "GUIDE": {"directory": "60-runbooks"},
+                    "RUNBOOK": {"directory": "60-runbooks"},
+                    "REF": {"directory": "70-devex"},
                 },
             }
             config_path.write_text(

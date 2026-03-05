@@ -1,5 +1,0 @@
-# FDD: {title}
-
-## Feature Description
-...
-

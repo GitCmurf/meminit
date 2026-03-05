@@ -88,9 +88,9 @@ class VendorOrgProfileUseCase:
 
         mapping: Dict[str, str] = {
             "metadata.schema.json": f"{repo_docs_root}/00-governance/metadata.schema.json",
-            "templates/template-001-adr.md": f"{repo_docs_root}/00-governance/templates/template-001-adr.md",
-            "templates/template-001-fdd.md": f"{repo_docs_root}/00-governance/templates/template-001-fdd.md",
-            "templates/template-001-prd.md": f"{repo_docs_root}/00-governance/templates/template-001-prd.md",
+            "templates/adr.template.md": f"{repo_docs_root}/00-governance/templates/adr.template.md",
+            "templates/fdd.template.md": f"{repo_docs_root}/00-governance/templates/fdd.template.md",
+            "templates/prd.template.md": f"{repo_docs_root}/00-governance/templates/prd.template.md",
         }
         if include_org_docs:
             mapping.update(

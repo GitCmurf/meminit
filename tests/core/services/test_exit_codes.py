@@ -36,6 +36,13 @@ def test_exit_code_for_error_mappings():
         ErrorCode.DIRECTORY_MISMATCH: EX_DATAERR,
         ErrorCode.VALIDATION_ERROR: EX_DATAERR,
         ErrorCode.UNKNOWN_ERROR: EX_DATAERR,
+        # Templates v2 error codes
+        ErrorCode.LEGACY_CONFIG_UNSUPPORTED: EX_USAGE,
+        ErrorCode.INVALID_TEMPLATE_PLACEHOLDER: EX_DATAERR,
+        ErrorCode.UNKNOWN_TEMPLATE_VARIABLE: EX_DATAERR,
+        ErrorCode.INVALID_TEMPLATE_FILE: EX_DATAERR,
+        ErrorCode.DUPLICATE_SECTION_ID: EX_DATAERR,
+        ErrorCode.AMBIGUOUS_SECTION_BOUNDARY: EX_DATAERR,
     }
 
     # Verify every defined ErrorCode is in our test expectation

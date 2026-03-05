@@ -1,9 +1,9 @@
 """Use case: provide repository configuration context for agent bootstrap.
 
-Implements the ``meminit context`` command (PRD-003 FR-6).  Reads the
+Implements the ``meminit context`` command (PRD-003 FR-6). Reads the
 repository's ``docops.config.yaml`` via ``load_repo_layout()`` and returns a
-structured payload that an agent can use to understand namespace layout, type
-directories, templates, and exclusion rules.
+structured payload that an agent can use to understand namespace layout,
+document types (including legacy mappings), and exclusion rules.
 
 Deep mode (``--deep``) adds per-namespace document counts with a 10-second
 performance budget.  If the budget is exceeded, partial results are returned
@@ -118,32 +118,58 @@ class ContextRepositoryUseCase:
                 "excluded_filename_prefixes": sorted(ns.excluded_filename_prefixes),
                 "name": ns.namespace,
                 "repo_prefix": ns.repo_prefix,
-                "type_directories": dict(sorted(ns.type_directories.items())),
             }
+            ns_entry["document_types"] = {}
+            for doc_type, dt_config in sorted(ns.document_types.items()):
+                dt_dict = {"directory": dt_config.directory}
+                if dt_config.template:
+                    dt_dict["template"] = dt_config.template
+                if dt_config.description:
+                    dt_dict["description"] = dt_config.description
+                ns_entry["document_types"][doc_type] = dt_dict
+
+            # Merge legacy type_directories into document_types for compatibility
+            for doc_type, directory in sorted(ns.type_directories.items()):
+                ns_entry["document_types"].setdefault(doc_type, {"directory": directory})
+            
             namespaces_data.append(ns_entry)
 
         # Build allowed_types from all namespaces (union of all type keys).
         all_types: set[str] = set()
         for ns in layout.namespaces:
+            all_types.update(ns.document_types.keys())
             all_types.update(ns.type_directories.keys())
 
         # Build templates from the default namespace.
         default_ns = layout.default_namespace()
         raw_config = _load_config_yaml(self.root_dir)
-        templates: Dict[str, str] = dict(sorted(default_ns.templates.items()))
+        
+        # Build global document_types for output based on default_ns
+        global_document_types: Dict[str, Any] = {}
+        for doc_type, dt_config in sorted(default_ns.document_types.items()):
+            dt_dict = {"directory": dt_config.directory}
+            if dt_config.template:
+                dt_dict["template"] = dt_config.template
+            if dt_config.description:
+                dt_dict["description"] = dt_config.description
+            global_document_types[doc_type] = dt_dict
+
+        # Merge legacy type_directories into global document_types for compatibility
+        for doc_type, directory in sorted(default_ns.type_directories.items()):
+            global_document_types.setdefault(doc_type, {"directory": directory})
 
         context_data: Dict[str, Any] = {
             "allowed_types": sorted(all_types),
             "config_path": "docops.config.yaml",
             "default_owner": _resolve_default_owner(raw_config, default_ns.namespace),
             "docops_version": default_ns.docops_version,
+            "document_types": global_document_types,
             "excluded_filename_prefixes": sorted(default_ns.excluded_filename_prefixes),
             "index_path": layout.index_path,
             "namespaces": namespaces_data,
             "project_name": layout.project_name,
             "repo_prefix": default_ns.repo_prefix,
             "schema_path": default_ns.schema_path,
-            "templates": templates,
         }
 
         if deep:

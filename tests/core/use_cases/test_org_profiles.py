@@ -62,9 +62,9 @@ def test_org_profile_resolution_prefers_global_when_present(tmp_path: Path):
         "docops_version": "2.0",
         "files": [
             "metadata.schema.json",
-            "templates/template-001-adr.md",
-            "templates/template-001-fdd.md",
-            "templates/template-001-prd.md",
+            "templates/adr.template.md",
+            "templates/fdd.template.md",
+            "templates/prd.template.md",
         ],
     }
     (root / "profile.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -72,13 +72,13 @@ def test_org_profile_resolution_prefers_global_when_present(tmp_path: Path):
         json.dumps({"$schema": "GLOBAL"}), encoding="utf-8"
     )
     (root / "templates").mkdir(parents=True, exist_ok=True)
-    (root / "templates/template-001-adr.md").write_text(
+    (root / "templates/adr.template.md").write_text(
         "ADR TEMPLATE (GLOBAL)\n", encoding="utf-8"
     )
-    (root / "templates/template-001-fdd.md").write_text(
+    (root / "templates/fdd.template.md").write_text(
         "FDD TEMPLATE (GLOBAL)\n", encoding="utf-8"
     )
-    (root / "templates/template-001-prd.md").write_text(
+    (root / "templates/prd.template.md").write_text(
         "PRD TEMPLATE (GLOBAL)\n", encoding="utf-8"
     )
 
@@ -161,9 +161,9 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
         "docops_version": "2.0",
         "files": [
             "metadata.schema.json",
-            "templates/template-001-adr.md",
-            "templates/template-001-fdd.md",
-            "templates/template-001-prd.md",
+            "templates/adr.template.md",
+            "templates/fdd.template.md",
+            "templates/prd.template.md",
         ],
     }
     (root / "profile.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -171,13 +171,13 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
         json.dumps({"$schema": "FROM_GLOBAL"}), encoding="utf-8"
     )
     (root / "templates").mkdir(parents=True, exist_ok=True)
-    (root / "templates/template-001-adr.md").write_text(
+    (root / "templates/adr.template.md").write_text(
         "ADR TEMPLATE\n", encoding="utf-8"
     )
-    (root / "templates/template-001-fdd.md").write_text(
+    (root / "templates/fdd.template.md").write_text(
         "FDD TEMPLATE\n", encoding="utf-8"
     )
-    (root / "templates/template-001-prd.md").write_text(
+    (root / "templates/prd.template.md").write_text(
         "PRD TEMPLATE\n", encoding="utf-8"
     )
 
