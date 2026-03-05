@@ -4,14 +4,14 @@ from pathlib import Path
 from click.testing import CliRunner
 from meminit.cli.main import cli
 
-def test_new_template_frontmatter_regression(tmp_path):
+def test_new_template_frontmatter_regression(tmp_path, monkeypatch):
     """
     Test that 'meminit new' correctly renders built-in templates (PRD, FDD)
     without duplicate frontmatter blocks or literal {{...}} tokens in output.
     """
     # Initialize a dummy repo
     runner = CliRunner()
-    os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
     
     # 1. Initialize
     result = runner.invoke(cli, ["init"])
@@ -45,7 +45,6 @@ def test_new_template_frontmatter_regression(tmp_path):
         
     # There should NOT be a third '---' line (as a standalone line)
     # until we hit tables or other content.
-    # Note: tables use |---| which contains dashes but usually not a lone '---'.
     for i, line in enumerate(lines[second_dash_idx + 1:], second_dash_idx + 1):
         if line.strip() == "---":
             pytest.fail(f"Possible duplicate frontmatter detected at line {i+1}: {line}")
@@ -58,11 +57,13 @@ def test_new_template_frontmatter_regression(tmp_path):
     assert "Regression Test PRD" in content
     assert "Tester" in content
 
-def test_new_fdd_interpolation(tmp_path):
+def test_new_fdd_interpolation(tmp_path, monkeypatch):
     """Verify FDD template interpolation as well."""
     runner = CliRunner()
-    os.chdir(tmp_path)
-    runner.invoke(cli, ["init"])
+    monkeypatch.chdir(tmp_path)
+    
+    result_init = runner.invoke(cli, ["init"])
+    assert result_init.exit_code == 0
     
     result = runner.invoke(cli, [
         "new", "FDD", "Regression Test FDD", 

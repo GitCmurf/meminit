@@ -1,9 +1,9 @@
 """Use case: provide repository configuration context for agent bootstrap.
 
-Implements the ``meminit context`` command (PRD-003 FR-6).  Reads the
+Implements the ``meminit context`` command (PRD-003 FR-6). Reads the
 repository's ``docops.config.yaml`` via ``load_repo_layout()`` and returns a
-structured payload that an agent can use to understand namespace layout, type
-directories, templates, and exclusion rules.
+structured payload that an agent can use to understand namespace layout,
+document types (including legacy mappings), and exclusion rules.
 
 Deep mode (``--deep``) adds per-namespace document counts with a 10-second
 performance budget.  If the budget is exceeded, partial results are returned
@@ -127,6 +127,10 @@ class ContextRepositoryUseCase:
                 if dt_config.description:
                     dt_dict["description"] = dt_config.description
                 ns_entry["document_types"][doc_type] = dt_dict
+
+            # Merge legacy type_directories into document_types for compatibility
+            for doc_type, directory in sorted(ns.type_directories.items()):
+                ns_entry["document_types"].setdefault(doc_type, {"directory": directory})
             
             namespaces_data.append(ns_entry)
 
@@ -149,6 +153,10 @@ class ContextRepositoryUseCase:
             if dt_config.description:
                 dt_dict["description"] = dt_config.description
             global_document_types[doc_type] = dt_dict
+
+        # Merge legacy type_directories into global document_types for compatibility
+        for doc_type, directory in sorted(default_ns.type_directories.items()):
+            global_document_types.setdefault(doc_type, {"directory": directory})
 
         context_data: Dict[str, Any] = {
             "allowed_types": sorted(all_types),

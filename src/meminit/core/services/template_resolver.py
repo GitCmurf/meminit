@@ -262,7 +262,7 @@ class TemplateResolver:
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template file is inaccessible: {path.relative_to(self._repo_root)}",
                 details={"error": str(exc), "path": str(path)}
-            )
+            ) from exc
 
         if size > _MAX_TEMPLATE_SIZE:
             raise MeminitError(
@@ -289,4 +289,4 @@ class TemplateResolver:
                     code=ErrorCode.INVALID_TEMPLATE_FILE,
                     message=f"Convention template outside docs directory: {path.relative_to(self._repo_root)}",
                     details={"path": str(path)}
-                )
+                ) from ValueError

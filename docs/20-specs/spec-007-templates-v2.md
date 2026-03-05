@@ -263,10 +263,12 @@ Markers inside code fences are **ignored**:
 
 ## Fake Section (inside code fence, ignored)
 ```
+````
 
 <!-- MEMINIT_SECTION: another -->
 
 ## Another Section
+
 ````
 
 In this example:
@@ -287,7 +289,7 @@ Duplicate section IDs raise `DUPLICATE_SECTION_ID` error:
 <!-- MEMINIT_SECTION: title -->
 
 ## Title 2
-```
+````
 
 Error response:
 

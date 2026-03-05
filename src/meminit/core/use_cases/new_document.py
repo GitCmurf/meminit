@@ -350,7 +350,7 @@ class NewDocumentUseCase:
                             related_ids=params.related_ids,
                             superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
-                            content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                            content_sha256=self._compute_content_sha256(existing_content),
                             template_info=template_info,
                             reasoning=reasoning,
                         )
@@ -440,7 +440,7 @@ class NewDocumentUseCase:
                     superseded_by=params.superseded_by,
                     dry_run=True,
                     content=content,
-                    content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                    content_sha256=self._compute_content_sha256(content),
                     template_info=template_info,
                     reasoning=reasoning,
                 )
@@ -510,7 +510,7 @@ class NewDocumentUseCase:
                 related_ids=params.related_ids,
                 superseded_by=params.superseded_by,
                 dry_run=False,
-                content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                content_sha256=self._compute_content_sha256(content),
                 template_info=template_info,
                 reasoning=reasoning,
             )
@@ -1378,7 +1378,6 @@ class NewDocumentUseCase:
         template_info = self._build_template_info(
             resolution=resolution,
             sections=sections,
-            rendered_content=rendered_content,
         )
 
         return rendered_content, template_info
@@ -1387,7 +1386,6 @@ class NewDocumentUseCase:
         self,
         resolution: Any,
         sections: List[Any],
-        rendered_content: str,
     ) -> dict[str, Any]:
         """Build template info dictionary for JSON output.
 

@@ -442,7 +442,7 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
         },
     )
 
-    # Check for legacy config keys (Templates v2 - reject at runtime)
+    # Check for legacy config keys (Templates v2 - migrated)
     _validate_no_legacy_config_keys(data)
 
     project_name = str(data.get("project_name") or root.name).strip() or root.name

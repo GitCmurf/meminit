@@ -81,23 +81,6 @@ meminit fix --plan /tmp/meminit_migration_plan.json --no-dry-run
 
 For violations that `fix` cannot handle (e.g., moving files to correct directories), edit the files manually. If `fix` initializes missing frontmatter fields, review and replace placeholder values like `owner: Unknown`.
 
-### 4a. Template Migration (Templates v2)
-
-If your repository uses legacy template placeholder syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.), migrate to Templates v2:
-
-```bash
-meminit migrate-templates
-```
-
-This command:
-
-- Converts legacy `type_directories` config to `document_types` format
-- Converts legacy `templates` config to `document_types.<type>.template` format
-- Renames template files from `template-001-*.md` to `*.template.md`
-- Migrates placeholder syntax from `{title}` to `{{title}}` and `<REPO>` to `{{repo_prefix}}`
-
-Review the changes and commit them.
-
 ### 5. Validation
 
 Run `meminit check` again to ensure zero violations.

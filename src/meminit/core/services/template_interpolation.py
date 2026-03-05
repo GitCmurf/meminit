@@ -40,7 +40,7 @@ class TemplateInterpolator:
     """
 
     # Preferred {{variable}} patterns - compiled on initialization
-    _PREFERRED_PATTERNS: List[tuple[re.Pattern[str], str]] = [
+    _PREFERRED_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         (re.compile(r'\{\{\s*title\s*\}\}'), 'title'),
         (re.compile(r'\{\{\s*document_id\s*\}\}'), 'document_id'),
         (re.compile(r'\{\{\s*owner\s*\}\}'), 'owner'),
@@ -53,10 +53,10 @@ class TemplateInterpolator:
         (re.compile(r'\{\{\s*description\s*\}\}'), 'description'),
         (re.compile(r'\{\{\s*keywords\s*\}\}'), 'keywords'),
         (re.compile(r'\{\{\s*related_ids\s*\}\}'), 'related_ids'),
-    ]
+    )
 
     # Legacy patterns to detect and reject - compiled on initialization
-    _LEGACY_PATTERNS: List[re.Pattern[str]] = [
+    _LEGACY_PATTERNS: tuple[re.Pattern[str], ...] = (
         re.compile(r'(?<!\{)\{title\}(?!\})'),
         re.compile(r'(?<!\{)\{status\}(?!\})'),
         re.compile(r'(?<!\{)\{owner\}(?!\})'),
@@ -72,10 +72,10 @@ class TemplateInterpolator:
         re.compile(r'<Feature Title>'),
         re.compile(r'<Team or Person>'),
         re.compile(r'<AREA>'),
-    ]
+    )
 
-    # Pattern to find unknown {{...}} variables
-    _UNKNOWN_PATTERN = re.compile(r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}')
+    # Pattern to find all {{...}} variables to reject unknown or malformed ones
+    _UNKNOWN_PATTERN = re.compile(r'\{\{\s*([^{}]*?)\s*\}\}')
 
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""
@@ -184,9 +184,9 @@ class TemplateInterpolator:
         known_vars = {key for _, key in self._preferred}
         unknown = set()
         for match in self._unknown.finditer(content):
-            var_name = match.group(1)
+            var_name = match.group(1).strip()
             if var_name not in known_vars:
-                unknown.add(var_name)
+                unknown.add(var_name or "<empty>")
 
         if unknown:
             raise MeminitError(

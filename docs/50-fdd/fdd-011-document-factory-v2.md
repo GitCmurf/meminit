@@ -15,6 +15,16 @@ related_ids:
   - MEMINIT-SPEC-007
 ---
 
+<!-- MEMINIT_METADATA_BLOCK -->
+
+> **Document ID:** MEMINIT-FDD-011
+> **Owner:** Product Team
+> **Status:** Draft
+> **Version:** 1.0
+> **Last Updated:** 2026-03-05
+> **Type:** FDD
+> **Area:** CORE
+
 # FDD: Document Factory (meminit new) - Templates v2
 
 ## Feature Description

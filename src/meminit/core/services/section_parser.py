@@ -61,8 +61,8 @@ class SectionParser:
     AGENT_PROMPT_PATTERN = re.compile(r'^\s*<!--\s*AGENT:\s*(.*?)\s*-->\s*$')
     HEADING_PATTERN = re.compile(r'^(#{1,6})\s+(.+)$')
 
-    # Pattern for code fences (supports various backtick counts)
-    CODE_FENCE_PATTERN = re.compile(r'^(`{3,})')
+    # Pattern for code fences (supports various backtick/tilde counts and indentation)
+    CODE_FENCE_PATTERN = re.compile(r'^\s*([`~]{3,})')
 
     def parse_sections(self, content: str) -> List[SectionMarker]:
         """Parse section markers from template content.
@@ -95,7 +95,7 @@ class SectionParser:
             # Track code fence state (FR-12)
             fence_match = self.CODE_FENCE_PATTERN.match(line)
             if fence_match:
-                fence_char = fence_match.group(1)[0]  # First char (should be `)
+                fence_char = fence_match.group(1)[0]
                 fence_len = len(fence_match.group(1))
 
                 if in_code_fence and fence_char == current_fence_char and fence_len >= current_fence_len:
@@ -203,12 +203,12 @@ class SectionParser:
         Returns:
             A SectionMarker object with all fields populated.
         """
-        # Find the heading (scan backwards first, then forwards, within a reasonable range)
+        # Find the heading (scan forwards first for marker-before-heading templates)
         heading = ""
         heading_line = marker_line
 
-        # First scan backwards from marker
-        for i in range(marker_line - 2, max(-1, marker_line - 2 - _HEADING_SEARCH_RANGE), -1):
+        # First scan forwards from marker
+        for i in range(marker_line - 1, min(marker_line + _HEADING_SEARCH_RANGE, len(lines))):
             if i < 0 or i >= len(lines):
                 continue
             heading_match = heading_pattern.match(lines[i])
@@ -217,9 +217,9 @@ class SectionParser:
                 heading_line = i + 1
                 break
 
-        # If not found backwards, scan forwards from marker
+        # If not found forwards, scan backwards from marker
         if not heading:
-            for i in range(marker_line - 1, min(marker_line + _HEADING_SEARCH_RANGE, len(lines))):
+            for i in range(marker_line - 2, max(-1, marker_line - 2 - _HEADING_SEARCH_RANGE), -1):
                 if i < 0 or i >= len(lines):
                     continue
                 heading_match = heading_pattern.match(lines[i])
