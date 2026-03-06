@@ -183,7 +183,7 @@ def test_validate_unknown_doc_id(tmp_path):
         updated_by="test",
     ))
 
-    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"})
+    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert WarningCode.W_STATE_UNKNOWN_DOC_ID in codes
 
@@ -198,7 +198,7 @@ def test_validate_unknown_impl_state(tmp_path):
         updated_by="test",
     ))
 
-    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"})
+    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE in codes
 
@@ -222,7 +222,7 @@ def test_validate_unsorted_keys(tmp_path):
     )
 
     issues = validate_project_state(
-        state, known_doc_ids={"MEMINIT-PRD-003", "MEMINIT-ADR-010"}
+        state, known_doc_ids={"MEMINIT-PRD-003", "MEMINIT-ADR-010"}, root_dir=tmp_path
     )
     codes = [v.rule for v in issues]
     assert WarningCode.W_STATE_UNSORTED_KEYS in codes
@@ -238,7 +238,7 @@ def test_validate_invalid_actor(tmp_path):
         updated_by="bad<actor>",
     ))
 
-    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"})
+    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert WarningCode.W_FIELD_SANITIZATION_FAILED in codes
 
@@ -254,6 +254,6 @@ def test_validate_notes_too_long(tmp_path):
         notes="x" * 501,
     ))
 
-    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"})
+    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert WarningCode.W_FIELD_SANITIZATION_FAILED in codes

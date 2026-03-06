@@ -50,7 +50,7 @@ def main():
         state_dir.mkdir(parents=True, exist_ok=True)
         state_yaml = "documents:\n"
         for i in range(1, 251):
-            state_yaml += f"  TST-{i:03d}:\n    impl_state: In Progress\n    updated_by: e2e-test\n"
+            state_yaml += f"  TST-{i:03d}:\n    impl_state: In Progress\n    updated_by: e2e-test\n    updated: 2026-01-01T00:00:00Z\n"
         (state_dir / "project-state.yaml").write_text(state_yaml)
 
         # 3. Test `meminit state`

@@ -10,7 +10,7 @@ from jsonschema import Draft7Validator
 from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import MeminitError
 from meminit.core.services.project_state import (
-    STATE_FILE_REL_PATH,
+    get_state_file_rel_path,
     load_project_state,
     validate_project_state,
 )
@@ -134,7 +134,8 @@ class DoctorRepositoryUseCase:
         import yaml
 
         issues: List[Violation] = []
-        state_path = self._root_dir / STATE_FILE_REL_PATH
+        state_file_rel = get_state_file_rel_path(self._root_dir)
+        state_path = self._root_dir / state_file_rel
         if not state_path.exists():
             return issues
 
@@ -143,7 +144,7 @@ class DoctorRepositoryUseCase:
         except MeminitError as exc:
             issues.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
                     rule=exc.code.value,
                     message=exc.message,
@@ -173,7 +174,7 @@ class DoctorRepositoryUseCase:
                     continue
 
         # Run validation.
-        issues.extend(validate_project_state(project_state, known_doc_ids))
+        issues.extend(validate_project_state(project_state, known_doc_ids, self._root_dir))
         return issues
 
     def _validate_schema(self, schema_path: Path) -> List[Violation]:

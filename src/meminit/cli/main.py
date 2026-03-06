@@ -1340,13 +1340,15 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
                 ),
                 output,
             )
+            if has_error:
+                raise SystemExit(1)
             return
 
         if format == "md":
             lines = [
                 "# Meminit Index\n",
                 "- Status: ok",
-                f"- Index path: `{rel_index_path}`",
+                f"- Index path: `{data.get('index_path')}`",
                 f"- Documents: {report.document_count}",
             ]
             if report.catalog_path:
@@ -1355,6 +1357,8 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
                 lines.append(f"- Kanban: `{data.get('kanban_path')}`")
             lines.append("")
             _write_output("\n".join(lines), output)
+            if has_error:
+                raise SystemExit(1)
             return
 
         with maybe_capture(output, format):

@@ -345,11 +345,11 @@ def _generate_kanban(
 
         for entry in col_entries:
             doc_id = sanitize_html(entry.get("document_id", ""))
-            title = sanitize_html(entry.get("title", ""))
+            title = entry.get("title", "")
             status = entry.get("status", "") or ""
             status_escaped = sanitize_html(status)
             notes_raw = entry.get("notes")
-            notes = sanitize_html(notes_raw) if notes_raw else ""
+            notes = notes_raw if notes_raw else ""
 
             lines.append(f'<article class="kanban-card" aria-label="{title}">')
             lines.append(f'<strong class="card-id">{doc_id}</strong>')
@@ -562,7 +562,7 @@ class IndexRepositoryUseCase:
 
         # Validate project state (advisory warnings).
         if project_state:
-            validation_issues = validate_project_state(project_state, known_doc_ids)
+            validation_issues = validate_project_state(project_state, known_doc_ids, self._root_dir)
             for issue in validation_issues:
                 # Do not raise MeminitError here! Allow it to be passed through as severity="error".
                 warnings_list.append({
@@ -577,7 +577,8 @@ class IndexRepositoryUseCase:
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
 
         # Write main index JSON (recency field stripped — internal only).
-        sorted_entries = sorted(filtered, key=lambda e: e["document_id"])
+        sorted_entries = sorted(filtered, key=lambda e: e.get("document_id", ""))
+        sorted_entries.sort(key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
         json_entries = [
             {k: v for k, v in e.items() if not k.startswith("_")}
             for e in sorted_entries

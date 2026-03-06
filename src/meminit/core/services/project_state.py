@@ -25,8 +25,17 @@ from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.sanitization import ACTOR_REGEX, MAX_NOTES_LENGTH, validate_actor
 from meminit.core.services.warning_codes import WarningCode
 
-# Relative path from repo root to the state file.
-STATE_FILE_REL_PATH = "docs/01-indices/project-state.yaml"
+def get_state_file_rel_path(root_dir: Path) -> str:
+    """Resolve the project-state.yaml path dynamically from RepoConfig."""
+    from meminit.core.services.repo_config import RepoConfig
+
+    try:
+        config = RepoConfig.load(root_dir)
+        docs_root = config.docs_root if config.docs_root else "docs"
+        return f"{docs_root}/01-indices/project-state.yaml"
+    except Exception:
+        # Fallback if config is malformed or missing
+        return "docs/01-indices/project-state.yaml"
 
 # Removed duplicate definitions for ACTOR_REGEX and MAX_NOTES_LENGTH
 
@@ -99,7 +108,8 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
     Raises ``MeminitError`` with ``E_STATE_YAML_MALFORMED`` if the file
     exists but is not valid YAML.
     """
-    state_path = root_dir / STATE_FILE_REL_PATH
+    state_file_rel = get_state_file_rel_path(root_dir)
+    state_path = root_dir / state_file_rel
     if not state_path.exists():
         return None
 
@@ -131,7 +141,7 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
         if not isinstance(fields, dict):
             schema_violations.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
                     rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
                     message=f"Entry for '{doc_id}' must be a dictionary.",
@@ -144,7 +154,7 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
         if not isinstance(impl_state, str):
             schema_violations.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
                     rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
                     message=f"Field 'impl_state' for '{doc_id}' must be a string.",
@@ -173,7 +183,7 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
                 updated = default_now or datetime.now(timezone.utc)
                 schema_violations.append(
                     Violation(
-                        file=STATE_FILE_REL_PATH,
+                        file=state_file_rel,
                         line=0,
                         rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                         message=f"Field 'updated' for '{doc_id}' has an invalid format and was defaulted to current time.",
@@ -184,7 +194,7 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
             updated = default_now or datetime.now(timezone.utc)
             schema_violations.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
                     rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                     message=f"Field 'updated' for '{doc_id}' is missing and was defaulted to current time.",
@@ -211,7 +221,8 @@ def save_project_state(root_dir: Path, state: ProjectState) -> Path:
 
     Returns the path to the written file.
     """
-    state_path = root_dir / STATE_FILE_REL_PATH
+    state_file_rel = get_state_file_rel_path(root_dir)
+    state_path = root_dir / state_file_rel
     state_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build the YAML structure with alphabetical ordering.
@@ -237,6 +248,7 @@ def save_project_state(root_dir: Path, state: ProjectState) -> Path:
 def validate_project_state(
     state: ProjectState,
     known_doc_ids: set[str],
+    root_dir: Path,
 ) -> List[Violation]:
     """Validate a parsed project state against known governed document IDs.
 
@@ -245,15 +257,16 @@ def validate_project_state(
     ``meminit doctor`` and ``meminit index``.
     """
     issues: List[Violation] = list(state.schema_violations)
+    state_file_rel = get_state_file_rel_path(root_dir)
 
     # Check alphabetical ordering.
     doc_ids = list(state.entries.keys())
     if doc_ids != sorted(doc_ids):
         issues.append(
             Violation(
-                file=STATE_FILE_REL_PATH,
+                file=state_file_rel,
                 line=0,
-                rule=WarningCode.W_STATE_UNSORTED_KEYS.value,
+                rule=WarningCode.W_STATE_UNSORTED_KEYS,
                 message=(
                     "Entries in project-state.yaml are not sorted alphabetically "
                     "by document_id. Sort to minimize merge conflict radius."
@@ -267,9 +280,9 @@ def validate_project_state(
         if doc_id not in known_doc_ids:
             issues.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
-                    rule=WarningCode.W_STATE_UNKNOWN_DOC_ID.value,
+                    rule=WarningCode.W_STATE_UNKNOWN_DOC_ID,
                     message=f"Document ID '{doc_id}' in project-state.yaml has no corresponding governed document.",
                     severity=Severity.WARNING,
                 )
@@ -279,9 +292,9 @@ def validate_project_state(
         if ImplState.from_string(entry.impl_state) is None:
             issues.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
-                    rule=WarningCode.W_STATE_UNKNOWN_IMPL_STATE.value,
+                    rule=WarningCode.W_STATE_UNKNOWN_IMPL_STATE,
                     message=(
                         f"Unknown impl_state '{entry.impl_state}' for document '{doc_id}'. "
                         f"Valid values: {', '.join(ImplState.canonical_values())}."
@@ -294,9 +307,9 @@ def validate_project_state(
         if entry.updated_by and not validate_actor(entry.updated_by):
             issues.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
                     message=(
                         f"updated_by '{entry.updated_by}' for document '{doc_id}' "
                         "does not match required pattern ^[a-zA-Z0-9._-]+$."
@@ -309,9 +322,9 @@ def validate_project_state(
         if entry.notes is not None and len(entry.notes) > MAX_NOTES_LENGTH:
             issues.append(
                 Violation(
-                    file=STATE_FILE_REL_PATH,
+                    file=state_file_rel,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
                     message=(
                         f"notes for document '{doc_id}' exceeds {MAX_NOTES_LENGTH} characters "
                         f"({len(entry.notes)} chars)."

@@ -58,7 +58,7 @@ def test_doctor_validates_project_state_ok(tmp_path: Path):
     state_dir = tmp_path / "docs" / "01-indices"
     state_dir.mkdir(parents=True, exist_ok=True)
     (state_dir / "project-state.yaml").write_text(
-        "documents:\n  TST-001:\n    impl_state: Done\n"
+        "documents:\n  TST-001:\n    impl_state: Done\n    updated: 2026-01-01T00:00:00Z\n"
     )
     issues = DoctorRepositoryUseCase(str(tmp_path)).execute()
     # We only care about state issues here
