@@ -1316,6 +1316,7 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
 
         warnings_list = getattr(report, "warnings", [])
         has_error = any(w.get("severity") == Severity.ERROR.value for w in warnings_list)
+        status = "error" if has_error else ("warn" if warnings_list else "ok")
 
         data: Dict[str, Any] = {
             "index_path": relative_path_string(report.index_path, root_path),
@@ -1347,7 +1348,7 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
         if format == "md":
             lines = [
                 "# Meminit Index\n",
-                "- Status: ok",
+                f"- Status: {status}",
                 f"- Index path: `{data.get('index_path')}`",
                 f"- Documents: {report.document_count}",
             ]
@@ -1355,6 +1356,13 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
                 lines.append(f"- Catalog: `{data.get('catalog_path')}`")
             if report.kanban_path:
                 lines.append(f"- Kanban: `{data.get('kanban_path')}`")
+            if warnings_list:
+                lines.extend(["", "## Validation Issues", ""])
+                rows = [
+                    [str(w.get("severity")), str(w.get("code")), str(w.get("path")), str(w.get("line")), str(w.get("message"))]
+                    for w in warnings_list
+                ]
+                lines.append(_md_table(["Severity", "Code", "Path", "Line", "Message"], rows))
             lines.append("")
             _write_output("\n".join(lines), output)
             if has_error:
@@ -1362,10 +1370,15 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
             return
 
         with maybe_capture(output, format):
+            style = "red" if has_error else ("yellow" if warnings_list else "green")
             get_console().print(
-                f"[bold green]Index written:[/bold green] {report.index_path} "
+                f"[bold {style}]Index written:[/bold {style}] {report.index_path} "
                 f"({report.document_count} documents)"
             )
+            for warning in warnings_list:
+                get_console().print(
+                    f"  - [{warning.get('severity')}] {warning.get('code')}: {warning.get('message')}"
+                )
             if report.catalog_path:
                 get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")
             if report.kanban_path:

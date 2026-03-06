@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import frontmatter
 
+from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
 from meminit.core.services.project_state import (
@@ -346,17 +347,20 @@ def _generate_kanban(
         for entry in col_entries:
             doc_id = sanitize_html(entry.get("document_id", ""))
             title = entry.get("title", "")
-            status = entry.get("status", "") or ""
+            title_escaped = sanitize_html(title)
+            status = entry.get("status", "")
+            status_slug = status.lower().replace(" ", "-")
             status_escaped = sanitize_html(status)
             notes_raw = entry.get("notes")
-            notes = notes_raw if notes_raw else ""
 
-            lines.append(f'<article class="kanban-card" aria-label="{title}">')
+            lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
             lines.append(f'<strong class="card-id">{doc_id}</strong>')
-            lines.append(f'<span class="card-title">{title}</span>')
-            lines.append(f'<span class="card-status badge-{status.lower().replace(" ", "-")}">{status_escaped}</span>')
-            if notes:
-                lines.append(f'<p class="card-notes">{notes}</p>')
+            lines.append(f'<span class="card-title">{title_escaped}</span>')
+            lines.append(f'<span class="card-status badge-{status_slug}">{status_escaped}</span>')
+            if notes_raw:
+                notes_sanitized = sanitize_field(notes_raw, max_length=500, html_escape=True)
+                if notes_sanitized:
+                    lines.append(f'<p class="card-notes">{notes_sanitized}</p>')
             lines.append("</article>")
 
         lines.append("</section>")
@@ -489,9 +493,24 @@ class IndexRepositoryUseCase:
         ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Load project state (gracefully optional).
-        project_state = load_project_state(self._root_dir)
         warnings_list: List[Dict[str, Any]] = []
+
+        # Load project state (gracefully optional).
+        try:
+            project_state = load_project_state(self._root_dir)
+        except MeminitError as exc:
+            from meminit.core.services.project_state import get_state_file_rel_path
+            
+            project_state = None
+            warnings_list.append(
+                {
+                    "code": exc.code.value,
+                    "message": exc.message,
+                    "severity": Severity.ERROR.value,
+                    "path": get_state_file_rel_path(self._root_dir),
+                    "line": 0,
+                }
+            )
 
         # Scan governed documents.
         entries: List[Dict[str, Any]] = []
@@ -537,20 +556,20 @@ class IndexRepositoryUseCase:
                         resolved_state = ImplState.from_string(state_entry.impl_state)
                         if resolved_state is not None:
                             entry["impl_state"] = resolved_state.value
-                        
-                        entry["updated"] = state_entry.updated.isoformat()
-                        
-                        if state_entry.updated_by and validate_actor(state_entry.updated_by):
-                            entry["updated_by"] = state_entry.updated_by
-                        elif state_entry.updated_by == "":
-                            entry["updated_by"] = ""  # preserve explicitly empty string if originally there
                             
-                        if state_entry.notes is not None:
-                            sanitized_notes = sanitize_field(state_entry.notes, max_length=500, html_escape=True)
-                            if sanitized_notes:
-                                entry["notes"] = sanitized_notes
+                            entry["updated"] = state_entry.updated.isoformat()
                             
-                        state_updated = state_entry.updated
+                            if state_entry.updated_by and validate_actor(state_entry.updated_by):
+                                entry["updated_by"] = state_entry.updated_by
+                            elif state_entry.updated_by == "":
+                                entry["updated_by"] = ""  # preserve explicitly empty string if originally there
+                                
+                            if state_entry.notes is not None:
+                                sanitized_notes = sanitize_field(state_entry.notes, max_length=500, html_escape=True)
+                                if sanitized_notes:
+                                    entry["notes"] = sanitized_notes
+                                
+                            state_updated = state_entry.updated
 
                 # Compute activity recency (used for sorting, not stored in JSON).
                 entry["_recency"] = _activity_recency(

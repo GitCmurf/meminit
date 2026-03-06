@@ -24,7 +24,9 @@ from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.sanitization import ACTOR_REGEX, MAX_NOTES_LENGTH, validate_actor
 from meminit.core.services.warning_codes import WarningCode
+import functools
 
+@functools.lru_cache(maxsize=1)
 def get_state_file_rel_path(root_dir: Path) -> str:
     """Resolve the project-state.yaml path dynamically from RepoConfig."""
     from meminit.core.services.repo_config import RepoConfig
@@ -124,12 +126,36 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
             details={"path": str(state_path)},
         ) from exc
 
-    if not isinstance(raw, dict):
+    if raw is None:
         return ProjectState()
+    if not isinstance(raw, dict):
+        return ProjectState(
+            schema_violations=[
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message="Top-level project-state.yaml value must be a mapping.",
+                    severity=Severity.ERROR,
+                )
+            ]
+        )
 
+    if "documents" not in raw:
+        return ProjectState()
     documents = raw.get("documents")
     if not isinstance(documents, dict):
-        return ProjectState()
+        return ProjectState(
+            schema_violations=[
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message="Field 'documents' must be a mapping.",
+                    severity=Severity.ERROR,
+                )
+            ]
+        )
 
     entries: Dict[str, ProjectStateEntry] = {}
     schema_violations: List[Violation] = []
@@ -170,8 +196,16 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
         # Parse updated — accept both datetime and date objects from YAML.
         updated: datetime
         if isinstance(updated_raw, date) and not isinstance(updated_raw, datetime):
-            # Convert date to datetime at midnight UTC
-            updated = datetime.combine(updated_raw, datetime.min.time(), tzinfo=timezone.utc)
+            schema_violations.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message=f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.",
+                    severity=Severity.ERROR,
+                )
+            )
+            continue
         elif isinstance(updated_raw, datetime):
             updated = updated_raw if updated_raw.tzinfo else updated_raw.replace(tzinfo=timezone.utc)
         elif isinstance(updated_raw, str):
@@ -180,27 +214,27 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
                 if updated.tzinfo is None:
                     updated = updated.replace(tzinfo=timezone.utc)
             except ValueError:
-                updated = default_now or datetime.now(timezone.utc)
                 schema_violations.append(
                     Violation(
                         file=state_file_rel,
                         line=0,
-                        rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
-                        message=f"Field 'updated' for '{doc_id}' has an invalid format and was defaulted to current time.",
-                        severity=Severity.WARNING,
+                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                        message=f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.",
+                        severity=Severity.ERROR,
                     )
                 )
+                continue
         else:
-            updated = default_now or datetime.now(timezone.utc)
             schema_violations.append(
                 Violation(
                     file=state_file_rel,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
-                    message=f"Field 'updated' for '{doc_id}' is missing and was defaulted to current time.",
-                    severity=Severity.WARNING,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message=f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
+                    severity=Severity.ERROR,
                 )
             )
+            continue
 
         if notes is not None:
             notes = str(notes)

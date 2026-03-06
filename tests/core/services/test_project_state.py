@@ -117,6 +117,37 @@ def test_load_project_state_empty_file(tmp_path):
     assert len(state.entries) == 0
 
 
+def test_load_project_state_invalid_documents_shape(tmp_path):
+    _write_state_file(tmp_path, "documents: []\n")
+    state = load_project_state(tmp_path)
+    assert state is not None
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+
+
+def test_load_project_state_invalid_updated_defaults_with_warning(tmp_path):
+    _write_state_file(
+        tmp_path,
+        "documents:\n  MEMINIT-PRD-003:\n    impl_state: Done\n    updated: not-a-timestamp\n    updated_by: GitCmurf\n",
+    )
+    now = datetime(2026, 3, 5, 14, 30, 0, tzinfo=timezone.utc)
+    state = load_project_state(tmp_path, default_now=now)
+    assert state is not None
+    assert "MEMINIT-PRD-003" not in state.entries
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+
+
+def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
+    _write_state_file(
+        tmp_path,
+        "documents:\n  MEMINIT-PRD-003:\n    impl_state: Done\n    updated_by: GitCmurf\n",
+    )
+    now = datetime(2026, 3, 5, 14, 30, 0, tzinfo=timezone.utc)
+    state = load_project_state(tmp_path, default_now=now)
+    assert state is not None
+    assert "MEMINIT-PRD-003" not in state.entries
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+
+
 # ---------------------------------------------------------------------------
 # save_project_state
 # ---------------------------------------------------------------------------
