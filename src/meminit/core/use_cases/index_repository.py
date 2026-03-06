@@ -32,7 +32,12 @@ from meminit.core.services.project_state import (
 )
 from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
-from meminit.core.services.sanitization import sanitize_field, sanitize_html, validate_actor
+from meminit.core.services.sanitization import (
+    escape_markdown_table,
+    sanitize_field,
+    sanitize_html,
+    validate_actor,
+)
 from meminit.core.services.warning_codes import WarningCode
 
 
@@ -250,12 +255,12 @@ def _generate_catalog(
         lines.append(sep)
 
         for entry in group_entries:
-            doc_id = entry.get("document_id", "")
-            title = entry.get("title", "")
-            doc_type = entry.get("type", "")
-            doc_status = entry.get("status", "")
-            impl_state = entry.get("impl_state", "")
-            owner = entry.get("owner", "")
+            doc_id = escape_markdown_table(entry.get("document_id", ""))
+            title = escape_markdown_table(entry.get("title", ""))
+            doc_type = escape_markdown_table(entry.get("type", ""))
+            doc_status = escape_markdown_table(entry.get("status", ""))
+            impl_state = escape_markdown_table(entry.get("impl_state", ""))
+            owner = escape_markdown_table(entry.get("owner", ""))
 
             # Date-only display in Markdown (FR-3 timestamp policy).
             recency: Optional[datetime] = entry.get("_recency")
@@ -314,10 +319,10 @@ def _generate_kanban(
             lines.append("_No documents._")
         else:
             for entry in col_entries:
-                doc_id = entry.get("document_id", "")
-                title = entry.get("title", "")
-                status = entry.get("status", "")
-                notes = entry.get("notes", "")
+                doc_id = escape_markdown_table(entry.get("document_id", ""))
+                title = escape_markdown_table(entry.get("title", ""))
+                status = escape_markdown_table(entry.get("status", ""))
+                notes = escape_markdown_table(entry.get("notes", ""))
                 line = f"- **{doc_id}** — {title} ({status})"
                 if notes:
                     line += f" — _{notes}_"
@@ -339,15 +344,17 @@ def _generate_kanban(
         lines.append(f"<h3>{col_name}</h3>")
 
         for entry in col_entries:
-            doc_id = entry.get("document_id", "")
-            title = entry.get("title", "")
-            status = entry.get("status", "")
-            notes = entry.get("notes", "")
+            doc_id = sanitize_html(entry.get("document_id", ""))
+            title = sanitize_html(entry.get("title", ""))
+            status = entry.get("status", "") or ""
+            status_escaped = sanitize_html(status)
+            notes_raw = entry.get("notes")
+            notes = sanitize_html(notes_raw) if notes_raw else ""
 
             lines.append(f'<article class="kanban-card" aria-label="{title}">')
             lines.append(f'<strong class="card-id">{doc_id}</strong>')
             lines.append(f'<span class="card-title">{title}</span>')
-            lines.append(f'<span class="card-status badge-{status.lower().replace(" ", "-")}">{status}</span>')
+            lines.append(f'<span class="card-status badge-{status.lower().replace(" ", "-")}">{status_escaped}</span>')
             if notes:
                 lines.append(f'<p class="card-notes">{notes}</p>')
             lines.append("</article>")
@@ -527,8 +534,9 @@ class IndexRepositoryUseCase:
                 if project_state:
                     state_entry = project_state.get(doc_id)
                     if state_entry:
-                        if ImplState.from_string(state_entry.impl_state) is not None:
-                            entry["impl_state"] = state_entry.impl_state
+                        resolved_state = ImplState.from_string(state_entry.impl_state)
+                        if resolved_state is not None:
+                            entry["impl_state"] = resolved_state.value
                         
                         entry["updated"] = state_entry.updated.isoformat()
                         
@@ -556,12 +564,7 @@ class IndexRepositoryUseCase:
         if project_state:
             validation_issues = validate_project_state(project_state, known_doc_ids)
             for issue in validation_issues:
-                if issue.rule == ErrorCode.E_STATE_SCHEMA_VIOLATION.value:
-                    raise MeminitError(
-                        code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
-                        message=issue.message,
-                        details={"path": issue.file, "line": issue.line}
-                    )
+                # Do not raise MeminitError here! Allow it to be passed through as severity="error".
                 warnings_list.append({
                     "code": issue.rule,
                     "message": issue.message,

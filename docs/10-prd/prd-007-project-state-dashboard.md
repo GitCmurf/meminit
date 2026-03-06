@@ -515,9 +515,8 @@ programmatic and human-friendly management of `project-state.yaml`.
 
 **Required subcommands:**
 
-- `meminit state set <document_id> --impl-state <value>` — set or update
-  a document's implementation state
-- `meminit state set <document_id> --notes <text>` — set or update notes
+- `meminit state set <document_id> --impl-state <value> [--notes <text>]` — set or update
+  a document's implementation state and optionally its notes
 - `meminit state get <document_id>` — display current state for a document
 - `meminit state list` — display all tracked documents and their states
 
@@ -928,4 +927,4 @@ This PRD is considered implemented when:
 | 0.2     | 2026-03-05 | GitCmurf | Quality pass: fix ID collisions (defer to `meminit new`), update SPEC-004→SPEC-008 refs, add `Blocked` state, fix sort key to activity recency, add FR-8 sanitization, fix grouping logic, add filter grammar, add accessibility reqs, add `updated_by` provenance, clarify task-file interop, deterministic default semantics.                                              |
 | 0.3     | 2026-03-05 | GitCmurf | Round 2: pure Markdown kanban fallback (not `<details>`), expand sanitization to all rendered fields (frontmatter + state), hard decision to amend SPEC-008 (not new spec), structured error/warning code taxonomy, consistent cross-channel invalid-field handling, case-insensitive filter canonicalization, typo fix.                                                     |
 | 0.4     | 2026-03-05 | GitCmurf | Round 3: date→datetime for sub-day sort resolution, merge conflict mitigation (alphabetical key ordering), promote `meminit state` CLI to FR-9 with auto `updated`/`updated_by`, nullable JSON schema fields, filtered catalog header, explicit advisory transitions (no gating), manual-only task→PRD rollups, `W_STATE_UNSORTED_KEYS` code. Integrate user's OQ decisions. |
-| 0.5     | 2026-03-05 | GitCmurf | Round 4: fix `<details>` regression in FDD scope, add CSS-based duplicate-content hiding for kanban fallback, extend SPEC-008 amendment to include `meminit state` payload profile, clarify timestamp display policy (date in Markdown, full datetime in JSON), split section 9 into resolved decisions and remaining open questions, renumber sections. |
+| 0.5     | 2026-03-05 | GitCmurf | Round 4: fix `<details>` regression in FDD scope, add CSS-based duplicate-content hiding for kanban fallback, extend SPEC-008 amendment to include `meminit state` payload profile, clarify timestamp display policy (date in Markdown, full datetime in JSON), split section 9 into resolved decisions and remaining open questions, renumber sections.                     |

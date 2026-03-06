@@ -37,6 +37,28 @@ def validate_actor(value: str) -> bool:
     return bool(ACTOR_REGEX.match(value))
 
 
+def sanitize_actor(value: str) -> str:
+    """Sanitize an actor/updated_by string to valid format.
+
+    Converts spaces to hyphens, removes invalid characters, and truncates
+    to 100 characters. Returns "unknown" if the result is empty.
+    """
+    val = str(value).strip().replace(" ", "-")
+    val = re.sub(r"[^a-zA-Z0-9._-]", "", val)
+    return val[:100] or "unknown"
+
+
+def escape_markdown_table(value: str) -> str:
+    """Escape Markdown table characters (pipe) and newlines.
+
+    Converts pipe characters to their HTML entity and replaces newlines
+    with spaces for safe rendering in Markdown tables.
+    """
+    if not value:
+        return ""
+    return str(value).replace("|", "&#124;").replace("\n", " ").strip()
+
+
 def truncate_notes(value: str, max_len: int = MAX_NOTES_LENGTH) -> str:
     """Truncate *value* to *max_len* characters."""
     if len(value) <= max_len:
@@ -55,6 +77,12 @@ def sanitize_field(
     Returns the sanitized string or ``None`` if the field is empty.
     Does NOT raise — callers should check the return value and emit
     ``W_FIELD_SANITIZATION_FAILED`` if needed.
+
+    Note: Truncation is applied before HTML escaping. This means the final
+    output may exceed ``max_length`` when HTML entities are expanded (e.g.,
+    ``<`` becomes ``&lt;``). This behavior is acceptable for current use cases
+    where the output is written to files, but callers rendering to HTML should
+    account for entity expansion if strict length limits are required.
     """
     if value is None:
         return None

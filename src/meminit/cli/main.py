@@ -1335,12 +1335,14 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
             except Exception:
                 data["kanban_path"] = str(report.kanban_path)
 
+        has_error = any(w.get("severity") == "error" for w in getattr(report, "warnings", []))
+
         if format == "json":
             _write_output(
                 format_envelope(
                     command="index",
                     root=str(root_path),
-                    success=True,
+                    success=not has_error,
                     data=data,
                     warnings=report.warnings,
                     include_timestamp=include_timestamp,
@@ -1374,6 +1376,10 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
                 get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")
             if report.kanban_path:
                 get_console().print(f"[green]Kanban:[/green] {report.kanban_path}")
+
+        # Exit with error if any validation issues occurred (applies to all formats)
+        if has_error:
+            raise SystemExit(1)
 
 
 @cli.command()

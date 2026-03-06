@@ -171,8 +171,26 @@ def load_project_state(root_dir: Path) -> Optional[ProjectState]:
                     updated = updated.replace(tzinfo=timezone.utc)
             except ValueError:
                 updated = datetime.now(timezone.utc)
+                schema_violations.append(
+                    Violation(
+                        file=STATE_FILE_REL_PATH,
+                        line=0,
+                        rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                        message=f"Field 'updated' for '{doc_id}' has an invalid format and was defaulted to current time.",
+                        severity=Severity.WARNING,
+                    )
+                )
         else:
             updated = datetime.now(timezone.utc)
+            schema_violations.append(
+                Violation(
+                    file=STATE_FILE_REL_PATH,
+                    line=0,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                    message=f"Field 'updated' for '{doc_id}' is missing and was defaulted to current time.",
+                    severity=Severity.WARNING,
+                )
+            )
 
         if notes is not None:
             notes = str(notes)

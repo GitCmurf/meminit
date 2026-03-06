@@ -2,7 +2,7 @@
 document_id: MEMINIT-SPEC-008
 type: SPEC
 title: Agent Output Contract (Templates v2)
-status: Approved
+status: Draft
 version: "1.0"
 last_updated: 2026-03-05
 owner: Product Team
@@ -83,12 +83,12 @@ For `command: check`, additional required fields include counters (see [MEMINIT-
 
 Current v2 scope includes `check`, `new`, and `state` commands.
 
-| Command | Required `data` fields                                     | Type     |
-| ------- | ---------------------------------------------------------- | -------- |
-| `check` | See SPEC-004 counters                                      | integers |
-| `new`   | `data.document_id`, `data.path`, `data.type`, `data.title` | strings  |
-| `state set/get` | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by` | strings |
-| `state list` | `data.entries` | array |
+| Command         | Required `data` fields                                                   | Type     |
+| --------------- | ------------------------------------------------------------------------ | -------- |
+| `check`         | See SPEC-004 counters                                                    | integers |
+| `new`           | `data.document_id`, `data.path`, `data.type`, `data.title`               | strings  |
+| `state set/get` | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by` | strings  |
+| `state list`    | `data.entries`                                                           | array    |
 
 ### 5.1 `new` Command Payload (Templates v2)
 
@@ -112,17 +112,20 @@ Optional:
 For `command: state set` and `command: state get`, the `data` object MUST contain:
 
 Required:
+
 - `document_id`
 - `impl_state`
 - `updated` (ISO-8601 string)
 - `updated_by`
 
 Optional:
+
 - `notes`
 
 For `command: state list`, the `data` object MUST contain:
 
 Required:
+
 - `entries`: Array of objects containing the fields above.
 
 ## 6. Determinism Rules

@@ -130,12 +130,12 @@ class TemplateResolver:
                 ) from e
 
             if not full_path.exists():
-                 raise MeminitError(
+                raise MeminitError(
                     code=ErrorCode.TEMPLATE_NOT_FOUND,
                     message=f"Configured template not found: {template_path}",
                     details={"doc_type": doc_type, "template_path": str(template_path)},
                 )
-            
+
             self._validate_template_file(full_path, allow_root=True)
             # Read content after validation to avoid duplicate reads
             content = self._read_template_text(full_path)

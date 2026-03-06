@@ -27,6 +27,7 @@ from meminit.core.services.project_state import (
     load_project_state,
     save_project_state,
 )
+from meminit.core.services.sanitization import truncate_notes, validate_actor
 
 
 @dataclass(frozen=True)
@@ -44,10 +45,12 @@ def _resolve_actor() -> str:
 
     Order: MEMINIT_ACTOR_ID → git config user.name → system username.
     """
+    from meminit.core.services.sanitization import sanitize_actor
+
     # 1. Environment variable.
     actor = os.environ.get("MEMINIT_ACTOR_ID")
     if actor and actor.strip():
-        return actor.strip()
+        return sanitize_actor(actor)
 
     # 2. Git user.name.
     try:
@@ -58,13 +61,13 @@ def _resolve_actor() -> str:
             timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
+            return sanitize_actor(result.stdout)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
     # 3. System username.
     try:
-        return getpass.getuser()
+        return sanitize_actor(getpass.getuser())
     except Exception:
         return "unknown"
 
@@ -108,12 +111,12 @@ class StateDocumentUseCase:
         # Get existing entry if updating.
         existing = state.get(document_id)
         final_impl_state = impl_state or (existing.impl_state if existing else "Not Started")
-        final_notes = notes if notes is not None else (existing.notes if existing else None)
+
+        final_notes = truncate_notes(notes) if notes is not None else (existing.notes if existing else None)
 
         # Auto-populate timestamp and actor.
         now = datetime.now(timezone.utc)
         if actor:
-            from meminit.core.services.sanitization import validate_actor
             if not validate_actor(actor):
                 raise MeminitError(
                     code=ErrorCode.E_INVALID_FILTER_VALUE,

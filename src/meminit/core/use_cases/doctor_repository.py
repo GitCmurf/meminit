@@ -131,6 +131,7 @@ class DoctorRepositoryUseCase:
     def _validate_project_state(self) -> List[Violation]:
         """Validate project-state.yaml when present (PRD-007)."""
         import frontmatter as fm
+        import yaml
 
         issues: List[Violation] = []
         state_path = self._root_dir / STATE_FILE_REL_PATH
@@ -167,7 +168,8 @@ class DoctorRepositoryUseCase:
                     doc_id = post.metadata.get("document_id")
                     if isinstance(doc_id, str) and doc_id.strip():
                         known_doc_ids.add(doc_id.strip())
-                except Exception:
+                except (yaml.YAMLError, ValueError, UnicodeDecodeError, OSError):
+                    # Skip files with parsing errors, encoding issues, or I/O problems
                     continue
 
         # Run validation.
