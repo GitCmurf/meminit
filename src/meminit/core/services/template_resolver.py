@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Final, Optional
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig
 
 # Constants for template sources
@@ -182,7 +183,7 @@ class TemplateResolver:
         except UnicodeDecodeError as exc:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template is not valid UTF-8: {path.relative_to(self._repo_root)}",
+                message=f"Template is not valid UTF-8: {relative_path_string(path, self._repo_root)}",
                 details={"path": str(path)},
             ) from exc
 

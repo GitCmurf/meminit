@@ -6,7 +6,6 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import yaml
 
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import log_debug
 
 DEFAULT_DOCS_ROOT = "docs"

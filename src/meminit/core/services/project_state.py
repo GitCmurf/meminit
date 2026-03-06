@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -22,16 +22,13 @@ import yaml
 
 from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.sanitization import ACTOR_REGEX, MAX_NOTES_LENGTH, validate_actor
 from meminit.core.services.warning_codes import WarningCode
 
 # Relative path from repo root to the state file.
 STATE_FILE_REL_PATH = "docs/01-indices/project-state.yaml"
 
-# Regex for valid ``updated_by`` values.
-ACTOR_REGEX = re.compile(r"^[a-zA-Z0-9._-]+$")
-
-# Maximum length for notes field.
-MAX_NOTES_LENGTH = 500
+# Removed duplicate definitions for ACTOR_REGEX and MAX_NOTES_LENGTH
 
 
 class ImplState(str, Enum):
@@ -95,7 +92,7 @@ class ProjectState:
         return sorted(self.entries.keys())
 
 
-def load_project_state(root_dir: Path) -> Optional[ProjectState]:
+def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -> Optional[ProjectState]:
     """Load and parse ``project-state.yaml`` from the repo root.
 
     Returns ``None`` if the file does not exist (gracefully optional).
@@ -162,7 +159,10 @@ def load_project_state(root_dir: Path) -> Optional[ProjectState]:
 
         # Parse updated — accept both datetime and date objects from YAML.
         updated: datetime
-        if isinstance(updated_raw, datetime):
+        if isinstance(updated_raw, date) and not isinstance(updated_raw, datetime):
+            # Convert date to datetime at midnight UTC
+            updated = datetime.combine(updated_raw, datetime.min.time(), tzinfo=timezone.utc)
+        elif isinstance(updated_raw, datetime):
             updated = updated_raw if updated_raw.tzinfo else updated_raw.replace(tzinfo=timezone.utc)
         elif isinstance(updated_raw, str):
             try:
@@ -170,23 +170,23 @@ def load_project_state(root_dir: Path) -> Optional[ProjectState]:
                 if updated.tzinfo is None:
                     updated = updated.replace(tzinfo=timezone.utc)
             except ValueError:
-                updated = datetime.now(timezone.utc)
+                updated = default_now or datetime.now(timezone.utc)
                 schema_violations.append(
                     Violation(
                         file=STATE_FILE_REL_PATH,
                         line=0,
-                        rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                        rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                         message=f"Field 'updated' for '{doc_id}' has an invalid format and was defaulted to current time.",
                         severity=Severity.WARNING,
                     )
                 )
         else:
-            updated = datetime.now(timezone.utc)
+            updated = default_now or datetime.now(timezone.utc)
             schema_violations.append(
                 Violation(
                     file=STATE_FILE_REL_PATH,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                     message=f"Field 'updated' for '{doc_id}' is missing and was defaulted to current time.",
                     severity=Severity.WARNING,
                 )
@@ -253,7 +253,7 @@ def validate_project_state(
             Violation(
                 file=STATE_FILE_REL_PATH,
                 line=0,
-                rule=WarningCode.W_STATE_UNSORTED_KEYS,
+                rule=WarningCode.W_STATE_UNSORTED_KEYS.value,
                 message=(
                     "Entries in project-state.yaml are not sorted alphabetically "
                     "by document_id. Sort to minimize merge conflict radius."
@@ -269,7 +269,7 @@ def validate_project_state(
                 Violation(
                     file=STATE_FILE_REL_PATH,
                     line=0,
-                    rule=WarningCode.W_STATE_UNKNOWN_DOC_ID,
+                    rule=WarningCode.W_STATE_UNKNOWN_DOC_ID.value,
                     message=f"Document ID '{doc_id}' in project-state.yaml has no corresponding governed document.",
                     severity=Severity.WARNING,
                 )
@@ -281,7 +281,7 @@ def validate_project_state(
                 Violation(
                     file=STATE_FILE_REL_PATH,
                     line=0,
-                    rule=WarningCode.W_STATE_UNKNOWN_IMPL_STATE,
+                    rule=WarningCode.W_STATE_UNKNOWN_IMPL_STATE.value,
                     message=(
                         f"Unknown impl_state '{entry.impl_state}' for document '{doc_id}'. "
                         f"Valid values: {', '.join(ImplState.canonical_values())}."
@@ -291,12 +291,12 @@ def validate_project_state(
             )
 
         # Check updated_by format.
-        if entry.updated_by and not ACTOR_REGEX.match(entry.updated_by):
+        if entry.updated_by and not validate_actor(entry.updated_by):
             issues.append(
                 Violation(
                     file=STATE_FILE_REL_PATH,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                     message=(
                         f"updated_by '{entry.updated_by}' for document '{doc_id}' "
                         "does not match required pattern ^[a-zA-Z0-9._-]+$."
@@ -311,7 +311,7 @@ def validate_project_state(
                 Violation(
                     file=STATE_FILE_REL_PATH,
                     line=0,
-                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED,
+                    rule=WarningCode.W_FIELD_SANITIZATION_FAILED.value,
                     message=(
                         f"notes for document '{doc_id}' exceeds {MAX_NOTES_LENGTH} characters "
                         f"({len(entry.notes)} chars)."

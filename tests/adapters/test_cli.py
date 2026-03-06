@@ -785,7 +785,8 @@ def test_cli_index_json_warnings_schema_validity(tmp_path):
     (state_dir / "project-state.yaml").write_text(
         "documents:\n"
         "  UNKNOWN-001:\n"
-        "    impl_state: Done\n",
+        "    impl_state: Done\n"
+        "    updated: 2025-12-21T10:00:00Z\n",
         encoding="utf-8"
     )
 

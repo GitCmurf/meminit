@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from meminit.cli.shared_flags import agent_output_options, agent_repo_options
-from meminit.core.domain.entities import NewDocumentParams, Violation
+from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import (
     EX_CANTCREAT,
@@ -25,6 +25,7 @@ from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
@@ -1313,29 +1314,18 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
         )
         report = use_case.execute()
 
-        rel_index_path = None
-        try:
-            rel_index_path = report.index_path.relative_to(root_path).as_posix()
-        except Exception:
-            rel_index_path = str(report.index_path)
+        warnings_list = getattr(report, "warnings", [])
+        has_error = any(w.get("severity") == Severity.ERROR.value for w in warnings_list)
 
         data: Dict[str, Any] = {
-            "index_path": rel_index_path,
+            "index_path": relative_path_string(report.index_path, root_path),
             "document_count": report.document_count,
             "documents": report.documents,
         }
         if report.catalog_path:
-            try:
-                data["catalog_path"] = report.catalog_path.relative_to(root_path).as_posix()
-            except Exception:
-                data["catalog_path"] = str(report.catalog_path)
+            data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
         if report.kanban_path:
-            try:
-                data["kanban_path"] = report.kanban_path.relative_to(root_path).as_posix()
-            except Exception:
-                data["kanban_path"] = str(report.kanban_path)
-
-        has_error = any(w.get("severity") == "error" for w in getattr(report, "warnings", []))
+            data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
 
         if format == "json":
             _write_output(
@@ -1344,7 +1334,7 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
                     root=str(root_path),
                     success=not has_error,
                     data=data,
-                    warnings=report.warnings,
+                    warnings=warnings_list,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
@@ -2288,7 +2278,6 @@ def state_get(document_id, root, format, output, include_timestamp):
 def state_list(root, format, output, include_timestamp):
     """List all entries in project-state.yaml."""
     from meminit.core.use_cases.state_document import StateDocumentUseCase
-    from rich.table import Table
 
     run_id = get_current_run_id()
     root_path = Path(root).resolve()

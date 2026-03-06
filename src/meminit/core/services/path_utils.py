@@ -41,3 +41,23 @@ def compute_file_hash(path: Path) -> str:
         for chunk in iter(lambda: f.read(8192), b''):
             h.update(chunk)
     return f"sha256:{h.hexdigest()}"
+
+
+def relative_path_string(path: Path, base: Path) -> str:
+    """Return path relative to base as a string, or absolute path if not relative.
+
+    This is a common pattern throughout the codebase for error messages and
+    output formatting. It avoids exposing full absolute paths when a relative
+    path is more meaningful to the user.
+
+    Args:
+        path: The path to convert.
+        base: The base directory for relative path computation.
+
+    Returns:
+        A string path - either relative to base (with forward slashes) or absolute.
+    """
+    try:
+        return path.relative_to(base).as_posix()
+    except ValueError:
+        return str(path)

@@ -7,7 +7,7 @@ version: 0.1
 last_updated: 2026-03-04
 owner: Product Team
 docops_version: 2.0
-superseded_by: MEMINIT-FDD-011
+superseded_by: MEMINIT-FDD-011, MEMINIT-PRD-002
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->

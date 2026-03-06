@@ -65,7 +65,7 @@ def main():
         run(cli_cmd + ["index", "--output-catalog", "--output-kanban"], temp_dir)
         index_duration = time.time() - start_index
         print(f"Index generated in {index_duration:.2f}s")
-        assert index_duration <= 6.5, f"SLA FAILED: Index generation took {index_duration:.2f}s"
+        assert index_duration <= 5.0, f"SLA FAILED: Index generation took {index_duration:.2f}s (target <= 5.0s)"
         
         # 5. Check outputs
         index_json = (state_dir / "meminit.index.json").read_text()
