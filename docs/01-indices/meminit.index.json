@@ -1,7 +1,7 @@
 {
   "output_schema_version": "1.0",
   "index_version": "0.2",
-  "generated_at": "2026-03-07T06:31:05.778973+00:00",
+  "generated_at": "2026-03-07T13:25:12.896129+00:00",
   "namespaces": [
     {
       "namespace": "meminit",
@@ -15,6 +15,62 @@
     }
   ],
   "documents": [
+    {
+      "document_id": "MEMINIT-PRD-006",
+      "path": "docs/10-prd/prd-006-document-templates.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PRD",
+      "title": "Document Templates v2 \u2014 Content Archetypes for Human &amp; Machine Authoring",
+      "status": "In Review",
+      "owner": "GitCmurf",
+      "last_updated": "2026-03-04",
+      "impl_state": "Done",
+      "updated": "2026-03-07T12:16:01.874128+00:00",
+      "updated_by": "GitCmurf"
+    },
+    {
+      "document_id": "MEMINIT-PRD-001",
+      "path": "docs/10-prd/prd-001-meminit-tooling-ecosystem.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PRD",
+      "title": "Meminit Tooling Ecosystem PRD",
+      "status": "Draft",
+      "owner": "GitCmurf",
+      "last_updated": "2025-12-18",
+      "impl_state": "Done",
+      "updated": "2026-03-07T12:15:43.676025+00:00",
+      "updated_by": "GitCmurf"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-003",
+      "path": "docs/05-planning/plan-003-roadmap.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "Project Roadmap",
+      "status": "Draft",
+      "owner": "Product Team",
+      "last_updated": "2026-02-18",
+      "impl_state": "In Progress",
+      "updated": "2026-03-07T07:38:26.110421+00:00",
+      "updated_by": "GitCmurf"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-005",
+      "path": "docs/05-planning/plan-005-backlog-issues.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "WIP Backlog &amp; Issues Tracker",
+      "status": "Draft",
+      "owner": "GitCmurf",
+      "last_updated": "2026-03-07",
+      "impl_state": "In Progress",
+      "updated": "2026-03-07T06:34:10.931941+00:00",
+      "updated_by": "GitCmurf"
+    },
     {
       "document_id": "MEMINIT-PRD-002",
       "path": "docs/10-prd/prd-002-new-file-function.md",
@@ -30,14 +86,25 @@
       "updated_by": "GitCmurf"
     },
     {
-      "document_id": "MEMINIT-PLAN-005",
-      "path": "docs/05-planning/plan-005-backlog-issues.md",
+      "document_id": "MEMINIT-ADR-015",
+      "path": "docs/45-adr/adr-015-test-section-markers.md",
       "namespace": "meminit",
       "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "WIP Backlog &amp; Issues Tracker",
+      "type": "ADR",
+      "title": "Test Section Markers",
       "status": "Draft",
-      "owner": "GitCmurf",
+      "owner": "__TBD__",
+      "last_updated": "2026-03-07"
+    },
+    {
+      "document_id": "MEMINIT-ADR-016",
+      "path": "docs/45-adr/adr-016-test-json-output.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "ADR",
+      "title": "Test JSON Output",
+      "status": "Draft",
+      "owner": "__TBD__",
       "last_updated": "2026-03-07"
     },
     {
@@ -186,17 +253,6 @@
       "last_updated": "2026-03-04"
     },
     {
-      "document_id": "MEMINIT-PRD-006",
-      "path": "docs/10-prd/prd-006-document-templates.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Document Templates v2 \u2014 Content Archetypes for Human &amp; Machine Authoring",
-      "status": "In Review",
-      "owner": "GitCmurf",
-      "last_updated": "2026-03-04"
-    },
-    {
       "document_id": "MEMINIT-SPEC-007",
       "path": "docs/20-specs/spec-007-templates-v2.md",
       "namespace": "meminit",
@@ -305,17 +361,6 @@
       "status": "Draft",
       "owner": "DocOps Working Group",
       "last_updated": "2026-02-19"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-003",
-      "path": "docs/05-planning/plan-003-roadmap.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Project Roadmap",
-      "status": "Draft",
-      "owner": "Product Team",
-      "last_updated": "2026-02-18"
     },
     {
       "document_id": "MEMINIT-SPEC-002",
@@ -472,17 +517,6 @@
       "last_updated": "2025-12-18"
     },
     {
-      "document_id": "MEMINIT-PRD-001",
-      "path": "docs/10-prd/prd-001-meminit-tooling-ecosystem.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Meminit Tooling Ecosystem PRD",
-      "status": "Draft",
-      "owner": "GitCmurf",
-      "last_updated": "2025-12-18"
-    },
-    {
       "document_id": "MEMINIT-ADR-004",
       "path": "docs/45-adr/adr-004-use-immutable-repo-type-seq-document-ids.md",
       "namespace": "meminit",
@@ -498,7 +532,7 @@
       "path": "docs/00-governance/gov-003-security-practices.md",
       "namespace": "meminit",
       "repo_prefix": "MEMINIT",
-      "type": "governance",
+      "type": "GOV",
       "title": "Public Repository Security Practices",
       "status": "Draft",
       "owner": "Security Team",
@@ -674,7 +708,7 @@
       "path": "docs/00-governance/gov-002-versioning-practices.md",
       "namespace": "meminit",
       "repo_prefix": "MEMINIT",
-      "type": "governance",
+      "type": "GOV",
       "title": "Versioning Practices (Operational Guide)",
       "status": "Draft",
       "owner": "DocOps Working Group",

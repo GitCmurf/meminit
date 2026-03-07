@@ -1,7 +1,15 @@
 documents:
+  MEMINIT-PLAN-003:
+    impl_state: In Progress
+    updated: '2026-03-07T07:38:26.110421+00:00'
+    updated_by: GitCmurf
   MEMINIT-PLAN-005:
     impl_state: In Progress
     updated: '2026-03-07T06:34:10.931941+00:00'
+    updated_by: GitCmurf
+  MEMINIT-PRD-001:
+    impl_state: Done
+    updated: '2026-03-07T12:15:43.676025+00:00'
     updated_by: GitCmurf
   MEMINIT-PRD-002:
     impl_state: Done
@@ -18,6 +26,10 @@ documents:
   MEMINIT-PRD-005:
     impl_state: Not Started
     updated: '2026-03-06T16:27:48.224674+00:00'
+    updated_by: GitCmurf
+  MEMINIT-PRD-006:
+    impl_state: Done
+    updated: '2026-03-07T12:16:01.874128+00:00'
     updated_by: GitCmurf
   MEMINIT-PRD-007:
     impl_state: Done
