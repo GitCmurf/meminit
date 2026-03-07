@@ -140,7 +140,9 @@ def test_cli_check_violations_text(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
             }
         ],
         warnings=[],
@@ -169,7 +171,9 @@ def test_cli_check_violations_json(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
             }
         ],
         warnings=[],
@@ -196,7 +200,9 @@ def test_cli_check_violations_json(mock_use_case):
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
-def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, tmp_path):
+def test_cli_check_json_output_write_failure_returns_json_error(
+    mock_use_case, tmp_path
+):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
         success=True,
@@ -358,7 +364,9 @@ def test_cli_check_violations_md(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
+                "violations": [
+                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
+                ],
             }
         ],
         warnings=[],
@@ -388,7 +396,9 @@ def test_cli_check_warnings_non_strict(mock_use_case):
         warnings=[
             {
                 "path": "docs/warn.md",
-                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
+                "warnings": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
+                ],
             }
         ],
         checked_paths=["docs/warn.md"],
@@ -416,7 +426,9 @@ def test_cli_check_warnings_quiet_is_silent(mock_use_case, tmp_path):
         warnings=[
             {
                 "path": "docs/warn.md",
-                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
+                "warnings": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
+                ],
             }
         ],
         checked_paths=["docs/warn.md"],
@@ -454,7 +466,9 @@ def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
         warnings=[
             {
                 "path": "docs/bad.md",
-                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 5}],
+                "warnings": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 5}
+                ],
             }
         ],
         checked_paths=["docs/bad.md"],
@@ -486,7 +500,9 @@ def test_cli_check_warnings_strict(mock_use_case):
         violations=[
             {
                 "path": "docs/warn.md",
-                "violations": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
+                "violations": [
+                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
+                ],
             }
         ],
         warnings=[],
@@ -522,7 +538,9 @@ def test_cli_install_precommit_md_output(mock_use_case, tmp_path):
     instance.execute.return_value = report
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["install-precommit", "--root", str(tmp_path), "--format", "md"])
+    result = runner.invoke(
+        cli, ["install-precommit", "--root", str(tmp_path), "--format", "md"]
+    )
 
     assert result.exit_code == 0
     assert "# Meminit Install Precommit" in result.output
@@ -618,7 +636,9 @@ def test_cli_context_json_output(tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+    result = runner.invoke(
+        cli, ["context", "--root", str(tmp_path), "--format", "json"]
+    )
 
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
@@ -630,9 +650,7 @@ def test_cli_context_json_output(tmp_path):
 
 def test_cli_context_deep_counts_documents(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
-        "project_name: TestProject\n"
-        "repo_prefix: TEST\n"
-        "docops_version: '2.0'\n",
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
         encoding="utf-8",
     )
     docs_dir = tmp_path / "docs" / "00-governance"
@@ -759,6 +777,47 @@ def test_cli_index_json_contract(tmp_path):
     data = json.loads(result.output)
     assert data["output_schema_version"] == "2.0"
     assert data["data"]["document_count"] == 1
+
+
+def test_cli_index_json_warnings_schema_validity(tmp_path):
+    """PRD-007 + v2 Output Contract: Warnings in index --format json must include 'path'."""
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True)
+    (state_dir / "project-state.yaml").write_text(
+        "documents:\n"
+        "  UNKNOWN-001:\n"
+        "    impl_state: Done\n"
+        "    updated: 2025-12-21T10:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["output_schema_version"] == "2.0"
+    assert data["data"]["document_count"] == 1
+    assert len(data["warnings"]) == 1
+    assert data["warnings"][0]["code"] == "W_STATE_UNKNOWN_DOC_ID"
+    assert "path" in data["warnings"][0]
+    assert data["warnings"][0]["path"] == "docs/01-indices/project-state.yaml"
 
 
 class TestCliNewJsonOutput:
@@ -1333,10 +1392,12 @@ docops_version: 2.0
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["files_checked"] == 2
         assert all(
-            "docs/00-governance/templates" not in entry["path"] for entry in data["violations"]
+            "docs/00-governance/templates" not in entry["path"]
+            for entry in data["violations"]
         )
         assert all(
-            "docs/00-governance/templates" not in warning["path"] for warning in data["warnings"]
+            "docs/00-governance/templates" not in warning["path"]
+            for warning in data["warnings"]
         )
 
     def test_check_file_not_found_json(self, repo_for_targeted_check):
@@ -1500,17 +1561,19 @@ def test_new_edit_parses_editor_command_with_args(
         encoding="utf-8",
     )
     result_path = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
-    mock_new_document_use_case.return_value.execute_with_params.return_value = NewDocumentResult(
-        success=True,
-        path=result_path,
-        document_id="TEST-ADR-001",
-        doc_type="ADR",
-        title="Test",
-        status="Draft",
-        version="0.1",
-        owner="TestOwner",
-        last_updated="2026-02-19",
-        docops_version="2.0",
+    mock_new_document_use_case.return_value.execute_with_params.return_value = (
+        NewDocumentResult(
+            success=True,
+            path=result_path,
+            document_id="TEST-ADR-001",
+            doc_type="ADR",
+            title="Test",
+            status="Draft",
+            version="0.1",
+            owner="TestOwner",
+            last_updated="2026-02-19",
+            docops_version="2.0",
+        )
     )
     monkeypatch.setenv("EDITOR", "code --wait")
 
@@ -1664,7 +1727,9 @@ document_types:
 
         return tmp_path
 
-    def test_single_path_not_found_returns_error_envelope(self, repo_for_single_path_check):
+    def test_single_path_not_found_returns_error_envelope(
+        self, repo_for_single_path_check
+    ):
         """F10.6: Single missing path should return error envelope."""
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
@@ -1686,7 +1751,9 @@ document_types:
         assert "error" in data
         assert data["error"]["code"] == "FILE_NOT_FOUND"
 
-    def test_single_path_not_found_logs_failed_operation(self, repo_for_single_path_check):
+    def test_single_path_not_found_logs_failed_operation(
+        self, repo_for_single_path_check
+    ):
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
@@ -1754,7 +1821,9 @@ document_types:
 
         return tmp_path
 
-    def test_absolute_path_outside_root_returns_path_escape(self, repo_for_path_escape_check):
+    def test_absolute_path_outside_root_returns_path_escape(
+        self, repo_for_path_escape_check
+    ):
         """F10.4: Absolute path outside root should return PATH_ESCAPE error."""
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
@@ -1782,7 +1851,9 @@ def test_config_missing_when_docs_exists_but_no_config(tmp_path):
     (tmp_path / "docs" / "test.md").write_text("# Test")
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
+    result = runner.invoke(
+        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
+    )
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -1800,7 +1871,9 @@ def test_config_missing_when_config_path_is_directory(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["error"]["details"]["required"] == "regular file (not directory/symlink)"
+    assert (
+        data["error"]["details"]["required"] == "regular file (not directory/symlink)"
+    )
 
 
 def test_new_rejects_non_file_config_path(tmp_path):
@@ -1809,7 +1882,9 @@ def test_new_rejects_non_file_config_path(tmp_path):
     (tmp_path / "docops.config.yaml").mkdir()
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
+    result = runner.invoke(
+        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
+    )
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -1971,7 +2046,14 @@ def test_cli_identify_json_output(mock_use_case, tmp_path):
     runner = runner_no_mixed_stderr()
     result = runner.invoke(
         cli,
-        ["identify", "docs/45-adr/adr-001.md", "--root", str(tmp_path), "--format", "json"],
+        [
+            "identify",
+            "docs/45-adr/adr-001.md",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0
@@ -2131,7 +2213,9 @@ document_types:
         )
 
         lines = [line for line in result.output.splitlines() if line.strip()]
-        json_index = next(i for i, line in enumerate(lines) if line.lstrip().startswith("{"))
+        json_index = next(
+            i for i, line in enumerate(lines) if line.lstrip().startswith("{")
+        )
         data = json.loads(lines[json_index])
         stderr_output = result.stderr if getattr(result, "stderr", None) else ""
         if not stderr_output:
@@ -2139,4 +2223,467 @@ document_types:
         assert "reasoning" not in data
         assert data["success"] is True
 
-        assert "directory_selected" in stderr_output or "owner_resolved" in stderr_output
+        assert (
+            "directory_selected" in stderr_output or "owner_resolved" in stderr_output
+        )
+
+
+class TestCliEdgeCases:
+    """Tests for edge cases in CLI behavior."""
+
+    @pytest.fixture
+    def repo_for_edge_cases(self, tmp_path):
+        (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+        (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
+repo_prefix: TEST
+docops_version: '2.0'
+document_types:
+  ADR:
+    directory: 45-adr
+"""
+        )
+        return tmp_path
+
+    def test_new_empty_title_returns_error_json(self, repo_for_edge_cases):
+        """Test that empty title returns appropriate error in JSON format."""
+        runner = runner_no_mixed_stderr()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "ADR",
+                "",
+                "--root",
+                str(repo_for_edge_cases),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output.strip().splitlines()[-1])
+        assert data["success"] is False
+        assert "error" in data
+        assert data["output_schema_version"] == "2.0"
+        assert "TYPE and TITLE are required" in data["error"]["message"]
+
+    def test_new_invalid_document_type_returns_error_json(self, repo_for_edge_cases):
+        """Test that invalid document type returns appropriate error in JSON format."""
+        runner = runner_no_mixed_stderr()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "INVALID_TYPE",
+                "Test Title",
+                "--root",
+                str(repo_for_edge_cases),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output.strip().splitlines()[-1])
+        assert data["success"] is False
+        assert "error" in data
+        assert data["output_schema_version"] == "2.0"
+
+    def test_error_json_includes_error_code_and_message(self, repo_for_edge_cases):
+        """Test that JSON errors include correct error code and message."""
+        runner = runner_no_mixed_stderr()
+        missing = repo_for_edge_cases / "does-not-exist"
+        result = runner.invoke(
+            cli,
+            ["check", "--format", "json", "--root", str(missing)],
+        )
+
+        assert result.exit_code != 0
+        data = json.loads(result.output.strip().splitlines()[-1])
+        assert data["success"] is False
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
+        assert data["error"]["code"] == "CONFIG_MISSING"
+        assert "Path does not exist" in data["error"]["message"]
+
+    def test_error_json_is_single_line(self, repo_for_edge_cases):
+        """Test that JSON error output is single-line (not multi-line)."""
+        runner = runner_no_mixed_stderr()
+        missing = repo_for_edge_cases / "does-not-exist"
+        result = runner.invoke(
+            cli,
+            ["check", "--format", "json", "--root", str(missing)],
+        )
+
+        assert result.exit_code != 0
+        json_line = result.output.strip().splitlines()[-1]
+        assert "\n" not in json_line
+        data = json.loads(json_line)
+        assert data["success"] is False
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
+    """Test that migrate-templates command is registered with the CLI."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=True,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=None,
+        config_entries_found=0,
+        config_entries_migrated=0,
+        template_files_found=0,
+        template_files_renamed=0,
+        placeholder_replacements=0,
+        actions=[],
+        warnings=[],
+        skipped_files=[],
+        as_dict=lambda: {
+            "config_file": str(tmp_path / "docops.config.yaml"),
+            "templates_dir": str(tmp_path / "docs" / "00-governance" / "templates"),
+            "dry_run": True,
+            "backup_path": None,
+            "summary": {
+                "config_entries_found": 0,
+                "config_entries_migrated": 0,
+                "template_files_found": 0,
+                "template_files_renamed": 0,
+                "placeholder_replacements": 0,
+            },
+            "changes": [],
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "migrate-templates" in result.output or "DRY RUN" in result.output
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
+    """Test that --dry-run is the default behavior."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=True,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=None,
+        config_entries_found=0,
+        config_entries_migrated=0,
+        template_files_found=0,
+        template_files_renamed=0,
+        placeholder_replacements=0,
+        actions=[],
+        warnings=[],
+        skipped_files=[],
+        as_dict=lambda: {
+            "config_file": str(tmp_path / "docops.config.yaml"),
+            "templates_dir": str(tmp_path / "docs" / "00-governance" / "templates"),
+            "dry_run": True,
+            "backup_path": None,
+            "summary": {
+                "config_entries_found": 0,
+                "config_entries_migrated": 0,
+                "template_files_found": 0,
+                "template_files_renamed": 0,
+                "placeholder_replacements": 0,
+            },
+            "changes": [],
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["command"] == "migrate-templates"
+    assert data["data"]["dry_run"] is True
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
+    """Test that --format json outputs correct JSON structure."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=False,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=str(tmp_path / "docops.config.yaml.backup"),
+        config_entries_found=2,
+        config_entries_migrated=2,
+        template_files_found=1,
+        template_files_renamed=1,
+        placeholder_replacements=5,
+        actions=[],
+        warnings=["Warning: test warning"],
+        skipped_files=[],
+        as_dict=lambda: {
+            "config_file": str(tmp_path / "docops.config.yaml"),
+            "templates_dir": str(tmp_path / "docs" / "00-governance" / "templates"),
+            "dry_run": False,
+            "backup_path": str(tmp_path / "docops.config.yaml.backup"),
+            "summary": {
+                "config_entries_found": 2,
+                "config_entries_migrated": 2,
+                "template_files_found": 1,
+                "template_files_renamed": 1,
+                "placeholder_replacements": 5,
+            },
+            "changes": [],
+        },
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "migrate-templates",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--no-dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "migrate-templates"
+    assert payload["success"] is True
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["data"]["dry_run"] is False
+    assert payload["data"]["backup_path"] is not None
+    assert payload["data"]["summary"]["config_entries_migrated"] == 2
+    assert payload["data"]["summary"]["template_files_renamed"] == 1
+    assert payload["data"]["summary"]["placeholder_replacements"] == 5
+    assert len(payload["warnings"]) == 1
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_path):
+    """Test that --no-dry-run flag actually applies changes."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=False,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=str(tmp_path / "docops.config.yaml.backup"),
+        config_entries_found=1,
+        config_entries_migrated=1,
+        template_files_found=0,
+        template_files_renamed=0,
+        placeholder_replacements=0,
+        actions=[],
+        warnings=[],
+        skipped_files=[],
+        as_dict=lambda: {
+            "config_file": str(tmp_path / "docops.config.yaml"),
+            "templates_dir": str(tmp_path / "docs" / "00-governance" / "templates"),
+            "dry_run": False,
+            "backup_path": str(tmp_path / "docops.config.yaml.backup"),
+            "summary": {
+                "config_entries_found": 1,
+                "config_entries_migrated": 1,
+                "template_files_found": 0,
+                "template_files_renamed": 0,
+                "placeholder_replacements": 0,
+            },
+            "changes": [],
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--no-dry-run"]
+    )
+
+    assert result.exit_code == 0
+    assert "DRY RUN" not in result.output
+    assert "APPLY" in result.output or "migrated" in result.output.lower()
+
+
+def test_cli_migrate_templates_missing_config_json(tmp_path):
+    """Test that migrate-templates returns proper error when config is missing."""
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    assert result.exit_code != 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is False
+    assert "error" in data
+    assert data["error"]["code"] == "CONFIG_MISSING"
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
+    """Test that --format md outputs markdown format."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=True,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=None,
+        config_entries_found=1,
+        config_entries_migrated=1,
+        template_files_found=2,
+        template_files_renamed=2,
+        placeholder_replacements=3,
+        actions=[],
+        warnings=["Sample warning"],
+        skipped_files=[],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"]
+    )
+
+    assert result.exit_code == 0
+    assert "# Meminit Template Migration" in result.output
+    assert "DRY RUN" in result.output
+    assert "Config entries found: 1" in result.output
+    assert "Config entries migrated: 1" in result.output
+    assert "Template files found: 2" in result.output
+    assert "Template files renamed: 2" in result.output
+    assert "Placeholder replacements: 3" in result.output
+    assert "## Warnings" in result.output
+    assert "Sample warning" in result.output
+
+
+def test_cli_migrate_templates_e2e_real_execution(tmp_path):
+    """E2E test that creates real legacy repo and runs actual migrate-templates command."""
+    templates_dir = tmp_path / "docs" / "00-governance" / "templates"
+    templates_dir.mkdir(parents=True)
+
+    (templates_dir / "template-001-adr.md").write_text(
+        "# ADR: {title}\n\n"
+        "Status: {status}\n"
+        "Owner: <Team or Person>\n"
+        "Date: <YYYY-MM-DD>\n\n"
+        "## Context\n\n"
+        "## Decision\n\n"
+        "## Consequences\n",
+        encoding="utf-8",
+    )
+
+    (templates_dir / "template-002-prd.md").write_text(
+        "# PRD: <Feature Title>\n\nProject: <PROJECT>\n## Overview\n",
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "type_directories:\n"
+        "  ADR: 45-adr\n"
+        "  PRD: 10-prd\n"
+        "templates:\n"
+        "  ADR: docs/00-governance/templates/template-001-adr.md\n"
+        "  PRD: docs/00-governance/templates/template-002-prd.md\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "migrate-templates",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+
+    assert data["success"] is True
+    assert data["command"] == "migrate-templates"
+    assert data["data"]["dry_run"] is True
+
+    summary = data["data"]["summary"]
+    assert summary["config_entries_found"] == 4
+    assert summary["config_entries_migrated"] == 4
+    assert summary["template_files_found"] == 2
+    assert summary["template_files_renamed"] == 2
+    assert summary["placeholder_replacements"] == 6
+
+    changes = data["data"]["changes"]
+
+    config_add_actions = [
+        c for c in changes if c.get("type") == "config" and c.get("action") == "add"
+    ]
+    assert len(config_add_actions) == 4
+
+    file_rename_actions = [
+        c for c in changes if c.get("type") == "file" and c.get("action") == "rename"
+    ]
+    assert len(file_rename_actions) == 2
+
+    replace_actions = [
+        c for c in changes if c.get("type") == "file" and c.get("action") == "replace"
+    ]
+    assert len(replace_actions) == 6
+
+    assert (templates_dir / "template-001-adr.md").exists()
+    assert (templates_dir / "template-002-prd.md").exists()
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "migrate-templates",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--no-dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+
+    assert data["data"]["dry_run"] is False
+
+    adr_template = templates_dir / "adr.template.md"
+    assert adr_template.exists()
+    content = adr_template.read_text(encoding="utf-8")
+    assert "{{title}}" in content
+    assert "{{status}}" in content
+    assert "{{owner}}" in content
+    assert "{{date}}" in content
+
+    prd_template = templates_dir / "prd.template.md"
+    assert prd_template.exists()
+    content = prd_template.read_text(encoding="utf-8")
+    assert "{{title}}" in content
+    assert "{{repo_prefix}}" in content

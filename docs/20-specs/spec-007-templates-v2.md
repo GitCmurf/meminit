@@ -105,7 +105,7 @@ Built-in templates are packaged with Meminit:
 
 - `adr.template.md` — Architecture Decision Record
 - `prd.template.md` — Product Requirements Document
-- `fdd.template.md` Functional Design Document
+- `fdd.template.md` — Functional Design Document
 
 ### 3.6 Skeleton Template
 

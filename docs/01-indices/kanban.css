@@ -1,0 +1,151 @@
+/* Modern Kanban Board Styles (Glassmorphism & Clean Typography) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.kanban-board {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 2rem 0.5rem;
+  background: transparent;
+}
+
+.kanban-column {
+  min-width: 250px;
+  flex: 1;
+  background: var(--md-code-bg-color, rgba(235, 238, 245, 0.4));
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-count {
+  display: inline-block;
+  background: rgba(0,0,0,0.1);
+  color: inherit;
+  border-radius: 9999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.8em;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.kanban-column h3 {
+  margin-top: 0;
+  padding-bottom: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--md-default-fg-color, #222);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kanban-not-started h3 { border-bottom: 3px solid #94a3b8; }
+.kanban-in-progress h3 { border-bottom: 3px solid #3b82f6; }
+.kanban-blocked h3 { border-bottom: 3px solid #ef4444; }
+.kanban-qa-required h3 { border-bottom: 3px solid #f59e0b; }
+.kanban-done h3 { border-bottom: 3px solid #10b981; }
+
+.kanban-card {
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.06);
+}
+
+.card-id {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--md-primary-fg-color, #3b82f6);
+}
+
+.card-id a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-id a:hover {
+  text-decoration: underline;
+}
+
+.card-title {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--md-default-fg-color, #111827);
+  line-height: 1.4;
+}
+
+.kanban-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.card-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 0.2rem;
+}
+
+.badge-draft { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.badge-in-review { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+.badge-approved { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.badge-superseded { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+
+.card-notes {
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--light, #6b7280);
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  padding-top: 0.5rem;
+}
+
+.kanban-truncate-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .kanban-board {
+    flex-direction: column;
+  }
+  .kanban-column {
+    min-width: unset;
+  }
+}
+
+/* Hide fallback when CSS loads */
+.kanban-fallback {
+  display: none;
+}

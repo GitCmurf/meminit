@@ -71,6 +71,26 @@ pip install -e .
 
 Note: `@main` is the latest development version. Use a tagged release once tags are published.
 
+### Local Development
+
+When developing Meminit locally, you have two options:
+
+**Run directly from source (no install):**
+
+```bash
+python -m meminit --help
+python -m meminit new ADR "Test" --dry-run
+```
+
+**Install in editable mode:**
+
+```bash
+pip install -e .
+meminit --help
+```
+
+Note: If you have a globally installed `meminit` via pipx, it may be older than the source code. When testing new features, always use `python -m meminit` or reinstall with `pip install -e .` to pick up your changes.
+
 ### New repository (greenfield)
 
 ```bash

@@ -18,7 +18,7 @@ superseded_by: MEMINIT-FDD-011
 > **Version:** 0.1
 > **Last Updated:** 2026-03-04
 > **Type:** FDD
-> **Superseded By:** [MEMINIT-FDD-011](fdd-011-document-factory-v2.md)
+> **Superseded By:** [MEMINIT-FDD-011](fdd-011-document-factory-v2.md), [MEMINIT-PRD-002](../10-prd/prd-002-new-file-function.md)
 
 # FDD: Document Factory (meminit new)
 

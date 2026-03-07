@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Final, Optional
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig
 
 # Constants for template sources
@@ -130,12 +131,12 @@ class TemplateResolver:
                 ) from e
 
             if not full_path.exists():
-                 raise MeminitError(
+                raise MeminitError(
                     code=ErrorCode.TEMPLATE_NOT_FOUND,
                     message=f"Configured template not found: {template_path}",
                     details={"doc_type": doc_type, "template_path": str(template_path)},
                 )
-            
+
             self._validate_template_file(full_path, allow_root=True)
             # Read content after validation to avoid duplicate reads
             content = self._read_template_text(full_path)
@@ -182,7 +183,7 @@ class TemplateResolver:
         except UnicodeDecodeError as exc:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template is not valid UTF-8: {path.relative_to(self._repo_root)}",
+                message=f"Template is not valid UTF-8: {relative_path_string(path, self._repo_root)}",
                 details={"path": str(path)},
             ) from exc
 

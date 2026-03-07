@@ -6,7 +6,6 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import yaml
 
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import log_debug
 
 DEFAULT_DOCS_ROOT = "docs"
@@ -122,9 +121,12 @@ class RepoConfig:
     schema_path: str
     excluded_paths: tuple[str, ...]
     excluded_filename_prefixes: tuple[str, ...]
+    excluded_files: tuple[str, ...]
     type_directories: Dict[str, str]
     templates: Dict[str, str]
     document_types: Dict[str, DocumentTypeConfig]
+    valid_impl_states: tuple[str, ...]
+    valid_doc_statuses: tuple[str, ...]
 
     @property
     def docs_dir(self) -> Path:
@@ -162,6 +164,13 @@ class RepoConfig:
                 continue
             if rel_parts[: len(ex_parts)] == ex_parts:
                 return True
+
+        # Exact file path exclusion (e.g., project-state.yaml).
+        rel_posix = rel.as_posix()
+        for excluded_file in self.excluded_files:
+            if rel_posix == excluded_file:
+                return True
+
         return False
 
     def expected_subdir_for_type(self, doc_type: str) -> Optional[str]:
@@ -197,6 +206,7 @@ class RepoLayout:
     project_name: str
     namespaces: tuple[RepoConfig, ...]
     index_path: str
+    catalog_name: str
 
     @property
     def index_file(self) -> Path:
@@ -377,6 +387,33 @@ def _build_namespace_config(
             if normalized:
                 templates[key] = normalized
 
+    # Parse excluded_files (exact file paths, e.g., project-state.yaml).
+    excluded_files: list[str] = []
+    for item in _normalize_string_list(defaults.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+    for item in _normalize_string_list(raw_namespace.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+
+    # Parse valid_impl_states from config or use defaults
+    from meminit.core.services.project_state import ImplState
+    valid_impl_states = _normalize_string_list(
+        raw_namespace.get("valid_impl_states", defaults.get("valid_impl_states"))
+    )
+    if not valid_impl_states:
+        valid_impl_states = ImplState.canonical_values()
+
+    # Parse valid_doc_statuses from config or use defaults
+    DEFAULT_DOC_STATUSES = ("Draft", "In Review", "Approved", "Superseded")
+    valid_doc_statuses = _normalize_string_list(
+        raw_namespace.get("valid_doc_statuses", defaults.get("valid_doc_statuses"))
+    )
+    if not valid_doc_statuses:
+        valid_doc_statuses = list(DEFAULT_DOC_STATUSES)
+
     return RepoConfig(
         root_dir=root,
         namespace=namespace_name,
@@ -387,9 +424,12 @@ def _build_namespace_config(
         schema_path=schema_path_norm,
         excluded_paths=tuple(excluded_paths),
         excluded_filename_prefixes=tuple(excluded_filename_prefixes),
+        excluded_files=tuple(excluded_files),
         type_directories=type_directories,
         templates=templates,
         document_types=document_types,
+        valid_impl_states=tuple(valid_impl_states),
+        valid_doc_statuses=tuple(valid_doc_statuses),
     )
 
 
@@ -497,11 +537,15 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
             chosen = namespaces[0]
         index_path = f"{chosen.docs_root}/01-indices/meminit.index.json"
 
+    catalog_name_raw = data.get("catalog_name")
+    catalog_name = str(catalog_name_raw).strip() if isinstance(catalog_name_raw, str) and str(catalog_name_raw).strip() else "catalog.md"
+
     return RepoLayout(
         root_dir=root,
         project_name=project_name,
         namespaces=tuple(namespaces),
         index_path=index_path,
+        catalog_name=catalog_name,
     )
 
 
