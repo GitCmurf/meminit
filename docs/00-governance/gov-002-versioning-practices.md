@@ -6,7 +6,7 @@ status: Draft
 last_updated: 2025-11-12
 version: 0.1
 title: Versioning Practices (Operational Guide)
-type: governance
+type: GOV
 docops_version: 2.0
 ---
 

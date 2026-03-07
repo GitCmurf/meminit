@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tempfile
@@ -5,9 +6,9 @@ import time
 from pathlib import Path
 
 
-def run(cmd, cwd):
+def run(cmd, cwd, env=None):
     print(f"Running: {' '.join(cmd)}")
-    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    res = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
     if res.returncode != 0:
         print(f"FAILED: {res.stderr}")
         sys.exit(1)
@@ -20,6 +21,14 @@ def main():
         print(f"E2E Test Directory: {temp_dir_path}")
 
         # Build base command to use local source tree
+        repo_root = Path(__file__).resolve().parents[1]
+        env = os.environ.copy()
+        src_path = str(repo_root / "src")
+        env["PYTHONPATH"] = (
+            src_path
+            if not env.get("PYTHONPATH")
+            else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+        )
         cli_cmd = [sys.executable, "-m", "meminit.cli.main"]
 
         # 1. Init repo manually
@@ -52,18 +61,18 @@ def main():
         (state_dir / "project-state.yaml").write_text(state_yaml)
 
         # 3. Test `meminit state`
-        out = run([*cli_cmd, "state", "set", "TST-001", "--impl-state", "Done"], temp_dir)
+        out = run([*cli_cmd, "state", "set", "TST-001", "--impl-state", "Done"], temp_dir, env=env)
         assert "Updated state for TST-001" in out
-        out = run([*cli_cmd, "state", "get", "TST-001"], temp_dir)
+        out = run([*cli_cmd, "state", "get", "TST-001"], temp_dir, env=env)
         assert "Done" in out
 
         # 4. Test Performance (Index SLA)
         print("Running `meminit index` SLA test...")
         start_index = time.time()
-        run([*cli_cmd, "index", "--output-catalog", "--output-kanban"], temp_dir)
+        run([*cli_cmd, "index", "--output-catalog", "--output-kanban"], temp_dir, env=env)
         index_duration = time.time() - start_index
         print(f"Index generated in {index_duration:.2f}s")
-        assert index_duration <= 7.0, f"SLA FAILED: Index generation took {index_duration:.2f}s (target <= 7.0s)"
+        assert index_duration <= 5.0, f"SLA FAILED: Index generation took {index_duration:.2f}s (target <= 5.0s)"
         
         # 5. Check outputs
         index_json = (state_dir / "meminit.index.json").read_text()
@@ -77,12 +86,13 @@ def main():
         
         # 6. Compatibility check
         print("Running downstream commands...")
-        run([*cli_cmd, "resolve", "TST-001"], temp_dir)
-        run([*cli_cmd, "identify", "docs/99-test/TST-001.md"], temp_dir)
-        run([*cli_cmd, "doctor"], temp_dir)
+        run([*cli_cmd, "resolve", "TST-001"], temp_dir, env=env)
+        run([*cli_cmd, "identify", "docs/99-test/TST-001.md"], temp_dir, env=env)
+        run([*cli_cmd, "doctor"], temp_dir, env=env)
         # check will fail (exit 1) because dummy docs don't have all required schema fields, but it shouldn't crash
-        res_check = subprocess.run([*cli_cmd, "check"], cwd=temp_dir, capture_output=True, text=True)
+        res_check = subprocess.run([*cli_cmd, "check"], cwd=temp_dir, env=env, capture_output=True, text=True)
         assert res_check.returncode != 0, "The 'check' command was expected to fail but succeeded."
+        assert "Traceback" not in res_check.stderr
 
         print(f"E2E Integration & Performance OK. (Index 500 docs: {index_duration:.2f}s)")
 

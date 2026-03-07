@@ -6,7 +6,7 @@ status: Draft
 version: 0.2
 last_updated: 2025-12-15
 title: Public Repository Security Practices
-type: governance
+type: GOV
 docops_version: 2.0
 ---
 

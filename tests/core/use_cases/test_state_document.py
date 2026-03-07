@@ -63,6 +63,22 @@ def test_get_document_state(tmp_path):
     assert result.entry["impl_state"] == "Done"
 
 
+def test_get_document_state_shorthand(tmp_path):
+    """Test that set and get both resolve shorthands."""
+    # Write a dummy config to provide a prefix
+    (tmp_path / "docops.config.yaml").write_text("repo_prefix: TESTPRE\ndocs_root: docs\n")
+    
+    use_case = StateDocumentUseCase(str(tmp_path))
+    # Set using shorthand
+    set_result = use_case.set_state("ADR-005", impl_state="Done")
+    assert set_result.document_id == "TESTPRE-ADR-005"
+    
+    # Get using shorthand
+    get_result = use_case.get_state("ADR-005")
+    assert get_result.document_id == "TESTPRE-ADR-005"
+    assert get_result.entry["impl_state"] == "Done"
+
+
 def test_get_missing_document_raises(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Done")

@@ -8,6 +8,8 @@ catalog_name: catalogue.md
 # project-state.yaml is mutable state, not a governed document.
 excluded_files:
   - "docs/01-indices/project-state.yaml"
+  - "docs/01-indices/catalogue.md"
+  - "docs/01-indices/kanban.md"
 
 # Monorepo-style namespaces: Meminit's repo includes both repo-local docs (MEMINIT-*)
 # and organisation-level governance docs (ORG-*). Namespaces keep prefix enforcement

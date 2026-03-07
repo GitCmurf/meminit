@@ -29,10 +29,10 @@ import functools
 @functools.lru_cache(maxsize=1)
 def get_state_file_rel_path(root_dir: Path) -> str:
     """Resolve the project-state.yaml path dynamically from RepoConfig."""
-    from meminit.core.services.repo_config import RepoConfig
+    from meminit.core.services.repo_config import load_repo_config
 
     try:
-        config = RepoConfig.load(root_dir)
+        config = load_repo_config(root_dir)
         docs_root = config.docs_root if config.docs_root else "docs"
         return f"{docs_root}/01-indices/project-state.yaml"
     except Exception:

@@ -2333,13 +2333,14 @@ def state_list(root, format, output, include_timestamp):
         use_case = StateDocumentUseCase(str(root_path))
         result = use_case.list_states()
 
-        from meminit.core.services.repo_config import RepoConfig
+        from meminit.core.services.repo_config import load_repo_config
         from meminit.core.services.project_state import ImplState
+        from meminit.core.services.error_codes import MeminitError
         try:
-            config = RepoConfig.load(root_path)
+            config = load_repo_config(root_path)
             valid_impl_states = list(config.valid_impl_states)
             valid_doc_statuses = list(config.valid_doc_statuses)
-        except Exception:
+        except MeminitError:
             valid_impl_states = ImplState.canonical_values()
             valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
 
@@ -2373,7 +2374,7 @@ def state_list(root, format, output, include_timestamp):
                         e.get("document_id", ""),
                         e.get("impl_state", ""),
                         e.get("updated_by", ""),
-                        e.get("updated", "")[:10]
+                        str(e.get("updated", ""))[:10]
                     ]
                     for e in result.entries
                 ]
@@ -2399,7 +2400,7 @@ def state_list(root, format, output, include_timestamp):
                     e.get("document_id", ""),
                     e.get("impl_state", ""),
                     e.get("updated_by", ""),
-                    e.get("updated", "")[:10]
+                    str(e.get("updated", ""))[:10]
                 )
             get_console().print(table)
 

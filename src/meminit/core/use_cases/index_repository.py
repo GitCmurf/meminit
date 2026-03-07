@@ -376,7 +376,7 @@ def _generate_kanban(
                     import os
                     target_abs = root_dir / doc_path_raw
                     rel_val = os.path.relpath(target_abs, index_dir).replace("\\", "/")
-                except Exception:
+                except (ValueError, OSError):
                     rel_val = ""
             else:
                 rel_val = ""
