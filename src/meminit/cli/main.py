@@ -1290,7 +1290,12 @@ def install_precommit(root, format, output, include_timestamp):
     default=False,
     help="Generate kanban.md + kanban.css (board view).",
 )
-def index(root, format, output, include_timestamp, status_filter, impl_state_filter, output_catalog, output_kanban):
+@click.option(
+    "--catalog-name",
+    default=None,
+    help="Filename for the generated catalog view (if omitted, uses config or defaults to catalog.md).",
+)
+def index(root, format, output, include_timestamp, status_filter, impl_state_filter, output_catalog, output_kanban, catalog_name):
     """Build or update the repository index artifact."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
@@ -1308,6 +1313,7 @@ def index(root, format, output, include_timestamp, status_filter, impl_state_fil
         use_case = IndexRepositoryUseCase(
             root_dir=str(root_path),
             output_catalog=output_catalog,
+            catalog_name=catalog_name,
             output_kanban=output_kanban,
             status_filter=status_filter,
             impl_state_filter=impl_state_filter,
@@ -2181,8 +2187,9 @@ def state():
 @click.option("--impl-state", help="Set implementation state (e.g., 'In Progress').")
 @click.option("--notes", help="Set notes (max 500 chars).")
 @click.option("--actor", help="Override the updated_by actor identity.")
-def state_set(document_id, root, format, output, include_timestamp, impl_state, notes, actor):
-    """Set or update a document's implementation state."""
+@click.option("--clear", "-c", is_flag=True, help="Clear the tracking state for this document.")
+def state_set(document_id, root, format, output, include_timestamp, impl_state, notes, actor, clear):
+    """Set, update, or clear a document's implementation state."""
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
     run_id = get_current_run_id()
@@ -2198,8 +2205,11 @@ def state_set(document_id, root, format, output, include_timestamp, impl_state, 
             output=output,
         )
 
+        if not clear and not impl_state:
+            raise MeminitError(ErrorCode.E_INVALID_FILTER_VALUE, "Must provide either --impl-state or --clear.")
+
         use_case = StateDocumentUseCase(str(root_path))
-        result = use_case.set_state(document_id, impl_state=impl_state, notes=notes, actor=actor)
+        result = use_case.set_state(document_id, impl_state=impl_state, notes=notes, actor=actor, clear=clear)
 
         if format == "json":
             _write_output(
@@ -2207,7 +2217,7 @@ def state_set(document_id, root, format, output, include_timestamp, impl_state, 
                     command="state set",
                     root=str(root_path),
                     success=True,
-                    data=result.entry,
+                    data={"action": result.action, "entry": result.entry},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
@@ -2216,21 +2226,32 @@ def state_set(document_id, root, format, output, include_timestamp, impl_state, 
             return
 
         if format == "md":
-            _write_output(
-                f"# Meminit State Set\n\n"
-                f"- Document ID: `{document_id}`\n"
-                f"- Impl State: {result.entry.get('impl_state')}\n"
-                f"- Updated By: {result.entry.get('updated_by')}\n",
-                output,
-            )
+            if result.action == "clear":
+                _write_output(
+                    f"# Meminit State Set\n\n"
+                    f"- Document ID: `{document_id}`\n"
+                    f"- Action: Cleared\n",
+                    output,
+                )
+            else:
+                _write_output(
+                    f"# Meminit State Set\n\n"
+                    f"- Document ID: `{document_id}`\n"
+                    f"- Impl State: {result.entry.get('impl_state', '')}\n"
+                    f"- Updated By: {result.entry.get('updated_by', '')}\n",
+                    output,
+                )
             return
 
         with maybe_capture(output, format):
-            get_console().print(f"[bold green]Updated state for {document_id}[/bold green]")
-            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
-            get_console().print(f"Updated By: {result.entry.get('updated_by')}")
-            if result.entry.get("notes"):
-                get_console().print(f"Notes: {result.entry.get('notes')}")
+            if result.action == "clear":
+                get_console().print(f"[bold yellow]Cleared state for {document_id}[/bold yellow]")
+            else:
+                get_console().print(f"[bold green]Updated state for {document_id}[/bold green]")
+                get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+                get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+                if result.entry.get("notes"):
+                    get_console().print(f"Notes: {result.entry.get('notes')}")
 
 
 @state.command("get")
@@ -2312,13 +2333,27 @@ def state_list(root, format, output, include_timestamp):
         use_case = StateDocumentUseCase(str(root_path))
         result = use_case.list_states()
 
+        from meminit.core.services.repo_config import RepoConfig
+        from meminit.core.services.project_state import ImplState
+        try:
+            config = RepoConfig.load(root_path)
+            valid_impl_states = list(config.valid_impl_states)
+            valid_doc_statuses = list(config.valid_doc_statuses)
+        except Exception:
+            valid_impl_states = ImplState.canonical_values()
+            valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
+
         if format == "json":
             _write_output(
                 format_envelope(
                     command="state list",
                     root=str(root_path),
                     success=True,
-                    data={"entries": result.entries},
+                    data={
+                        "entries": result.entries,
+                        "valid_impl_states": valid_impl_states,
+                        "valid_doc_statuses": valid_doc_statuses,
+                    },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
@@ -2328,6 +2363,8 @@ def state_list(root, format, output, include_timestamp):
 
         if format == "md":
             lines = ["# Meminit State List\n"]
+            lines.append(f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  ")
+            lines.append(f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n")
             if not result.entries:
                 lines.append("_No entries found._\n")
             else:
@@ -2346,6 +2383,8 @@ def state_list(root, format, output, include_timestamp):
             return
 
         with maybe_capture(output, format):
+            get_console().print(f"[bold]Valid Implementation States:[/bold] {', '.join(valid_impl_states)}")
+            get_console().print(f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n")
             if not result.entries:
                 get_console().print("[yellow]No entries found in project-state.yaml[/yellow]")
                 return

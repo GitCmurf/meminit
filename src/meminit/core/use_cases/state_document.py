@@ -72,6 +72,49 @@ def _resolve_actor() -> str:
         return "unknown"
 
 
+def _resolve_document_id(root_dir: Path, document_id: str) -> str:
+    """Resolve an unambiguous shorthand document ID to its canonical form.
+
+    Shorthands are type-number format (e.g., PRD-005, ADR-001) that get prefixed
+    with the repo prefix. Full IDs like REPO-PRD-005 are returned as-is.
+    """
+    document_id = document_id.strip().upper()
+    if "-" not in document_id:
+        # Not a shorthand (e.g., just a number)
+        return document_id
+
+    from meminit.core.services.repo_config import load_repo_layout
+    try:
+        layout = load_repo_layout(root_dir)
+        prefixes = {ns.repo_prefix for ns in layout.namespaces}
+    except Exception:
+        return document_id
+
+    # If it already starts with a known prefix, it's a full ID - return as-is
+    for prefix in prefixes:
+        if document_id.startswith(f"{prefix}-"):
+            return document_id
+
+    # If it has multiple hyphens and doesn't match any prefix, it's likely
+    # already a canonical full ID (or from outside this repo) - don't modify it
+    if document_id.count("-") > 1:
+        return document_id
+
+    # Single-hyphen format is treated as shorthand: prepend the single known prefix
+    if len(prefixes) == 1:
+        prefix = prefixes.pop()
+        return f"{prefix}-{document_id}"
+    elif len(prefixes) > 1:
+        raise MeminitError(
+            code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+            message=f"Ambiguous shorthand document ID '{document_id}'. "
+                    f"Multiple namespace prefixes exist ({', '.join(sorted(prefixes))}). "
+                    "Please provide the full document ID."
+        )
+
+    return document_id
+
+
 class StateDocumentUseCase:
     """Use case for managing project-state.yaml entries."""
 
@@ -85,12 +128,27 @@ class StateDocumentUseCase:
         impl_state: Optional[str] = None,
         notes: Optional[str] = None,
         actor: Optional[str] = None,
+        clear: bool = False,
     ) -> StateResult:
         """Set or update a document's implementation state.
 
         Auto-populates ``updated`` (UTC now) and ``updated_by`` (actor chain).
-        Re-sorts entries alphabetically after mutation.
+        Re-sorts entries alphabetically after mutation. If clear is True, 
+        removes the document constraint completely.
         """
+        document_id = _resolve_document_id(self._root_dir, document_id)
+        state = load_project_state(self._root_dir) or ProjectState()
+
+        if clear:
+            if document_id in state.entries:
+                del state.entries[document_id]
+                save_project_state(self._root_dir, state)
+            return StateResult(
+                document_id=document_id,
+                action="clear",
+                entry=None,
+            )
+
         # Validate impl_state if provided.
         if impl_state:
             resolved = ImplState.from_string(impl_state)
@@ -104,9 +162,6 @@ class StateDocumentUseCase:
                     },
                 )
             impl_state = resolved.value  # Canonicalize.
-
-        # Load existing state (or create new).
-        state = load_project_state(self._root_dir) or ProjectState()
 
         # Get existing entry if updating.
         existing = state.get(document_id)

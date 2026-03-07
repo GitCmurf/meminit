@@ -206,13 +206,19 @@ def test_index_generates_kanban_md(tmp_path):
     assert report.kanban_css_path.exists()
 
     kanban_content = report.kanban_path.read_text(encoding="utf-8")
-    assert "# Kanban Board" in kanban_content
-    assert "kanban-fallback" in kanban_content  # Markdown fallback div
-    assert "kanban-board" in kanban_content  # HTML board div
+    assert "Project Status Board" in kanban_content
+    # Check fallback structure (PRD-007)
+    assert '<div class="kanban-fallback">' in kanban_content
+    assert "## In Progress" in kanban_content
+    assert "- **EXAMPLE-ADR-001**" in kanban_content
+    # Check HTML board
+    assert "kanban-board" in kanban_content  
 
     css_content = report.kanban_css_path.read_text(encoding="utf-8")
-    assert ".kanban-fallback" in css_content
-    assert "display: none" in css_content
+    assert ".kanban-board" in css_content
+    # Check fallback hide rule
+    assert ".kanban-fallback {" in css_content
+    assert "display: none;" in css_content
 
 
 # ---------------------------------------------------------------------------

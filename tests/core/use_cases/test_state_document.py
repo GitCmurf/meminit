@@ -74,16 +74,18 @@ def test_get_missing_document_raises(tmp_path):
 
 def test_list_states_sorted(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
-    use_case.set_state("C-002", impl_state="Done")
-    use_case.set_state("A-001", impl_state="In Progress")
-    use_case.set_state("B-003", impl_state="Blocked")
+    # Use full IDs with namespace prefix to avoid shorthand resolution
+    # (the test environment creates TESTLISTST namespace)
+    use_case.set_state("TESTLISTST-C-002", impl_state="Done")
+    use_case.set_state("TESTLISTST-A-001", impl_state="In Progress")
+    use_case.set_state("TESTLISTST-B-003", impl_state="Blocked")
 
     result = use_case.list_states()
     assert result.action == "list"
     assert len(result.entries) == 3
-    
+
     ids = [e["document_id"] for e in result.entries]
-    assert ids == ["A-001", "B-003", "C-002"]  # Alphabetical 
+    assert ids == ["TESTLISTST-A-001", "TESTLISTST-B-003", "TESTLISTST-C-002"]  # Alphabetical 
 
 
 @mock.patch.dict("os.environ", {"MEMINIT_ACTOR_ID": "ci-bot"})

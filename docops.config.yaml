@@ -2,6 +2,7 @@ docops_version: "2.0"
 project_name: Meminit
 repo_prefix: MEMINIT
 schema_path: docs/00-governance/metadata.schema.json
+catalog_name: catalogue.md
 
 # Files excluded from governance (meminit check) validation.
 # project-state.yaml is mutable state, not a governed document.
