@@ -1,4 +1,12 @@
 documents:
+  MEMINIT-PLAN-005:
+    impl_state: In Progress
+    updated: '2026-03-07T06:34:10.931941+00:00'
+    updated_by: GitCmurf
+  MEMINIT-PRD-002:
+    impl_state: Done
+    updated: '2026-03-07T05:40:27.494441+00:00'
+    updated_by: GitCmurf
   MEMINIT-PRD-003:
     impl_state: Done
     updated: '2026-03-06T16:28:38.952670+00:00'

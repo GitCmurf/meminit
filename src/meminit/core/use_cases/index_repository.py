@@ -343,9 +343,9 @@ def _generate_kanban(
         else:
             for entry in col_entries:
                 doc_id = entry.get("document_id", "")
-                title = sanitize_field(entry.get("title", ""), max_length=None, html_escape=False)
+                title = sanitize_field(entry.get("_raw_title", entry.get("title", "")), max_length=None, html_escape=False)
                 status = sanitize_field(entry.get("status", ""), max_length=None, html_escape=False)
-                notes_raw = entry.get("notes")
+                notes_raw = entry.get("_raw_notes", entry.get("notes"))
                 
                 lines.append(f"- **{doc_id}**: {title} ({status})")
                 if notes_raw:
@@ -657,6 +657,7 @@ class IndexRepositoryUseCase:
                     "repo_prefix": ns.repo_prefix,
                     "type": post.metadata.get("type"),
                     "title": sanitize_field(post.metadata.get("title"), max_length=None, html_escape=True),
+                    "_raw_title": post.metadata.get("title"),
                     "status": post.metadata.get("status"),
                     "owner": sanitize_field(post.metadata.get("owner"), max_length=None, html_escape=True),
                     "last_updated": post.metadata.get("last_updated"),
@@ -682,6 +683,7 @@ class IndexRepositoryUseCase:
                                 sanitized_notes = sanitize_field(state_entry.notes, max_length=500, html_escape=True)
                                 if sanitized_notes:
                                     entry["notes"] = sanitized_notes
+                                    entry["_raw_notes"] = state_entry.notes
                                 
                             state_updated = state_entry.updated
 

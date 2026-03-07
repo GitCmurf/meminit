@@ -12,6 +12,7 @@ implementation state file.  Auto-populates ``updated`` (UTC) and
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import subprocess
 from dataclasses import dataclass
@@ -100,17 +101,43 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
     if document_id.count("-") > 1:
         return document_id
 
-    # Single-hyphen format is treated as shorthand: prepend the single known prefix
-    if len(prefixes) == 1:
-        prefix = prefixes.pop()
-        return f"{prefix}-{document_id}"
-    elif len(prefixes) > 1:
+    # Ambiguity check using the index
+    index_path = layout.index_file
+    matched_ids = set()
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+        docs = data.get("documents", [])
+        for doc in docs:
+            doc_id = doc.get("document_id")
+            if isinstance(doc_id, str) and doc_id.endswith(f"-{document_id}"):
+                matched_ids.add(doc_id)
+    except (OSError, json.JSONDecodeError):
+        # Index file doesn't exist or is malformed - continue with fallback logic
+        pass
+
+    if len(matched_ids) == 1:
+        return matched_ids.pop()
+    elif len(matched_ids) > 1:
         raise MeminitError(
             code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
             message=f"Ambiguous shorthand document ID '{document_id}'. "
-                    f"Multiple namespace prefixes exist ({', '.join(sorted(prefixes))}). "
+                    f"Multiple existing documents match this shorthand ({', '.join(sorted(matched_ids))}). "
                     "Please provide the full document ID."
         )
+
+    # 0 matches in index, or index doesn't exist. Prepend the default repo prefix.
+    try:
+        default_prefix = layout.default_namespace().repo_prefix
+        if default_prefix in prefixes:
+            return f"{default_prefix}-{document_id}"
+    except AttributeError:
+        # No default_namespace method or other attribute error - fall through
+        pass
+
+    # Fallback to popping if there's only 1 prefix anyway
+    if len(prefixes) == 1:
+        prefix = prefixes.pop()
+        return f"{prefix}-{document_id}"
 
     return document_id
 
@@ -200,6 +227,7 @@ class StateDocumentUseCase:
 
     def get_state(self, document_id: str) -> StateResult:
         """Get a document's implementation state."""
+        document_id = _resolve_document_id(self._root_dir, document_id)
         state = load_project_state(self._root_dir)
         if state is None:
             raise MeminitError(
