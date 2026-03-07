@@ -16,8 +16,16 @@ from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
-from meminit.core.services.observability import get_current_run_id, log_debug, log_operation
-from meminit.core.services.repo_config import RepoConfig, load_repo_config, load_repo_layout
+from meminit.core.services.observability import (
+    get_current_run_id,
+    log_debug,
+    log_operation,
+)
+from meminit.core.services.repo_config import (
+    RepoConfig,
+    load_repo_config,
+    load_repo_layout,
+)
 from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.section_parser import SectionParser
 from meminit.core.services.template_interpolation import TemplateInterpolator
@@ -279,7 +287,8 @@ class NewDocumentUseCase:
                         raise MeminitError(
                             code=ErrorCode.DUPLICATE_ID,
                             message=(
-                                f"Document ID already exists: {doc_id} " f"at {existing_path}"
+                                f"Document ID already exists: {doc_id} "
+                                f"at {existing_path}"
                             ),
                             details={
                                 "document_id": doc_id,
@@ -290,7 +299,9 @@ class NewDocumentUseCase:
 
                 if target_path.exists():
                     existing_content = target_path.read_text(encoding="utf-8")
-                    owner, owner_source = self._resolve_owner_with_source(params.owner, ns)
+                    owner, owner_source = self._resolve_owner_with_source(
+                        params.owner, ns
+                    )
                     if reasoning is not None:
                         reasoning.append(
                             {
@@ -346,7 +357,9 @@ class NewDocumentUseCase:
                             related_ids=params.related_ids,
                             superseded_by=params.superseded_by,
                             dry_run=params.dry_run,
-                            content_sha256=self._compute_content_sha256(existing_content),
+                            content_sha256=self._compute_content_sha256(
+                                existing_content
+                            ),
                             template_info=template_info,
                             reasoning=reasoning,
                         )
@@ -432,7 +445,7 @@ class NewDocumentUseCase:
                     related_ids=params.related_ids,
                     superseded_by=params.superseded_by,
                     dry_run=True,
-                    content=content,
+                    rendered_content=content,
                     content_sha256=self._compute_content_sha256(content),
                     template_info=template_info,
                     reasoning=reasoning,
@@ -542,7 +555,9 @@ class NewDocumentUseCase:
 
         return "__TBD__"
 
-    def _resolve_owner_with_source(self, cli_owner: Optional[str], ns: RepoConfig) -> tuple:
+    def _resolve_owner_with_source(
+        self, cli_owner: Optional[str], ns: RepoConfig
+    ) -> tuple:
         """Resolve owner and return (value, source) tuple.
 
         Precedence order (first non-empty value wins):
@@ -599,7 +614,9 @@ class NewDocumentUseCase:
                 return None
         return None
 
-    def _validate_generated_metadata(self, metadata: Dict[str, Any], ns: RepoConfig) -> None:
+    def _validate_generated_metadata(
+        self, metadata: Dict[str, Any], ns: RepoConfig
+    ) -> None:
         """Validate generated metadata against schema and required fields."""
         schema_validator = SchemaValidator(str(ns.schema_file))
         if schema_validator.is_ready():
@@ -647,12 +664,18 @@ class NewDocumentUseCase:
         except Exception:
             return None
 
-        existing_meta = normalize_yaml_scalar_footguns(dict(existing_post.metadata or {}))
+        existing_meta = normalize_yaml_scalar_footguns(
+            dict(existing_post.metadata or {})
+        )
         generated_meta = normalize_yaml_scalar_footguns(
             dict(getattr(generated_post, "metadata", {}) or {})
         )
-        existing_last_updated = self._as_iso_date_string(existing_meta.get("last_updated"))
-        generated_last_updated = self._as_iso_date_string(generated_meta.get("last_updated"))
+        existing_last_updated = self._as_iso_date_string(
+            existing_meta.get("last_updated")
+        )
+        generated_last_updated = self._as_iso_date_string(
+            generated_meta.get("last_updated")
+        )
         existing_meta.pop("last_updated", None)
         generated_meta.pop("last_updated", None)
         if existing_meta != generated_meta:
@@ -668,7 +691,9 @@ class NewDocumentUseCase:
             if normalized_existing != normalized_generated:
                 return None
 
-        return self._coerce_last_updated(existing_last_updated or generated_last_updated)
+        return self._coerce_last_updated(
+            existing_last_updated or generated_last_updated
+        )
 
     def _as_iso_date_string(self, value: Any) -> Optional[str]:
         if isinstance(value, str) and ISO_DATE_PATTERN.fullmatch(value):
@@ -851,10 +876,14 @@ class NewDocumentUseCase:
             return "GOV"
         return t
 
-    def get_available_types(self, namespace: Optional[str] = None) -> List[Dict[str, str]]:
+    def get_available_types(
+        self, namespace: Optional[str] = None
+    ) -> List[Dict[str, str]]:
         """Return available document types and directories for a namespace."""
         ns = (
-            self._layout.get_namespace(namespace) if namespace else self._layout.default_namespace()
+            self._layout.get_namespace(namespace)
+            if namespace
+            else self._layout.default_namespace()
         )
         if ns is None:
             valid = [n.namespace for n in self._layout.namespaces]
@@ -1231,7 +1260,9 @@ class NewDocumentUseCase:
             body = f"{visible_block}\n\n{body.lstrip()}"
 
         # Build final document with frontmatter
-        fm_yaml = yaml.safe_dump(metadata, sort_keys=False, default_flow_style=False).strip()
+        fm_yaml = yaml.safe_dump(
+            metadata, sort_keys=False, default_flow_style=False
+        ).strip()
         rendered_content = f"---\n{fm_yaml}\n---\n\n{body}"
 
         # Parse sections for JSON output
@@ -1270,7 +1301,9 @@ class NewDocumentUseCase:
 
         if resolution.path:
             try:
-                info["path"] = str(resolution.path.resolve().relative_to(self.root_dir.resolve()))
+                info["path"] = str(
+                    resolution.path.resolve().relative_to(self.root_dir.resolve())
+                )
             except ValueError:
                 info["path"] = str(resolution.path)
 

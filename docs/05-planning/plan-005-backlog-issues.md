@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-005
 type: PLAN
 title: "WIP Backlog & Issues Tracker"
 status: Draft
-version: "0.3"
+version: "0.4"
 last_updated: 2026-03-07
 owner: GitCmurf
 docops_version: "2.0"
@@ -15,7 +15,7 @@ area: Planning
 > **Document ID:** MEMINIT-PLAN-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
+> **Version:** 0.4
 > **Last Updated:** 2026-03-07
 > **Type:** PLAN
 
@@ -50,7 +50,7 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 | Requirement                   | Status | Notes                                                                           |
 | ----------------------------- | ------ | ------------------------------------------------------------------------------- |
 | F1 `--format json`            | ✅ Met | Full JSON envelope with schema versioning                                       |
-| F2 Extended metadata flags     | ✅ Met | `--owner`, `--area`, `--description`, `--status`, `--keywords`, `--related-ids` |
+| F2 Extended metadata flags    | ✅ Met | `--owner`, `--area`, `--description`, `--status`, `--keywords`, `--related-ids` |
 | F3 `--dry-run` / `--verbose`  | ✅ Met | Preview mode and decision logging                                               |
 | F4 `--list-types`             | ✅ Met | Type discovery with JSON output                                                 |
 | F5 `--id` deterministic       | ✅ Met | Exact ID specification with validation                                          |
@@ -62,36 +62,36 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 ### 1.3 PRD-006: Document Templates v2
 
-| Requirement                          | Status                 | Notes                                                                        |
-| ------------------------------------ | ---------------------- | ---------------------------------------------------------------------------- |
-| FR-1 Template Resolution Precedence  | ✅ Met                 | Config → convention → builtin → skeleton                                     |
-| FR-3 {{variable}} interpolation     | ✅ Met                 | Only supported syntax; legacy rejected                                      |
-| FR-4 Agent Prompt Blocks            | ✅ Met                 | `<!-- AGENT: ... -->` preserved                                            |
-| FR-5 Stable Section IDs             | ✅ Met                 | `<!-- MEMINIT_SECTION: ... -->` markers                                     |
-| FR-6 document_types single source   | ✅ Met                 | Single source of truth in config                                             |
-| FR-7 JSON Output                   | 🔲 Partial             | Missing `rendered_content` field                                             |
-| FR-8 Metadata Block Rule             | ✅ Met                 | Single metadata block, no duplicates                                        |
-| FR-9 Frontmatter Merging           | ✅ Met                 | Template frontmatter preserved                                               |
-| FR-10 Path Traversal Protection    | ✅ Met                 | Security checks implemented                                                  |
-| FR-11 Convention Discovery         | ✅ Met                 | `<type>.template.md` convention                                            |
-| FR-12 Code Fence Protection        | ✅ Met                 | Markers in code fences ignored                                              |
-| FR-13 Duplicate Section ID Detect | ✅ Met                 | Raises explicit error                                                       |
-| FR-14 Missing Required Sections    | ✅ Met                 | Warning emitted for unfilled required sections                               |
-| FR-15 Marker-to-Marker Boundaries | ✅ Met                 | Section spans defined by markers                                            |
-| FR-16 check/fix uses document_types | ✅ Met                 | Both commands use document_types                                            |
-| FR-17 Invalid Template File        | ✅ Met                 | `INVALID_TEMPLATE_FILE` error                                              |
-| WP-3 Built-in Templates            | ✅ Met                 | ADR, PRD, FDD templates with sections                                      |
-| WP-7 Migration Tooling             | ❌ Not Yet Implemented | `meminit migrate-templates` not yet built                                   |
+| Requirement                         | Status | Notes                                                    |
+| ----------------------------------- | ------ | -------------------------------------------------------- |
+| FR-1 Template Resolution Precedence | ✅ Met | Config → convention → builtin → skeleton                 |
+| FR-3 {{variable}} interpolation     | ✅ Met | Only supported syntax; legacy rejected                   |
+| FR-4 Agent Prompt Blocks            | ✅ Met | `<!-- AGENT: ... -->` preserved                          |
+| FR-5 Stable Section IDs             | ✅ Met | `<!-- MEMINIT_SECTION: ... -->` markers                  |
+| FR-6 document_types single source   | ✅ Met | Single source of truth in config                         |
+| FR-7 JSON Output                    | ✅ Met | `rendered_content` field now implemented (P1.1 complete) |
+| FR-8 Metadata Block Rule            | ✅ Met | Single metadata block, no duplicates                     |
+| FR-9 Frontmatter Merging            | ✅ Met | Template frontmatter preserved                           |
+| FR-10 Path Traversal Protection     | ✅ Met | Security checks implemented                              |
+| FR-11 Convention Discovery          | ✅ Met | `<type>.template.md` convention                          |
+| FR-12 Code Fence Protection         | ✅ Met | Markers in code fences ignored                           |
+| FR-13 Duplicate Section ID Detect   | ✅ Met | Raises explicit error                                    |
+| FR-14 Missing Required Sections     | ✅ Met | Warning emitted for unfilled required sections           |
+| FR-15 Marker-to-Marker Boundaries   | ✅ Met | Section spans defined by markers                         |
+| FR-16 check/fix uses document_types | ✅ Met | Both commands use document_types                         |
+| FR-17 Invalid Template File         | ✅ Met | `INVALID_TEMPLATE_FILE` error                            |
+| WP-3 Built-in Templates             | ✅ Met | ADR, PRD, FDD templates with sections                    |
+| WP-7 Migration Tooling              | ✅ Met | `meminit migrate-templates` implemented (spec-010)       |
 
 ### 1.4 PRD-007: Project State Dashboard
 
-| Phase | Requirement                        | Status | Notes                                                        |
-| ----- | ---------------------------------- | ------ | ------------------------------------------------------------ |
-| 1     | State file support                  | ✅ Met | `project-state.yaml` schema and validation in doctor       |
-| 2     | Index merge                        | ✅ Met | `--impl-state` filtering, JSON output with impl_state       |
-| 3     | Table view (catalogue.md)         | ✅ Met | Generated with grouping by Active Work/Governance Pending   |
-| 4     | Kanban view (kanban.md + kanban.css) | ✅ Met | HTML board with semantic sections, accessible, CSS styling  |
-| 5     | Integration (pre-commit/runbooks)  | 🔲 Partial | Pre-commit for state file not specifically implemented      |
+| Phase | Requirement                          | Status | Notes                                                                                      |
+| ----- | ------------------------------------ | ------ | ------------------------------------------------------------------------------------------ |
+| 1     | State file support                   | ✅ Met | `project-state.yaml` schema and validation in doctor                                       |
+| 2     | Index merge                          | ✅ Met | `--impl-state` filtering, JSON output with impl_state                                      |
+| 3     | Table view (catalogue.md)            | ✅ Met | Generated with grouping by Active Work/Governance Pending                                  |
+| 4     | Kanban view (kanban.md + kanban.css) | ✅ Met | HTML board with semantic sections, accessible, CSS styling                                 |
+| 5     | Integration (pre-commit/runbooks)    | ✅ Met | Pre-commit runs `meminit doctor` for state file; runbook-004 updated (P4.1, P4.2 complete) |
 
 ---
 
@@ -119,25 +119,31 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 **Item:** `rendered_content` field in `meminit new` JSON output
 
+**Status:** ✅ Complete (P1.1, P1.2)
+
 **See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 1.1-1.3
 
-**Priority:** Medium
+**Notes:** Field renamed from `content` to `rendered_content` in NewDocumentResult; JSON output now matches PRD-006 spec.
 
 ### 3.3 PRD-006: Migration Tooling
 
 **Item:** `meminit migrate-templates` command
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 2.1-2.5
+**Status:** ✅ Complete (P2)
 
-**Priority:** Low
+**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 2.1-2.5; [spec-010](docs/20-specs/spec-010-template-migration.md)
+
+**Notes:** Command implemented with config migration, placeholder syntax migration, and dry-run support.
 
 ### 3.4 PRD-007: Integration
 
 **Item:** Pre-commit hook for project-state.yaml
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 4.1-4.2
+**Status:** ✅ Complete (P4.1, P4.2)
 
-**Priority:** Low
+**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 4.1-4.2; [runbook-004](docs/60-runbooks/runbook-004-ci-cd-enforcement.md)
+
+**Notes:** `install-precommit` now runs `meminit doctor` for project-state.yaml; operator workflow documented in runbook.
 
 ---
 
@@ -154,8 +160,9 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 ## 5. History
 
-| Version | Date       | Author | Changes                                             |
-| ------- | ---------- | ------ | --------------------------------------------------- |
-| 0.1     | 2026-03-07 | Kilo   | Initial version; document PRD implementation status |
-| 0.2     | 2026-03-07 | Kilo   | Add PRD-006 implementation status                   |
-| 0.3     | 2026-03-07 | Kilo   | Add PRD-007 status; reference task list             |
+| Version | Date       | Author | Changes                                                         |
+| ------- | ---------- | ------ | --------------------------------------------------------------- |
+| 0.1     | 2026-03-07 | Kilo   | Initial version; document PRD implementation status             |
+| 0.2     | 2026-03-07 | Kilo   | Add PRD-006 implementation status                               |
+| 0.3     | 2026-03-07 | Kilo   | Add PRD-007 status; reference task list                         |
+| 0.4     | 2026-03-07 | Kilo   | Mark P1.1, P1.2, P2, P4.1, P4.2 complete; update deferred items |

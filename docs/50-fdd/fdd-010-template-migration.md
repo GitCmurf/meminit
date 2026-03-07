@@ -2,9 +2,9 @@
 document_id: MEMINIT-FDD-010
 type: FDD
 title: Template Migration Tool (meminit migrate-templates)
-status: Draft
-version: 0.1
-last_updated: 2026-03-04
+status: Approved
+version: 0.2
+last_updated: 2026-03-07
 owner: Product Team
 docops_version: 2.0
 area: CORE
@@ -18,6 +18,7 @@ related_ids:
   - MEMINIT-PRD-006
   - MEMINIT-ADR-014
   - MEMINIT-SPEC-007
+  - MEMINIT-SPEC-010
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -254,9 +255,11 @@ Run with --no-dry-run to apply changes.
 
 ## Implementation Notes
 
-- Use case: `src/meminit/core/use_cases/migrate_templates.py` (Planned, not yet implemented)
+- Use case: `src/meminit/core/use_cases/migrate_templates.py` (Implemented)
+- CLI command: `meminit migrate-templates` (Implemented)
 - Config file: root `docops.config.yaml`
 - Backup location: `.meminit/migrations/backup-<timestamp>/`
+- Implementation spec: `docs/20-specs/spec-010-template-migration.md`
 
 ### Security Considerations
 

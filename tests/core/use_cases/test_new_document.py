@@ -1,6 +1,7 @@
 import errno
 import re
 import sys
+import threading
 import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -146,7 +147,7 @@ class TestNewDocumentResult:
         assert result.keywords == ["key"]
         assert result.related_ids == ["TEST-PRD-001"]
         assert result.dry_run is False
-        assert result.content is None
+        assert result.rendered_content is None
         assert result.error is None
 
     def test_instantiation_failure_result(self):
@@ -233,7 +234,9 @@ class TestStatusValidation:
 class TestRelatedIdsValidation:
     def test_valid_related_ids_single(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["TEST-ADR-001"])
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", related_ids=["TEST-ADR-001"]
+        )
         result = use_case.execute_with_params(params)
         assert result.success is True
         assert result.related_ids == ["TEST-ADR-001"]
@@ -249,24 +252,36 @@ class TestRelatedIdsValidation:
         assert result.success is True
         assert len(result.related_ids) == 3
 
-    def test_invalid_related_id_format_raises_error(self, repo_with_config_and_template):
+    def test_invalid_related_id_format_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["invalid-id"])
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", related_ids=["invalid-id"]
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_RELATED_ID
         assert "invalid-id" in result.error.message
 
-    def test_invalid_related_id_lowercase_raises_error(self, repo_with_config_and_template):
+    def test_invalid_related_id_lowercase_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["test-adr-001"])
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", related_ids=["test-adr-001"]
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_RELATED_ID
 
-    def test_invalid_related_id_missing_segment_raises_error(self, repo_with_config_and_template):
+    def test_invalid_related_id_missing_segment_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["TEST-ADR"])
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", related_ids=["TEST-ADR"]
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_RELATED_ID
@@ -279,7 +294,9 @@ class TestRelatedIdsValidation:
 
 
 class TestOwnerResolutionChain:
-    def test_cli_flag_takes_precedence(self, repo_with_config_and_template, monkeypatch):
+    def test_cli_flag_takes_precedence(
+        self, repo_with_config_and_template, monkeypatch
+    ):
         monkeypatch.setenv("MEMINIT_DEFAULT_OWNER", "EnvOwner")
         (repo_with_config_and_template / "docops.config.yaml").write_text(
             """project_name: TestProject
@@ -299,7 +316,9 @@ document_types:
         assert result.success is True
         assert result.owner == "CliOwner"
 
-    def test_environment_variable_works(self, repo_with_config_and_template, monkeypatch):
+    def test_environment_variable_works(
+        self, repo_with_config_and_template, monkeypatch
+    ):
         monkeypatch.setenv("MEMINIT_DEFAULT_OWNER", "EnvOwner")
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
         params = NewDocumentParams(doc_type="ADR", title="Test")
@@ -307,7 +326,9 @@ document_types:
         assert result.success is True
         assert result.owner == "EnvOwner"
 
-    def test_config_file_default_owner_works(self, repo_with_config_and_template, monkeypatch):
+    def test_config_file_default_owner_works(
+        self, repo_with_config_and_template, monkeypatch
+    ):
         monkeypatch.delenv("MEMINIT_DEFAULT_OWNER", raising=False)
         (repo_with_config_and_template / "docops.config.yaml").write_text(
             """project_name: TestProject
@@ -339,7 +360,9 @@ document_types:
 class TestDeterministicIdMode:
     def test_id_flag_works_with_matching_type(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="TEST-ADR-042")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", document_id="TEST-ADR-042"
+        )
         result = use_case.execute_with_params(params)
         assert result.success is True
         assert result.document_id == "TEST-ADR-042"
@@ -347,18 +370,26 @@ class TestDeterministicIdMode:
         doc_path = repo_with_config_and_template / "docs" / "45-adr" / "adr-042-test.md"
         assert doc_path.exists()
 
-    def test_id_flag_with_mismatched_type_raises_error(self, repo_with_config_and_template):
+    def test_id_flag_with_mismatched_type_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="TEST-PRD-042")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", document_id="TEST-PRD-042"
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_ID_FORMAT
         assert "PRD" in result.error.message
         assert "ADR" in result.error.message
 
-    def test_id_flag_with_wrong_prefix_raises_error(self, repo_with_config_and_template):
+    def test_id_flag_with_wrong_prefix_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="WRONG-ADR-042")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", document_id="WRONG-ADR-042"
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_ID_FORMAT
@@ -372,7 +403,12 @@ class TestDeterministicIdMode:
             SCHEMA_JSON, encoding="utf-8"
         )
         (
-            tmp_path / "packages" / "phyla" / "docs" / "00-governance" / "metadata.schema.json"
+            tmp_path
+            / "packages"
+            / "phyla"
+            / "docs"
+            / "00-governance"
+            / "metadata.schema.json"
         ).write_text(SCHEMA_JSON, encoding="utf-8")
 
         (tmp_path / "docops.config.yaml").write_text(
@@ -427,27 +463,41 @@ docops_version: 2.0
         assert result.success is False
         assert isinstance(result.error, MeminitError)
         assert result.error.code == ErrorCode.DUPLICATE_ID
-        assert "docs/45-adr/adr-777-existing.md" in str(result.error.details["existing_path"])
+        assert "docs/45-adr/adr-777-existing.md" in str(
+            result.error.details["existing_path"]
+        )
 
-    def test_id_flag_with_existing_id_allows_idempotent_create(self, repo_with_config_and_template):
+    def test_id_flag_with_existing_id_allows_idempotent_create(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
 
-        params1 = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-001")
+        params1 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-001"
+        )
         result1 = use_case.execute_with_params(params1)
         assert result1.success is True
 
-        params2 = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-001")
+        params2 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-001"
+        )
         result2 = use_case.execute_with_params(params2)
         assert result2.success is True
 
-    def test_id_flag_allows_last_updated_differences(self, repo_with_config_and_template):
+    def test_id_flag_allows_last_updated_differences(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
 
-        params1 = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-004")
+        params1 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-004"
+        )
         result1 = use_case.execute_with_params(params1)
         assert result1.success is True
 
-        doc_path = repo_with_config_and_template / "docs" / "45-adr" / "adr-004-same-title.md"
+        doc_path = (
+            repo_with_config_and_template / "docs" / "45-adr" / "adr-004-same-title.md"
+        )
         content = doc_path.read_text(encoding="utf-8")
         updated = re.sub(
             r"last_updated: ['\"]?\d{4}-\d{2}-\d{2}['\"]?",
@@ -457,7 +507,9 @@ docops_version: 2.0
         )
         doc_path.write_text(updated, encoding="utf-8")
 
-        params2 = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-004")
+        params2 = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-004"
+        )
         result2 = use_case.execute_with_params(params2)
         assert result2.success is True
         assert result2.last_updated == "2020-01-01"
@@ -508,9 +560,13 @@ docops_version: 2.0
         assert result2.success is False
         assert result2.error.code == ErrorCode.DUPLICATE_ID
 
-    def test_id_flag_with_invalid_format_raises_error(self, repo_with_config_and_template):
+    def test_id_flag_with_invalid_format_raises_error(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="invalid-id-format")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", document_id="invalid-id-format"
+        )
         result = use_case.execute_with_params(params)
         assert result.success is False
         assert result.error.code == ErrorCode.INVALID_ID_FORMAT
@@ -555,16 +611,22 @@ document_types:
                 return real_date(2026, 2, 20)
 
         monkeypatch.setattr(new_document_module, "date", DayOneDate)
-        monkeypatch.setattr("meminit.core.services.template_interpolation.date", DayOneDate)
+        monkeypatch.setattr(
+            "meminit.core.services.template_interpolation.date", DayOneDate
+        )
         use_case = NewDocumentUseCase(str(tmp_path))
-        params = NewDocumentParams(doc_type="ADR", title="Same Title", document_id="TEST-ADR-009")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Same Title", document_id="TEST-ADR-009"
+        )
         first = use_case.execute_with_params(params)
         assert first.success is True
         assert first.path is not None
         assert "Date decided: 2026-02-19" in first.path.read_text(encoding="utf-8")
 
         monkeypatch.setattr(new_document_module, "date", DayTwoDate)
-        monkeypatch.setattr("meminit.core.services.template_interpolation.date", DayTwoDate)
+        monkeypatch.setattr(
+            "meminit.core.services.template_interpolation.date", DayTwoDate
+        )
         second = use_case.execute_with_params(params)
         assert second.success is True
         assert second.path == first.path
@@ -579,7 +641,12 @@ class TestDryRunMode:
         result = use_case.execute_with_params(params)
 
         assert result.success is True
-        doc_path = repo_with_config_and_template / "docs" / "45-adr" / "adr-001-dry-run-test.md"
+        doc_path = (
+            repo_with_config_and_template
+            / "docs"
+            / "45-adr"
+            / "adr-001-dry-run-test.md"
+        )
         assert not doc_path.exists()
 
     def test_content_is_returned_in_result(self, repo_with_config_and_template):
@@ -588,10 +655,10 @@ class TestDryRunMode:
         result = use_case.execute_with_params(params)
 
         assert result.success is True
-        assert result.content is not None
-        assert "---" in result.content
-        assert "document_id:" in result.content
-        assert "Dry Run Test" in result.content
+        assert result.rendered_content is not None
+        assert "---" in result.rendered_content
+        assert "document_id:" in result.rendered_content
+        assert "Dry Run Test" in result.rendered_content
 
     def test_result_has_dry_run_true(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
@@ -635,7 +702,9 @@ class TestExtendedMetadataFields:
 
     def test_area_is_included_when_provided(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", area="Backend Services")
+        params = NewDocumentParams(
+            doc_type="ADR", title="Test", area="Backend Services"
+        )
         result = use_case.execute_with_params(params)
 
         assert result.success is True
@@ -653,7 +722,9 @@ class TestExtendedMetadataFields:
         post = frontmatter.load(result.path)
         assert post.metadata.get("description") == "This is a detailed description."
 
-    def test_keywords_array_is_included_when_provided(self, repo_with_config_and_template):
+    def test_keywords_array_is_included_when_provided(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
         params = NewDocumentParams(
             doc_type="ADR", title="Test", keywords=["api", "database", "migration"]
@@ -664,7 +735,9 @@ class TestExtendedMetadataFields:
         post = frontmatter.load(result.path)
         assert post.metadata.get("keywords") == ["api", "database", "migration"]
 
-    def test_related_ids_array_is_included_when_provided(self, repo_with_config_and_template):
+    def test_related_ids_array_is_included_when_provided(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
         params = NewDocumentParams(
             doc_type="ADR", title="Test", related_ids=["TEST-PRD-001", "TEST-FDD-002"]
@@ -696,7 +769,9 @@ class TestExtendedMetadataFields:
         assert post.metadata.get("keywords") == ["ci", "cd", "deployment"]
         assert post.metadata.get("related_ids") == ["TEST-ADR-001"]
 
-    def test_optional_fields_absent_when_not_provided(self, repo_with_config_and_template):
+    def test_optional_fields_absent_when_not_provided(
+        self, repo_with_config_and_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
         params = NewDocumentParams(doc_type="ADR", title="Minimal Test")
         result = use_case.execute_with_params(params)
@@ -732,7 +807,9 @@ def test_new_prd_auto_increment_id(repo_with_init):
     repo_prefix = config["repo_prefix"]
 
     prd_dir = repo_with_init / "docs/10-prd"
-    (prd_dir / "prd-001-fake.md").write_text(f"---\ndocument_id: {repo_prefix}-PRD-001\n---")
+    (prd_dir / "prd-001-fake.md").write_text(
+        f"---\ndocument_id: {repo_prefix}-PRD-001\n---"
+    )
 
     doc_path = use_case.execute("PRD", "Second Product")
 
@@ -808,7 +885,10 @@ document_types:
 def test_new_uses_uppercase_template_key(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
-    template.write_text("# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n## Custom Template Marker\n", encoding="utf-8")
+    template.write_text(
+        "# ADR Title\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n## Custom Template Marker\n",
+        encoding="utf-8",
+    )
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
     )
@@ -838,7 +918,9 @@ def test_new_does_not_overwrite_existing_file(repo_with_init, monkeypatch):
     post = frontmatter.load(first)
     existing_id = post.metadata["document_id"]
 
-    monkeypatch.setattr(use_case, "_generate_id", lambda _doc_type, _target_dir, _ns: existing_id)
+    monkeypatch.setattr(
+        use_case, "_generate_id", lambda _doc_type, _target_dir, _ns: existing_id
+    )
     with pytest.raises(FileExistsError):
         use_case.execute("ADR", "Unique Title")
 
@@ -867,7 +949,11 @@ document_types:
 
     use_case = NewDocumentUseCase(str(tmp_path))
     doc_path = use_case.execute("ADR", "Goes To ADRs Folder")
-    assert str(doc_path).replace("\\", "/").endswith("/docs/adrs/adr-001-goes-to-adrs-folder.md")
+    assert (
+        str(doc_path)
+        .replace("\\", "/")
+        .endswith("/docs/adrs/adr-001-goes-to-adrs-folder.md")
+    )
 
 
 def test_new_title_slug_fallback_when_empty(repo_with_init):
@@ -942,7 +1028,9 @@ document_types:
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
-    def test_metadata_block_placeholder_is_replaced(self, repo_with_metadata_block_template):
+    def test_metadata_block_placeholder_is_replaced(
+        self, repo_with_metadata_block_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_metadata_block_template))
         params = NewDocumentParams(doc_type="ADR", title="Test Decision")
         result = use_case.execute_with_params(params)
@@ -952,7 +1040,9 @@ document_types:
         assert "<!-- MEMINIT_METADATA_BLOCK -->" not in content
         assert "> **Document ID:**" in content
 
-    def test_metadata_block_contains_all_expected_fields(self, repo_with_metadata_block_template):
+    def test_metadata_block_contains_all_expected_fields(
+        self, repo_with_metadata_block_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_metadata_block_template))
         params = NewDocumentParams(
             doc_type="ADR",
@@ -972,7 +1062,9 @@ document_types:
         assert "> **Type:** ADR" in content
         assert "> **Area:** Backend" in content
 
-    def test_metadata_block_excludes_empty_fields(self, repo_with_metadata_block_template):
+    def test_metadata_block_excludes_empty_fields(
+        self, repo_with_metadata_block_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_metadata_block_template))
         params = NewDocumentParams(
             doc_type="ADR",
@@ -1033,7 +1125,9 @@ document_types:
         (tmp_path / "docs" / "10-prd").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
-    def test_template_frontmatter_fields_preserved(self, repo_with_frontmatter_template):
+    def test_template_frontmatter_fields_preserved(
+        self, repo_with_frontmatter_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_frontmatter_template))
         params = NewDocumentParams(doc_type="PRD", title="New Feature")
         result = use_case.execute_with_params(params)
@@ -1043,7 +1137,9 @@ document_types:
         assert post.metadata.get("custom_field") == "preserved-value"
         assert post.metadata.get("another_field") == "from-template"
 
-    def test_generated_metadata_overrides_template_metadata(self, repo_with_frontmatter_template):
+    def test_generated_metadata_overrides_template_metadata(
+        self, repo_with_frontmatter_template
+    ):
         use_case = NewDocumentUseCase(str(repo_with_frontmatter_template))
         params = NewDocumentParams(
             doc_type="PRD",
@@ -1136,7 +1232,9 @@ document_types:
     def test_lock_acquired_before_id_generation(self, repo_for_locking):
         use_case = NewDocumentUseCase(str(repo_for_locking))
 
-        with patch.object(use_case, "_acquire_lock", wraps=use_case._acquire_lock) as mock_acquire:
+        with patch.object(
+            use_case, "_acquire_lock", wraps=use_case._acquire_lock
+        ) as mock_acquire:
             with patch.object(
                 use_case, "_release_lock", wraps=use_case._release_lock
             ) as mock_release:
@@ -1188,7 +1286,9 @@ document_types:
             use_case, "_open_lock_file", side_effect=raise_permission_error
         ) as mock_open_lock_file:
             with patch.dict("os.environ", {"MEMINIT_LOCK_TIMEOUT_MS": "1000"}):
-                params = NewDocumentParams(doc_type="ADR", title="Lock Permission Error")
+                params = NewDocumentParams(
+                    doc_type="ADR", title="Lock Permission Error"
+                )
                 result = use_case.execute_with_params(params)
 
         assert result.success is False
@@ -1207,6 +1307,40 @@ document_types:
             assert result.success is True
             mock_acquire.assert_not_called()
 
+    def test_concurrent_id_generation_no_duplicates(self, repo_for_locking):
+        """Verify no duplicate IDs are generated under concurrent access."""
+        use_case = NewDocumentUseCase(str(repo_for_locking))
+        results = []
+        errors = []
+        lock = threading.Lock()
+
+        def create_doc(title):
+            try:
+                params = NewDocumentParams(doc_type="ADR", title=title)
+                result = use_case.execute_with_params(params)
+                with lock:
+                    results.append(result)
+            except Exception as e:
+                with lock:
+                    errors.append(e)
+
+        threads = []
+        for i in range(5):
+            t = threading.Thread(target=create_doc, args=(f"Concurrent Test {i}",))
+            threads.append(t)
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0, f"Errors: {errors}"
+        assert all(r.success for r in results)
+
+        ids = [r.document_id for r in results]
+        assert len(ids) == len(set(ids)), f"Duplicate IDs: {ids}"
+
 
 class TestLockFallbackAndSafety:
     def test_non_posix_lock_fallback_allows_document_creation(
@@ -1221,12 +1355,16 @@ class TestLockFallbackAndSafety:
         assert result.success is True
         assert result.path is not None
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlink semantics differ on Windows")
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="symlink semantics differ on Windows"
+    )
     def test_symlinked_lock_file_is_rejected(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
 
         lock_path = repo_with_config_and_template / "docs" / "45-adr" / ".meminit.lock"
-        escape_target = repo_with_config_and_template.parent / "meminit-lock-escape-target.txt"
+        escape_target = (
+            repo_with_config_and_template.parent / "meminit-lock-escape-target.txt"
+        )
         escape_target.write_text("SAFE", encoding="utf-8")
         lock_path.symlink_to(escape_target)
 

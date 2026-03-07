@@ -17,6 +17,7 @@ keywords:
   - technical-debt
 related_ids:
   - MEMINIT-PLAN-005
+  - MEMINIT-PLAN-006A
   - MEMINIT-PRD-001
   - MEMINIT-PRD-006
   - MEMINIT-PRD-007
@@ -79,14 +80,14 @@ This worklist follows these principles:
 
 ## 4. Priority Summary
 
-| Priority | Workstream | Why it matters now |
-|----------|------------|--------------------|
-| P0 | Documentation alignment sweep | Backlog completion is not credible if governed docs drift from shipped behaviour |
-| P1 | PRD-006 JSON output gap | Public contract drift already exists between PRD/spec and implementation |
-| P2 | PRD-006 migration tooling | Required to make Templates v2 adoption safe in legacy repos |
-| P3 | PRD-001 org-level config | Valid backlog, but lower urgency for single-repo operation |
-| P4 | PRD-007 integration polish | Useful hardening, but only after contract gaps are closed |
-| P5 | Technical debt | Important, but should target risk, not vanity metrics |
+| Priority | Workstream                    | Why it matters now                                                               |
+| -------- | ----------------------------- | -------------------------------------------------------------------------------- |
+| P0       | Documentation alignment sweep | Backlog completion is not credible if governed docs drift from shipped behaviour |
+| P1       | PRD-006 JSON output gap       | Public contract drift already exists between PRD/spec and implementation         |
+| P2       | PRD-006 migration tooling     | Required to make Templates v2 adoption safe in legacy repos                      |
+| P3       | PRD-001 org-level config      | Valid backlog, but lower urgency for single-repo operation                       |
+| P4       | PRD-007 integration polish    | Useful hardening, but only after contract gaps are closed                        |
+| P5       | Technical debt                | Important, but should target risk, not vanity metrics                            |
 
 ## 5. Atomic Worklist
 
@@ -100,9 +101,11 @@ Status assessment:
 #### Task P0.1: Add a backlog-wide documentation sync pass for each delivered workstream
 
 Outcome:
+
 - Every shipped backlog item includes an explicit review of the governed documents that describe or operationalise that behaviour.
 
 Required changes:
+
 - Review and update, where applicable:
   - interface and output specs
   - ADRs
@@ -114,23 +117,28 @@ Required changes:
 - Add cross-references when a new doc becomes the primary source of truth.
 
 Acceptance criteria:
+
 - No workstream in this plan is marked complete until the relevant governed docs are aligned with the shipped code.
 - If a document family is intentionally not updated, the reason is recorded in the PR or plan note rather than left implicit.
 
 #### Task P0.2: Add a final documentation-consistency verification step before backlog closure
 
 Outcome:
+
 - The backlog can only be closed when code and governed documentation agree on exposed behaviour and operator workflow.
 
 Required changes:
+
 - Before closing a workstream, review changed behaviour against the relevant spec, ADR, FDD, and runbook set.
 - Update examples, command snippets, JSON payloads, and acceptance tables that have drifted.
 
 Acceptance criteria:
+
 - Examples and command references match the implemented behaviour.
 - Backlog tracking docs do not report completed features as partial or missing.
 
 Sizing:
+
 - Small, but mandatory for every other workstream
 
 ### 5.1 Workstream P1: Close the PRD-006 JSON Output Gap
@@ -146,14 +154,17 @@ This is therefore a contract-alignment task, not a greenfield feature.
 #### Task P1.1: Align the domain result model with Templates v2 terminology
 
 Outcome:
+
 - `NewDocumentResult` uses an explicit `rendered_content` field, or an equivalent compatibility strategy is documented and tested.
 
 Required changes:
+
 - Update the domain entity in `src/meminit/core/domain/entities.py`.
 - Preserve CLI/output compatibility during the rename or aliasing step.
 - Update internal call sites in `src/meminit/core/use_cases/new_document.py` and `src/meminit/cli/main.py`.
 
 Acceptance criteria:
+
 - Code uses one unambiguous authoritative field for full rendered document text.
 - No caller depends on an undocumented legacy field shape.
 - Tests cover both success and dry-run paths.
@@ -161,14 +172,17 @@ Acceptance criteria:
 #### Task P1.2: Verify the `new` JSON envelope matches PRD-006 and MEMINIT-SPEC-007
 
 Outcome:
+
 - `meminit new --format json` emits the full Templates v2 payload expected by the backlog documents that claim only a partial implementation.
 
 Required changes:
+
 - Review emitted JSON for `rendered_content`, `content_sha256`, template provenance, and section metadata.
 - Fix any mismatch between runtime payload and documented contract.
 - Update MEMINIT-PLAN-005 if the backlog status changes from partial to complete.
 
 Acceptance criteria:
+
 - One integration-style CLI test asserts the complete `data` shape for a templated document.
 - One regression test asserts the payload matches the rendered file content exactly.
 - Related planning/status docs no longer misreport implementation state.
@@ -176,16 +190,20 @@ Acceptance criteria:
 #### Task P1.3: Reconcile command availability and local developer workflow
 
 Outcome:
+
 - The repo documentation distinguishes between repository source state and any older globally installed `meminit` binary.
 
 Required changes:
+
 - Update docs or runbooks where necessary to explain that repository code may be ahead of the installed CLI.
 - Prefer verification via tests or local module execution when validating newly added commands.
 
 Acceptance criteria:
+
 - Developer-facing documentation does not imply that PATH-installed `meminit` is always the source of truth during local development.
 
 Sizing:
+
 - Small
 
 ### 5.2 Workstream P2: Deliver `meminit migrate-templates`
@@ -194,78 +212,99 @@ Status assessment:
 
 - PRD-006 expects migration tooling.
 - The codebase already warns users to run `meminit migrate-templates`.
-- No such command is implemented yet.
+- **IMPLEMENTED**: Command `meminit migrate-templates` is now available.
 
-This is a real backlog gap and should be delivered as a bounded, safety-first feature.
+Implementation references:
+
+- Spec: `docs/20-specs/spec-010-template-migration.md`
+- Use case: `src/meminit/core/use_cases/migrate_templates.py`
+- CLI: `src/meminit/cli/main.py` (command: `migrate-templates`)
+- Tests: `tests/core/use_cases/test_migrate_templates.py`
 
 #### Task P2.1: Write the implementation spec before code
 
 Outcome:
+
 - A concrete spec or design addendum defines migration inputs, outputs, dry-run semantics, and idempotency rules.
 
 Required changes:
+
 - Document supported legacy config keys and placeholder rewrites.
 - Define failure modes for mixed or ambiguous template syntax.
 - Define JSON output contract for dry-run and apply modes.
 
 Acceptance criteria:
+
 - The implementation can be reviewed against a written behaviour contract.
 - Non-goals are explicit, especially around semantic document rewriting.
 
 #### Task P2.2: Implement config migration for legacy template settings
 
 Outcome:
+
 - Legacy `type_directories` and legacy template configuration can be converted to `document_types` safely.
 
 Required changes:
+
 - Add a dedicated migration service with pure transformation logic.
 - Support dry-run first.
 - Reject ambiguous or conflicting input rather than guessing.
 
 Acceptance criteria:
+
 - Unit tests cover clean migration, conflict detection, and idempotency.
 - CLI output clearly distinguishes proposed vs. applied changes.
 
 #### Task P2.3: Implement placeholder syntax migration
 
 Outcome:
+
 - Legacy placeholders are rewritten to the Templates v2 `{{variable}}` form.
 
 Required changes:
+
 - Convert only supported legacy patterns documented in PRD-006 and MEMINIT-SPEC-007.
 - Avoid touching non-template markdown or code fences incorrectly.
 - Do not silently rewrite unknown placeholders.
 
 Acceptance criteria:
+
 - Tests cover single-file conversion, mixed-syntax rejection, and idempotent reruns.
 - Migration preserves non-placeholder content byte-for-byte apart from intended rewrites.
 
 #### Task P2.4: Expose the CLI command with safe defaults
 
 Outcome:
+
 - `meminit migrate-templates` exists and defaults to non-destructive preview behaviour.
 
 Required changes:
+
 - Add CLI registration and help text.
 - Ensure output contracts and error codes are consistent with existing command patterns.
 
 Acceptance criteria:
+
 - `--dry-run` is the default unless there is a strong repo-wide reason to do otherwise.
 - Help text explains when to use the command and what it will not rewrite.
 
 #### Task P2.5: Complete end-to-end tests and user docs
 
 Outcome:
+
 - The migration path is documented and regression-tested.
 
 Required changes:
+
 - Add integration tests for full workflow.
 - Update PRD/spec/runbook or planning docs that reference the command.
 
 Acceptance criteria:
+
 - A maintainer can migrate a small legacy fixture repo using only the documented flow.
 
 Sizing:
+
 - Medium
 
 ### 5.3 Workstream P3: Org-Level Config (`org-docops.config.yaml`)
@@ -278,53 +317,66 @@ Status assessment:
 #### Task P3.1: Confirm scope and architecture boundary
 
 Outcome:
+
 - The feature scope is reduced to the minimum useful product shape for v1 of org-level config.
+- Scope is documented in [MEMINIT-PLAN-006A](./plan-006a-org-config-scope.md).
 
 Required changes:
-- Decide whether the first implementation supports only shared defaults or also multi-repo inventories.
-- Define precedence rules and explicit non-goals.
+
+- Review and align with scope decision in MEMINIT-PLAN-006A.
 
 Acceptance criteria:
+
 - Scope is documented before any loader or schema code is written.
 
 #### Task P3.2: Add schema and loader for org defaults
 
 Outcome:
+
 - Repositories can read a governed org-level config with deterministic precedence.
 
 Required changes:
+
 - Add schema and loader code.
 - Validate boundary rules at load time.
 - Keep repo config override behaviour explicit.
 
 Acceptance criteria:
+
 - Tests cover absent file, valid file, invalid file, and repo-overrides-org precedence.
 
 #### Task P3.3: Integrate into commands that actually need it
 
 Outcome:
+
 - Only the commands that depend on configuration resolution are changed.
 
 Required changes:
+
 - Wire org config into the existing config loading path carefully.
 - Avoid cross-cutting edits where no behaviour change is required.
 
 Acceptance criteria:
+
 - `new`, `check`, and other affected commands preserve existing behaviour when no org config exists.
 
 #### Task P3.4: Document the migration and operating model
 
 Outcome:
+
 - Repo operators know when org config is appropriate and how precedence works.
 
 Required changes:
+
 - Update relevant planning/spec/runbook docs.
 - Include at least one concrete example config.
 
 Acceptance criteria:
+
 - Docs explain deterministic local include behaviour and avoid any implication of runtime network fetch.
 
 Sizing:
+
 - Medium
 
 ### 5.4 Workstream P4: PRD-007 Integration Hardening
@@ -337,25 +389,31 @@ Status assessment:
 #### Task P4.1: Extend `install-precommit` to cover project-state changes cleanly
 
 Outcome:
+
 - Repositories using `meminit install-precommit` receive a useful guardrail for `project-state.yaml` changes without duplicating validation logic.
 
 Required changes:
+
 - Decide whether to expand the existing hook or add a dedicated hook entry.
 - Reuse existing `meminit check`, `doctor`, or shared validation logic rather than re-encoding rules in YAML hook scripts.
 
 Acceptance criteria:
+
 - One test verifies the installed pre-commit configuration covers the intended state-file workflow.
 - The implementation does not create a second source of truth for sorting or validation rules.
 
 #### Task P4.2: Document and validate the operator workflow
 
 Outcome:
+
 - Users understand how `project-state.yaml`, `meminit state`, `meminit doctor`, and generated indices fit together.
 
 Required changes:
+
 - Update runbook or PRD-adjacent docs if current operator flow is incomplete.
 
 Acceptance criteria:
+
 - A maintainer can update project state and understand which command validates or regenerates which artifact.
 
 Deferred from the previous plan:
@@ -364,6 +422,7 @@ Deferred from the previous plan:
 - It is not justified as a committed requirement and risks adding noisy heuristics without measurable value.
 
 Sizing:
+
 - Small
 
 ### 5.5 Workstream P5: Technical Debt with Measurable Risk Reduction
@@ -376,30 +435,37 @@ Status assessment:
 #### Task P5.1: Add missing behavioural tests for CLI edge cases
 
 Outcome:
+
 - Important CLI failure and compatibility paths are protected by tests.
 
 Required changes:
+
 - Identify currently untested or weakly tested branches in `src/meminit/cli/main.py`.
 - Prioritise user-visible error handling, output contract correctness, and incompatible flag behaviour.
 
 Acceptance criteria:
+
 - New tests are tied to specific behaviours or bug classes, not only to coverage movement.
 - Any coverage increase is treated as a side effect, not the goal.
 
 #### Task P5.2: Add deterministic contention tests for ID allocation
 
 Outcome:
+
 - ID-generation safety is validated without relying on flaky ad hoc stress runs.
 
 Required changes:
+
 - Start with a deterministic multi-process or lock-contention test fixture.
 - Add a separate manual stress script only if the deterministic tests expose residual risk.
 
 Acceptance criteria:
+
 - Automated tests prove no duplicate IDs under the defined contention scenario.
 - Manual stress tooling, if added, is clearly marked as non-gating.
 
 Sizing:
+
 - Small to medium
 
 ## 6. Dependency Order
@@ -433,7 +499,7 @@ An item in this plan is done only when all of the following are true:
 
 ## 8. History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-03-07 | Kilo | Initial atomic task list |
-| 0.2 | 2026-03-07 | Codex | Reworked as a critical reviewed backlog worklist aligned to current codebase and engineering principles |
+| Version | Date       | Author | Changes                                                                                                 |
+| ------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-03-07 | Kilo   | Initial atomic task list                                                                                |
+| 0.2     | 2026-03-07 | Codex  | Reworked as a critical reviewed backlog worklist aligned to current codebase and engineering principles |

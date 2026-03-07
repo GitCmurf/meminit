@@ -11,6 +11,7 @@ from meminit.core.services.repo_config import load_repo_config
 from meminit.core.services.safe_fs import ensure_safe_write_path
 
 HOOK_ID = "meminit-check"
+HOOK_ID_DOCTOR = "meminit-doctor"
 
 
 @dataclass(frozen=True)
@@ -39,15 +40,33 @@ class InstallPrecommitUseCase:
             "files": rf"^{re.escape(docs_root)}/",
         }
 
+        project_state_path = docs_root / "01-indices" / "project-state.yaml"
+        hook_doctor = {
+            "id": HOOK_ID_DOCTOR,
+            "name": "meminit doctor",
+            "entry": f"meminit doctor --root . --strict",
+            "language": "system",
+            "pass_filenames": False,
+            "files": rf"^{re.escape(str(project_state_path))}$",
+        }
+
         if not config_path.exists():
-            data: Dict[str, Any] = {"repos": [{"repo": "local", "hooks": [hook]}]}
-            config_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-            return InstallPrecommitResult(config_path=config_path, status="created", updated=True)
+            data: Dict[str, Any] = {
+                "repos": [{"repo": "local", "hooks": [hook, hook_doctor]}]
+            }
+            config_path.write_text(
+                yaml.safe_dump(data, sort_keys=False), encoding="utf-8"
+            )
+            return InstallPrecommitResult(
+                config_path=config_path, status="created", updated=True
+            )
 
         data = self._load_config(config_path)
         repos = data.get("repos")
         if not isinstance(repos, list):
-            raise ValueError("Invalid .pre-commit-config.yaml: expected top-level 'repos' list.")
+            raise ValueError(
+                "Invalid .pre-commit-config.yaml: expected top-level 'repos' list."
+            )
 
         if self._has_meminit_hook(repos):
             return InstallPrecommitResult(
@@ -56,25 +75,32 @@ class InstallPrecommitUseCase:
 
         local_repo = self._find_local_repo(repos)
         if local_repo is None:
-            repos.append({"repo": "local", "hooks": [hook]})
+            repos.append({"repo": "local", "hooks": [hook, hook_doctor]})
         else:
             hooks = local_repo.setdefault("hooks", [])
             if not isinstance(hooks, list):
                 raise ValueError(
                     "Invalid .pre-commit-config.yaml: local repo 'hooks' must be a list."
                 )
-            hooks.append(hook)
+            self._add_hook_if_missing(hooks, hook)
+            self._add_hook_if_missing(hooks, hook_doctor)
 
         config_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-        return InstallPrecommitResult(config_path=config_path, status="installed", updated=True)
+        return InstallPrecommitResult(
+            config_path=config_path, status="installed", updated=True
+        )
 
     def _load_config(self, path: Path) -> Dict[str, Any]:
         try:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         except Exception as exc:
-            raise ValueError("Invalid .pre-commit-config.yaml: unable to parse YAML.") from exc
+            raise ValueError(
+                "Invalid .pre-commit-config.yaml: unable to parse YAML."
+            ) from exc
         if not isinstance(data, dict):
-            raise ValueError("Invalid .pre-commit-config.yaml: expected a YAML mapping.")
+            raise ValueError(
+                "Invalid .pre-commit-config.yaml: expected a YAML mapping."
+            )
         return data
 
     def _find_local_repo(self, repos: List[Any]) -> Dict[str, Any] | None:
@@ -83,7 +109,16 @@ class InstallPrecommitUseCase:
                 return repo
         return None
 
+    def _add_hook_if_missing(self, hooks: List[Any], new_hook: Dict[str, Any]) -> None:
+        hook_id = new_hook.get("id")
+        for hook in hooks:
+            if isinstance(hook, dict) and hook.get("id") == hook_id:
+                return
+        hooks.append(new_hook)
+
     def _has_meminit_hook(self, repos: List[Any]) -> bool:
+        has_check = False
+        has_doctor = False
         for repo in repos:
             if not isinstance(repo, dict):
                 continue
@@ -93,9 +128,14 @@ class InstallPrecommitUseCase:
             for hook in hooks:
                 if not isinstance(hook, dict):
                     continue
-                if hook.get("id") == HOOK_ID:
-                    return True
+                hook_id = hook.get("id")
                 entry = hook.get("entry")
-                if isinstance(entry, str) and "meminit check" in entry:
-                    return True
-        return False
+                if hook_id == HOOK_ID or (
+                    isinstance(entry, str) and "meminit check" in entry
+                ):
+                    has_check = True
+                if hook_id == HOOK_ID_DOCTOR or (
+                    isinstance(entry, str) and "meminit doctor" in entry
+                ):
+                    has_doctor = True
+        return has_check and has_doctor

@@ -86,7 +86,7 @@ Notes:
 If your repo already has an `AGENTS.md`, avoid replacing it. Merge by **adding** a Meminit section:
 
 1. Keep existing repo-specific guidance intact.
-2. Add a “Meminit DocOps” subsection that links to:
+2. Add a "Meminit DocOps" subsection that links to:
    - `docops.config.yaml` (config)
    - `docs/00-governance/metadata.schema.json` (schema)
    - Local commands: `meminit doctor`, `meminit check`, `meminit fix --dry-run`
@@ -124,7 +124,7 @@ Configure branch protection rules for `main`:
 Notes:
 
 - The selectable check names come from the workflow job `name:` fields (in `.github/workflows/ci.yml`).
-- If the check names don’t show up yet, trigger a PR/push once so GitHub learns the available checks.
+- If the check names don't show up yet, trigger a PR/push once so GitHub learns the available checks.
 
 ## Fork PR policy (security-first)
 
@@ -149,4 +149,94 @@ When CI fails:
 4. Decide how to handle temporary documents:
    - Default behavior excludes `WIP-` prefixed docs under `docs/` via `excluded_filename_prefixes`.
    - Add additional prefixes via `excluded_filename_prefixes` if needed.
-5. Introduce CI enforcement only after a baseline clean-up (or after intentionally excluding legacy docs until they’re migrated).
+5. Introduce CI enforcement only after a baseline clean-up (or after intentionally excluding legacy docs until they're migrated).
+
+## Operator Workflow: State Management and Validation
+
+This section explains how `project-state.yaml`, `meminit state`, `meminit doctor`, and generated indices work together.
+
+### What is project-state.yaml?
+
+`project-state.yaml` is a centralized, mutable file (default location: `docs/01-indices/project-state.yaml`) that tracks implementation state for governed documents. It is distinct from governed documents themselves because:
+
+- It is **mutable** (can change without creating new commits per document)
+- It is **excluded from governance checks** (`meminit check` ignores it)
+- It supports project management workflows (tracking progress across the doc lifecycle)
+
+### Key Relationships
+
+#### 1. meminit new and meminit fix can regenerate project-state.yaml
+
+When creating new documents or fixing existing ones, meminit can automatically add entries to `project-state.yaml`:
+
+```bash
+meminit new ADR "Decision title" --root . --init-state "In Progress"
+meminit fix --root . --no-dry-run
+```
+
+If `project-state.yaml` doesn't exist, `meminit new` with `--init-state` will create it. The file is sorted alphabetically by document ID after each mutation.
+
+#### 2. meminit doctor validates project-state.yaml
+
+The `doctor` command performs preflight validation including:
+
+- Checking if `project-state.yaml` is valid YAML
+- Validating the schema of `project-state.yaml` entries
+- Warning if entries reference documents that don't exist
+- Warning if entries have stale timestamps (>30 days old by default)
+
+```bash
+meminit doctor --root .
+```
+
+#### 3. meminit check excludes project-state.yaml
+
+By design, `project-state.yaml` is excluded from governance validation:
+
+- It is not validated as a governed document
+- It does not need frontmatter
+- Its format is validated by `doctor`, not `check`
+
+```bash
+meminit check --root .  # Does NOT check project-state.yaml
+```
+
+#### 4. Generated indices depend on project-state.yaml
+
+The `meminit index` command merges governed document metadata with `project-state.yaml` to produce a complete view:
+
+```bash
+meminit index --root . --format md   # Markdown table with impl_state columns
+meminit index --root . --format json # JSON with impl_state merged
+```
+
+Index output includes:
+
+- From governed docs: `document_id`, `title`, `type`, `status`, `owner`
+- From `project-state.yaml`: `impl_state`, `notes`, `updated`, `updated_by`
+
+If `project-state.yaml` is missing, the index still works but omits implementation columns.
+
+### State Management Commands
+
+```bash
+# Set or update implementation state for a document
+meminit state set MEMINIT-ADR-001 --impl-state "In Progress" --notes "Waiting on team"
+
+# Get current state for a document
+meminit state get MEMINIT-ADR-001
+
+# List all tracked documents and their states
+meminit state list
+
+# Remove a document from tracking (keeps the doc, removes from state file)
+meminit state remove MEMINIT-ADR-001
+```
+
+### Recommended Workflow
+
+1. **Initial setup**: Run `meminit doctor` to validate the repo is ready
+2. **Track progress**: Use `meminit state set` as documents move through implementation
+3. **Validate**: Run `meminit doctor` before commits to catch state file issues
+4. **Generate indices**: Run `meminit index` to produce project status dashboards
+5. **CI enforcement**: `meminit check` runs without touching the mutable state file
