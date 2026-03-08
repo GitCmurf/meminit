@@ -178,6 +178,11 @@ class MigrateTemplatesUseCase:
                             if not new_target.exists():
                                 target_path = new_target
                                 break
+                        else:
+                            warnings.append(
+                                f"Skipping rename of {template_file.name}: all numbered variants (1-99) exist"
+                            )
+                            continue
 
                     old_rel = template_file.relative_to(self._root_dir).as_posix()
                     new_rel = target_path.relative_to(self._root_dir).as_posix()
@@ -239,9 +244,13 @@ class MigrateTemplatesUseCase:
                         if normalized_path in path_mapping:
                             normalized_path = path_mapping[normalized_path]
                         else:
-                            new_name = self._get_new_template_name(Path(normalized_path).name)
+                            new_name = self._get_new_template_name(
+                                Path(normalized_path).name
+                            )
                             if new_name:
-                                normalized_path = (Path(normalized_path).parent / new_name).as_posix()
+                                normalized_path = (
+                                    Path(normalized_path).parent / new_name
+                                ).as_posix()
 
                     if doc_type_key in config_data["document_types"]:
                         existing = config_data["document_types"][doc_type_key]
@@ -286,10 +295,10 @@ class MigrateTemplatesUseCase:
                 actually_renamed = False
                 target_path = template_file
                 old_rel = template_file.relative_to(self._root_dir).as_posix()
-                
+
                 if old_rel in path_mapping:
                     target_path = self._root_dir / path_mapping[old_rel]
-                    
+
                     if rename_files:
                         actions.append(
                             TemplateMigrationAction(
@@ -333,7 +342,10 @@ class MigrateTemplatesUseCase:
                     protected_ranges_check = self._get_protected_ranges(content)
                     remaining_legacy = []
                     for match in LEGACY_PLACEHOLDER_PATTERN.finditer(content):
-                        in_protected = any(start <= match.start() < end for start, end in protected_ranges_check)
+                        in_protected = any(
+                            start <= match.start() < end
+                            for start, end in protected_ranges_check
+                        )
                         if not in_protected:
                             remaining_legacy.append(match.group(0))
 

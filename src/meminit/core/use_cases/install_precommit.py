@@ -40,7 +40,7 @@ class InstallPrecommitUseCase:
             "files": rf"^{re.escape(docs_root)}/",
         }
 
-        project_state_path = docs_root / "01-indices" / "project-state.yaml"
+        project_state_path = Path(docs_root) / "01-indices" / "project-state.yaml"
         hook_doctor = {
             "id": HOOK_ID_DOCTOR,
             "name": "meminit doctor",
