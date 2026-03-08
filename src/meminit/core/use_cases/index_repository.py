@@ -337,7 +337,7 @@ def _generate_kanban(
     lines.append(f"# {project_name} Project Status Board")
     lines.append("")
     lines.append(
-        '> Use `meminit state set <ID> --impl-state "<state>"` to move items across the board.'
+        '> Use `meminit state set <ID> [--impl-state "<state>"] [--notes "<text>"]` to update items.'
     )
     lines.append(
         "> See [Dashboard Documentation](../10-prd/prd-007-project-state-dashboard.md) or use `meminit state --help` for available commands."
@@ -846,6 +846,17 @@ class IndexRepositoryUseCase:
             ensure_safe_write_path(root_dir=self._root_dir, target_path=kanban_css_path)
             kanban_css_path.write_text(KANBAN_CSS, encoding="utf-8")
 
+        # Prepare filtered JSON entries for the report/stdout output
+        sorted_filtered = sorted(filtered, key=lambda e: e.get("document_id", ""))
+        sorted_filtered.sort(
+            key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)),
+            reverse=True,
+        )
+        json_filtered = [
+            {k: v for k, v in e.items() if not k.startswith("_")}
+            for e in sorted_filtered
+        ]
+
         return IndexBuildReport(
             index_path=index_path,
             document_count=len(filtered),
@@ -853,5 +864,5 @@ class IndexRepositoryUseCase:
             kanban_path=kanban_path,
             kanban_css_path=kanban_css_path,
             warnings=warnings_list,
-            documents=json_entries,
+            documents=json_filtered,
         )
