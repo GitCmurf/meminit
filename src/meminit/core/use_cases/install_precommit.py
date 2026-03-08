@@ -47,7 +47,7 @@ class InstallPrecommitUseCase:
             "entry": f"meminit doctor --root . --strict",
             "language": "system",
             "pass_filenames": False,
-            "files": rf"^{re.escape(str(project_state_path))}$",
+            "files": rf"^{re.escape(project_state_path.as_posix())}$",
         }
 
         if not config_path.exists():
@@ -138,4 +138,4 @@ class InstallPrecommitUseCase:
                     isinstance(entry, str) and "meminit doctor" in entry
                 ):
                     has_doctor = True
-        return has_check and has_doctor
+        return has_check or has_doctor
