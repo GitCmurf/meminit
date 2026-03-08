@@ -2714,10 +2714,10 @@ def state_set(
             output=output,
         )
 
-        if not clear and not impl_state:
+        if not clear and not impl_state and not notes:
             raise MeminitError(
                 ErrorCode.E_INVALID_FILTER_VALUE,
-                "Must provide either --impl-state or --clear.",
+                "Must provide --impl-state, --notes, or --clear.",
             )
 
         use_case = StateDocumentUseCase(str(root_path))

@@ -150,7 +150,6 @@ class MigrateTemplatesUseCase:
             backup_path = self._create_backup()
 
         config_data: Dict[str, Any] = {}
-        # Only parse config if we're migrating config entries
         if migrate_type_directories or migrate_templates:
             if self._config_file.exists():
                 try:
@@ -162,6 +161,27 @@ class MigrateTemplatesUseCase:
                     warnings.append(f"Failed to parse config: {e}")
 
         templates_dir = self._get_templates_dir()
+
+        # Phase 1: Determine file renames and resolve collisions.
+        path_mapping: Dict[str, str] = {}  # rel_old_path -> rel_new_path
+        if templates_dir.exists() and templates_dir.is_dir() and rename_files:
+            # Sort for deterministic collision resolution.
+            for template_file in sorted(templates_dir.glob("*.md")):
+                new_name = self._get_new_template_name(template_file.name)
+                if new_name and new_name != template_file.name:
+                    target_path = templates_dir / new_name
+
+                    if target_path.exists():
+                        base = new_name.replace(".template.md", "")
+                        for i in range(1, 100):
+                            new_target = templates_dir / f"{base}.template.{i}.md"
+                            if not new_target.exists():
+                                target_path = new_target
+                                break
+
+                    old_rel = template_file.relative_to(self._root_dir).as_posix()
+                    new_rel = target_path.relative_to(self._root_dir).as_posix()
+                    path_mapping[old_rel] = new_rel
 
         config_entries_found = 0
         config_entries_migrated = 0
@@ -216,13 +236,12 @@ class MigrateTemplatesUseCase:
                     normalized_path = self._normalize_template_path(template_path)
 
                     if rename_files:
-                        new_name = self._get_new_template_name(
-                            Path(normalized_path).name
-                        )
-                        if new_name:
-                            normalized_path = str(
-                                Path(normalized_path).parent / new_name
-                            )
+                        if normalized_path in path_mapping:
+                            normalized_path = path_mapping[normalized_path]
+                        else:
+                            new_name = self._get_new_template_name(Path(normalized_path).name)
+                            if new_name:
+                                normalized_path = (Path(normalized_path).parent / new_name).as_posix()
 
                     if doc_type_key in config_data["document_types"]:
                         existing = config_data["document_types"][doc_type_key]
@@ -264,29 +283,19 @@ class MigrateTemplatesUseCase:
             for template_file in templates_dir.glob("*.md"):
                 template_files_found += 1
 
-                target_path = None
-                actually_renamed = False  # Track if file was actually renamed
-                new_name = self._get_new_template_name(template_file.name)
-                if new_name and new_name != template_file.name:
-                    target_path = templates_dir / new_name
-
-                    # Handle name collision during actual write (not dry-run)
-                    if rename_files and target_path.exists() and not dry_run:
-                        base = new_name.replace(".template.md", "")
-                        for i in range(1, 100):
-                            new_target = templates_dir / f"{base}.template.{i}.md"
-                            if not new_target.exists():
-                                target_path = new_target
-                                break
-
+                actually_renamed = False
+                target_path = template_file
+                old_rel = template_file.relative_to(self._root_dir).as_posix()
+                
+                if old_rel in path_mapping:
+                    target_path = self._root_dir / path_mapping[old_rel]
+                    
                     if rename_files:
                         actions.append(
                             TemplateMigrationAction(
                                 action_type="file",
-                                from_path=str(
-                                    template_file.relative_to(self._root_dir)
-                                ),
-                                to_path=str(target_path.relative_to(self._root_dir)),
+                                from_path=old_rel,
+                                to_path=path_mapping[old_rel],
                             )
                         )
                         template_files_renamed += 1
@@ -295,17 +304,13 @@ class MigrateTemplatesUseCase:
                             template_file.rename(target_path)
                             actually_renamed = True
 
-                # Only read file content if placeholder migration is enabled
                 if migrate_placeholders:
-                    # Read from renamed file if actually renamed, otherwise from original
-                    file_to_read = target_path if actually_renamed else template_file
-                    # Determine where to write: renamed file if actually renamed, otherwise original
-                    file_to_write = target_path if actually_renamed else template_file
+                    file_to_work_on = target_path if actually_renamed else template_file
 
                     try:
-                        content = file_to_read.read_text(encoding="utf-8")
+                        content = file_to_work_on.read_text(encoding="utf-8")
                     except Exception as e:
-                        warnings.append(f"Failed to read {file_to_read.name}: {e}")
+                        warnings.append(f"Failed to read {file_to_work_on.name}: {e}")
                         continue
 
                     original_content = content
@@ -320,27 +325,29 @@ class MigrateTemplatesUseCase:
                             replacements_in_file,
                             placeholder_replacements,
                             actions,
-                            file_to_read,
+                            file_to_work_on,
                         )
                     )
 
-                    remaining_legacy = LEGACY_PLACEHOLDER_PATTERN.findall(content)
+                    # Re-check for remaining legacy placeholders.
+                    protected_ranges_check = self._get_protected_ranges(content)
+                    remaining_legacy = []
+                    for match in LEGACY_PLACEHOLDER_PATTERN.finditer(content):
+                        in_protected = any(start <= match.start() < end for start, end in protected_ranges_check)
+                        if not in_protected:
+                            remaining_legacy.append(match.group(0))
+
                     if remaining_legacy:
                         unique_remaining = set(remaining_legacy)
                         warnings.append(
-                            f"Unsupported legacy placeholders in {file_to_read.name}: "
+                            f"Unsupported legacy placeholders in {file_to_work_on.name}: "
                             f"{', '.join(sorted(unique_remaining))}"
                         )
-                        file_to_write = None
 
-                    if (
-                        content != original_content
-                        and not dry_run
-                        and file_to_write is not None
-                    ):
-                        file_to_write.write_text(content, encoding="utf-8")
+                    if content != original_content and not dry_run:
+                        file_to_work_on.write_text(content, encoding="utf-8")
 
-        if not dry_run and actions:
+        if not dry_run and config_data:
             self._config_file.write_text(
                 yaml.dump(config_data, default_flow_style=False, sort_keys=False),
                 encoding="utf-8",

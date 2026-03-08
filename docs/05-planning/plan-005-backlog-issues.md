@@ -131,7 +131,7 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 **Status:** ✅ Complete (P2)
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 2.1-2.5; [spec-010](docs/20-specs/spec-010-template-migration.md)
+**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 2.1-2.5; [spec-010](../20-specs/spec-010-template-migration.md)
 
 **Notes:** Command implemented with config migration, placeholder syntax migration, and dry-run support.
 
@@ -141,7 +141,7 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 **Status:** ✅ Complete (P4.1, P4.2)
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 4.1-4.2; [runbook-004](docs/60-runbooks/runbook-004-ci-cd-enforcement.md)
+**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 4.1-4.2; [runbook-004](../60-runbooks/runbook-004-ci-cd-enforcement.md)
 
 **Notes:** `install-precommit` now runs `meminit doctor` for project-state.yaml; operator workflow documented in runbook.
 

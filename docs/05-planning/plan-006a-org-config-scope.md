@@ -1,5 +1,5 @@
 ---
-document_id: MEMINIT-PLAN-006A
+document_id: MEMINIT-PLAN-007
 owner: GitCmurf
 status: Draft
 version: "0.1"
@@ -21,7 +21,7 @@ related_ids:
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** MEMINIT-PLAN-006A
+> **Document ID:** MEMINIT-PLAN-007
 > **Owner:** GitCmurf
 > **Status:** Draft
 > **Version:** 0.1

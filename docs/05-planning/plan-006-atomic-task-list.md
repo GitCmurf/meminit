@@ -17,7 +17,7 @@ keywords:
   - technical-debt
 related_ids:
   - MEMINIT-PLAN-005
-  - MEMINIT-PLAN-006A
+  - MEMINIT-PLAN-007
   - MEMINIT-PRD-001
   - MEMINIT-PRD-006
   - MEMINIT-PRD-007
@@ -319,11 +319,11 @@ Status assessment:
 Outcome:
 
 - The feature scope is reduced to the minimum useful product shape for v1 of org-level config.
-- Scope is documented in [MEMINIT-PLAN-006A](./plan-006a-org-config-scope.md).
+- Scope is documented in [MEMINIT-PLAN-007](./plan-006a-org-config-scope.md).
 
 Required changes:
 
-- Review and align with scope decision in MEMINIT-PLAN-006A.
+- Review and align with scope decision in MEMINIT-PLAN-007.
 
 Acceptance criteria:
 

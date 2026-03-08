@@ -381,12 +381,11 @@ def _generate_kanban(
             else:
                 rel_val = ""
                 
-            title = entry.get("title", "")
-            title_escaped = sanitize_html(title)
+            title_escaped = entry.get("title", "")
             status = entry.get("status", "")
             status_slug = status.lower().replace(" ", "-") if status else "draft"
-            status_escaped = sanitize_html(status) if status else "Draft"
-            notes_raw = entry.get("notes")
+            status_escaped = entry.get("status", "Draft")
+            notes_sanitized = entry.get("notes")
 
             lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
             if rel_val:
@@ -395,10 +394,8 @@ def _generate_kanban(
                 lines.append(f'<strong class="card-id">{doc_id}</strong>')
             lines.append(f'<span class="card-title kanban-truncate" title="{title_escaped}">{title_escaped}</span>')
             lines.append(f'<span class="card-status badge-{status_slug}">{status_escaped}</span>')
-            if notes_raw:
-                notes_sanitized = sanitize_field(notes_raw, max_length=500, html_escape=True)
-                if notes_sanitized:
-                    lines.append(f'<p class="card-notes kanban-truncate-lines" title="{sanitize_html(notes_raw)}">{notes_sanitized}</p>')
+            if notes_sanitized:
+                lines.append(f'<p class="card-notes kanban-truncate-lines" title="{notes_sanitized}">{notes_sanitized}</p>')
             lines.append("</article>")
 
         lines.append("</section>")
@@ -712,7 +709,7 @@ class IndexRepositoryUseCase:
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
 
         # Write main index JSON (recency field stripped — internal only).
-        sorted_entries = sorted(filtered, key=lambda e: e.get("document_id", ""))
+        sorted_entries = sorted(entries, key=lambda e: e.get("document_id", ""))
         sorted_entries.sort(key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
         json_entries = [
             {k: v for k, v in e.items() if not k.startswith("_")}
