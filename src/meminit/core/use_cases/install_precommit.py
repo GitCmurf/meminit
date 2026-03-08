@@ -138,4 +138,4 @@ class InstallPrecommitUseCase:
                     isinstance(entry, str) and "meminit doctor" in entry
                 ):
                     has_doctor = True
-        return has_check or has_doctor
+        return has_check and has_doctor
