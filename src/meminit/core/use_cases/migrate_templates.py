@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 import yaml
 
 from meminit.core.services.repo_config import (
+    DEFAULT_DOCS_ROOT,
     DocumentTypeConfig,
     RepoConfig,
     load_repo_layout,
@@ -133,13 +134,20 @@ class MigrateTemplatesUseCase:
         self._root_dir = Path(root_dir).resolve()
         self._layout = load_repo_layout(str(self._root_dir))
         self._config_file = self._root_dir / "docops.config.yaml"
+        # Cache default_ns for efficiency - avoid repeated calls in hot paths
+        self._default_ns = self._layout.default_namespace()
         # Pre-compute normalized templates prefix for efficiency
-        default_ns = self._layout.default_namespace()
-        if default_ns:
-            docs_root = default_ns.docs_root.strip("/")
-            self._templates_prefix = f"{docs_root}/{_CONVENTION_DIR}"
+        if self._default_ns:
+            docs_root = self._default_ns.docs_root.strip("/")
+            if docs_root:
+                self._templates_prefix = f"{docs_root}/{_CONVENTION_DIR}"
+                self._docs_root = docs_root
+            else:
+                self._templates_prefix = _CONVENTION_DIR
+                self._docs_root = DEFAULT_DOCS_ROOT
         else:
-            self._templates_prefix = f"docs/{_CONVENTION_DIR}"
+            self._templates_prefix = f"{DEFAULT_DOCS_ROOT}/{_CONVENTION_DIR}"
+            self._docs_root = DEFAULT_DOCS_ROOT
 
     def execute(
         self,
@@ -294,12 +302,14 @@ class MigrateTemplatesUseCase:
                                 "template": normalized_path,
                             }
                     else:
-                        default_ns = self._layout.default_namespace()
-                        default_directory = default_ns.expected_subdir_for_type(
-                            doc_type_key
+                        # Use cached default_ns for efficiency
+                        default_directory = (
+                            self._default_ns.expected_subdir_for_type(doc_type_key)
+                            if self._default_ns
+                            else ""
                         )
                         config_data["document_types"][doc_type_key] = {
-                            "directory": default_directory if default_directory else "",
+                            "directory": default_directory,
                             "template": normalized_path,
                         }
 
@@ -408,23 +418,20 @@ class MigrateTemplatesUseCase:
 
     def _get_templates_dir(self) -> Path:
         """Get the templates directory for the current namespace."""
-        default_ns = self._layout.default_namespace()
-        if default_ns:
-            return default_ns.docs_dir / _CONVENTION_DIR
-        return self._root_dir / "docs" / _CONVENTION_DIR
+        if self._default_ns:
+            return self._default_ns.docs_dir / _CONVENTION_DIR
+        return self._root_dir / DEFAULT_DOCS_ROOT / _CONVENTION_DIR
 
     def _normalize_template_path(self, raw_path: str) -> str:
         path = raw_path.strip()
         if path.startswith("./"):
             path = path[2:]
 
-        # Use cached prefix for efficiency
-        docs_root = self._templates_prefix.split("/", 1)[0]
-
+        # Use cached prefix and docs_root for efficiency
         if path == self._templates_prefix or path.startswith(f"{self._templates_prefix}/"):
             return path
-        if path.startswith(f"{docs_root}/"):
-            path = path[len(docs_root) + 1 :]
+        if path.startswith(f"{self._docs_root}/"):
+            path = path[len(self._docs_root) + 1 :]
         return f"{self._templates_prefix}/{path}"
 
     def _get_new_template_name(self, old_name: str) -> Optional[str]:
