@@ -237,16 +237,19 @@ def load_project_state(
                 )
                 continue
         else:
-            schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
-                    severity=Severity.ERROR,
+            # Use early exit pattern for clarity
+            if default_now is None:
+                schema_violations.append(
+                    Violation(
+                        file=state_file_rel,
+                        line=0,
+                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                        message=f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
+                        severity=Severity.ERROR,
+                    )
                 )
-            )
-            continue
+                continue
+            updated = default_now
 
         # Validate updated_by is a string if provided.
         if not isinstance(updated_by, str):

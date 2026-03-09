@@ -137,6 +137,7 @@ def test_load_project_state_invalid_updated_defaults_with_warning(tmp_path):
 
 
 def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
+    """Test that default_now populates missing updated fields without violations."""
     _write_state_file(
         tmp_path,
         "documents:\n  MEMINIT-PRD-003:\n    impl_state: Done\n    updated_by: GitCmurf\n",
@@ -144,8 +145,11 @@ def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
     now = datetime(2026, 3, 5, 14, 30, 0, tzinfo=timezone.utc)
     state = load_project_state(tmp_path, default_now=now)
     assert state is not None
-    assert "MEMINIT-PRD-003" not in state.entries
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+    # When default_now is provided, missing updated fields are populated (not skipped)
+    assert "MEMINIT-PRD-003" in state.entries
+    assert state.entries["MEMINIT-PRD-003"].updated == now
+    # No schema violations - default_now allows graceful handling of missing fields
+    assert len(state.schema_violations) == 0
 
 
 # ---------------------------------------------------------------------------

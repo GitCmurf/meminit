@@ -14,6 +14,7 @@ from meminit.core.services.repo_config import (
     RepoConfig,
     load_repo_layout,
 )
+from meminit.core.services.template_resolver import _CONVENTION_DIR
 
 LEGACY_PLACEHOLDER_MAPPINGS = {
     "{title}": "{{title}}",
@@ -132,6 +133,13 @@ class MigrateTemplatesUseCase:
         self._root_dir = Path(root_dir).resolve()
         self._layout = load_repo_layout(str(self._root_dir))
         self._config_file = self._root_dir / "docops.config.yaml"
+        # Pre-compute normalized templates prefix for efficiency
+        default_ns = self._layout.default_namespace()
+        if default_ns:
+            docs_root = default_ns.docs_root.strip("/")
+            self._templates_prefix = f"{docs_root}/{_CONVENTION_DIR}"
+        else:
+            self._templates_prefix = f"docs/{_CONVENTION_DIR}"
 
     def execute(
         self,
@@ -402,24 +410,22 @@ class MigrateTemplatesUseCase:
         """Get the templates directory for the current namespace."""
         default_ns = self._layout.default_namespace()
         if default_ns:
-            return default_ns.docs_dir / "00-governance" / "templates"
-        return self._root_dir / "docs" / "00-governance" / "templates"
+            return default_ns.docs_dir / _CONVENTION_DIR
+        return self._root_dir / "docs" / _CONVENTION_DIR
 
     def _normalize_template_path(self, raw_path: str) -> str:
         path = raw_path.strip()
         if path.startswith("./"):
             path = path[2:]
 
-        default_ns = self._layout.default_namespace()
-        docs_root = "docs"
-        if default_ns:
-            docs_root = default_ns.docs_root.strip("/")
+        # Use cached prefix for efficiency
+        docs_root = self._templates_prefix.split("/", 1)[0]
 
-        if path.startswith(f"{docs_root}/00-governance/templates/"):
+        if path == self._templates_prefix or path.startswith(f"{self._templates_prefix}/"):
             return path
         if path.startswith(f"{docs_root}/"):
             path = path[len(docs_root) + 1 :]
-        return f"{docs_root}/00-governance/templates/{path}"
+        return f"{self._templates_prefix}/{path}"
 
     def _get_new_template_name(self, old_name: str) -> Optional[str]:
         match = re.match(r"template-\d{3}-(.+)\.md$", old_name)
