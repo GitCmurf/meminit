@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import yaml
 
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import (
     DEFAULT_DOCS_ROOT,
     DocumentTypeConfig,
@@ -93,6 +94,7 @@ class TemplateMigrationReport:
     config_file: str
     templates_dir: str
     backup_path: Optional[str]
+    success: bool = True
     config_entries_found: int = 0
     config_entries_migrated: int = 0
     template_files_found: int = 0
@@ -108,6 +110,7 @@ class TemplateMigrationReport:
             "templates_dir": self.templates_dir,
             "dry_run": self.dry_run,
             "backup_path": self.backup_path,
+            "success": self.success,
             "summary": {
                 "config_entries_found": self.config_entries_found,
                 "config_entries_migrated": self.config_entries_migrated,
@@ -144,7 +147,7 @@ class MigrateTemplatesUseCase:
                 self._docs_root = docs_root
             else:
                 self._templates_prefix = _CONVENTION_DIR
-                self._docs_root = DEFAULT_DOCS_ROOT
+                self._docs_root = ""
         else:
             self._templates_prefix = f"{DEFAULT_DOCS_ROOT}/{_CONVENTION_DIR}"
             self._docs_root = DEFAULT_DOCS_ROOT
@@ -176,6 +179,14 @@ class MigrateTemplatesUseCase:
                     )
                 except Exception as e:
                     warnings.append(f"Failed to parse config: {e}")
+                    return TemplateMigrationReport(
+                        dry_run=dry_run,
+                        config_file=relative_path_string(self._config_file, self._root_dir),
+                        templates_dir=relative_path_string(self._get_templates_dir(), self._root_dir),
+                        backup_path=backup_path,
+                        success=False,
+                        warnings=warnings,
+                    )
 
         templates_dir = self._get_templates_dir()
 
@@ -403,8 +414,8 @@ class MigrateTemplatesUseCase:
 
         return TemplateMigrationReport(
             dry_run=dry_run,
-            config_file=str(self._config_file.relative_to(self._root_dir)),
-            templates_dir=str(templates_dir.relative_to(self._root_dir)),
+            config_file=relative_path_string(self._config_file, self._root_dir),
+            templates_dir=relative_path_string(templates_dir, self._root_dir),
             backup_path=backup_path,
             config_entries_found=config_entries_found,
             config_entries_migrated=config_entries_migrated,
