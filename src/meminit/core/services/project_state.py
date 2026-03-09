@@ -22,9 +22,14 @@ import yaml
 
 from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import ErrorCode
-from meminit.core.services.sanitization import ACTOR_REGEX, MAX_NOTES_LENGTH, validate_actor
+from meminit.core.services.sanitization import (
+    ACTOR_REGEX,
+    MAX_NOTES_LENGTH,
+    validate_actor,
+)
 from meminit.core.services.warning_codes import WarningCode
 import functools
+
 
 @functools.lru_cache(maxsize=1)
 def get_state_file_rel_path(root_dir: Path) -> str:
@@ -38,6 +43,7 @@ def get_state_file_rel_path(root_dir: Path) -> str:
     except Exception:
         # Fallback if config is malformed or missing
         return "docs/01-indices/project-state.yaml"
+
 
 # Removed duplicate definitions for ACTOR_REGEX and MAX_NOTES_LENGTH
 
@@ -103,7 +109,9 @@ class ProjectState:
         return sorted(self.entries.keys())
 
 
-def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -> Optional[ProjectState]:
+def load_project_state(
+    root_dir: Path, default_now: Optional[datetime] = None
+) -> Optional[ProjectState]:
     """Load and parse ``project-state.yaml`` from the repo root.
 
     Returns ``None`` if the file does not exist (gracefully optional).
@@ -159,11 +167,11 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
 
     entries: Dict[str, ProjectStateEntry] = {}
     schema_violations: List[Violation] = []
-    
+
     for doc_id, fields in documents.items():
         if not isinstance(doc_id, str):
             continue
-            
+
         if not isinstance(fields, dict):
             schema_violations.append(
                 Violation(
@@ -188,7 +196,7 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
                 )
             )
             continue
-            
+
         updated_raw = fields.get("updated")
         updated_by = fields.get("updated_by", "")
         notes = fields.get("notes")
@@ -207,7 +215,11 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
             )
             continue
         elif isinstance(updated_raw, datetime):
-            updated = updated_raw if updated_raw.tzinfo else updated_raw.replace(tzinfo=timezone.utc)
+            updated = (
+                updated_raw
+                if updated_raw.tzinfo
+                else updated_raw.replace(tzinfo=timezone.utc)
+            )
         elif isinstance(updated_raw, str):
             try:
                 updated = datetime.fromisoformat(updated_raw)
@@ -236,14 +248,37 @@ def load_project_state(root_dir: Path, default_now: Optional[datetime] = None) -
             )
             continue
 
-        if notes is not None:
-            notes = str(notes)
+        # Validate updated_by is a string if provided.
+        if not isinstance(updated_by, str):
+            schema_violations.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message=f"Field 'updated_by' for '{doc_id}' must be a string.",
+                    severity=Severity.ERROR,
+                )
+            )
+            updated_by = ""
+
+        # Validate notes is a string if provided.
+        if notes is not None and not isinstance(notes, str):
+            schema_violations.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+                    message=f"Field 'notes' for '{doc_id}' must be a string.",
+                    severity=Severity.ERROR,
+                )
+            )
+            notes = None
 
         entries[str(doc_id)] = ProjectStateEntry(
             document_id=str(doc_id),
             impl_state=str(impl_state),
             updated=updated,
-            updated_by=str(updated_by),
+            updated_by=updated_by,
             notes=notes,
         )
 
@@ -273,7 +308,9 @@ def save_project_state(root_dir: Path, state: ProjectState) -> Path:
         documents[doc_id] = record
 
     payload: Dict[str, Any] = {"documents": documents}
-    content = yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    content = yaml.dump(
+        payload, default_flow_style=False, sort_keys=False, allow_unicode=True
+    )
 
     state_path.write_text(content, encoding="utf-8")
     return state_path
@@ -283,15 +320,19 @@ def validate_project_state(
     state: ProjectState,
     known_doc_ids: set[str],
     root_dir: Path,
+    valid_impl_states: Optional[List[str]] = None,
 ) -> List[Violation]:
     """Validate a parsed project state against known governed document IDs.
 
-    Returns a list of advisory violations (warnings), plus any schema 
+    Returns a list of advisory violations (warnings), plus any schema
     violations (errors) captured during parsing. This is used by both
     ``meminit doctor`` and ``meminit index``.
     """
     issues: List[Violation] = list(state.schema_violations)
     state_file_rel = get_state_file_rel_path(root_dir)
+
+    if valid_impl_states is None:
+        valid_impl_states = ImplState.canonical_values()
 
     # Check alphabetical ordering.
     doc_ids = list(state.entries.keys())
@@ -322,8 +363,10 @@ def validate_project_state(
                 )
             )
 
-        # Check impl_state is a known enum value.
-        if ImplState.from_string(entry.impl_state) is None:
+        # Check impl_state is a known enum value or valid custom state.
+        canonical_values = ImplState.canonical_values()
+        all_valid_states = set(canonical_values) | set(valid_impl_states)
+        if entry.impl_state not in all_valid_states:
             issues.append(
                 Violation(
                     file=state_file_rel,
@@ -331,7 +374,7 @@ def validate_project_state(
                     rule=WarningCode.W_STATE_UNKNOWN_IMPL_STATE,
                     message=(
                         f"Unknown impl_state '{entry.impl_state}' for document '{doc_id}'. "
-                        f"Valid values: {', '.join(ImplState.canonical_values())}."
+                        f"Valid values: {', '.join(sorted(all_valid_states))}."
                     ),
                     severity=Severity.WARNING,
                 )

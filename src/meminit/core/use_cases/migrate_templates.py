@@ -17,6 +17,7 @@ from meminit.core.services.repo_config import (
 
 LEGACY_PLACEHOLDER_MAPPINGS = {
     "{title}": "{{title}}",
+    "{type}": "{{type}}",
     "{status}": "{{status}}",
     "{owner}": "{{owner}}",
     "{area}": "{{area}}",
@@ -170,17 +171,23 @@ class MigrateTemplatesUseCase:
                 new_name = self._get_new_template_name(template_file.name)
                 if new_name and new_name != template_file.name:
                     target_path = templates_dir / new_name
+                    rel_target = target_path.relative_to(self._root_dir).as_posix()
 
-                    if target_path.exists():
+                    # Handle name collision (disk existence OR already planned in this run)
+                    if target_path.exists() or rel_target in path_mapping.values():
                         base = new_name.replace(".template.md", "")
+                        found_target = False
                         for i in range(1, 100):
                             new_target = templates_dir / f"{base}.template.{i}.md"
-                            if not new_target.exists():
+                            rel_new_target = new_target.relative_to(self._root_dir).as_posix()
+                            if not new_target.exists() and rel_new_target not in path_mapping.values():
                                 target_path = new_target
+                                found_target = True
                                 break
-                        else:
+                        
+                        if not found_target:
                             warnings.append(
-                                f"Skipping rename of {template_file.name}: all numbered variants (1-99) exist"
+                                f"Skipping rename of {template_file.name}: all numbered variants (1-99) exist or are reserved"
                             )
                             continue
 
@@ -202,16 +209,26 @@ class MigrateTemplatesUseCase:
                 for doc_type, directory in type_dirs.items():
                     doc_type_key = doc_type.upper()
                     if doc_type_key in config_data["document_types"]:
-                        warnings.append(
-                            f"Skipping type_directories.{doc_type}: already exists in document_types"
-                        )
-                        continue
-
-                    config_data["document_types"][doc_type_key] = {
-                        "directory": directory
-                    }
+                        existing = config_data["document_types"][doc_type_key]
+                        if isinstance(existing, dict):
+                            if existing.get("directory"):
+                                warnings.append(
+                                    f"Skipping type_directories.{doc_type}: directory already exists in document_types.{doc_type_key}"
+                                )
+                                continue
+                            existing["directory"] = directory
+                        else:
+                            # existing is a string (legacy template path)
+                            config_data["document_types"][doc_type_key] = {
+                                "directory": directory,
+                                "template": existing,
+                            }
+                    else:
+                        config_data["document_types"][doc_type_key] = {
+                            "directory": directory
+                        }
+                    
                     config_entries_migrated += 1
-
                     actions.append(
                         TemplateMigrationAction(
                             action_type="config",
@@ -269,8 +286,13 @@ class MigrateTemplatesUseCase:
                                 "template": normalized_path,
                             }
                     else:
+                        default_ns = self._layout.default_namespace()
+                        default_directory = default_ns.expected_subdir_for_type(
+                            doc_type_key
+                        )
                         config_data["document_types"][doc_type_key] = {
-                            "template": normalized_path
+                            "directory": default_directory if default_directory else "",
+                            "template": normalized_path,
                         }
 
                     config_entries_migrated += 1
@@ -323,15 +345,11 @@ class MigrateTemplatesUseCase:
                         continue
 
                     original_content = content
-                    replacements_in_file = 0
 
-                    protected_ranges = self._get_protected_ranges(content)
                     content, placeholder_replacements = (
                         self._replace_placeholders_aware(
                             content,
-                            protected_ranges,
                             LEGACY_PLACEHOLDER_MAPPINGS,
-                            replacements_in_file,
                             placeholder_replacements,
                             actions,
                             file_to_work_on,
@@ -391,11 +409,17 @@ class MigrateTemplatesUseCase:
         path = raw_path.strip()
         if path.startswith("./"):
             path = path[2:]
-        if path.startswith("docs/00-governance/templates/"):
+
+        default_ns = self._layout.default_namespace()
+        docs_root = "docs"
+        if default_ns:
+            docs_root = default_ns.docs_root.strip("/")
+
+        if path.startswith(f"{docs_root}/00-governance/templates/"):
             return path
-        if path.startswith("docs/"):
-            path = path[5:]
-        return f"docs/00-governance/templates/{path}"
+        if path.startswith(f"{docs_root}/"):
+            path = path[len(docs_root) + 1 :]
+        return f"{docs_root}/00-governance/templates/{path}"
 
     def _get_new_template_name(self, old_name: str) -> Optional[str]:
         match = re.match(r"template-\d{3}-(.+)\.md$", old_name)
@@ -450,9 +474,7 @@ class MigrateTemplatesUseCase:
     def _replace_placeholders_aware(
         self,
         content: str,
-        protected_ranges: List[Tuple[int, int]],
         mappings: Dict[str, str],
-        replacements_in_file: int,
         placeholder_replacements: int,
         actions: List[TemplateMigrationAction],
         template_file: Path,
@@ -464,12 +486,14 @@ class MigrateTemplatesUseCase:
                 idx = result.find(legacy, idx)
                 if idx == -1:
                     break
+                
+                # Recompute protected ranges for each check to handle shifts
+                protected_ranges = self._get_protected_ranges(result)
                 in_protected = any(
                     start <= idx < end for start, end in protected_ranges
                 )
                 if not in_protected:
                     result = result[:idx] + new + result[idx + len(legacy) :]
-                    replacements_in_file += 1
                     placeholder_replacements += 1
                     actions.append(
                         TemplateMigrationAction(
@@ -480,7 +504,9 @@ class MigrateTemplatesUseCase:
                             count=1,
                         )
                     )
-                idx += len(new)
+                    idx += len(new)
+                else:
+                    idx += len(legacy)
         return result, placeholder_replacements
 
     def _create_backup(self) -> str:

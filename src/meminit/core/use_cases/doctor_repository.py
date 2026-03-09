@@ -174,7 +174,18 @@ class DoctorRepositoryUseCase:
                     continue
 
         # Run validation.
-        issues.extend(validate_project_state(project_state, known_doc_ids, self._root_dir))
+        valid_impl_states = set()
+        for ns in self._layout.namespaces:
+            valid_impl_states.update(ns.valid_impl_states)
+
+        issues.extend(
+            validate_project_state(
+                project_state,
+                known_doc_ids,
+                self._root_dir,
+                valid_impl_states=list(valid_impl_states),
+            )
+        )
         return issues
 
     def _validate_schema(self, schema_path: Path) -> List[Violation]:

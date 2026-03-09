@@ -1,7 +1,7 @@
 {
   "output_schema_version": "1.0",
   "index_version": "0.2",
-  "generated_at": "2026-03-07T13:25:12.896129+00:00",
+  "generated_at": "2026-03-08T12:37:00.293199+00:00",
   "namespaces": [
     {
       "namespace": "meminit",
@@ -105,6 +105,50 @@
       "title": "Test JSON Output",
       "status": "Draft",
       "owner": "__TBD__",
+      "last_updated": "2026-03-07"
+    },
+    {
+      "document_id": "MEMINIT-FDD-010",
+      "path": "docs/50-fdd/fdd-010-template-migration.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "FDD",
+      "title": "Template Migration Tool (meminit migrate-templates)",
+      "status": "Approved",
+      "owner": "Product Team",
+      "last_updated": "2026-03-07"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-006",
+      "path": "docs/05-planning/plan-006-atomic-task-list.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "Atomic Worklist for Known Backlog",
+      "status": "Draft",
+      "owner": "GitCmurf",
+      "last_updated": "2026-03-07"
+    },
+    {
+      "document_id": "MEMINIT-PLAN-007",
+      "path": "docs/05-planning/plan-006a-org-config-scope.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "PLAN",
+      "title": "P3.1 Scope Decision: Org-Level Config",
+      "status": "Draft",
+      "owner": "GitCmurf",
+      "last_updated": "2026-03-07"
+    },
+    {
+      "document_id": "MEMINIT-SPEC-010",
+      "path": "docs/20-specs/spec-010-template-migration.md",
+      "namespace": "meminit",
+      "repo_prefix": "MEMINIT",
+      "type": "SPEC",
+      "title": "Template Migration Specification",
+      "status": "Draft",
+      "owner": "Product Team",
       "last_updated": "2026-03-07"
     },
     {
@@ -238,17 +282,6 @@
       "type": "FDD",
       "title": "Document Factory (meminit new)",
       "status": "Superseded",
-      "owner": "Product Team",
-      "last_updated": "2026-03-04"
-    },
-    {
-      "document_id": "MEMINIT-FDD-010",
-      "path": "docs/50-fdd/fdd-010-template-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Template Migration Tool (meminit migrate-templates)",
-      "status": "Draft",
       "owner": "Product Team",
       "last_updated": "2026-03-04"
     },

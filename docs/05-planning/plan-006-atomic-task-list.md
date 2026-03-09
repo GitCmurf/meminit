@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-006
 type: PLAN
 title: "Atomic Worklist for Known Backlog"
 status: Draft
-version: "0.2"
+version: "0.3"
 last_updated: 2026-03-07
 owner: GitCmurf
 docops_version: "2.0"
@@ -425,14 +425,15 @@ Sizing:
 
 - Small
 
-### 5.5 Workstream P5: Technical Debt with Measurable Risk Reduction
+### 5.5 Workstream P5: Technical Debt with Measurable Risk Reduction ✅
 
 Status assessment:
 
-- The original plan leaned too hard on coverage percentage and open-ended stress testing.
-- The better target is deterministic regression protection around risky paths.
+- **COMPLETE**: Added behavioral tests for CLI edge cases and deterministic contention tests for ID allocation.
+- CLI coverage for `src/meminit/cli/main.py` increased to ~65%.
+- Multi-process locking verified.
 
-#### Task P5.1: Add missing behavioural tests for CLI edge cases
+#### Task P5.1: Add missing behavioural tests for CLI edge cases ✅
 
 Outcome:
 
@@ -448,7 +449,7 @@ Acceptance criteria:
 - New tests are tied to specific behaviours or bug classes, not only to coverage movement.
 - Any coverage increase is treated as a side effect, not the goal.
 
-#### Task P5.2: Add deterministic contention tests for ID allocation
+#### Task P5.2: Add deterministic contention tests for ID allocation ✅
 
 Outcome:
 
@@ -503,3 +504,4 @@ An item in this plan is done only when all of the following are true:
 | ------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------- |
 | 0.1     | 2026-03-07 | Kilo   | Initial atomic task list                                                                                |
 | 0.2     | 2026-03-07 | Codex  | Reworked as a critical reviewed backlog worklist aligned to current codebase and engineering principles |
+| 0.3     | 2026-03-07 | Codex  | Mark Workstream P5 complete (CLI tests and contention testing)                                          |

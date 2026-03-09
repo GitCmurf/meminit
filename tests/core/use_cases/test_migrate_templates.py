@@ -45,6 +45,27 @@ def test_migrate_templates_converts_templates_config(tmp_path: Path):
     assert report.config_entries_migrated == 2
 
 
+def test_migrate_templates_templates_only_preserves_default_directory(tmp_path: Path):
+    (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "templates:\n"
+        "  ADR: 'docs/00-governance/templates/template-001-adr.md'\n",
+        encoding="utf-8",
+    )
+
+    use_case = MigrateTemplatesUseCase(str(tmp_path))
+    report = use_case.execute(dry_run=False, backup=False)
+
+    assert report.config_entries_migrated == 1
+    config_content = (tmp_path / "docops.config.yaml").read_text(encoding="utf-8")
+    assert "document_types:" in config_content
+    assert "ADR:" in config_content
+    assert "directory: 45-adr" in config_content
+    assert "template: docs/00-governance/templates/adr.template.md" in config_content
+
+
 def test_migrate_templates_dry_run_does_not_modify_files(tmp_path: Path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
@@ -110,8 +131,7 @@ def test_migrate_templates_placeholder_replacement(tmp_path: Path):
     report = use_case.execute(dry_run=True, rename_files=False)
 
     assert report.placeholder_replacements > 0
-    assert len(report.warnings) > 0
-    assert any("Unsupported legacy placeholders" in w for w in report.warnings)
+    assert report.warnings == []
 
 
 def test_migrate_templates_placeholder_replacement_apply(tmp_path: Path):
@@ -201,6 +221,7 @@ def test_migrate_templates_rename_files(tmp_path: Path):
 def test_legacy_placeholder_mappings_complete():
     expected_mappings = {
         "{title}",
+        "{type}",
         "{status}",
         "{owner}",
         "{area}",

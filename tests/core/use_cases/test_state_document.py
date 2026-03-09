@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -46,6 +47,66 @@ def test_set_canonicalizes_impl_state(tmp_path):
     # PRD-007: impl_state is normalized
     assert result.entry["impl_state"] == "QA Required"
 
+
+def test_set_canonicalizes_custom_impl_state_from_config(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: MEMINIT\n"
+        "docs_root: docs\n"
+        "valid_impl_states:\n"
+        "  - Not Started\n"
+        "  - In Progress\n"
+        "  - Blocked\n"
+        "  - QA Required\n"
+        "  - Done\n"
+        "  - On Hold\n",
+        encoding="utf-8",
+    )
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state="on hold")
+    assert result.entry["impl_state"] == "On Hold"
+
+
+def test_set_accepts_namespace_custom_impl_state_from_layout(tmp_path):
+    layout = SimpleNamespace(
+        namespaces=[
+            SimpleNamespace(
+                repo_prefix="MEMINIT",
+                valid_impl_states=[
+                    "Not Started",
+                    "In Progress",
+                    "Blocked",
+                    "QA Required",
+                    "Done",
+                ],
+            ),
+            SimpleNamespace(repo_prefix="ORG", valid_impl_states=["On Hold"]),
+        ]
+    )
+    with mock.patch(
+        "meminit.core.services.repo_config.load_repo_layout", return_value=layout
+    ):
+        use_case = StateDocumentUseCase(str(tmp_path))
+        result = use_case.set_state("MEMINIT-ADR-001", impl_state="on hold")
+    assert result.entry["impl_state"] == "On Hold"
+
+
+def test_set_prefers_repo_root_git_actor(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append(kwargs.get("cwd"))
+        return SimpleNamespace(returncode=0, stdout="repo-user\n")
+
+    with mock.patch(
+        "meminit.core.use_cases.state_document.subprocess.run", side_effect=fake_run
+    ):
+        use_case = StateDocumentUseCase(str(repo_root))
+        result = use_case.set_state("MEMINIT-ADR-001", impl_state="Done")
+
+    assert calls[-1] == str(repo_root)
+    assert result.entry["updated_by"] == "repo-user"
 
 def test_set_invalid_impl_state_raises(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))

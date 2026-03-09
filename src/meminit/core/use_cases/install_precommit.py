@@ -74,7 +74,9 @@ class InstallPrecommitUseCase:
             )
 
         local_repo = self._find_local_repo(repos)
-        if local_repo is None:
+        has_local = local_repo is not None
+
+        if not has_local:
             repos.append({"repo": "local", "hooks": [hook, hook_doctor]})
         else:
             hooks = local_repo.setdefault("hooks", [])
@@ -111,9 +113,26 @@ class InstallPrecommitUseCase:
 
     def _add_hook_if_missing(self, hooks: List[Any], new_hook: Dict[str, Any]) -> None:
         hook_id = new_hook.get("id")
+        new_entry = new_hook.get("entry")
+        
         for hook in hooks:
-            if isinstance(hook, dict) and hook.get("id") == hook_id:
+            if not isinstance(hook, dict):
+                continue
+            
+            # Match by ID
+            if hook.get("id") == hook_id:
                 return
+                
+            # Match by command entry text (substring match like _has_meminit_hook)
+            existing_entry = hook.get("entry")
+            if isinstance(existing_entry, str) and isinstance(new_entry, str):
+                # If we're adding 'meminit check' and it's already there
+                if "meminit check" in new_entry and "meminit check" in existing_entry:
+                    return
+                # If we're adding 'meminit doctor' and it's already there
+                if "meminit doctor" in new_entry and "meminit doctor" in existing_entry:
+                    return
+                    
         hooks.append(new_hook)
 
     def _has_meminit_hook(self, repos: List[Any]) -> bool:

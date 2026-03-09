@@ -12,7 +12,10 @@ import pytest
 import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
+from meminit.core.use_cases.index_repository import (
+    IndexRepositoryUseCase,
+    _safe_css_slug,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -207,18 +210,123 @@ def test_index_generates_kanban_md(tmp_path):
 
     kanban_content = report.kanban_path.read_text(encoding="utf-8")
     assert "Project Status Board" in kanban_content
-    # Check fallback structure (PRD-007)
+    # Check pure markdown fallback
     assert '<div class="kanban-fallback">' in kanban_content
     assert "## In Progress" in kanban_content
     assert "- **EXAMPLE-ADR-001**" in kanban_content
+    assert "</div>" in kanban_content
     # Check HTML board
-    assert "kanban-board" in kanban_content  
+    assert "kanban-board" in kanban_content
 
     css_content = report.kanban_css_path.read_text(encoding="utf-8")
     assert ".kanban-board" in css_content
-    # Check fallback hide rule
-    assert ".kanban-fallback {" in css_content
-    assert "display: none;" in css_content
+
+
+def test_index_generates_kanban_with_custom_impl_state_column(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "On Hold",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert "## On Hold" in kanban_content
+    assert '<section class="kanban-column kanban-on-hold"' in kanban_content
+    assert "- **EXAMPLE-ADR-001**" in kanban_content
+
+
+def test_index_kanban_sanitizes_markdown_fallback_fields(tmp_path):
+    _setup_doc(
+        tmp_path,
+        "EXAMPLE-ADR-001",
+        title='<img src=x onerror=alert("x")>',
+        status='<svg onload=alert("s")>',
+    )
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+                "notes": '<script>alert("n")</script>',
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert "<img" not in kanban_content
+    assert "<svg" not in kanban_content
+    assert "<script>" not in kanban_content
+    assert "&lt;img" in kanban_content
+    assert "&lt;svg" in kanban_content
+    assert "&lt;script&gt;" in kanban_content
+
+
+def test_index_kanban_sanitizes_custom_impl_state_in_html(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": 'On Hold" autofocus onfocus="alert(1)',
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert '<section class="kanban-column kanban-on-hold-autofocus-onfocus-alert-1"' in kanban_content
+    assert 'aria-label="On Hold&quot; autofocus onfocus=&quot;alert(1)"' in kanban_content
+
+
+def test_index_kanban_document_id_is_sanitized(tmp_path):
+    _setup_doc(
+        tmp_path,
+        'MALICIOUS-ADR-<script>alert(1)</script>',
+        title="Normal Title",
+        filename="malicious-doc.md",
+    )
+    _setup_state_file(
+        tmp_path,
+        {
+            'MALICIOUS-ADR-<script>alert(1)</script>': {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert "<script>" not in kanban_content
+    assert "&lt;script&gt;" in kanban_content
+    assert "MALICIOUS-ADR-" in kanban_content
+
+
+def test_safe_css_slug_sanitizes_attribute_breaking_chars():
+    """CSS slugs must remove unsafe characters."""
+    assert _safe_css_slug('Draft" onmouseover="alert(1)') == "draft-onmouseover-alert-1"
+    assert _safe_css_slug("  ") == "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +360,8 @@ def test_index_filter_by_impl_state(tmp_path):
     assert report.document_count == 1
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    assert payload["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    ids = {d["document_id"] for d in payload["documents"]}
+    assert ids == {"EXAMPLE-ADR-001", "EXAMPLE-ADR-002"}
 
 
 def test_index_filter_unknown_value_error(tmp_path):

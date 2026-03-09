@@ -2342,7 +2342,19 @@ def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
         template_files_found=0,
         template_files_renamed=0,
         placeholder_replacements=0,
-        actions=[],
+        actions=[
+            SimpleNamespace(
+                action_type="file",
+                from_path="docs/00-governance/templates/template-001-adr.md",
+                to_path="docs/00-governance/templates/adr.template.md",
+                placeholder_from=None,
+                placeholder_to=None,
+                file=None,
+                count=0,
+                path=None,
+                value=None,
+            )
+        ],
         warnings=[],
         skipped_files=[],
         as_dict=lambda: {
@@ -2385,7 +2397,13 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
         template_files_found=0,
         template_files_renamed=0,
         placeholder_replacements=0,
-        actions=[],
+        actions=[
+            SimpleNamespace(
+                action_type="file",
+                from_path="docs/00-governance/templates/template-001-adr.md",
+                to_path="docs/00-governance/templates/adr.template.md",
+            )
+        ],
         warnings=[],
         skipped_files=[],
         as_dict=lambda: {
@@ -2432,7 +2450,13 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
         template_files_found=1,
         template_files_renamed=1,
         placeholder_replacements=5,
-        actions=[],
+        actions=[
+            SimpleNamespace(
+                action_type="file",
+                from_path="docs/00-governance/templates/template-001-adr.md",
+                to_path="docs/00-governance/templates/adr.template.md",
+            )
+        ],
         warnings=["Warning: test warning"],
         skipped_files=[],
         as_dict=lambda: {
@@ -2554,7 +2578,13 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
         template_files_found=2,
         template_files_renamed=2,
         placeholder_replacements=3,
-        actions=[],
+        actions=[
+            SimpleNamespace(
+                action_type="file",
+                from_path="docs/00-governance/templates/template-001-adr.md",
+                to_path="docs/00-governance/templates/adr.template.md",
+            )
+        ],
         warnings=["Sample warning"],
         skipped_files=[],
     )
@@ -2574,6 +2604,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     assert "Placeholder replacements: 3" in result.output
     assert "## Warnings" in result.output
     assert "Sample warning" in result.output
+    assert "Rename docs/00-governance/templates/template-001-adr.md" in result.output
 
 
 def test_cli_migrate_templates_e2e_real_execution(tmp_path):

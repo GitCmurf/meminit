@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-005
 type: PLAN
 title: "WIP Backlog & Issues Tracker"
 status: Draft
-version: "0.4"
+version: "0.5"
 last_updated: 2026-03-07
 owner: GitCmurf
 docops_version: "2.0"
@@ -149,10 +149,10 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 ## 4. Technical Debt
 
-| Item                       | Description                                      | Priority |
-| -------------------------- | ------------------------------------------------ | -------- |
-| CLI test coverage          | `src/meminit/cli/main.py` has ~20% coverage      | Medium   |
-| Concurrency stress testing | N7 (locking) needs concurrent invocation testing | Medium   |
+| Item                       | Description                                      | Priority | Status      |
+| -------------------------- | ------------------------------------------------ | -------- | ----------- |
+| CLI test coverage          | `src/meminit/cli/main.py` has ~65% coverage      | Medium   | ✅ Complete |
+| Concurrency stress testing | N7 (locking) needs concurrent invocation testing | Medium   | ✅ Complete |
 
 **See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 5.1-5.2
 
@@ -166,3 +166,4 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 | 0.2     | 2026-03-07 | Kilo   | Add PRD-006 implementation status                               |
 | 0.3     | 2026-03-07 | Kilo   | Add PRD-007 status; reference task list                         |
 | 0.4     | 2026-03-07 | Kilo   | Mark P1.1, P1.2, P2, P4.1, P4.2 complete; update deferred items |
+| 0.5     | 2026-03-07 | Codex  | Mark Workstream P5 complete (CLI tests and contention testing)       |

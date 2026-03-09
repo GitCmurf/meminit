@@ -477,7 +477,7 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
     default=False,
     help="Treat warnings as errors (e.g., outside docs_root)",
 )
-def check(root, format, output, include_timestamp, quiet, strict, paths):
+def check(paths, root, format, output, include_timestamp, quiet, strict):
     """Run compliance checks on the repository or specified PATHS.
 
     PATHS may be relative, absolute, or glob patterns. If omitted, all governed
@@ -1926,7 +1926,7 @@ def migrate_templates(
                         lines.append(f"- Add {action.path} = {action.value}")
                     else:
                         lines.append(f"- Remove {action.path}")
-                elif action.action_type == "rename":
+                elif action.action_type == "file":
                     lines.append(f"- Rename {action.from_path} → {action.to_path}")
                 elif action.action_type == "replace":
                     lines.append(
@@ -2713,6 +2713,14 @@ def state_set(
             run_id=run_id,
             output=output,
         )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         if not clear and not impl_state and not notes:
             raise MeminitError(
@@ -2743,14 +2751,14 @@ def state_set(
             if result.action == "clear":
                 _write_output(
                     f"# Meminit State Set\n\n"
-                    f"- Document ID: `{document_id}`\n"
+                    f"- Document ID: `{result.document_id}`\n"
                     f"- Action: Cleared\n",
                     output,
                 )
             else:
                 _write_output(
                     f"# Meminit State Set\n\n"
-                    f"- Document ID: `{document_id}`\n"
+                    f"- Document ID: `{result.document_id}`\n"
                     f"- Impl State: {result.entry.get('impl_state', '')}\n"
                     f"- Updated By: {result.entry.get('updated_by', '')}\n",
                     output,
@@ -2760,11 +2768,11 @@ def state_set(
         with maybe_capture(output, format):
             if result.action == "clear":
                 get_console().print(
-                    f"[bold yellow]Cleared state for {document_id}[/bold yellow]"
+                    f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
                 )
             else:
                 get_console().print(
-                    f"[bold green]Updated state for {document_id}[/bold green]"
+                    f"[bold green]Updated state for {result.document_id}[/bold green]"
                 )
                 get_console().print(f"Impl State: {result.entry.get('impl_state')}")
                 get_console().print(f"Updated By: {result.entry.get('updated_by')}")
@@ -2786,6 +2794,14 @@ def state_get(document_id, root, format, output, include_timestamp):
         "state get", format, output, include_timestamp, run_id, root_path
     ):
         validate_root_path(
+            root_path,
+            format=format,
+            command="state get",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
             root_path,
             format=format,
             command="state get",
@@ -2851,19 +2867,32 @@ def state_list(root, format, output, include_timestamp):
             run_id=run_id,
             output=output,
         )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state list",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         use_case = StateDocumentUseCase(str(root_path))
         result = use_case.list_states()
 
-        from meminit.core.services.repo_config import load_repo_config
+        from meminit.core.services.repo_config import load_repo_layout
         from meminit.core.services.project_state import ImplState
         from meminit.core.services.error_codes import MeminitError
 
         try:
-            config = load_repo_config(root_path)
-            valid_impl_states = list(config.valid_impl_states)
-            valid_doc_statuses = list(config.valid_doc_statuses)
-        except MeminitError:
+            layout = load_repo_layout(root_path)
+            valid_impl_states_set = set()
+            valid_doc_statuses_set = set()
+            for ns in layout.namespaces:
+                valid_impl_states_set.update(ns.valid_impl_states)
+                valid_doc_statuses_set.update(ns.valid_doc_statuses)
+            valid_impl_states = sorted(list(valid_impl_states_set))
+            valid_doc_statuses = sorted(list(valid_doc_statuses_set))
+        except (MeminitError, ValueError, FileNotFoundError):
             valid_impl_states = ImplState.canonical_values()
             valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
 
