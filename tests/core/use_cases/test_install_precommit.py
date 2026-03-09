@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from meminit.core.use_cases.install_precommit import HOOK_ID, InstallPrecommitUseCase
+from meminit.core.use_cases.install_precommit import (
+    HOOK_ID,
+    HOOK_ID_DOCTOR,
+    InstallPrecommitUseCase,
+)
 
 
 def _load_yaml(path: Path) -> dict:
@@ -76,8 +80,15 @@ def test_install_precommit_respects_existing_hook(tmp_path):
 
     use_case = InstallPrecommitUseCase(str(tmp_path))
     result = use_case.execute()
-    assert result.status == "already_installed"
-    assert result.updated is False
+    # When only check hook exists, doctor hook should be installed
+    assert result.status == "installed"
+    assert result.updated is True
+    # Verify both hooks are now present
+    data = _load_yaml(config_path)
+    hooks = data["repos"][0]["hooks"]
+    hook_ids = [h.get("id") for h in hooks]
+    assert HOOK_ID in hook_ids
+    assert HOOK_ID_DOCTOR in hook_ids
 
 
 def test_install_precommit_uses_custom_docs_root(tmp_path):

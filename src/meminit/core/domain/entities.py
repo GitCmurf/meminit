@@ -124,7 +124,7 @@ class NewDocumentResult:
         related_ids: Optional related document IDs, if provided.
         superseded_by: Optional document ID that supersedes this document, if provided.
         dry_run: True if this was a dry_run (no file written).
-        content: The full document content (only populated in dry_run mode).
+        rendered_content: The full rendered document content (only populated in dry_run mode).
         content_sha256: SHA-256 hash of the rendered content (Templates v2).
         template_info: Template metadata for JSON output (Templates v2).
         error: Exception or MeminitError if success is False, None otherwise.
@@ -147,7 +147,7 @@ class NewDocumentResult:
     related_ids: Optional[List[str]] = None
     superseded_by: Optional[str] = None
     dry_run: bool = False
-    content: Optional[str] = None
+    rendered_content: Optional[str] = None
     content_sha256: Optional[str] = None
     template_info: Optional[Dict[str, Any]] = None
     error: Optional[Any] = None

@@ -53,8 +53,12 @@ Activate this skill when the user asks to:
 - Migrate legacy IDs: `meminit migrate-ids --dry-run --format json` (add `--rewrite-references` to update cross-refs)
 - Pre-commit hook: `meminit install-precommit --root .`
 - Org profile helpers (optional): `meminit org status --format json`, `meminit org vendor --format json`
+- State management:
+  - `meminit state set <DOCUMENT_ID> --impl-state "In Progress" --notes "Optional notes" --format json`
+  - `meminit state get <DOCUMENT_ID> --format json`
+  - `meminit state list --format json`
 - Index + resolution:
-  - `meminit index --format json`
+  - `meminit index --output-catalog --output-kanban --format json`
   - `meminit resolve <DOCUMENT_ID> --format json`
   - `meminit identify <PATH> --format json`
   - `meminit link <DOCUMENT_ID> --format json`

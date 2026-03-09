@@ -78,10 +78,13 @@ def test_new_fdd_interpolation(tmp_path, monkeypatch):
     
     lines = content.splitlines()
     assert lines[0] == "---"
-    second_dash_idx = lines.index("---", 1)
+    try:
+        second_dash_idx = lines.index("---", 1)
+    except ValueError:
+        pytest.fail("Second frontmatter separator '---' not found")
     for i, line in enumerate(lines[second_dash_idx + 1:], second_dash_idx + 1):
         if line.strip() == "---":
-             pytest.fail(f"Possible duplicate frontmatter detected at line {i+1}: {line}")
+            pytest.fail(f"Possible duplicate frontmatter detected at line {i+1}: {line}")
 
     assert "{{document_id}}" not in content
     assert "Regression Test FDD" in content

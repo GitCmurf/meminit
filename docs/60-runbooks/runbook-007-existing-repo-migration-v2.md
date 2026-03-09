@@ -28,7 +28,7 @@ Follow steps 1-4 in [MEMINIT-RUNBOOK-003](runbook-003-existing-repo-migration.md
 If your repository uses legacy template placeholder syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.), migrate to Templates v2:
 
 ```bash
-meminit migrate-templates
+meminit migrate-templates --dry-run
 ```
 
 This command:
@@ -38,4 +38,10 @@ This command:
 - Renames template files from `template-001-*.md` to `*.template.md`
 - Migrates placeholder syntax from `{title}` to `{{title}}` and `<REPO>` to `{{repo_prefix}}`
 
-Review the changes and commit them.
+Review the changes. To apply the changes (rename files, update config, replace placeholders), run:
+
+```bash
+meminit migrate-templates --no-dry-run
+```
+
+Then review and commit the changes.

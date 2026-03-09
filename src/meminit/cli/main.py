@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from meminit.cli.shared_flags import agent_output_options, agent_repo_options
-from meminit.core.domain.entities import NewDocumentParams, Violation
+from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import (
     EX_CANTCREAT,
@@ -25,6 +25,7 @@ from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
@@ -36,6 +37,7 @@ from meminit.core.use_cases.init_repository import InitRepositoryUseCase
 from meminit.core.use_cases.install_org_profile import InstallOrgProfileUseCase
 from meminit.core.use_cases.install_precommit import InstallPrecommitUseCase
 from meminit.core.use_cases.migrate_ids import MigrateIdsUseCase
+from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
 from meminit.core.use_cases.new_document import NewDocumentUseCase
 from meminit.core.use_cases.org_status import OrgStatusUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
@@ -49,7 +51,12 @@ def get_console() -> Console:
     """Helper to get the rich console from context if available."""
     try:
         ctx = click.get_current_context(silent=True)
-        if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict) and "console" in ctx.obj:
+        if (
+            ctx
+            and hasattr(ctx, "obj")
+            and isinstance(ctx.obj, dict)
+            and "console" in ctx.obj
+        ):
             return ctx.obj["console"]
     except Exception:
         pass
@@ -89,7 +96,9 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]")
+                get_console().print(
+                    f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]"
+                )
         raise SystemExit(exit_code_for_error(e.code))
     except Exception as e:
         # Secure error handling (Item 2): Mask raw exceptions in user-facing message
@@ -114,7 +123,9 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]")
+                get_console().print(
+                    f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]"
+                )
 
         # Always log the real error to stderr for operators
         click.echo(f"INTERNAL ERROR: {e}", err=True)
@@ -155,7 +166,10 @@ def _is_safe_path(path: Path) -> bool:
             home = Path.home().resolve().as_posix()
             if path_str.startswith(home) and abs_path.name.startswith("."):
                 # Allow .meminit specific files if any
-                if not (path_str == f"{home}/.meminit" or path_str.startswith(f"{home}/.meminit/")):
+                if not (
+                    path_str == f"{home}/.meminit"
+                    or path_str.startswith(f"{home}/.meminit/")
+                ):
                     return False
         except (RuntimeError, OSError):
             # No home directory or cannot resolve
@@ -342,7 +356,10 @@ def validate_root_path(
             output=output,
         )
     elif format == "md":
-        _write_output(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n", output=output)
+        _write_output(
+            f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
+            output=output,
+        )
     else:
         with maybe_capture(output, format):
             get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
@@ -373,7 +390,8 @@ def validate_initialized(
         return
 
     msg = (
-        "Repository not initialized: missing valid docops.config.yaml. " "Run 'meminit init' first."
+        "Repository not initialized: missing valid docops.config.yaml. "
+        "Run 'meminit init' first."
     )
     details = {
         "hint": "meminit init",
@@ -396,7 +414,10 @@ def validate_initialized(
             output=output,
         )
     elif format == "md":
-        _write_output(f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n", output=output)
+        _write_output(
+            f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
+            output=output,
+        )
     else:
         with maybe_capture(output, format):
             get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
@@ -413,8 +434,15 @@ def get_severity_value(violation: Violation) -> str:
 
 @click.group()
 @click.version_option(package_name="meminit", prog_name="meminit")
-@click.option("--no-color", is_flag=True, default=False, help="Disable ANSI colors in text output.")
-@click.option("--verbose", is_flag=True, default=False, help="Enable verbose debug logging.")
+@click.option(
+    "--no-color",
+    is_flag=True,
+    default=False,
+    help="Disable ANSI colors in text output.",
+)
+@click.option(
+    "--verbose", is_flag=True, default=False, help="Enable verbose debug logging."
+)
 @click.pass_context
 def cli(ctx: click.Context, no_color: bool, verbose: bool):
     """Meminit DocOps CLI"""
@@ -424,13 +452,15 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
     if verbose:
         previous_debug = os.environ.get("MEMINIT_DEBUG")
         os.environ["MEMINIT_DEBUG"] = "1"
+
         def _restore_debug() -> None:
             if previous_debug is None:
                 os.environ.pop("MEMINIT_DEBUG", None)
             else:
                 os.environ["MEMINIT_DEBUG"] = previous_debug
+
         ctx.call_on_close(_restore_debug)
-    
+
     ctx.ensure_object(dict)
     ctx.obj["console"] = Console(no_color=no_color)
 
@@ -438,14 +468,16 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
 @cli.command()
 @click.argument("paths", nargs=-1, required=False)
 @agent_repo_options()
-@click.option("--quiet", is_flag=True, default=False, help="Only show failures (text output)")
+@click.option(
+    "--quiet", is_flag=True, default=False, help="Only show failures (text output)"
+)
 @click.option(
     "--strict",
     is_flag=True,
     default=False,
     help="Treat warnings as errors (e.g., outside docs_root)",
 )
-def check(root, format, output, include_timestamp, quiet, strict, paths):
+def check(paths, root, format, output, include_timestamp, quiet, strict):
     """Run compliance checks on the repository or specified PATHS.
 
     PATHS may be relative, absolute, or glob patterns. If omitted, all governed
@@ -454,7 +486,9 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("check", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "check", format, output, include_timestamp, run_id, root_path
+    ):
         if format == "text" and not quiet and not paths:
             with maybe_capture(output, format):
                 get_console().print("[bold blue]Meminit Compliance Check[/bold blue]")
@@ -541,51 +575,91 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
             for item in result.violations:
                 path = item.get("path")
                 for v in item.get("violations", []):
-                    rows.append(["error", v.get("code"), path, v.get("line"), v.get("message")])
+                    rows.append(
+                        ["error", v.get("code"), path, v.get("line"), v.get("message")]
+                    )
             for item in result.warnings:
                 path = item.get("path")
                 for w in item.get("warnings", []):
-                    rows.append(["warning", w.get("code"), path, w.get("line"), w.get("message")])
+                    rows.append(
+                        [
+                            "warning",
+                            w.get("code"),
+                            path,
+                            w.get("line"),
+                            w.get("message"),
+                        ]
+                    )
 
             title = "# Meminit Compliance Check"
             summary = (
                 f"- Status: {status}\n- Files checked: {result.files_checked}\n"
                 f"- Violations: {result.violations_count}\n- Warnings: {result.warnings_count}\n\n"
             )
-            table = "## Findings\n\n" + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows) + "\n"
+            table = (
+                "## Findings\n\n"
+                + _md_table(["Severity", "Rule", "File", "Line", "Message"], rows)
+                + "\n"
+            )
             _write_output(f"{title}\n\n{summary}{table}", output)
             raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
         with maybe_capture(output, format):
-            violations_by_path = {item["path"]: item["violations"] for item in result.violations}
-            warnings_by_path = {item["path"]: item["warnings"] for item in result.warnings}
+            violations_by_path = {
+                item["path"]: item["violations"] for item in result.violations
+            }
+            warnings_by_path = {
+                item["path"]: item["warnings"] for item in result.warnings
+            }
 
             if quiet:
                 for path in sorted(violations_by_path.keys()):
                     for v in violations_by_path[path]:
-                        line_info = f" (line {v['line']})" if v.get("line") is not None else ""
-                        get_console().print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
+                        line_info = (
+                            f" (line {v['line']})" if v.get("line") is not None else ""
+                        )
+                        get_console().print(
+                            f"FAIL {path}: [{v['code']}] {v['message']}{line_info}"
+                        )
                 raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
             if paths:
                 label = "file" if result.files_checked == 1 else "files"
-                get_console().print(f"Checking {result.files_checked} existing {label}...")
+                get_console().print(
+                    f"Checking {result.files_checked} existing {label}..."
+                )
                 for path in result.checked_paths:
                     if path in violations_by_path:
                         get_console().print(f"FAIL {path}")
                         for v in violations_by_path[path]:
-                            line_info = f" (line {v['line']})" if v.get("line") is not None else ""
-                            get_console().print(f"  - [{v['code']}] {v['message']}{line_info}")
+                            line_info = (
+                                f" (line {v['line']})"
+                                if v.get("line") is not None
+                                else ""
+                            )
+                            get_console().print(
+                                f"  - [{v['code']}] {v['message']}{line_info}"
+                            )
                         continue
                     if path in warnings_by_path:
                         get_console().print(f"WARN {path}")
                         for w in warnings_by_path[path]:
-                            line_info = f" (line {w['line']})" if w.get("line") is not None else ""
-                            get_console().print(f"  - [{w['code']}] {w['message']}{line_info}")
+                            line_info = (
+                                f" (line {w['line']})"
+                                if w.get("line") is not None
+                                else ""
+                            )
+                            get_console().print(
+                                f"  - [{w['code']}] {w['message']}{line_info}"
+                            )
                         continue
                     get_console().print(f"OK {path}")
             else:
-                table_title = "Compliance Violations" if result.violations_count else "Compliance Warnings"
+                table_title = (
+                    "Compliance Violations"
+                    if result.violations_count
+                    else "Compliance Warnings"
+                )
                 table = Table(title=table_title)
                 table.add_column("Severity")
                 table.add_column("Rule", style="cyan")
@@ -616,9 +690,13 @@ def check(root, format, output, include_timestamp, quiet, strict, paths):
                 )
                 raise SystemExit(EX_COMPLIANCE_FAIL)
             if result.warnings_count:
-                get_console().print(f"\n[bold yellow]Found {result.warnings_count} warning(s).[/bold yellow]")
+                get_console().print(
+                    f"\n[bold yellow]Found {result.warnings_count} warning(s).[/bold yellow]"
+                )
             else:
-                get_console().print("[bold green]Success! No violations found.[/bold green]")
+                get_console().print(
+                    "[bold green]Success! No violations found.[/bold green]"
+                )
             raise SystemExit(0)
 
 
@@ -634,7 +712,9 @@ def doctor(root, format, output, include_timestamp, strict):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("doctor", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "doctor", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -650,12 +730,14 @@ def doctor(root, format, output, include_timestamp, strict):
         errors = [
             i
             for i in issues
-            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "error"
+            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+            == "error"
         ]
         warnings = [
             i
             for i in issues
-            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "warning"
+            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+            == "warning"
         ]
 
         status = "ok"
@@ -702,7 +784,9 @@ def doctor(root, format, output, include_timestamp, strict):
             # Include original issues in data for backward compatibility (PRD §15.1)
             issues_payload = [
                 {
-                    "severity": i.severity.value if hasattr(i.severity, "value") else str(i.severity),
+                    "severity": i.severity.value
+                    if hasattr(i.severity, "value")
+                    else str(i.severity),
                     "rule": i.rule,
                     "file": i.file,
                     "line": i.line,
@@ -728,7 +812,9 @@ def doctor(root, format, output, include_timestamp, strict):
         if format == "md":
             rows = [
                 [
-                    v.severity.value if hasattr(v.severity, "value") else str(v.severity),
+                    v.severity.value
+                    if hasattr(v.severity, "value")
+                    else str(v.severity),
                     v.rule,
                     v.file,
                     v.line,
@@ -757,7 +843,9 @@ def doctor(root, format, output, include_timestamp, strict):
             get_console().print(f"Root: {root_path}")
 
             if not issues:
-                get_console().print("[bold green]OK: meminit is ready to run here.[/bold green]")
+                get_console().print(
+                    "[bold green]OK: meminit is ready to run here.[/bold green]"
+                )
                 return
 
             table = Table(title="Doctor Findings")
@@ -767,7 +855,11 @@ def doctor(root, format, output, include_timestamp, strict):
             table.add_column("Message", overflow="fold")
 
             for v in issues:
-                severity_val = v.severity.value if hasattr(v.severity, "value") else str(v.severity)
+                severity_val = (
+                    v.severity.value
+                    if hasattr(v.severity, "value")
+                    else str(v.severity)
+                )
                 severity_color = "red" if severity_val == "error" else "yellow"
                 table.add_row(
                     f"[{severity_color}]{severity_val}[/{severity_color}]",
@@ -778,16 +870,27 @@ def doctor(root, format, output, include_timestamp, strict):
 
             get_console().print(table)
             if errors:
-                get_console().print(f"\n[bold red]{len(errors)} error(s), {len(warnings)} warning(s).[/bold red]")
+                get_console().print(
+                    f"\n[bold red]{len(errors)} error(s), {len(warnings)} warning(s).[/bold red]"
+                )
             else:
-                get_console().print(f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]")
+                get_console().print(
+                    f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]"
+                )
             raise SystemExit(exit_code)
 
 
 @cli.command()
 @agent_repo_options()
-@click.option("--plan", type=click.Path(exists=True, dir_okay=False), default=None, help="Apply a deterministic migration plan")
-@click.option("--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files")
+@click.option(
+    "--plan",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Apply a deterministic migration plan",
+)
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files"
+)
 @click.option(
     "--namespace",
     default=None,
@@ -798,7 +901,9 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("fix", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "fix", format, output, include_timestamp, run_id, root_path
+    ):
         if format == "text":
             with maybe_capture(output, format):
                 msg = "[bold blue]Meminit Compliance Fixer[/bold blue]"
@@ -822,23 +927,27 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
             try:
                 with open(plan, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                plan_data = data.get("data", {}).get("plan") or data  # Handle envelope or direct
+                plan_data = (
+                    data.get("data", {}).get("plan") or data
+                )  # Handle envelope or direct
                 plan_obj = MigrationPlan.from_dict(plan_data)
             except Exception as e:
                 if format == "json":
                     _write_output(
                         format_error_envelope(
-                            command="fix", 
-                            root=str(root_path), 
+                            command="fix",
+                            root=str(root_path),
                             error_code=ErrorCode.VALIDATION_ERROR,
-                            message=f"Failed to load plan: {e}", 
+                            message=f"Failed to load plan: {e}",
                             run_id=run_id,
-                            include_timestamp=include_timestamp
+                            include_timestamp=include_timestamp,
                         ),
-                        output
+                        output,
                     )
                 else:
-                    get_console().print(f"[bold red]Failed to load plan: {e}[/bold red]")
+                    get_console().print(
+                        f"[bold red]Failed to load plan: {e}[/bold red]"
+                    )
                 raise SystemExit(1) from e
 
         use_case = FixRepositoryUseCase(root_dir=str(root_path))
@@ -891,7 +1000,9 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
         with maybe_capture(output, format):
             # Print fixed actions
             if report.fixed_violations:
-                table = Table(title="Actions Taken" if not dry_run else "Proposed Actions")
+                table = Table(
+                    title="Actions Taken" if not dry_run else "Proposed Actions"
+                )
                 table.add_column("File")
                 table.add_column("Action", style="green")
                 table.add_column("Description")
@@ -917,13 +1028,16 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
                 for v in report.remaining_violations[:5]:
                     get_console().print(f"- {v.file}: {v.message}")
                 if len(report.remaining_violations) > 5:
-                    get_console().print(f"... and {len(report.remaining_violations) - 5} more.")
-                get_console().print("\nRun [bold]meminit check[/bold] for full details.")
+                    get_console().print(
+                        f"... and {len(report.remaining_violations) - 5} more."
+                    )
+                get_console().print(
+                    "\nRun [bold]meminit check[/bold] for full details."
+                )
                 raise SystemExit(exit_code)
             else:
                 get_console().print("\n[bold green]All clear![/bold green]")
                 raise SystemExit(exit_code)
-
 
 
 @cli.command()
@@ -939,7 +1053,9 @@ def scan(root, plan, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("scan", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "scan", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -966,7 +1082,9 @@ def scan(root, plan, format, output, include_timestamp):
                 with open(plan, "w", encoding="utf-8") as f:
                     f.write(plan_json + "\n")
                 if format != "json":
-                    get_console().print(f"[bold green]Saved migration plan to {plan}[/bold green]")
+                    get_console().print(
+                        f"[bold green]Saved migration plan to {plan}[/bold green]"
+                    )
             except Exception as e:
                 if format == "json":
                     _write_output(
@@ -976,25 +1094,32 @@ def scan(root, plan, format, output, include_timestamp):
                             error_code=ErrorCode.UNKNOWN_ERROR,
                             message=f"Failed to save plan: {e}",
                             run_id=run_id,
-                            include_timestamp=include_timestamp
+                            include_timestamp=include_timestamp,
                         ),
-                        output
+                        output,
                     )
                     raise SystemExit(1) from e
                 else:
-                    get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
+                    get_console().print(
+                        f"[bold red]Failed to save plan: {e}[/bold red]"
+                    )
         elif plan:
             # Plan was requested but no actions were generated
             if format != "json":
-                get_console().print("[yellow]No plan actions generated — repository may already be compliant.[/yellow]")
+                get_console().print(
+                    "[yellow]No plan actions generated — repository may already be compliant.[/yellow]"
+                )
             # Write an empty plan envelope so downstream tooling gets a stable artifact
             try:
                 from meminit.core.services.scan_plan import MigrationPlan
+
                 empty_plan = MigrationPlan(
                     plan_version="1.0",
-                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
                     config_fingerprint="",
-                    actions=[]
+                    actions=[],
                 )
                 empty_plan_json = format_envelope(
                     command="scan",
@@ -1080,12 +1205,16 @@ def scan(root, plan, format, output, include_timestamp):
                     [
                         "## Overlapping Namespace Roots (review)",
                         "",
-                        _md_table(["Parent", "Parent Root", "Child", "Child Root"], rows),
+                        _md_table(
+                            ["Parent", "Parent Root", "Child", "Child Root"], rows
+                        ),
                         "",
                     ]
                 )
             if report.suggested_type_directories:
-                rows = [[k, v] for k, v in sorted(report.suggested_type_directories.items())]
+                rows = [
+                    [k, v] for k, v in sorted(report.suggested_type_directories.items())
+                ]
                 lines.extend(
                     [
                         "## Suggested `type_directories` overrides",
@@ -1095,7 +1224,10 @@ def scan(root, plan, format, output, include_timestamp):
                     ]
                 )
             if report.ambiguous_types:
-                rows = [[k, ", ".join(sorted(v))] for k, v in sorted(report.ambiguous_types.items())]
+                rows = [
+                    [k, ", ".join(sorted(v))]
+                    for k, v in sorted(report.ambiguous_types.items())
+                ]
                 lines.extend(
                     [
                         "## Ambiguous Types (manual decision required)",
@@ -1106,7 +1238,11 @@ def scan(root, plan, format, output, include_timestamp):
                 )
             if getattr(report, "suggested_namespaces", None):
                 rows = [
-                    [ns.get("name"), ns.get("docs_root"), ns.get("repo_prefix_suggestion")]
+                    [
+                        ns.get("name"),
+                        ns.get("docs_root"),
+                        ns.get("repo_prefix_suggestion"),
+                    ]
                     for ns in report.suggested_namespaces
                 ]
                 lines.extend(
@@ -1179,7 +1315,9 @@ def scan(root, plan, format, output, include_timestamp):
                     table.add_row(k, v)
                 get_console().print(table)
             if report.ambiguous_types:
-                table = Table(title="Ambiguous type_directories (manual decision required)")
+                table = Table(
+                    title="Ambiguous type_directories (manual decision required)"
+                )
                 table.add_column("Type")
                 table.add_column("Candidates")
                 for k, v in sorted(report.ambiguous_types.items()):
@@ -1203,7 +1341,6 @@ def scan(root, plan, format, output, include_timestamp):
                 get_console().print(f"- {note}")
 
 
-
 @cli.command("install-precommit")
 @agent_repo_options()
 def install_precommit(root, format, output, include_timestamp):
@@ -1211,7 +1348,9 @@ def install_precommit(root, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("install-precommit", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "install-precommit", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1255,22 +1394,69 @@ def install_precommit(root, format, output, include_timestamp):
 
         with maybe_capture(output, format):
             if result.status == "already_installed":
-                get_console().print("[yellow]meminit pre-commit hook already installed.[/yellow]")
+                get_console().print(
+                    "[yellow]meminit pre-commit hook already installed.[/yellow]"
+                )
                 return
             if result.status == "created":
-                get_console().print(f"[bold green]Created {result.config_path} with meminit hook.[/bold green]")
+                get_console().print(
+                    f"[bold green]Created {result.config_path} with meminit hook.[/bold green]"
+                )
                 return
-            get_console().print(f"[bold green]Updated {result.config_path} with meminit hook.[/bold green]")
+            get_console().print(
+                f"[bold green]Updated {result.config_path} with meminit hook.[/bold green]"
+            )
 
 
 @cli.command()
 @agent_repo_options()
-def index(root, format, output, include_timestamp):
+@click.option(
+    "--status",
+    "status_filter",
+    default=None,
+    help="Filter by governance status (comma-separated, case-insensitive). E.g. 'Draft,Approved'.",
+)
+@click.option(
+    "--impl-state",
+    "impl_state_filter",
+    default=None,
+    help="Filter by implementation state (comma-separated, case-insensitive). E.g. 'In Progress,Blocked'.",
+)
+@click.option(
+    "--output-catalog",
+    is_flag=True,
+    default=False,
+    help="Generate catalog.md (table view).",
+)
+@click.option(
+    "--output-kanban",
+    is_flag=True,
+    default=False,
+    help="Generate kanban.md + kanban.css (board view).",
+)
+@click.option(
+    "--catalog-name",
+    default=None,
+    help="Filename for the generated catalog view (if omitted, uses config or defaults to catalog.md).",
+)
+def index(
+    root,
+    format,
+    output,
+    include_timestamp,
+    status_filter,
+    impl_state_filter,
+    output_catalog,
+    output_kanban,
+    catalog_name,
+):
     """Build or update the repository index artifact."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("index", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "index", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1280,47 +1466,99 @@ def index(root, format, output, include_timestamp):
             output=output,
         )
 
-        use_case = IndexRepositoryUseCase(root_dir=str(root_path))
+        use_case = IndexRepositoryUseCase(
+            root_dir=str(root_path),
+            output_catalog=output_catalog,
+            catalog_name=catalog_name,
+            output_kanban=output_kanban,
+            status_filter=status_filter,
+            impl_state_filter=impl_state_filter,
+        )
         report = use_case.execute()
 
-        rel_index_path = None
-        try:
-            rel_index_path = report.index_path.relative_to(root_path).as_posix()
-        except Exception:
-            rel_index_path = str(report.index_path)
+        warnings_list = getattr(report, "warnings", [])
+        has_error = any(
+            w.get("severity") == Severity.ERROR.value for w in warnings_list
+        )
+        status = "error" if has_error else ("warn" if warnings_list else "ok")
+
+        data: Dict[str, Any] = {
+            "index_path": relative_path_string(report.index_path, root_path),
+            "document_count": report.document_count,
+            "documents": report.documents,
+        }
+        if report.catalog_path:
+            data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
+        if report.kanban_path:
+            data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
 
         if format == "json":
             _write_output(
                 format_envelope(
                     command="index",
                     root=str(root_path),
-                    success=True,
-                    data={
-                        "index_path": rel_index_path,
-                        "document_count": report.document_count,
-                    },
+                    success=not has_error,
+                    data=data,
+                    warnings=warnings_list,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                 ),
                 output,
             )
+            if has_error:
+                raise SystemExit(1)
             return
 
         if format == "md":
-            _write_output(
-                "# Meminit Index\n\n"
-                "- Status: ok\n"
-                f"- Index path: `{rel_index_path}`\n"
-                f"- Documents: {report.document_count}\n",
-                output,
-            )
+            lines = [
+                "# Meminit Index\n",
+                f"- Status: {status}",
+                f"- Index path: `{data.get('index_path')}`",
+                f"- Documents: {report.document_count}",
+            ]
+            if report.catalog_path:
+                lines.append(f"- Catalog: `{data.get('catalog_path')}`")
+            if report.kanban_path:
+                lines.append(f"- Kanban: `{data.get('kanban_path')}`")
+            if warnings_list:
+                lines.extend(["", "## Validation Issues", ""])
+                rows = [
+                    [
+                        str(w.get("severity")),
+                        str(w.get("code")),
+                        str(w.get("path")),
+                        str(w.get("line")),
+                        str(w.get("message")),
+                    ]
+                    for w in warnings_list
+                ]
+                lines.append(
+                    _md_table(["Severity", "Code", "Path", "Line", "Message"], rows)
+                )
+            lines.append("")
+            _write_output("\n".join(lines), output)
+            if has_error:
+                raise SystemExit(1)
             return
 
         with maybe_capture(output, format):
+            style = "red" if has_error else ("yellow" if warnings_list else "green")
             get_console().print(
-                f"[bold green]Index written:[/bold green] {report.index_path} "
+                f"[bold {style}]Index written:[/bold {style}] {report.index_path} "
                 f"({report.document_count} documents)"
             )
+            for warning in warnings_list:
+                get_console().print(
+                    f"  - [{warning.get('severity')}] {warning.get('code')}: {warning.get('message')}"
+                )
+            if report.catalog_path:
+                get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")
+            if report.kanban_path:
+                get_console().print(f"[green]Kanban:[/green] {report.kanban_path}")
+
+        # Exit with error if any validation issues occurred (applies to all formats)
+        if has_error:
+            raise SystemExit(1)
 
 
 @cli.command()
@@ -1331,7 +1569,9 @@ def resolve(document_id, root, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("resolve", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "resolve", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1385,7 +1625,9 @@ def identify(path, root, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("identify", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "identify", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1439,7 +1681,9 @@ def link(document_id, root, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("link", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "link", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1489,7 +1733,9 @@ def link(document_id, root, format, output, include_timestamp):
 
 @cli.command("migrate-ids")
 @agent_repo_options()
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview changes without writing files")
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview changes without writing files"
+)
 @click.option(
     "--rewrite-references/--no-rewrite-references",
     default=False,
@@ -1500,7 +1746,9 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("migrate-ids", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "migrate-ids", format, output, include_timestamp, run_id, root_path
+    ):
         validate_root_path(
             root_path,
             format=format,
@@ -1511,7 +1759,9 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
         )
 
         use_case = MigrateIdsUseCase(root_dir=str(root_path))
-        report = use_case.execute(dry_run=dry_run, rewrite_references=rewrite_references)
+        report = use_case.execute(
+            dry_run=dry_run, rewrite_references=rewrite_references
+        )
 
         if format == "json":
             _write_output(
@@ -1540,7 +1790,9 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
                 f"- Skipped: {len(report.skipped_files)}\n\n"
                 "## Actions\n\n"
                 + (
-                    _md_table(["File", "Type", "Old ID", "New ID", "Refs Rewritten"], rows)
+                    _md_table(
+                        ["File", "Type", "Old ID", "New ID", "Refs Rewritten"], rows
+                    )
                     if rows
                     else "_None_\n"
                 ),
@@ -1558,6 +1810,157 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
                 get_console().print(f"Skipped: {len(report.skipped_files)}")
 
 
+@cli.command("migrate-templates")
+@agent_repo_options()
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview changes without writing files"
+)
+@click.option(
+    "--backup/--no-backup", default=True, help="Create backup before modifying files"
+)
+@click.option(
+    "--legacy-type-dirs/--no-legacy-type-dirs",
+    default=True,
+    help="Migrate type_directories config",
+)
+@click.option(
+    "--legacy-templates/--no-legacy-templates",
+    default=True,
+    help="Migrate templates config",
+)
+@click.option(
+    "--placeholder-syntax/--no-placeholder-syntax",
+    default=True,
+    help="Migrate placeholder syntax",
+)
+@click.option(
+    "--rename-files/--no-rename-files",
+    default=True,
+    help="Rename template files to *.template.md",
+)
+def migrate_templates(
+    root,
+    dry_run,
+    backup,
+    legacy_type_dirs,
+    legacy_templates,
+    placeholder_syntax,
+    rename_files,
+    format,
+    output,
+    include_timestamp,
+):
+    """Migrate legacy template configs and placeholders to Templates v2 format."""
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "migrate-templates", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="migrate-templates",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="migrate-templates",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = MigrateTemplatesUseCase(root_dir=str(root_path))
+        report = use_case.execute(
+            dry_run=dry_run,
+            backup=backup,
+            migrate_type_directories=legacy_type_dirs,
+            migrate_templates=legacy_templates,
+            migrate_placeholders=placeholder_syntax,
+            rename_files=rename_files,
+        )
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="migrate-templates",
+                    root=str(root_path),
+                    success=True,
+                    data=report.as_dict(),
+                    warnings=[
+                        {"code": "WARNING", "message": w, "path": str(report.config_file)}
+                        for w in report.warnings
+                    ],
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            lines = [
+                "# Meminit Template Migration\n",
+                f"- Root: `{root_path}`",
+                f"- Mode: {'DRY RUN' if dry_run else 'APPLY'}",
+                f"- Config entries found: {report.config_entries_found}",
+                f"- Config entries migrated: {report.config_entries_migrated}",
+                f"- Template files found: {report.template_files_found}",
+                f"- Template files renamed: {report.template_files_renamed}",
+                f"- Placeholder replacements: {report.placeholder_replacements}",
+                "",
+            ]
+            if report.warnings:
+                lines.append("## Warnings\n")
+                for warning in report.warnings:
+                    lines.append(f"- {warning}")
+                lines.append("")
+            lines.append("## Changes\n")
+            for action in report.actions:
+                if action.action_type == "config":
+                    if action.value:
+                        lines.append(f"- Add {action.path} = {action.value}")
+                    else:
+                        lines.append(f"- Remove {action.path}")
+                elif action.action_type == "file":
+                    lines.append(f"- Rename {action.from_path} → {action.to_path}")
+                elif action.action_type == "replace":
+                    lines.append(
+                        f"- Replace {action.placeholder_from} with {action.placeholder_to} in {action.file} ({action.count} occurrences)"
+                    )
+            lines.append("")
+            if report.backup_path and not dry_run:
+                lines.append(f"Backup: {report.backup_path}\n")
+            _write_output("\n".join(lines), output)
+            return
+
+        with maybe_capture(output, format):
+            get_console().print("[bold blue]Meminit Template Migration[/bold blue]")
+            get_console().print(f"Root: {root_path}")
+            get_console().print(f"Mode: {'DRY RUN' if dry_run else 'APPLY'}")
+            get_console().print(f"Config entries found: {report.config_entries_found}")
+            get_console().print(
+                f"Config entries migrated: {report.config_entries_migrated}"
+            )
+            get_console().print(f"Template files found: {report.template_files_found}")
+            get_console().print(
+                f"Template files renamed: {report.template_files_renamed}"
+            )
+            get_console().print(
+                f"Placeholder replacements: {report.placeholder_replacements}"
+            )
+            if report.warnings:
+                get_console().print("\nWarnings:")
+                for warning in report.warnings:
+                    get_console().print(f"  - {warning}")
+            if report.backup_path and not dry_run:
+                get_console().print(f"\nBackup: {report.backup_path}")
+
+
 @cli.command()
 @agent_repo_options()
 def init(root, format, output, include_timestamp):
@@ -1565,7 +1968,9 @@ def init(root, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("init", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "init", format, output, include_timestamp, run_id, root_path
+    ):
         use_case = InitRepositoryUseCase(str(root_path))
         report = use_case.execute()
 
@@ -1609,7 +2014,9 @@ def init(root, format, output, include_timestamp):
             return
 
         with maybe_capture(output, format):
-            get_console().print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
+            get_console().print(
+                f"[bold green]Initialized DocOps repository at {root}[/bold green]"
+            )
             get_console().print("- Created directory structure (docs/)")
             get_console().print("- Created docops.config.yaml")
             get_console().print("- Created AGENTS.md")
@@ -1619,7 +2026,9 @@ def init(root, format, output, include_timestamp):
 @click.argument("doc_type", required=False, shell_complete=complete_document_types)
 @click.argument("title", required=False)
 @agent_repo_options()
-@click.option("--namespace", default=None, help="Namespace to create the doc in (monorepo mode)")
+@click.option(
+    "--namespace", default=None, help="Namespace to create the doc in (monorepo mode)"
+)
 @click.option("--owner", default=None, help="Set owner frontmatter field")
 @click.option("--area", default=None, help="Set area frontmatter field")
 @click.option("--description", default=None, help="Set description frontmatter field")
@@ -1652,7 +2061,9 @@ def init(root, format, output, include_timestamp):
     default=False,
     help="Output decision reasoning (stderr for JSON)",
 )
-@click.option("--list-types", is_flag=True, default=False, help="List valid document types")
+@click.option(
+    "--list-types", is_flag=True, default=False, help="List valid document types"
+)
 @click.option(
     "--edit",
     is_flag=True,
@@ -1690,22 +2101,47 @@ def new_doc(
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("new", format, output, include_timestamp, run_id, root_path):
+    with command_output_handler(
+        "new", format, output, include_timestamp, run_id, root_path
+    ):
         if interactive and format == "json":
-            raise MeminitError(ErrorCode.INVALID_FLAG_COMBINATION, "--interactive and --format json are incompatible")
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--interactive and --format json are incompatible",
+            )
 
         if edit and (dry_run or format == "json"):
-            raise MeminitError(ErrorCode.INVALID_FLAG_COMBINATION, "--edit is incompatible with --dry-run and --format json")
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--edit is incompatible with --dry-run and --format json",
+            )
 
         if list_types and (doc_type or title):
-            raise MeminitError(ErrorCode.INVALID_FLAG_COMBINATION, "--list-types cannot be combined with TYPE or TITLE arguments")
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--list-types cannot be combined with TYPE or TITLE arguments",
+            )
 
         if list_types:
-            validate_root_path(root_path, format=format, command="new", include_timestamp=include_timestamp, run_id=run_id, output=output)
-            validate_initialized(root_path, format=format, command="new", include_timestamp=include_timestamp, run_id=run_id, output=output)
+            validate_root_path(
+                root_path,
+                format=format,
+                command="new",
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                output=output,
+            )
+            validate_initialized(
+                root_path,
+                format=format,
+                command="new",
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                output=output,
+            )
             use_case = NewDocumentUseCase(str(root_path))
             types_list = use_case.get_available_types(namespace)
-            
+
             if format == "json":
                 _write_output(
                     format_envelope(
@@ -1727,7 +2163,9 @@ def new_doc(
                 with maybe_capture(output, format):
                     get_console().print("[bold blue]Valid Document Types:[/bold blue]")
                     for item in types_list:
-                        get_console().print(f"  {item['type']:10} → {item['directory']}")
+                        get_console().print(
+                            f"  {item['type']:10} → {item['directory']}"
+                        )
             return
 
         if interactive:
@@ -1739,17 +2177,38 @@ def new_doc(
             if not title:
                 title = click.prompt("Document title")
             if not owner:
-                owner = click.prompt("Owner (optional)", default="__TBD__", show_default=True)
+                owner = click.prompt(
+                    "Owner (optional)", default="__TBD__", show_default=True
+                )
             if not area:
                 area = click.prompt("Area (optional)", default="", show_default=False)
             if not description:
-                description = click.prompt("Description (optional)", default="", show_default=False)
+                description = click.prompt(
+                    "Description (optional)", default="", show_default=False
+                )
 
         if not doc_type or not title:
-            raise MeminitError(ErrorCode.INVALID_FLAG_COMBINATION, "TYPE and TITLE are required unless --list-types is specified")
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "TYPE and TITLE are required unless --list-types is specified",
+            )
 
-        validate_root_path(root_path, format=format, command="new", include_timestamp=include_timestamp, run_id=run_id, output=output)
-        validate_initialized(root_path, format=format, command="new", include_timestamp=include_timestamp, run_id=run_id, output=output)
+        validate_root_path(
+            root_path,
+            format=format,
+            command="new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         if doc_type.lower() == "adr":
             doc_type = "ADR"
@@ -1775,7 +2234,10 @@ def new_doc(
         if not result.success:
             if isinstance(result.error, MeminitError):
                 raise result.error
-            raise MeminitError(ErrorCode.UNKNOWN_ERROR, str(result.error) if result.error else "Unknown error")
+            raise MeminitError(
+                ErrorCode.UNKNOWN_ERROR,
+                str(result.error) if result.error else "Unknown error",
+            )
 
         if format == "json":
             if result.reasoning and verbose:
@@ -1788,7 +2250,9 @@ def new_doc(
                     sys.stderr.write("\n")
                 sys.stderr.flush()
             response_data = {
-                "path": result.path.relative_to(root_path).as_posix() if result.path else None,
+                "path": result.path.relative_to(root_path).as_posix()
+                if result.path
+                else None,
                 "document_id": result.document_id,
                 "type": result.doc_type,
                 "title": result.title,
@@ -1804,8 +2268,8 @@ def new_doc(
             }
 
             # Add Templates v2 fields if available
-            if result.content is not None:
-                response_data["rendered_content"] = result.content
+            if result.rendered_content is not None:
+                response_data["rendered_content"] = result.rendered_content
             if result.content_sha256 is not None:
                 response_data["content_sha256"] = result.content_sha256
             if result.template_info is not None:
@@ -1830,7 +2294,9 @@ def new_doc(
                 output,
             )
         elif format == "md":
-            rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
+            rel_path = (
+                result.path.relative_to(root_path).as_posix() if result.path else None
+            )
             lines = [
                 "# Meminit New",
                 "",
@@ -1843,26 +2309,33 @@ def new_doc(
             if rel_path:
                 lines.append(f"- Path: `{_md_escape(rel_path)}`")
             if dry_run:
-                lines.extend([
-                    "",
-                    "## Would Create",
-                    "",
-                    f"- Path: `{_md_escape(rel_path)}`",
-                    f"- Document ID: `{_md_escape(result.document_id)}`"
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "## Would Create",
+                        "",
+                        f"- Path: `{_md_escape(rel_path)}`",
+                        f"- Document ID: `{_md_escape(result.document_id)}`",
+                    ]
+                )
             _write_output("\n".join(lines), output)
         else:
             with maybe_capture(output, format):
                 if dry_run:
-                    get_console().print(f"[bold yellow]Would create {result.doc_type}: {result.path}[/bold yellow]")
+                    get_console().print(
+                        f"[bold yellow]Would create {result.doc_type}: {result.path}[/bold yellow]"
+                    )
                 else:
-                    get_console().print(f"[bold green]Created {result.doc_type}: {result.path}[/bold green]")
+                    get_console().print(
+                        f"[bold green]Created {result.doc_type}: {result.path}[/bold green]"
+                    )
 
         if edit and not dry_run and result.path:
             editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
             if editor:
                 editor_argv = shlex.split(editor, posix=(os.name != "nt"))
                 import subprocess
+
                 subprocess.run([*editor_argv, str(result.path)], check=False)
 
 
@@ -1875,16 +2348,34 @@ def adr():
 @adr.command(name="new")
 @click.argument("title")
 @agent_repo_options()
-@click.option("--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)")
+@click.option(
+    "--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)"
+)
 def adr_new(title, root, format, output, include_timestamp, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("adr new", format, output, include_timestamp, run_id, root_path):
-        validate_root_path(root_path, format=format, command="adr new", include_timestamp=include_timestamp, run_id=run_id, output=output)
-        validate_initialized(root_path, format=format, command="adr new", include_timestamp=include_timestamp, run_id=run_id, output=output)
-        
+    with command_output_handler(
+        "adr new", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="adr new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="adr new",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
         use_case = NewDocumentUseCase(str(root_path))
         params = NewDocumentParams(
             doc_type="ADR",
@@ -1897,9 +2388,14 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
         if not result.success:
             if isinstance(result.error, MeminitError):
                 raise result.error
-            raise MeminitError(ErrorCode.UNKNOWN_ERROR, str(result.error) if result.error else "Unknown error")
+            raise MeminitError(
+                ErrorCode.UNKNOWN_ERROR,
+                str(result.error) if result.error else "Unknown error",
+            )
 
-        rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
+        rel_path = (
+            result.path.relative_to(root_path).as_posix() if result.path else None
+        )
         if format == "json":
             response_data = {
                 "path": rel_path,
@@ -1928,26 +2424,54 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
                 output,
             )
         elif format == "md":
-            lines = ["# Meminit ADR New", "", "- Status: ok", f"- Title: `{_md_escape(result.title)}`"]
+            lines = [
+                "# Meminit ADR New",
+                "",
+                "- Status: ok",
+                f"- Title: `{_md_escape(result.title)}`",
+            ]
             if rel_path:
                 lines.append(f"- Path: `{_md_escape(rel_path)}`")
             _write_output("\n".join(lines), output)
         else:
             with maybe_capture(output, format):
-                get_console().print(f"[bold green]Created ADR: {result.path}[/bold green]")
+                get_console().print(
+                    f"[bold green]Created ADR: {result.path}[/bold green]"
+                )
 
 
 @cli.command()
 @agent_repo_options()
-@click.option("--deep", is_flag=True, default=False, help="Include per-namespace document counts (10s budget)")
+@click.option(
+    "--deep",
+    is_flag=True,
+    default=False,
+    help="Include per-namespace document counts (10s budget)",
+)
 def context(root, deep, format, output, include_timestamp):
     """Emit repository configuration context for agent bootstrap (FR-6)."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("context", format, output, include_timestamp, run_id, root_path):
-        validate_root_path(root_path, format=format, command="context", include_timestamp=include_timestamp, run_id=run_id, output=output)
-        validate_initialized(root_path, format=format, command="context", include_timestamp=include_timestamp, run_id=run_id, output=output)
+    with command_output_handler(
+        "context", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="context",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="context",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
         result = use_case.execute(deep=deep)
@@ -1992,7 +2516,9 @@ def context(root, deep, format, output, include_timestamp):
             if result.warnings:
                 get_console().print("Warnings:")
                 for warning in result.warnings:
-                    get_console().print(f"  - {warning.get('code')}: {warning.get('message')}")
+                    get_console().print(
+                        f"  - {warning.get('code')}: {warning.get('message')}"
+                    )
 
 
 @cli.group()
@@ -2003,13 +2529,19 @@ def org():
 
 @org.command("install")
 @click.option("--profile", default="default", help="Org profile name to install")
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths")
-@click.option("--force/--no-force", default=False, help="Overwrite an existing installed profile")
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths"
+)
+@click.option(
+    "--force/--no-force", default=False, help="Overwrite an existing installed profile"
+)
 @agent_output_options()
 def org_install(profile, dry_run, force, format, output, include_timestamp):
     """Install the packaged org profile into XDG user data directories."""
     run_id = get_current_run_id()
-    with command_output_handler("org install", format, output, include_timestamp, run_id):
+    with command_output_handler(
+        "org install", format, output, include_timestamp, run_id
+    ):
         use_case = InstallOrgProfileUseCase()
         report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force)
 
@@ -2036,19 +2568,45 @@ def org_install(profile, dry_run, force, format, output, include_timestamp):
 @org.command("vendor")
 @agent_repo_options()
 @click.option("--profile", default="default", help="Org profile name to vendor")
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing files")
-@click.option("--force/--no-force", default=False, help="Overwrite an existing lock and update vendored files")
-@click.option("--include-org-docs/--no-include-org-docs", default=True, help="Vendor ORG governance markdown docs too")
-def org_vendor(root, profile, dry_run, force, include_org_docs, format, output, include_timestamp):
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview without writing files"
+)
+@click.option(
+    "--force/--no-force",
+    default=False,
+    help="Overwrite an existing lock and update vendored files",
+)
+@click.option(
+    "--include-org-docs/--no-include-org-docs",
+    default=True,
+    help="Vendor ORG governance markdown docs too",
+)
+def org_vendor(
+    root, profile, dry_run, force, include_org_docs, format, output, include_timestamp
+):
     """Vendor (copy + pin) org standards into a repo to prevent unintentional drift."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("org vendor", format, output, include_timestamp, run_id, root_path):
-        validate_root_path(root_path, format=format, command="org vendor", include_timestamp=include_timestamp, run_id=run_id, output=output)
+    with command_output_handler(
+        "org vendor", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="org vendor",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         use_case = VendorOrgProfileUseCase(root_dir=str(root_path))
-        report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force, include_org_docs=include_org_docs)
+        report = use_case.execute(
+            profile_name=profile,
+            dry_run=dry_run,
+            force=force,
+            include_org_docs=include_org_docs,
+        )
 
         if format == "json":
             _write_output(
@@ -2077,8 +2635,17 @@ def org_status(root, profile, format, output, include_timestamp):
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
-    with command_output_handler("org status", format, output, include_timestamp, run_id, root_path):
-        validate_root_path(root_path, format=format, command="org status", include_timestamp=include_timestamp, run_id=run_id, output=output)
+    with command_output_handler(
+        "org status", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="org status",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
 
         use_case = OrgStatusUseCase(root_dir=str(root_path))
         report = use_case.execute(profile_name=profile)
@@ -2101,6 +2668,308 @@ def org_status(root, profile, format, output, include_timestamp):
             get_console().print("[bold blue]Meminit Org Status[/bold blue]")
             get_console().print(f"Profile: {profile}")
             get_console().print(f"Global installed: {report.global_installed}")
+
+
+@cli.group()
+def state():
+    """Manage project-state.yaml document entries."""
+    pass
+
+
+@state.command("set")
+@click.argument("document_id")
+@agent_repo_options()
+@click.option("--impl-state", help="Set implementation state (e.g., 'In Progress').")
+@click.option("--notes", help="Set notes (max 500 chars).")
+@click.option("--actor", help="Override the updated_by actor identity.")
+@click.option(
+    "--clear", "-c", is_flag=True, help="Clear the tracking state for this document."
+)
+def state_set(
+    document_id,
+    root,
+    format,
+    output,
+    include_timestamp,
+    impl_state,
+    notes,
+    actor,
+    clear,
+):
+    """Set, update, or clear a document's implementation state."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "state set", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        if not clear and not impl_state and not notes:
+            raise MeminitError(
+                ErrorCode.E_INVALID_FILTER_VALUE,
+                "Must provide --impl-state, --notes, or --clear.",
+            )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.set_state(
+            document_id, impl_state=impl_state, notes=notes, actor=actor, clear=clear
+        )
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state set",
+                    root=str(root_path),
+                    success=True,
+                    data={"action": result.action, "entry": result.entry},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            if result.action == "clear":
+                _write_output(
+                    f"# Meminit State Set\n\n"
+                    f"- Document ID: `{result.document_id}`\n"
+                    f"- Action: Cleared\n",
+                    output,
+                )
+            else:
+                _write_output(
+                    f"# Meminit State Set\n\n"
+                    f"- Document ID: `{result.document_id}`\n"
+                    f"- Impl State: {result.entry.get('impl_state', '')}\n"
+                    f"- Updated By: {result.entry.get('updated_by', '')}\n",
+                    output,
+                )
+            return
+
+        with maybe_capture(output, format):
+            if result.action == "clear":
+                get_console().print(
+                    f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
+                )
+            else:
+                get_console().print(
+                    f"[bold green]Updated state for {result.document_id}[/bold green]"
+                )
+                get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+                get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+                if result.entry.get("notes"):
+                    get_console().print(f"Notes: {result.entry.get('notes')}")
+
+
+@state.command("get")
+@click.argument("document_id")
+@agent_repo_options()
+def state_get(document_id, root, format, output, include_timestamp):
+    """Get a document's implementation state."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "state get", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state get",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state get",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.get_state(document_id)
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state get",
+                    root=str(root_path),
+                    success=True,
+                    data=result.entry,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            _write_output(
+                f"# Meminit State Get\n\n"
+                f"- Document ID: `{document_id}`\n"
+                f"- Impl State: {result.entry.get('impl_state')}\n"
+                f"- Updated By: {result.entry.get('updated_by')}\n"
+                f"- Updated: {result.entry.get('updated')}\n",
+                output,
+            )
+            return
+
+        with maybe_capture(output, format):
+            get_console().print(f"[bold blue]{document_id}[/bold blue]")
+            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+            get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+            get_console().print(f"Updated: {result.entry.get('updated')}")
+            if result.entry.get("notes"):
+                get_console().print(f"Notes: {result.entry.get('notes')}")
+
+
+@state.command("list")
+@agent_repo_options()
+def state_list(root, format, output, include_timestamp):
+    """List all entries in project-state.yaml."""
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "state list", format, output, include_timestamp, run_id, root_path
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state list",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state list",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+        )
+
+        use_case = StateDocumentUseCase(str(root_path))
+        result = use_case.list_states()
+
+        from meminit.core.services.repo_config import load_repo_layout
+        from meminit.core.services.project_state import ImplState
+        from meminit.core.services.error_codes import MeminitError
+
+        try:
+            layout = load_repo_layout(root_path)
+            valid_impl_states_set = set()
+            valid_doc_statuses_set = set()
+            for ns in layout.namespaces:
+                valid_impl_states_set.update(ns.valid_impl_states)
+                valid_doc_statuses_set.update(ns.valid_doc_statuses)
+            valid_impl_states = sorted(list(valid_impl_states_set))
+            valid_doc_statuses = sorted(list(valid_doc_statuses_set))
+        except (MeminitError, ValueError, FileNotFoundError):
+            valid_impl_states = ImplState.canonical_values()
+            valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="state list",
+                    root=str(root_path),
+                    success=True,
+                    data={
+                        "entries": result.entries,
+                        "valid_impl_states": valid_impl_states,
+                        "valid_doc_statuses": valid_doc_statuses,
+                    },
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            lines = ["# Meminit State List\n"]
+            lines.append(
+                f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  "
+            )
+            lines.append(
+                f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n"
+            )
+            if not result.entries:
+                lines.append("_No entries found._\n")
+            else:
+                rows = [
+                    [
+                        e.get("document_id", ""),
+                        e.get("impl_state", ""),
+                        e.get("updated_by", ""),
+                        str(e.get("updated", ""))[:10],
+                    ]
+                    for e in result.entries
+                ]
+                lines.append(
+                    _md_table(
+                        ["Document ID", "Impl State", "Updated By", "Updated Date"],
+                        rows,
+                    )
+                )
+                lines.append("")
+            _write_output("\n".join(lines), output)
+            return
+
+        with maybe_capture(output, format):
+            get_console().print(
+                f"[bold]Valid Implementation States:[/bold] {', '.join(valid_impl_states)}"
+            )
+            get_console().print(
+                f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n"
+            )
+            if not result.entries:
+                get_console().print(
+                    "[yellow]No entries found in project-state.yaml[/yellow]"
+                )
+                return
+
+            table = Table(title="Project State Entries")
+            table.add_column("Document ID", style="cyan")
+            table.add_column("Impl State", style="green")
+            table.add_column("Updated By")
+            table.add_column("Updated Date")
+            for e in result.entries:
+                table.add_row(
+                    e.get("document_id", ""),
+                    e.get("impl_state", ""),
+                    e.get("updated_by", ""),
+                    str(e.get("updated", ""))[:10],
+                )
+            get_console().print(table)
 
 
 if __name__ == "__main__":

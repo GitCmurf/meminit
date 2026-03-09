@@ -8,6 +8,12 @@ from typing import List
 from jsonschema import Draft7Validator
 
 from meminit.core.domain.entities import Severity, Violation
+from meminit.core.services.error_codes import MeminitError
+from meminit.core.services.project_state import (
+    get_state_file_rel_path,
+    load_project_state,
+    validate_project_state,
+)
 from meminit.core.services.repo_config import load_repo_layout
 
 
@@ -117,6 +123,69 @@ class DoctorRepositoryUseCase:
                         )
                     )
 
+        # PRD-007: Validate project-state.yaml if it exists.
+        issues.extend(self._validate_project_state())
+
+        return issues
+
+    def _validate_project_state(self) -> List[Violation]:
+        """Validate project-state.yaml when present (PRD-007)."""
+        import frontmatter as fm
+        import yaml
+
+        issues: List[Violation] = []
+        state_file_rel = get_state_file_rel_path(self._root_dir)
+        state_path = self._root_dir / state_file_rel
+        if not state_path.exists():
+            return issues
+
+        try:
+            project_state = load_project_state(self._root_dir)
+        except MeminitError as exc:
+            issues.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=exc.code.value,
+                    message=exc.message,
+                    severity=Severity.ERROR,
+                )
+            )
+            return issues
+
+        if project_state is None:
+            return issues
+
+        # Collect known doc IDs from governed documents.
+        known_doc_ids: set[str] = set()
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
+                continue
+            for path in ns.docs_dir.rglob("*.md"):
+                if ns.is_excluded(path):
+                    continue
+                try:
+                    post = fm.load(path)
+                    doc_id = post.metadata.get("document_id")
+                    if isinstance(doc_id, str) and doc_id.strip():
+                        known_doc_ids.add(doc_id.strip())
+                except (yaml.YAMLError, ValueError, UnicodeDecodeError, OSError):
+                    # Skip files with parsing errors, encoding issues, or I/O problems
+                    continue
+
+        # Run validation.
+        valid_impl_states = set()
+        for ns in self._layout.namespaces:
+            valid_impl_states.update(ns.valid_impl_states)
+
+        issues.extend(
+            validate_project_state(
+                project_state,
+                known_doc_ids,
+                self._root_dir,
+                valid_impl_states=list(valid_impl_states),
+            )
+        )
         return issues
 
     def _validate_schema(self, schema_path: Path) -> List[Violation]:

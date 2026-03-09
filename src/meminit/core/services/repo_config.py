@@ -1,51 +1,62 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import datetime
+import glob
+import hashlib
+import re
+import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import yaml
 
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import log_debug
 
+# Constants
 DEFAULT_DOCS_ROOT = "docs"
-
-DEFAULT_TYPE_DIRECTORIES: Dict[str, str] = {
+DEFAULT_TYPE_DIRECTORIES = {
     "GOV": "00-governance",
-    "RFC": "00-governance",
-    "STRAT": "02-strategy",
-    "PRD": "10-prd",
-    "RESEARCH": "10-prd",
     "PLAN": "05-planning",
-    "TASK": "05-planning/tasks",
-    "NOTES": "12-notes",
+    "PRD": "10-prd",
     "SPEC": "20-specs",
     "DESIGN": "30-design",
     "DECISION": "40-decisions",
     "ADR": "45-adr",
     "FDD": "50-fdd",
-    "TESTING": "55-testing",
+    "TEST": "55-testing",
     "LOG": "58-logs",
-    "GUIDE": "60-runbooks",
     "RUNBOOK": "60-runbooks",
-    "REF": "70-devex",
-    "INDEX": "01-indices",
+    "DEVEX": "70-devex",
 }
 
 
-def _derive_repo_prefix(project_name: str) -> str:
-    prefix = "".join(c for c in project_name.upper() if "A" <= c <= "Z")
-    if len(prefix) < 3:
-        return "REPO"
-    return prefix[:10]
-
-
-def _normalize_type_key(doc_type: str) -> str:
-    t = str(doc_type).strip().upper()
-    if t == "GOVERNANCE":
+def _normalize_type_key(key: str) -> str:
+    """Normalize a document type key to uppercase and resolve aliases."""
+    normalized = key.strip().upper()
+    if normalized == "GOVERNANCE":
         return "GOV"
-    return t
+    return normalized
+
+
+def _derive_repo_prefix(project_name: str) -> str:
+    """Derive a default repo prefix from project name."""
+    clean = re.sub(r"[^a-zA-Z]", "", project_name)
+    if len(clean) >= 3:
+        return clean[:10].upper()
+    return "REPO"
 
 
 def _safe_repo_relative_path(root_dir: Path, raw: Any) -> Optional[str]:
@@ -122,9 +133,13 @@ class RepoConfig:
     schema_path: str
     excluded_paths: tuple[str, ...]
     excluded_filename_prefixes: tuple[str, ...]
+    excluded_files: tuple[str, ...]
     type_directories: Dict[str, str]
     templates: Dict[str, str]
     document_types: Dict[str, DocumentTypeConfig]
+    valid_impl_states: tuple[str, ...]
+    valid_doc_statuses: tuple[str, ...]
+    catalog_name: str
 
     @property
     def docs_dir(self) -> Path:
@@ -162,6 +177,13 @@ class RepoConfig:
                 continue
             if rel_parts[: len(ex_parts)] == ex_parts:
                 return True
+
+        # Exact file path exclusion (e.g., project-state.yaml).
+        rel_posix = rel.as_posix()
+        for excluded_file in self.excluded_files:
+            if rel_posix == excluded_file:
+                return True
+
         return False
 
     def expected_subdir_for_type(self, doc_type: str) -> Optional[str]:
@@ -197,6 +219,7 @@ class RepoLayout:
     project_name: str
     namespaces: tuple[RepoConfig, ...]
     index_path: str
+    catalog_name: str
 
     @property
     def index_file(self) -> Path:
@@ -377,6 +400,42 @@ def _build_namespace_config(
             if normalized:
                 templates[key] = normalized
 
+    catalog_name = str(defaults.get("catalog_name", "catalog.md"))
+
+    # Parse excluded_files (exact file paths, e.g., project-state.yaml).
+    excluded_files: list[str] = []
+    
+    # Add defaults
+    excluded_files.append(f"{docs_root_norm}/01-indices/project-state.yaml")
+    excluded_files.append(f"{docs_root_norm}/01-indices/{catalog_name}")
+    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.md")
+    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.css")
+
+    for item in _normalize_string_list(defaults.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+    for item in _normalize_string_list(raw_namespace.get("excluded_files")):
+        normalized = _safe_repo_relative_path(root, item)
+        if normalized:
+            excluded_files.append(normalized)
+
+    # Parse valid_impl_states from config or use defaults
+    from meminit.core.services.project_state import ImplState
+    valid_impl_states = _normalize_string_list(
+        raw_namespace.get("valid_impl_states", defaults.get("valid_impl_states"))
+    )
+    if not valid_impl_states:
+        valid_impl_states = ImplState.canonical_values()
+
+    # Parse valid_doc_statuses from config or use defaults
+    DEFAULT_DOC_STATUSES = ("Draft", "In Review", "Approved", "Superseded")
+    valid_doc_statuses = _normalize_string_list(
+        raw_namespace.get("valid_doc_statuses", defaults.get("valid_doc_statuses"))
+    )
+    if not valid_doc_statuses:
+        valid_doc_statuses = list(DEFAULT_DOC_STATUSES)
+
     return RepoConfig(
         root_dir=root,
         namespace=namespace_name,
@@ -387,9 +446,13 @@ def _build_namespace_config(
         schema_path=schema_path_norm,
         excluded_paths=tuple(excluded_paths),
         excluded_filename_prefixes=tuple(excluded_filename_prefixes),
+        excluded_files=tuple(excluded_files),
         type_directories=type_directories,
         templates=templates,
         document_types=document_types,
+        valid_impl_states=tuple(valid_impl_states),
+        valid_doc_statuses=tuple(valid_doc_statuses),
+        catalog_name=catalog_name,
     )
 
 
@@ -447,9 +510,17 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
 
     project_name = str(data.get("project_name") or root.name).strip() or root.name
 
+    catalog_name_raw = data.get("catalog_name")
+    catalog_name = (
+        str(catalog_name_raw).strip()
+        if isinstance(catalog_name_raw, str) and str(catalog_name_raw).strip()
+        else "catalog.md"
+    )
+
     defaults: Dict[str, Any] = dict(data)
     defaults.setdefault("docs_root", DEFAULT_DOCS_ROOT)
     defaults.setdefault("namespace", "default")
+    defaults["catalog_name"] = catalog_name
 
     namespaces: list[RepoConfig] = []
     raw_namespaces = data.get("namespaces")
@@ -502,6 +573,7 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
         project_name=project_name,
         namespaces=tuple(namespaces),
         index_path=index_path,
+        catalog_name=catalog_name,
     )
 
 

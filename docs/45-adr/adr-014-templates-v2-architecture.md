@@ -226,7 +226,7 @@ Out of scope:
   - `src/meminit/core/use_cases/new_document.py`
   - `docops.config.yaml` (document_types configuration)
 - Known gaps / TODOs:
-  - Migration tool (`meminit migrate-templates`) not yet implemented
+  - Migration tool (`meminit migrate-templates`) is implemented
   - Legacy config rejection currently logs warning only (should raise error)
 
 <!-- MEMINIT_SECTION: version_history -->
