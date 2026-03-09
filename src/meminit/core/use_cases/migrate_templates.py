@@ -119,6 +119,8 @@ class TemplateMigrationReport:
                 "placeholder_replacements": self.placeholder_replacements,
             },
             "changes": [a.as_dict() for a in self.actions],
+            "warnings": self.warnings,
+            "skipped_files": self.skipped_files,
         }
 
 
@@ -145,12 +147,15 @@ class MigrateTemplatesUseCase:
             if docs_root:
                 self._templates_prefix = f"{docs_root}/{_CONVENTION_DIR}"
                 self._docs_root = docs_root
+                self._docs_root_prefix = f"{docs_root}/"
             else:
                 self._templates_prefix = _CONVENTION_DIR
                 self._docs_root = ""
+                self._docs_root_prefix = ""
         else:
             self._templates_prefix = f"{DEFAULT_DOCS_ROOT}/{_CONVENTION_DIR}"
             self._docs_root = DEFAULT_DOCS_ROOT
+            self._docs_root_prefix = f"{DEFAULT_DOCS_ROOT}/"
 
     def execute(
         self,
@@ -233,10 +238,11 @@ class MigrateTemplatesUseCase:
                 if "document_types" not in config_data:
                     config_data["document_types"] = {}
 
+                migrated_keys = []
                 for doc_type, directory in type_dirs.items():
                     doc_type_key = doc_type.upper()
-                    if doc_type_key in config_data["document_types"]:
-                        existing = config_data["document_types"][doc_type_key]
+                    existing = config_data["document_types"].get(doc_type_key)
+                    if existing is not None:
                         if isinstance(existing, dict):
                             if existing.get("directory"):
                                 warnings.append(
@@ -256,6 +262,7 @@ class MigrateTemplatesUseCase:
                         }
                     
                     config_entries_migrated += 1
+                    migrated_keys.append(doc_type)
                     actions.append(
                         TemplateMigrationAction(
                             action_type="config",
@@ -270,7 +277,7 @@ class MigrateTemplatesUseCase:
                         )
                     )
 
-                del config_data["type_directories"]
+                self._remove_migrated_keys(config_data, "type_directories", migrated_keys)
 
         if migrate_templates and "templates" in config_data:
             templates_config = config_data.get("templates", {})
@@ -280,6 +287,7 @@ class MigrateTemplatesUseCase:
                 if "document_types" not in config_data:
                     config_data["document_types"] = {}
 
+                migrated_keys = []
                 for doc_type, template_path in templates_config.items():
                     doc_type_key = doc_type.upper()
                     normalized_path = self._normalize_template_path(template_path)
@@ -325,6 +333,7 @@ class MigrateTemplatesUseCase:
                         }
 
                     config_entries_migrated += 1
+                    migrated_keys.append(doc_type)
                     actions.append(
                         TemplateMigrationAction(
                             action_type="config",
@@ -333,7 +342,7 @@ class MigrateTemplatesUseCase:
                         )
                     )
 
-                del config_data["templates"]
+                self._remove_migrated_keys(config_data, "templates", migrated_keys)
 
         template_files_found = 0
         template_files_renamed = 0
@@ -433,16 +442,26 @@ class MigrateTemplatesUseCase:
             return self._default_ns.docs_dir / _CONVENTION_DIR
         return self._root_dir / DEFAULT_DOCS_ROOT / _CONVENTION_DIR
 
+    def _remove_migrated_keys(
+        self, config_data: Dict[str, Any], section: str, migrated_keys: List[str]
+    ) -> None:
+        """Remove migrated keys from config section and delete section if empty."""
+        for key in migrated_keys:
+            config_data[section].pop(key, None)
+
+        if not config_data.get(section):
+            config_data.pop(section, None)
+
     def _normalize_template_path(self, raw_path: str) -> str:
         path = raw_path.strip()
         if path.startswith("./"):
             path = path[2:]
 
-        # Use cached prefix and docs_root for efficiency
+        # Use cached prefix for efficiency
         if path == self._templates_prefix or path.startswith(f"{self._templates_prefix}/"):
             return path
-        if path.startswith(f"{self._docs_root}/"):
-            path = path[len(self._docs_root) + 1 :]
+        if self._docs_root_prefix and path.startswith(self._docs_root_prefix):
+            path = path[len(self._docs_root_prefix):]
         return f"{self._templates_prefix}/{path}"
 
     def _get_new_template_name(self, old_name: str) -> Optional[str]:
