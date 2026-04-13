@@ -2,7 +2,7 @@
 document_id: MEMINIT-SPEC-007
 type: SPEC
 title: Templates v2 Specification
-status: Draft
+status: Approved
 version: 0.1
 last_updated: 2026-03-04
 owner: Product Team
@@ -17,14 +17,14 @@ keywords:
   - agent
 related_ids:
   - MEMINIT-PRD-006
-  - MEMINIT-SPEC-004
+  - MEMINIT-SPEC-008
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
 > **Document ID:** MEMINIT-SPEC-007
 > **Owner:** Product Team
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 0.1
 > **Last Updated:** 2026-03-04
 > **Type:** SPEC

@@ -123,13 +123,13 @@ class DoctorRepositoryUseCase:
                         )
                     )
 
-        # PRD-007: Validate project-state.yaml if it exists.
+        # Validate project-state.yaml if it exists.
         issues.extend(self._validate_project_state())
 
         return issues
 
     def _validate_project_state(self) -> List[Violation]:
-        """Validate project-state.yaml when present (PRD-007)."""
+        """Validate project-state.yaml when present."""
         import frontmatter as fm
         import yaml
 

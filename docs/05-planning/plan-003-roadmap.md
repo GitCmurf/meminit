@@ -106,6 +106,7 @@ Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
 - [ ] Context Awareness Module
 - [ ] Automated Doc Generation
 - [ ] Semantic Search
+- Detailed sequencing for the next Meminit-native agent platform work is in [MEMINIT-PLAN-008](plan-008-agentic-coding-vnext-programme.md).
 
 ## Phase 5: Ecosystem
 

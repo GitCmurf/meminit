@@ -7,7 +7,7 @@ version: "0.3"
 last_updated: 2026-03-07
 owner: GitCmurf
 docops_version: "2.0"
-area: Planning
+area: PLAN
 description: "Reviewed and prioritised atomic worklist for the remaining known backlog, aligned to MEMINIT-PLAN-005 and engineering-principles-v1.1."
 keywords:
   - backlog
@@ -28,7 +28,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-006
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.3
 > **Last Updated:** 2026-03-07
 > **Type:** PLAN
 > **Area:** Planning

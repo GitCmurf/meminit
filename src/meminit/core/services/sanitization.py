@@ -1,4 +1,4 @@
-"""Output sanitization for user-controlled fields (PRD-007 FR-8).
+"""Output sanitization for user-controlled fields.
 
 All user-controlled fields rendered in HTML or JSON output MUST be sanitised.
 Fields failing sanitisation are omitted from ALL channels (HTML and JSON)

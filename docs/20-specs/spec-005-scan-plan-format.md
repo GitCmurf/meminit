@@ -7,7 +7,7 @@ version: "1.0"
 last_updated: 2026-03-01
 owner: Product Team
 docops_version: "2.0"
-area: Adoption
+area: ADOPT
 description: "Normative JSON format for brownfield scan plans and plan-driven fixes."
 keywords:
   - scan

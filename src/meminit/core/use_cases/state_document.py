@@ -1,4 +1,4 @@
-"""Manage project-state.yaml document entries (PRD-007 FR-9).
+"""Manage project-state.yaml document entries.
 
 Provides ``set``, ``get``, ``list`` operations for the centralized
 implementation state file.  Auto-populates ``updated`` (UTC) and
@@ -111,7 +111,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
     if index_path.exists():
         try:
             data = json.loads(index_path.read_text(encoding="utf-8"))
-            docs = data.get("documents", [])
+            docs = data.get("data", {}).get("documents", []) or data.get("documents", [])
             for doc in docs:
                 doc_id = doc.get("document_id")
                 if isinstance(doc_id, str) and doc_id.endswith(f"-{document_id}"):

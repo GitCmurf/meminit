@@ -237,13 +237,13 @@ class TemplateResolver:
         if path.is_symlink():
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template is a symbolic link (not allowed): {path.relative_to(self._repo_root)}",
+                message=f"Template is a symbolic link (not allowed): {relative_path_string(path, self._repo_root)}",
                 details={"file_type": "symlink", "path": str(path)}
             )
         if not path.is_file():
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template path is not a regular file: {path.relative_to(self._repo_root)}",
+                message=f"Template path is not a regular file: {relative_path_string(path, self._repo_root)}",
                 details={"file_type": "non_regular", "path": str(path)}
             )
 
@@ -251,7 +251,7 @@ class TemplateResolver:
         if path.suffix != _TEMPLATE_EXTENSION:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template must be a .md file: {path.relative_to(self._repo_root)}",
+                message=f"Template must be a .md file: {relative_path_string(path, self._repo_root)}",
                 details={"actual_extension": path.suffix, "path": str(path)}
             )
 
@@ -261,14 +261,14 @@ class TemplateResolver:
         except OSError as exc:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template file is inaccessible: {path.relative_to(self._repo_root)}",
+                message=f"Template file is inaccessible: {relative_path_string(path, self._repo_root)}",
                 details={"error": str(exc), "path": str(path)}
             ) from exc
 
         if size > _MAX_TEMPLATE_SIZE:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
-                message=f"Template exceeds size limit ({_MAX_TEMPLATE_SIZE / 1024} KiB): {path.relative_to(self._repo_root)}",
+                message=f"Template exceeds size limit ({_MAX_TEMPLATE_SIZE / 1024} KiB): {relative_path_string(path, self._repo_root)}",
                 details={"actual_size": size, "max_size": _MAX_TEMPLATE_SIZE, "path": str(path)}
             )
 
@@ -281,13 +281,13 @@ class TemplateResolver:
                 if len(parts) < 3 or parts[0] != _CONVENTION_DIR.split('/')[0] or parts[1] != _CONVENTION_DIR.split('/')[1]:
                     raise MeminitError(
                         code=ErrorCode.INVALID_TEMPLATE_FILE,
-                        message=f"Convention templates must be under docs/{_CONVENTION_DIR}/: {path.relative_to(self._repo_root)}",
+                        message=f"Convention templates must be under docs/{_CONVENTION_DIR}/: {relative_path_string(path, self._repo_root)}",
                         details={"path": str(path)}
                     )
             except ValueError as exc:
                 # path.relative_to failed - outside docs_dir
                 raise MeminitError(
                     code=ErrorCode.INVALID_TEMPLATE_FILE,
-                    message=f"Convention template outside docs directory: {path.relative_to(self._repo_root)}",
+                    message=f"Convention template outside docs directory: {relative_path_string(path, self._repo_root)}",
                     details={"path": str(path)}
                 ) from exc

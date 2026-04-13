@@ -1,7 +1,7 @@
 """Shared v2 output envelope formatter for the Meminit CLI.
 
 This module builds deterministic, single-line JSON envelopes that conform to
-the v2 agent output contract defined in SPEC-004 and PRD-003.
+the v2 agent output contract defined in SPEC-008 and PRD-003.
 
 Key guarantees:
 - Deterministic key ordering (§16.1 of PRD-003)

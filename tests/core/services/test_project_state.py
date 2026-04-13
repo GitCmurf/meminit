@@ -301,11 +301,9 @@ def test_validate_notes_too_long(tmp_path):
 def test_get_state_file_rel_path_custom_docs_root(tmp_path):
     (tmp_path / "docops.config.yaml").write_text("docs_root: handbook\n")
     from meminit.core.services.project_state import get_state_file_rel_path
-    get_state_file_rel_path.cache_clear()
     assert get_state_file_rel_path(tmp_path) == "handbook/01-indices/project-state.yaml"
 
 
 def test_get_state_file_rel_path_default(tmp_path):
     from meminit.core.services.project_state import get_state_file_rel_path
-    get_state_file_rel_path.cache_clear()
     assert get_state_file_rel_path(tmp_path) == "docs/01-indices/project-state.yaml"

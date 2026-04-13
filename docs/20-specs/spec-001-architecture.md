@@ -42,12 +42,12 @@ Handles output modes (human vs JSON).
 Loads templates from repo; falls back to org-level defaults.
 Performs variable substitution.
 
-**Index module** (`meminit.index`)
-Scans docs/ and builds index JSON.
+**Index use case** (`meminit.core.use_cases.index_repository`)
+Scans docs/ and builds `meminit.index.json`.
 
-**Migration module** (`meminit.migration`)
+**Migration use cases** (`meminit.core.use_cases.migrate_templates`, `meminit.core.use_cases.migrate_ids`)
 Heuristics for mapping existing files to types/areas.
-Generates YAML stubs.
+Template migration and document ID migration commands.
 
 **Integration helpers**
 Pre-commit hook public script (`meminit-check`).
@@ -75,16 +75,16 @@ CI examples (GitHub Actions YAML).
 
 ```pseudocode
 
-inputs: repo\_prefix, area, type, repo\_config, existing\_docs
+inputs: repo\_prefix, type, repo\_config, existing\_docs
 
-if type requires sequence (adr, fdd):
-    candidates = all document\_ids starting with "<repo\_prefix>-<area>-<TYPE>-"
+if type requires sequence (adr, fdd, prd, spec, plan, ...):
+    candidates = all document\_ids starting with "<repo\_prefix>-<TYPE>-"
     seqs = parse trailing three-digit codes
     next\_seq = (max(seqs) or 0) + 1
     seq\_str = zero-pad(next\_seq, 3)
-    id = f"{repo\_prefix}-{area}-{TYPE.upper()}-{seq\_str}"
+    id = f"{repo\_prefix}-{TYPE.upper()}-{seq\_str}"
 else:
-    id = f"{repo\_prefix}-{area}-{TYPE.upper()}"
+    id = f"{repo\_prefix}-{TYPE.upper()}"
     if id already exists:
         error unless user supplied explicit id
 
@@ -95,7 +95,7 @@ else:
 Checks for each file:
 YAML frontmatter present.
 Required keys present and valid.
-`document\_id` matches `<REPO\_PREFIX>-<AREA>-<TYPE>\[-SEQ]`.
+`document\_id` matches `<REPO\_PREFIX>-<TYPE>\[-SEQ]`.
 Area ∈ config.
 Type ∈ config/org types.
 Path matches directory mapping for type.

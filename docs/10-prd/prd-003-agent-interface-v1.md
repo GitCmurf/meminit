@@ -7,7 +7,7 @@ version: "3.0"
 last_updated: 2026-02-28
 owner: GitCmurf
 docops_version: "2.0"
-area: Agentic Integration
+area: AGENT
 description: "Unified, deterministic CLI output contracts, agent bootstrap protocol, and machine-safe orchestration surface for meminit."
 keywords:
   - agent

@@ -321,7 +321,6 @@ class MigrateTemplatesUseCase:
                                 "template": normalized_path,
                             }
                     else:
-                        # Use cached default_ns for efficiency
                         default_directory = (
                             self._default_ns.expected_subdir_for_type(doc_type_key)
                             if self._default_ns

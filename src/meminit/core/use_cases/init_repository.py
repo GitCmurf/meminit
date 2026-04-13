@@ -7,6 +7,7 @@ import logging
 import yaml
 
 from meminit.core.services.org_profiles import resolve_org_profile
+from meminit.core.services.repo_config import _derive_repo_prefix
 from meminit.core.services.safe_fs import ensure_safe_write_path
 
 # Agent skill paths
@@ -119,7 +120,7 @@ class InitRepositoryUseCase:
         config_path = self.root_dir / "docops.config.yaml"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=config_path)
         if not config_path.exists():
-            repo_prefix = self._derive_repo_prefix(self.root_dir.name)
+            repo_prefix = _derive_repo_prefix(self.root_dir.name)
             docs_root = "docs"
             config_content = {
                 "project_name": self.root_dir.name,
@@ -341,12 +342,6 @@ class InitRepositoryUseCase:
             )
         return template
 
-    def _derive_repo_prefix(self, project_name: str) -> str:
-        prefix = "".join(c for c in project_name.upper() if "A" <= c <= "Z")
-        if len(prefix) < 3:
-            return "REPO"
-        return prefix[:10]
-
     def _load_repo_prefix_from_config(self) -> str:
         config_path = self.root_dir / "docops.config.yaml"
         if config_path.exists():
@@ -357,7 +352,7 @@ class InitRepositoryUseCase:
                     return configured.strip().upper()
             except Exception:
                 pass
-        return self._derive_repo_prefix(self.root_dir.name)
+        return _derive_repo_prefix(self.root_dir.name)
 
     def _set_executable_permission(self, path: Path) -> None:
         """Set executable permission bits on a file, preserving existing permissions."""

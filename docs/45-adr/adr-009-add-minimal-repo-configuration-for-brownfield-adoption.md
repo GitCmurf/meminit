@@ -2,7 +2,7 @@
 document_id: MEMINIT-ADR-009
 type: ADR
 title: Add Minimal Repo Configuration For Brownfield Adoption
-status: Draft
+status: Approved
 version: 0.1
 last_updated: 2025-12-14
 owner: GitCmurf
@@ -13,7 +13,7 @@ docops_version: 2.0
 
 > **Document ID:** MEMINIT-ADR-009
 > **Owner:** GitCmurf
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 0.1
 > **Last Updated:** 2025-12-14
 > **Type:** ADR
@@ -22,7 +22,7 @@ docops_version: 2.0
 
 - **Date decided:** 2025-12-14
 - **Deciders:** Repo maintainers
-- **Status:** Draft
+- **Status:** Approved
 
 ## 1. Context & Problem Statement
 

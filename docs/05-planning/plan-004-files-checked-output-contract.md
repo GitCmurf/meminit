@@ -7,7 +7,7 @@ version: "0.3"
 last_updated: 2026-02-19
 owner: Product Team
 docops_version: "2.0"
-area: Agentic Integration
+area: AGENT
 description: "Execution plan for redefining files_checked, adding counters, and rolling output_schema_version 2.0 for check JSON outputs."
 keywords:
   - output

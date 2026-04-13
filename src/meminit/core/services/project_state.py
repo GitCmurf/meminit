@@ -1,4 +1,4 @@
-"""Project state file management for PRD-007 (Project State Dashboard).
+"""Project state file management.
 
 This module provides the domain model, parsing, validation, and persistence
 logic for ``project-state.yaml`` — the centralized mutable state file that
@@ -28,10 +28,8 @@ from meminit.core.services.sanitization import (
     validate_actor,
 )
 from meminit.core.services.warning_codes import WarningCode
-import functools
 
 
-@functools.lru_cache(maxsize=1)
 def get_state_file_rel_path(root_dir: Path) -> str:
     """Resolve the project-state.yaml path dynamically from RepoConfig."""
     from meminit.core.services.repo_config import load_repo_config
@@ -43,9 +41,6 @@ def get_state_file_rel_path(root_dir: Path) -> str:
     except Exception:
         # Fallback if config is malformed or missing
         return "docs/01-indices/project-state.yaml"
-
-
-# Removed duplicate definitions for ACTOR_REGEX and MAX_NOTES_LENGTH
 
 
 class ImplState(str, Enum):
@@ -353,6 +348,8 @@ def validate_project_state(
             )
         )
 
+    all_valid_states = set(ImplState.canonical_values()) | set(valid_impl_states)
+
     for doc_id, entry in state.entries.items():
         # Check document ID exists in governed docs.
         if doc_id not in known_doc_ids:
@@ -367,8 +364,6 @@ def validate_project_state(
             )
 
         # Check impl_state is a known enum value or valid custom state.
-        canonical_values = ImplState.canonical_values()
-        all_valid_states = set(canonical_values) | set(valid_impl_states)
         if entry.impl_state not in all_valid_states:
             issues.append(
                 Violation(

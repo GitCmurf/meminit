@@ -29,7 +29,7 @@ class ResolveDocumentUseCase:
             data = json.loads(index_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
             raise ValueError(f"Failed to load index from {index_path}: {exc}") from exc
-        documents = data.get("documents", [])
+        documents = data.get("data", {}).get("documents", []) or data.get("documents", [])
         for entry in documents:
             if not isinstance(entry, dict):
                 continue

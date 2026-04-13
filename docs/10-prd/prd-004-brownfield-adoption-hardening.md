@@ -7,7 +7,7 @@ version: "1.0"
 last_updated: 2026-03-01
 owner: GitCmurf
 docops_version: "2.0"
-area: Adoption
+area: ADOPT
 description: "Harden scan and fix workflows to bring existing repos to first-green quickly and safely."
 keywords:
   - brownfield
