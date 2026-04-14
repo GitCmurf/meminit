@@ -406,10 +406,11 @@ def _build_namespace_config(
     excluded_files: list[str] = []
     
     # Add defaults
-    excluded_files.append(f"{docs_root_norm}/01-indices/project-state.yaml")
-    excluded_files.append(f"{docs_root_norm}/01-indices/{catalog_name}")
-    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.md")
-    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.css")
+    indices_dir = Path(docs_root_norm) / "01-indices"
+    excluded_files.append((indices_dir / "project-state.yaml").as_posix())
+    excluded_files.append((indices_dir / catalog_name).as_posix())
+    excluded_files.append((indices_dir / "kanban.md").as_posix())
+    excluded_files.append((indices_dir / "kanban.css").as_posix())
 
     for item in _normalize_string_list(defaults.get("excluded_files")):
         normalized = _safe_repo_relative_path(root, item)
