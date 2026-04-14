@@ -91,5 +91,18 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     except (json.JSONDecodeError, OSError) as exc:
         raise ValueError(f"Invalid JSON in index file: {index_path}") from exc
 
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Invalid index structure in {index_path}: "
+            f"expected a JSON object at the top level, got {type(data).__name__}"
+        )
+
     # v2: documents nested under "data"; v1: documents at top level
-    return data.get("data", {}).get("documents", []) or data.get("documents", [])
+    data_field = data.get("data")
+    if isinstance(data_field, dict) and "documents" in data_field:
+        docs = data_field.get("documents")
+        return docs if isinstance(docs, list) else []
+    if "documents" in data:
+        docs = data.get("documents")
+        return docs if isinstance(docs, list) else []
+    return []

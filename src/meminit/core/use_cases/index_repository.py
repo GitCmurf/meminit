@@ -12,6 +12,7 @@ Enhancements:
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -437,7 +438,7 @@ def _generate_kanban(
             if doc_path_raw:
                 try:
                     target_abs = root_dir / doc_path_raw
-                    rel_val = relative_path_string(target_abs, index_dir)
+                    rel_val = os.path.relpath(target_abs, index_dir).replace("\\", "/")
                 except (ValueError, OSError):
                     rel_val = ""
             else:
