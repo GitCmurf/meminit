@@ -2,7 +2,7 @@
 document_id: MEMINIT-SPEC-008
 type: SPEC
 title: Agent Output Contract (Templates v2)
-status: Approved
+status: Draft
 version: "1.0"
 last_updated: 2026-03-05
 owner: Product Team
