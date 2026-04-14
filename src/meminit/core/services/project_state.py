@@ -43,6 +43,22 @@ def get_state_file_rel_path(root_dir: Path) -> str:
         return "docs/01-indices/project-state.yaml"
 
 
+def _schema_violation(file: str, message: str) -> Violation:
+    """Build a schema violation for project-state.yaml structural issues."""
+    return Violation(
+        file=file,
+        line=0,
+        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+        message=message,
+        severity=Severity.ERROR,
+    )
+
+
+def _normalize_impl_state_value(value: str) -> str:
+    """Normalize impl_state comparisons without changing the stored value."""
+    return value.strip().lower()
+
+
 class ImplState(str, Enum):
     """Implementation state values.
 
@@ -134,34 +150,28 @@ def load_project_state(
     if not isinstance(raw, dict):
         return ProjectState(
             schema_violations=[
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message="Top-level project-state.yaml value must be a mapping.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, "Top-level project-state.yaml value must be a mapping.")
             ]
         )
 
     if "documents" not in raw:
         if raw:
-            raise ValueError(
-                f"project-state.yaml has no 'documents' key but contains other keys: "
-                f"{', '.join(raw.keys())}"
+            from meminit.core.services.error_codes import MeminitError
+
+            raise MeminitError(
+                code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                message=(
+                    f"project-state.yaml has no 'documents' key but contains "
+                    f"other keys: {', '.join(raw.keys())}"
+                ),
+                details={"file": state_file_rel},
             )
         return ProjectState()
     documents = raw.get("documents")
     if not isinstance(documents, dict):
         return ProjectState(
             schema_violations=[
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message="Field 'documents' must be a mapping.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, "Field 'documents' must be a mapping.")
             ]
         )
 
@@ -170,30 +180,21 @@ def load_project_state(
 
     for doc_id, fields in documents.items():
         if not isinstance(doc_id, str):
+            schema_violations.append(
+                _schema_violation(state_file_rel, f"Document key must be a string, got {type(doc_id).__name__}.")
+            )
             continue
 
         if not isinstance(fields, dict):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Entry for '{doc_id}' must be a dictionary.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Entry for '{doc_id}' must be a dictionary.")
             )
             continue
 
         impl_state = fields.get("impl_state")
         if not isinstance(impl_state, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'impl_state' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'impl_state' for '{doc_id}' must be a string.")
             )
             continue
 
@@ -205,13 +206,7 @@ def load_project_state(
         updated: datetime
         if isinstance(updated_raw, date) and not isinstance(updated_raw, datetime):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.")
             )
             continue
         elif isinstance(updated_raw, datetime):
@@ -227,26 +222,14 @@ def load_project_state(
                     updated = updated.replace(tzinfo=timezone.utc)
             except ValueError:
                 schema_violations.append(
-                    Violation(
-                        file=state_file_rel,
-                        line=0,
-                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                        message=f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.",
-                        severity=Severity.ERROR,
-                    )
+                    _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.")
                 )
                 continue
         else:
             # Use early exit pattern for clarity
             if default_now is None:
                 schema_violations.append(
-                    Violation(
-                        file=state_file_rel,
-                        line=0,
-                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                        message=f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
-                        severity=Severity.ERROR,
-                    )
+                    _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.")
                 )
                 continue
             updated = default_now
@@ -254,26 +237,14 @@ def load_project_state(
         # Validate updated_by is a string if provided.
         if not isinstance(updated_by, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'updated_by' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'updated_by' for '{doc_id}' must be a string.")
             )
             updated_by = ""
 
         # Validate notes is a string if provided.
         if notes is not None and not isinstance(notes, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'notes' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'notes' for '{doc_id}' must be a string.")
             )
             notes = None
 
@@ -338,6 +309,7 @@ def validate_project_state(
         all_valid_states = set(ImplState.canonical_values())
     else:
         all_valid_states = set(ImplState.canonical_values()) | set(valid_impl_states)
+    normalized_valid_states = {_normalize_impl_state_value(state) for state in all_valid_states}
 
     # Check alphabetical ordering.
     doc_ids = list(state.entries.keys())
@@ -369,7 +341,7 @@ def validate_project_state(
             )
 
         # Check impl_state is a known enum value or valid custom state.
-        if entry.impl_state not in all_valid_states:
+        if _normalize_impl_state_value(entry.impl_state) not in normalized_valid_states:
             issues.append(
                 Violation(
                     file=state_file_rel,

@@ -89,6 +89,7 @@ def test_sanitize_actor_stringifies_non_string():
 def test_sanitize_actor_empty_result_returns_unknown():
     assert sanitize_actor("!@#") == "unknown"
     assert sanitize_actor("") == "unknown"
+    assert sanitize_actor(None) == "unknown"
 
 
 # ---------------------------------------------------------------------------

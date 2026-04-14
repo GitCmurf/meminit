@@ -41,8 +41,10 @@ def sanitize_actor(value: str) -> str:
     """Sanitize an actor/updated_by string to valid format.
 
     Converts spaces to hyphens, removes invalid characters, and truncates
-    to 100 characters. Returns "unknown" if the result is empty.
+    to 100 characters. Returns "unknown" if the result is empty or value is None.
     """
+    if value is None:
+        return "unknown"
     val = str(value).strip().replace(" ", "-")
     val = re.sub(r"[^a-zA-Z0-9._-]", "", val)
     return val[:100] or "unknown"

@@ -238,6 +238,23 @@ def test_validate_unknown_impl_state(tmp_path):
     assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE in codes
 
 
+def test_validate_impl_state_is_case_insensitive(tmp_path):
+    """Built-in impl_state values should not warn when casing differs."""
+    state = ProjectState()
+    state.set_entry(ProjectStateEntry(
+        document_id="MEMINIT-PRD-003",
+        impl_state="done",
+        updated=datetime.now(timezone.utc),
+        updated_by="test",
+    ))
+
+    issues = validate_project_state(
+        state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path
+    )
+    codes = [v.rule for v in issues]
+    assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE not in codes
+
+
 def test_validate_unsorted_keys(tmp_path):
     """Emits W_STATE_UNSORTED_KEYS when entries are not alphabetical."""
     # Build a state with out-of-order keys by directly manipulating dict.

@@ -41,6 +41,17 @@
         "last_updated": "2026-04-14"
       },
       {
+        "document_id": "MEMINIT-SPEC-010",
+        "path": "docs/20-specs/spec-010-template-migration.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "SPEC",
+        "title": "Template Migration Specification",
+        "status": "Draft",
+        "owner": "Product Team",
+        "last_updated": "2026-04-14"
+      },
+      {
         "document_id": "MEMINIT-PRD-006",
         "path": "docs/10-prd/prd-006-document-templates.md",
         "namespace": "meminit",
@@ -163,17 +174,6 @@
         "title": "P3.1 Scope Decision: Org-Level Config",
         "status": "Draft",
         "owner": "GitCmurf",
-        "last_updated": "2026-03-07"
-      },
-      {
-        "document_id": "MEMINIT-SPEC-010",
-        "path": "docs/20-specs/spec-010-template-migration.md",
-        "namespace": "meminit",
-        "repo_prefix": "MEMINIT",
-        "type": "SPEC",
-        "title": "Template Migration Specification",
-        "status": "Draft",
-        "owner": "Product Team",
         "last_updated": "2026-03-07"
       },
       {
