@@ -16,7 +16,7 @@
         "repo_prefix": "ORG"
       }
     ],
-    "document_count": 65,
+    "document_count": 71,
     "documents": [
       {
         "document_id": "MEMINIT-FDD-007",
@@ -30,12 +30,92 @@
         "last_updated": "2026-04-14"
       },
       {
+        "document_id": "MEMINIT-PLAN-003",
+        "path": "docs/05-planning/plan-003-roadmap.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Project Roadmap",
+        "status": "Draft",
+        "owner": "Product Team",
+        "last_updated": "2026-04-14",
+        "impl_state": "In Progress",
+        "updated": "2026-03-07T07:38:26.110421+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
         "document_id": "MEMINIT-PLAN-008",
         "path": "docs/05-planning/plan-008-agentic-coding-vnext-programme.md",
         "namespace": "meminit",
         "repo_prefix": "MEMINIT",
         "type": "PLAN",
         "title": "Agentic Coding vNext Programme",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-009",
+        "path": "docs/05-planning/plan-009-phase-0-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 0 Detailed Implementation Plan",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-010",
+        "path": "docs/05-planning/plan-010-phase-1-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 1 Detailed Implementation Plan",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-011",
+        "path": "docs/05-planning/plan-011-phase-2-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 2 Detailed Implementation Plan",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-012",
+        "path": "docs/05-planning/plan-012-phase-3-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 3 Detailed Implementation Plan",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-013",
+        "path": "docs/05-planning/plan-013-phase-4-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 4 Detailed Implementation Plan",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
+      {
+        "document_id": "MEMINIT-PLAN-014",
+        "path": "docs/05-planning/plan-014-phase-5-detailed-implementation-plan.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "PLAN",
+        "title": "Phase 5 Detailed Implementation Plan",
         "status": "Draft",
         "owner": "GitCmurf",
         "last_updated": "2026-04-14"
@@ -77,20 +157,6 @@
         "last_updated": "2025-12-18",
         "impl_state": "Done",
         "updated": "2026-03-07T12:15:43.676025+00:00",
-        "updated_by": "GitCmurf"
-      },
-      {
-        "document_id": "MEMINIT-PLAN-003",
-        "path": "docs/05-planning/plan-003-roadmap.md",
-        "namespace": "meminit",
-        "repo_prefix": "MEMINIT",
-        "type": "PLAN",
-        "title": "Project Roadmap",
-        "status": "Draft",
-        "owner": "Product Team",
-        "last_updated": "2026-02-18",
-        "impl_state": "In Progress",
-        "updated": "2026-03-07T07:38:26.110421+00:00",
         "updated_by": "GitCmurf"
       },
       {
@@ -284,7 +350,7 @@
         "repo_prefix": "MEMINIT",
         "type": "SPEC",
         "title": "Agent Output Contract (Templates v2)",
-        "status": "Approved",
+        "status": "Draft",
         "owner": "Product Team",
         "last_updated": "2026-03-05"
       },
