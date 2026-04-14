@@ -7,7 +7,7 @@ version: "0.2"
 last_updated: 2026-02-23
 owner: GitCmurf
 docops_version: "2.0"
-area: Agentic Integration
+area: AGENT
 description: "Next-step improvements beyond Agent Interface v1: capability negotiation, streaming outputs, correlation support, stronger schemas, and better integration with agent protocol files/skills."
 keywords:
   - agent

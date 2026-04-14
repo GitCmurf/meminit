@@ -1,4 +1,4 @@
-"""Manage project-state.yaml document entries (PRD-007 FR-9).
+"""Manage project-state.yaml document entries.
 
 Provides ``set``, ``get``, ``list`` operations for the centralized
 implementation state file.  Auto-populates ``updated`` (UTC) and
@@ -12,7 +12,6 @@ implementation state file.  Auto-populates ``updated`` (UTC) and
 from __future__ import annotations
 
 import getpass
-import json
 import os
 import subprocess
 from dataclasses import dataclass
@@ -21,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.path_utils import load_index_documents
 from meminit.core.services.project_state import (
     ImplState,
     ProjectState,
@@ -110,14 +110,13 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
     # For fresh repos without index file, skip index check and directly expand with default prefix
     if index_path.exists():
         try:
-            data = json.loads(index_path.read_text(encoding="utf-8"))
-            docs = data.get("documents", [])
+            docs = load_index_documents(index_path)
             for doc in docs:
                 doc_id = doc.get("document_id")
                 if isinstance(doc_id, str) and doc_id.endswith(f"-{document_id}"):
                     matched_ids.add(doc_id)
-        except (OSError, json.JSONDecodeError):
-            # Index file is malformed - continue with fallback logic
+        except (FileNotFoundError, ValueError):
+            # Index file is missing or malformed - continue with fallback logic
             pass
 
         if len(matched_ids) == 1:

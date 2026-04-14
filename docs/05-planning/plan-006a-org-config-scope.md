@@ -7,7 +7,7 @@ last_updated: 2026-03-07
 title: "P3.1 Scope Decision: Org-Level Config"
 type: PLAN
 docops_version: "2.0"
-area: Planning
+area: PLAN
 description: "Scope and architecture boundary for org-level config (P3.1 from MEMINIT-PLAN-006)"
 keywords:
   - org-config

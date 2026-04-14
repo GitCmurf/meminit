@@ -51,7 +51,7 @@ def _normalize_type_key(key: str) -> str:
     return normalized
 
 
-def _derive_repo_prefix(project_name: str) -> str:
+def derive_repo_prefix(project_name: str) -> str:
     """Derive a default repo prefix from project name."""
     clean = re.sub(r"[^a-zA-Z]", "", project_name)
     if len(clean) >= 3:
@@ -280,7 +280,7 @@ def _build_namespace_config(
     if isinstance(repo_prefix_raw, str) and repo_prefix_raw.strip():
         repo_prefix_norm = repo_prefix_raw.strip().upper()
     else:
-        repo_prefix_norm = _derive_repo_prefix(project_name)
+        repo_prefix_norm = derive_repo_prefix(project_name)
 
     docops_version_raw = raw_namespace.get(
         "docops_version", defaults.get("docops_version")
@@ -406,10 +406,11 @@ def _build_namespace_config(
     excluded_files: list[str] = []
     
     # Add defaults
-    excluded_files.append(f"{docs_root_norm}/01-indices/project-state.yaml")
-    excluded_files.append(f"{docs_root_norm}/01-indices/{catalog_name}")
-    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.md")
-    excluded_files.append(f"{docs_root_norm}/01-indices/kanban.css")
+    indices_dir = Path(docs_root_norm) / "01-indices"
+    excluded_files.append((indices_dir / "project-state.yaml").as_posix())
+    excluded_files.append((indices_dir / catalog_name).as_posix())
+    excluded_files.append((indices_dir / "kanban.md").as_posix())
+    excluded_files.append((indices_dir / "kanban.css").as_posix())
 
     for item in _normalize_string_list(defaults.get("excluded_files")):
         normalized = _safe_repo_relative_path(root, item)

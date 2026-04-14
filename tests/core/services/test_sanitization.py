@@ -1,6 +1,8 @@
 """Tests for sanitization module (PRD-007 FR-8)."""
 
 from meminit.core.services.sanitization import (
+    escape_markdown_table,
+    sanitize_actor,
     sanitize_field,
     sanitize_html,
     truncate_notes,
@@ -60,3 +62,57 @@ def test_sanitize_field_escapes():
 def test_sanitize_field_truncates():
     result = sanitize_field("x" * 300, max_length=200)
     assert len(result) <= 200
+
+
+# ---------------------------------------------------------------------------
+# sanitize_actor
+# ---------------------------------------------------------------------------
+
+
+def test_sanitize_actor_spaces_to_hyphens():
+    assert sanitize_actor("john doe") == "john-doe"
+
+
+def test_sanitize_actor_removes_invalid_chars():
+    assert sanitize_actor("a b!@#c") == "a-bc"
+
+
+def test_sanitize_actor_truncates_to_100():
+    long_input = "a" * 150
+    assert len(sanitize_actor(long_input)) == 100
+
+
+def test_sanitize_actor_stringifies_non_string():
+    assert sanitize_actor(123) == "123"
+
+
+def test_sanitize_actor_empty_result_returns_unknown():
+    assert sanitize_actor("!@#") == "unknown"
+    assert sanitize_actor("") == "unknown"
+    assert sanitize_actor(None) == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# escape_markdown_table
+# ---------------------------------------------------------------------------
+
+
+def test_escape_markdown_table_pipes():
+    assert escape_markdown_table("a|b") == "a&#124;b"
+
+
+def test_escape_markdown_table_newlines():
+    assert escape_markdown_table("line1\nline2") == "line1 line2"
+
+
+def test_escape_markdown_table_carriage_returns():
+    assert escape_markdown_table("line1\rline2") == "line1 line2"
+
+
+def test_escape_markdown_table_trims():
+    assert escape_markdown_table("  hello  ") == "hello"
+
+
+def test_escape_markdown_table_empty():
+    assert escape_markdown_table("") == ""
+    assert escape_markdown_table(None) == ""

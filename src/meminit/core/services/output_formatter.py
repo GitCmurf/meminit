@@ -1,7 +1,7 @@
 """Shared v2 output envelope formatter for the Meminit CLI.
 
 This module builds deterministic, single-line JSON envelopes that conform to
-the v2 agent output contract defined in SPEC-004 and PRD-003.
+the v2 agent output contract defined in SPEC-008 and PRD-003.
 
 Key guarantees:
 - Deterministic key ordering (§16.1 of PRD-003)
@@ -204,7 +204,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _sort_advice(advice: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort advice by (code, message) per SPEC-004 §9.3."""
+    """Sort advice by (code, message) per SPEC-008 §6."""
 
     def _key(a: dict[str, Any]) -> tuple:
         return (a.get("code", ""), a.get("message", ""))

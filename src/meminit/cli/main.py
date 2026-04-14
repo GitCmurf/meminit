@@ -1884,22 +1884,46 @@ def migrate_templates(
             rename_files=rename_files,
         )
 
+        warning_entries = [
+            {"code": "WARNING", "message": warning, "path": str(report.config_file)}
+            for warning in report.warnings
+        ]
+
         if format == "json":
-            _write_output(
-                format_envelope(
+            payload_data = report.as_dict()
+            if report.success:
+                payload = format_envelope(
                     command="migrate-templates",
                     root=str(root_path),
                     success=True,
-                    data=report.as_dict(),
-                    warnings=[
-                        {"code": "WARNING", "message": w, "path": str(report.config_file)}
-                        for w in report.warnings
-                    ],
+                    data=payload_data,
+                    warnings=warning_entries,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
-                ),
+                )
+            else:
+                payload = format_envelope(
+                    command="migrate-templates",
+                    root=str(root_path),
+                    success=False,
+                    data=payload_data,
+                    warnings=warning_entries,
+                    error={
+                        "code": ErrorCode.VALIDATION_ERROR.value,
+                        "message": report.warnings[0]
+                        if report.warnings
+                        else "Template migration failed.",
+                        "details": payload_data,
+                    },
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                )
+            _write_output(
+                payload,
                 output,
             )
+            if not report.success:
+                raise SystemExit(1)
             return
 
         if format == "md":
@@ -1936,6 +1960,8 @@ def migrate_templates(
             if report.backup_path and not dry_run:
                 lines.append(f"Backup: {report.backup_path}\n")
             _write_output("\n".join(lines), output)
+            if not report.success:
+                raise SystemExit(1)
             return
 
         with maybe_capture(output, format):
@@ -1959,6 +1985,9 @@ def migrate_templates(
                     get_console().print(f"  - {warning}")
             if report.backup_path and not dry_run:
                 get_console().print(f"\nBackup: {report.backup_path}")
+
+        if not report.success:
+            raise SystemExit(1)
 
 
 @cli.command()

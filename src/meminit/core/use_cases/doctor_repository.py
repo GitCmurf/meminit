@@ -9,6 +9,7 @@ from jsonschema import Draft7Validator
 
 from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import MeminitError
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
     get_state_file_rel_path,
     load_project_state,
@@ -123,13 +124,13 @@ class DoctorRepositoryUseCase:
                         )
                     )
 
-        # PRD-007: Validate project-state.yaml if it exists.
+        # Validate project-state.yaml if it exists.
         issues.extend(self._validate_project_state())
 
         return issues
 
     def _validate_project_state(self) -> List[Violation]:
-        """Validate project-state.yaml when present (PRD-007)."""
+        """Validate project-state.yaml when present."""
         import frontmatter as fm
         import yaml
 
@@ -158,6 +159,7 @@ class DoctorRepositoryUseCase:
 
         # Collect known doc IDs from governed documents.
         known_doc_ids: set[str] = set()
+        parse_errors: list[str] = []
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -169,9 +171,28 @@ class DoctorRepositoryUseCase:
                     doc_id = post.metadata.get("document_id")
                     if isinstance(doc_id, str) and doc_id.strip():
                         known_doc_ids.add(doc_id.strip())
-                except (yaml.YAMLError, ValueError, UnicodeDecodeError, OSError):
-                    # Skip files with parsing errors, encoding issues, or I/O problems
+                except (yaml.YAMLError, ValueError, UnicodeDecodeError, OSError) as exc:
+                    parse_errors.append(
+                        f"{relative_path_string(path, self._root_dir)}: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
                     continue
+
+        if parse_errors:
+            issues.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule="DOCTOR_PARSE_ERRORS",
+                    message=(
+                        f"{len(parse_errors)} governed document(s) could not be parsed "
+                        f"(unknown-doc-id validation skipped): "
+                        + "; ".join(parse_errors)
+                    ),
+                    severity=Severity.ERROR,
+                )
+            )
+            return issues
 
         # Run validation.
         valid_impl_states = set()

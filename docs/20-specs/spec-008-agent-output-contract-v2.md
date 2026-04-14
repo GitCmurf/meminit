@@ -7,7 +7,7 @@ version: "1.0"
 last_updated: 2026-03-05
 owner: Product Team
 docops_version: "2.0"
-area: Agentic Integration
+area: AGENT
 description: "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check and new)."
 keywords:
   - agent

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.path_utils import load_index_documents
 
 
 @dataclass(frozen=True)
@@ -16,14 +15,13 @@ class IdentifyResult:
 
 class IdentifyDocumentUseCase:
     def __init__(self, root_dir: str):
-        self._layout = load_repo_layout(root_dir)
-        self._root_dir = self._layout.root_dir
+        from meminit.core.services.repo_config import load_repo_layout
+
+        layout = load_repo_layout(root_dir)
+        self._index_file = layout.index_file
+        self._root_dir = layout.root_dir
 
     def execute(self, path: str) -> IdentifyResult:
-        index_path = self._layout.index_file
-        if not index_path.exists():
-            raise FileNotFoundError(f"Index not found: {index_path}")
-
         target = Path(path)
         if not target.is_absolute():
             target = (self._root_dir / target).resolve()
@@ -32,11 +30,7 @@ class IdentifyDocumentUseCase:
         except ValueError as exc:
             raise ValueError(f"Path {target} is outside root directory {self._root_dir}") from exc
 
-        try:
-            data = json.loads(index_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            raise ValueError(f"Invalid JSON in index file: {index_path}") from exc
-        documents = data.get("documents", [])
+        documents = load_index_documents(self._index_file)
         for entry in documents:
             if not isinstance(entry, dict):
                 continue

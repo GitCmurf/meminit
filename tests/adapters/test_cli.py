@@ -776,6 +776,9 @@ def test_cli_index_json_contract(tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["output_schema_version"] == "2.0"
+    assert data["command"] == "index"
+    assert "run_id" in data
+    assert data["root"] == str(tmp_path.resolve())
     assert data["data"]["document_count"] == 1
 
 
@@ -2334,6 +2337,7 @@ def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
@@ -2389,6 +2393,7 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
@@ -2442,6 +2447,7 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=False,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=str(tmp_path / "docops.config.yaml.backup"),
@@ -2510,6 +2516,7 @@ def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_pat
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=False,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=str(tmp_path / "docops.config.yaml.backup"),
@@ -2570,6 +2577,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
@@ -2605,6 +2613,97 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     assert "## Warnings" in result.output
     assert "Sample warning" in result.output
     assert "Rename docs/00-governance/templates/template-001-adr.md" in result.output
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_json_failure_returns_error_envelope(
+    mock_use_case, tmp_path
+):
+    """JSON migrate-templates failures must remain schema-valid and machine-readable."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=True,
+        success=False,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=None,
+        config_entries_found=0,
+        config_entries_migrated=0,
+        template_files_found=0,
+        template_files_renamed=0,
+        placeholder_replacements=0,
+        actions=[],
+        warnings=["Failed to parse config: malformed yaml"],
+        skipped_files=[],
+        as_dict=lambda: {
+            "config_file": str(tmp_path / "docops.config.yaml"),
+            "templates_dir": str(tmp_path / "docs" / "00-governance" / "templates"),
+            "dry_run": True,
+            "backup_path": None,
+            "success": False,
+            "summary": {
+                "config_entries_found": 0,
+                "config_entries_migrated": 0,
+                "template_files_found": 0,
+                "template_files_renamed": 0,
+                "placeholder_replacements": 0,
+            },
+            "changes": [],
+            "warnings": ["Failed to parse config: malformed yaml"],
+            "skipped_files": [],
+        },
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["command"] == "migrate-templates"
+    assert payload["success"] is False
+    assert payload["error"]["code"] == ErrorCode.VALIDATION_ERROR.value
+    assert payload["error"]["message"] == "Failed to parse config: malformed yaml"
+    assert payload["data"]["success"] is False
+    assert payload["warnings"][0]["message"] == "Failed to parse config: malformed yaml"
+
+
+@patch("meminit.cli.main.MigrateTemplatesUseCase")
+def test_cli_migrate_templates_md_failure_exits_non_zero(mock_use_case, tmp_path):
+    """Markdown migrate-templates failures must propagate a failing exit code."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    mock_use_case.return_value.execute.return_value = MagicMock(
+        dry_run=True,
+        success=False,
+        config_file=str(tmp_path / "docops.config.yaml"),
+        templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
+        backup_path=None,
+        config_entries_found=0,
+        config_entries_migrated=0,
+        template_files_found=0,
+        template_files_renamed=0,
+        placeholder_replacements=0,
+        actions=[],
+        warnings=["Failed to parse config: malformed yaml"],
+        skipped_files=[],
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"]
+    )
+
+    assert result.exit_code == 1
+    assert "# Meminit Template Migration" in result.output
+    assert "## Warnings" in result.output
+    assert "Failed to parse config: malformed yaml" in result.output
 
 
 def test_cli_migrate_templates_e2e_real_execution(tmp_path):

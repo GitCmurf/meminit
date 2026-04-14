@@ -6,7 +6,7 @@ status: Approved
 version: "0.1"
 last_updated: "2026-03-01"
 owner: GitCmurf
-area: Adoption
+area: ADOPT
 docops_version: "2.0"
 template_type: adr-standard
 template_version: 1.1

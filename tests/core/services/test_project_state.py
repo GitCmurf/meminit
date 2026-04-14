@@ -152,6 +152,30 @@ def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
     assert len(state.schema_violations) == 0
 
 
+def test_load_project_state_non_string_doc_id(tmp_path):
+    """Non-string document keys produce schema violations."""
+    _write_state_file(
+        tmp_path,
+        'documents:\n  123:\n    impl_state: Done\n    updated: "2026-03-05T10:00:00Z"\n    updated_by: bot\n',
+    )
+    state = load_project_state(tmp_path)
+    assert state is not None
+    assert len(state.entries) == 0
+    rules = [v.rule for v in state.schema_violations]
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in rules
+    messages = [v.message for v in state.schema_violations]
+    assert any("must be a string" in m for m in messages)
+
+
+def test_load_project_state_missing_documents_key_with_other_keys(tmp_path):
+    """Non-empty dict without 'documents' key raises MeminitError."""
+    _write_state_file(tmp_path, 'version: "1.0"\nmetadata:\n  foo: bar\n')
+    with pytest.raises(MeminitError) as exc_info:
+        load_project_state(tmp_path)
+    assert exc_info.value.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert "no 'documents' key" in exc_info.value.message
+
+
 # ---------------------------------------------------------------------------
 # save_project_state
 # ---------------------------------------------------------------------------
@@ -238,6 +262,23 @@ def test_validate_unknown_impl_state(tmp_path):
     assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE in codes
 
 
+def test_validate_impl_state_is_case_insensitive(tmp_path):
+    """Built-in impl_state values should not warn when casing differs."""
+    state = ProjectState()
+    state.set_entry(ProjectStateEntry(
+        document_id="MEMINIT-PRD-003",
+        impl_state="done",
+        updated=datetime.now(timezone.utc),
+        updated_by="test",
+    ))
+
+    issues = validate_project_state(
+        state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path
+    )
+    codes = [v.rule for v in issues]
+    assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE not in codes
+
+
 def test_validate_unsorted_keys(tmp_path):
     """Emits W_STATE_UNSORTED_KEYS when entries are not alphabetical."""
     # Build a state with out-of-order keys by directly manipulating dict.
@@ -301,11 +342,9 @@ def test_validate_notes_too_long(tmp_path):
 def test_get_state_file_rel_path_custom_docs_root(tmp_path):
     (tmp_path / "docops.config.yaml").write_text("docs_root: handbook\n")
     from meminit.core.services.project_state import get_state_file_rel_path
-    get_state_file_rel_path.cache_clear()
     assert get_state_file_rel_path(tmp_path) == "handbook/01-indices/project-state.yaml"
 
 
 def test_get_state_file_rel_path_default(tmp_path):
     from meminit.core.services.project_state import get_state_file_rel_path
-    get_state_file_rel_path.cache_clear()
     assert get_state_file_rel_path(tmp_path) == "docs/01-indices/project-state.yaml"

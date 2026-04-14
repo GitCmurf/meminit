@@ -1,4 +1,4 @@
-"""Output sanitization for user-controlled fields (PRD-007 FR-8).
+"""Output sanitization for user-controlled fields.
 
 All user-controlled fields rendered in HTML or JSON output MUST be sanitised.
 Fields failing sanitisation are omitted from ALL channels (HTML and JSON)
@@ -37,12 +37,14 @@ def validate_actor(value: str) -> bool:
     return bool(ACTOR_REGEX.match(value))
 
 
-def sanitize_actor(value: str) -> str:
+def sanitize_actor(value: Optional[str]) -> str:
     """Sanitize an actor/updated_by string to valid format.
 
     Converts spaces to hyphens, removes invalid characters, and truncates
-    to 100 characters. Returns "unknown" if the result is empty.
+    to 100 characters. Returns "unknown" if the result is empty or value is None.
     """
+    if value is None:
+        return "unknown"
     val = str(value).strip().replace(" ", "-")
     val = re.sub(r"[^a-zA-Z0-9._-]", "", val)
     return val[:100] or "unknown"
@@ -56,7 +58,7 @@ def escape_markdown_table(value: str) -> str:
     """
     if not value:
         return ""
-    return str(value).replace("|", "&#124;").replace("\n", " ").strip()
+    return str(value).replace("|", "&#124;").replace("\r", " ").replace("\n", " ").strip()
 
 
 def truncate_notes(value: str, max_len: int = MAX_NOTES_LENGTH) -> str:

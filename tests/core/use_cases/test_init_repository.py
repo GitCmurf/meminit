@@ -124,3 +124,25 @@ def test_init_refuses_symlink_escape(tmp_path: Path):
     with pytest.raises(MeminitError) as exc_info:
         use_case.execute()
     assert exc_info.value.code == ErrorCode.PATH_ESCAPE
+
+
+def test_init_derives_repo_prefix_from_dir_name(tmp_path: Path):
+    """derive_repo_prefix is used when config doesn't exist yet."""
+    repo_dir = tmp_path / "myproject"
+    repo_dir.mkdir()
+    use_case = InitRepositoryUseCase(str(repo_dir))
+    use_case.execute()
+
+    config = yaml.safe_load((repo_dir / "docops.config.yaml").read_text())
+    assert config["repo_prefix"] == "MYPROJECT"
+
+
+def test_init_short_dir_name_falls_back_to_REPO(tmp_path: Path):
+    """derive_repo_prefix returns 'REPO' for names shorter than 3 chars."""
+    repo_dir = tmp_path / "ab"
+    repo_dir.mkdir()
+    use_case = InitRepositoryUseCase(str(repo_dir))
+    use_case.execute()
+
+    config = yaml.safe_load((repo_dir / "docops.config.yaml").read_text())
+    assert config["repo_prefix"] == "REPO"

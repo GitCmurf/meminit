@@ -7,7 +7,7 @@ version: "0.1"
 last_updated: 2026-02-24
 owner: Product Team
 docops_version: "2.0"
-area: Agentic Integration
+area: AGENT
 description: "Canonical ErrorCode inventory, extensibility process, and governance rules for the meminit CLI error code enum."
 keywords:
   - error
@@ -16,7 +16,7 @@ keywords:
   - contract
 related_ids:
   - MEMINIT-PRD-003
-  - MEMINIT-SPEC-004
+  - MEMINIT-SPEC-008
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -81,6 +81,10 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `INVALID_FIELD`            | Check-only | A frontmatter field has an invalid value or type.               |
 | `OUTSIDE_DOCS_ROOT`        | Check-only | A file is outside the configured docs root.                     |
 | `DIRECTORY_MISMATCH`       | Check-only | A file is in the wrong type directory for its declared type.    |
+| `VALIDATION_ERROR`         | Shared     | General validation failure not covered by a specific code.     |
+| `E_STATE_YAML_MALFORMED`   | State-only | The project-state.yaml file is not valid YAML.                 |
+| `E_STATE_SCHEMA_VIOLATION` | State-only | The project-state.yaml file violates the expected schema.       |
+| `E_INVALID_FILTER_VALUE`   | State-only | An invalid filter value was provided to a state or index query. |
 | `UNKNOWN_ERROR`            | Shared     | An unexpected error not covered by a specific code.             |
 
 ## 4. Adding a New Error Code

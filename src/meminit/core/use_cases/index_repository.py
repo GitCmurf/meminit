@@ -1,20 +1,18 @@
 """Build or update the repository index with optional state merge, views, and filtering.
 
-PRD-007 enhancements:
+Enhancements:
 - Merge ``project-state.yaml`` into per-document records (additive only).
 - Generate ``catalog.md`` — table view with composite grouping and activity-recency sort.
 - Generate ``kanban.md`` — pure Markdown fallback + HTML kanban board (with CSS hiding).
 - Generate ``kanban.css`` — companion stylesheet.
 - Filter by ``--status`` and ``--impl-state``.
 - Sanitize all user-controlled fields in rendered output.
-
-Backward compatibility: existing ``meminit.index.json`` shape is preserved.
-New fields (``impl_state``, ``updated``, ``updated_by``, ``notes``) are additive/optional.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -25,7 +23,8 @@ import frontmatter
 
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
     ImplState,
     ProjectState,
@@ -60,6 +59,41 @@ def _safe_css_slug(value: str, *, default: str = "unknown") -> str:
     return slug or default
 
 
+def _build_persisted_index_payload(
+    *,
+    layout_namespaces: Sequence[Any],
+    document_count: int,
+    documents: List[Dict[str, Any]],
+    warnings: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build the stable on-disk index artifact.
+
+    Persisted index files are committed and consumed across environments, so
+    runtime-only correlation metadata belongs in CLI JSON output, not here.
+    """
+    return {
+        "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
+        "success": True,
+        "command": "index",
+        "data": {
+            "index_version": "0.2",
+            "namespaces": [
+                {
+                    "namespace": ns.namespace,
+                    "docs_root": ns.docs_root,
+                    "repo_prefix": ns.repo_prefix,
+                }
+                for ns in layout_namespaces
+            ],
+            "document_count": document_count,
+            "documents": documents,
+        },
+        "warnings": warnings,
+        "violations": [],
+        "advice": [],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
@@ -90,7 +124,7 @@ _GROUP_ORDER = [
 
 
 def _assign_group(doc_status: str, impl_state: Optional[str]) -> str:
-    """Assign a composite group label per PRD-007 FR-3 grouping rules."""
+    """Assign a composite group label using status + impl_state grouping rules."""
     status_lower = (doc_status or "").strip().lower()
     state_lower = (impl_state or "").strip().lower()
 
@@ -124,10 +158,7 @@ def _activity_recency(
     frontmatter_updated: Any,
     state_updated: Optional[datetime],
 ) -> datetime:
-    """Compute activity recency as max(state.updated, frontmatter.last_updated).
-
-    PRD-007 FR-3: table is sorted by activity recency.
-    """
+    """Compute activity recency as max(state.updated, frontmatter.last_updated)."""
     fm_dt: Optional[datetime] = None
     if isinstance(frontmatter_updated, datetime):
         fm_dt = (
@@ -440,8 +471,6 @@ def _generate_kanban(
             doc_path_raw = entry.get("path", "")
             if doc_path_raw:
                 try:
-                    import os
-
                     target_abs = root_dir / doc_path_raw
                     rel_val = os.path.relpath(target_abs, index_dir).replace("\\", "/")
                 except (ValueError, OSError):
@@ -828,22 +857,12 @@ class IndexRepositoryUseCase:
             {k: v for k, v in e.items() if not k.startswith("_")}
             for e in sorted_entries
         ]
-        payload = {
-            "output_schema_version": OUTPUT_SCHEMA_VERSION,
-            "index_version": "0.2",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "namespaces": [
-                {
-                    "namespace": ns.namespace,
-                    "docs_root": ns.docs_root,
-                    "repo_prefix": ns.repo_prefix,
-                }
-                for ns in self._layout.namespaces
-            ],
-            "documents": json_entries,
-        }
-        if warnings_list:
-            payload["warnings"] = warnings_list
+        payload = _build_persisted_index_payload(
+            layout_namespaces=self._layout.namespaces,
+            document_count=len(json_entries),
+            documents=json_entries,
+            warnings=warnings_list,
+        )
         index_path.write_text(
             json.dumps(payload, indent=2, default=_json_default) + "\n",
             encoding="utf-8",

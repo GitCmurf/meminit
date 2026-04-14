@@ -3,8 +3,6 @@
 These are separate from ErrorCode (which backs MeminitError for fatal errors).
 Warning codes are emitted in the envelope `warnings` array and do not cause
 non-zero exit codes.
-
-Added by PRD-007 (Project State Dashboard).
 """
 
 

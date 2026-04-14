@@ -1,6 +1,8 @@
+import json
 import re
 import hashlib
 from pathlib import Path
+from typing import Any, Dict, List
 
 
 FILENAME_EXCEPTIONS = frozenset({
@@ -61,3 +63,46 @@ def relative_path_string(path: Path, base: Path) -> str:
         return path.relative_to(base).as_posix()
     except ValueError:
         return str(path)
+
+
+def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
+    """Load documents from a meminit index JSON file.
+
+    Supports both v2 envelope (documents nested under ``data``) and
+    v1 format (documents at top level) for backward compatibility.
+
+    Args:
+        index_path: Path to the ``meminit.index.json`` file.
+
+    Returns:
+        List of document dicts from the index.
+
+    Raises:
+        FileNotFoundError: If the index file does not exist.
+        ValueError: If the index file is not valid JSON.
+    """
+    import json
+
+    if not index_path.exists():
+        raise FileNotFoundError(f"Index not found: {index_path}")
+
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError(f"Invalid JSON in index file: {index_path}") from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Invalid index structure in {index_path}: "
+            f"expected a JSON object at the top level, got {type(data).__name__}"
+        )
+
+    # v2: documents nested under "data"; v1: documents at top level
+    data_field = data.get("data")
+    if isinstance(data_field, dict) and "documents" in data_field:
+        docs = data_field.get("documents")
+        return docs if isinstance(docs, list) else []
+    if "documents" in data:
+        docs = data.get("documents")
+        return docs if isinstance(docs, list) else []
+    return []

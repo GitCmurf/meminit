@@ -7,7 +7,7 @@ version: "0.5"
 last_updated: 2026-03-07
 owner: GitCmurf
 docops_version: "2.0"
-area: Planning
+area: PLAN
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -15,7 +15,7 @@ area: Planning
 > **Document ID:** MEMINIT-PLAN-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
+> **Version:** 0.5
 > **Last Updated:** 2026-03-07
 > **Type:** PLAN
 
@@ -40,7 +40,7 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 | F4.1 `meminit check`                             | ✅ Met                 | Full schema validation                                                  |
 | F5.1 `meminit scan`                              | ✅ Met                 | Migration planning with dry-run support                                 |
 | F5.2 Scan dry-run/patch mode                     | ✅ Met                 | Via `--plan` flag                                                       |
-| F6.1 `meminit index`                             | ✅ Met                 | Generates `doc_index.json`                                              |
+| F6.1 `meminit index`                             | ✅ Met                 | Generates `meminit.index.json`                                         |
 | F6.2 `meminit link`                              | ✅ Met                 | Markdown link generation                                                |
 | F7.1 Pre-commit hooks                            | ✅ Met                 | Via `meminit install-precommit`                                         |
 | F7.2 CI workflow examples                        | ✅ Met                 | `.github/workflows/ci.yml`                                              |

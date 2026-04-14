@@ -1,4 +1,4 @@
-"""Project state file management for PRD-007 (Project State Dashboard).
+"""Project state file management.
 
 This module provides the domain model, parsing, validation, and persistence
 logic for ``project-state.yaml`` — the centralized mutable state file that
@@ -28,10 +28,8 @@ from meminit.core.services.sanitization import (
     validate_actor,
 )
 from meminit.core.services.warning_codes import WarningCode
-import functools
 
 
-@functools.lru_cache(maxsize=1)
 def get_state_file_rel_path(root_dir: Path) -> str:
     """Resolve the project-state.yaml path dynamically from RepoConfig."""
     from meminit.core.services.repo_config import load_repo_config
@@ -45,13 +43,31 @@ def get_state_file_rel_path(root_dir: Path) -> str:
         return "docs/01-indices/project-state.yaml"
 
 
-# Removed duplicate definitions for ACTOR_REGEX and MAX_NOTES_LENGTH
+def _schema_violation(file: str, message: str) -> Violation:
+    """Build a schema violation for project-state.yaml structural issues."""
+    return Violation(
+        file=file,
+        line=0,
+        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+        message=message,
+        severity=Severity.ERROR,
+    )
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware, defaulting to UTC."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _normalize_impl_state_value(value: str) -> str:
+    """Normalize impl_state comparisons without changing the stored value."""
+    return value.strip().lower()
 
 
 class ImplState(str, Enum):
     """Implementation state values.
 
-    Display names match the canonical enum values specified in PRD-007 FR-1.
+    Display names match the canonical enum values.
     Extensible per-repo via ``docops.config.yaml`` in a future iteration;
     these are the shipped defaults.
     """
@@ -139,29 +155,28 @@ def load_project_state(
     if not isinstance(raw, dict):
         return ProjectState(
             schema_violations=[
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message="Top-level project-state.yaml value must be a mapping.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, "Top-level project-state.yaml value must be a mapping.")
             ]
         )
 
     if "documents" not in raw:
+        if raw:
+            from meminit.core.services.error_codes import MeminitError
+
+            raise MeminitError(
+                code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                message=(
+                    f"project-state.yaml has no 'documents' key but contains "
+                    f"other keys: {', '.join(raw.keys())}"
+                ),
+                details={"file": state_file_rel},
+            )
         return ProjectState()
     documents = raw.get("documents")
     if not isinstance(documents, dict):
         return ProjectState(
             schema_violations=[
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message="Field 'documents' must be a mapping.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, "Field 'documents' must be a mapping.")
             ]
         )
 
@@ -170,30 +185,21 @@ def load_project_state(
 
     for doc_id, fields in documents.items():
         if not isinstance(doc_id, str):
+            schema_violations.append(
+                _schema_violation(state_file_rel, f"Document key must be a string, got {type(doc_id).__name__}.")
+            )
             continue
 
         if not isinstance(fields, dict):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Entry for '{doc_id}' must be a dictionary.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Entry for '{doc_id}' must be a dictionary.")
             )
             continue
 
         impl_state = fields.get("impl_state")
         if not isinstance(impl_state, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'impl_state' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'impl_state' for '{doc_id}' must be a string.")
             )
             continue
 
@@ -205,75 +211,39 @@ def load_project_state(
         updated: datetime
         if isinstance(updated_raw, date) and not isinstance(updated_raw, datetime):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.")
             )
             continue
         elif isinstance(updated_raw, datetime):
-            updated = (
-                updated_raw
-                if updated_raw.tzinfo
-                else updated_raw.replace(tzinfo=timezone.utc)
-            )
+            updated = _ensure_utc(updated_raw)
         elif isinstance(updated_raw, str):
             try:
-                updated = datetime.fromisoformat(updated_raw)
-                if updated.tzinfo is None:
-                    updated = updated.replace(tzinfo=timezone.utc)
+                updated = _ensure_utc(datetime.fromisoformat(updated_raw))
             except ValueError:
                 schema_violations.append(
-                    Violation(
-                        file=state_file_rel,
-                        line=0,
-                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                        message=f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.",
-                        severity=Severity.ERROR,
-                    )
+                    _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.")
                 )
                 continue
         else:
             # Use early exit pattern for clarity
             if default_now is None:
                 schema_violations.append(
-                    Violation(
-                        file=state_file_rel,
-                        line=0,
-                        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                        message=f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
-                        severity=Severity.ERROR,
-                    )
+                    _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.")
                 )
                 continue
-            updated = default_now
+            updated = _ensure_utc(default_now)
 
         # Validate updated_by is a string if provided.
         if not isinstance(updated_by, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'updated_by' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'updated_by' for '{doc_id}' must be a string.")
             )
             updated_by = ""
 
         # Validate notes is a string if provided.
         if notes is not None and not isinstance(notes, str):
             schema_violations.append(
-                Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
-                    message=f"Field 'notes' for '{doc_id}' must be a string.",
-                    severity=Severity.ERROR,
-                )
+                _schema_violation(state_file_rel, f"Field 'notes' for '{doc_id}' must be a string.")
             )
             notes = None
 
@@ -335,7 +305,10 @@ def validate_project_state(
     state_file_rel = get_state_file_rel_path(root_dir)
 
     if valid_impl_states is None:
-        valid_impl_states = ImplState.canonical_values()
+        all_valid_states = set(ImplState.canonical_values())
+    else:
+        all_valid_states = set(ImplState.canonical_values()) | set(valid_impl_states)
+    normalized_valid_states = {_normalize_impl_state_value(state) for state in all_valid_states}
 
     # Check alphabetical ordering.
     doc_ids = list(state.entries.keys())
@@ -367,9 +340,7 @@ def validate_project_state(
             )
 
         # Check impl_state is a known enum value or valid custom state.
-        canonical_values = ImplState.canonical_values()
-        all_valid_states = set(canonical_values) | set(valid_impl_states)
-        if entry.impl_state not in all_valid_states:
+        if _normalize_impl_state_value(entry.impl_state) not in normalized_valid_states:
             issues.append(
                 Violation(
                     file=state_file_rel,

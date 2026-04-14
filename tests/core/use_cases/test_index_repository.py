@@ -91,8 +91,25 @@ def test_index_repository_builds_index(tmp_path):
     text = index_path.read_text(encoding="utf-8")
     assert text.endswith("\n")
     payload = json.loads(text)
-    assert payload["output_schema_version"] == "1.0"  # Backward compat
-    assert payload["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    assert payload["output_schema_version"] == "2.0"
+    assert payload["data"]["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    assert "run_id" not in payload
+    assert "root" not in payload
+    assert "generated_at" not in payload["data"]
+
+
+def test_index_repository_persisted_json_is_stable_across_runs(tmp_path):
+    """Persisted index excludes runtime metadata that would churn between runs."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+
+    first_report = use_case.execute()
+    first_payload = json.loads(first_report.index_path.read_text(encoding="utf-8"))
+
+    second_report = use_case.execute()
+    second_payload = json.loads(second_report.index_path.read_text(encoding="utf-8"))
+
+    assert first_payload == second_payload
 
 
 def test_index_repository_excludes_wip(tmp_path):
@@ -139,7 +156,7 @@ def test_index_merges_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["documents"][0]
+    doc = payload["data"]["documents"][0]
     assert doc["impl_state"] == "In Progress"
     assert doc["updated_by"] == "GitCmurf"
     assert doc["notes"] == "Phase 1"
@@ -153,7 +170,7 @@ def test_index_without_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["documents"][0]
+    doc = payload["data"]["documents"][0]
     assert "impl_state" not in doc
     assert "updated_by" not in doc
 
@@ -360,7 +377,7 @@ def test_index_filter_by_impl_state(tmp_path):
     assert report.document_count == 1
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    ids = {d["document_id"] for d in payload["documents"]}
+    ids = {d["document_id"] for d in payload["data"]["documents"]}
     assert ids == {"EXAMPLE-ADR-001", "EXAMPLE-ADR-002"}
 
 
@@ -425,7 +442,7 @@ def test_index_json_has_required_fields_for_resolve(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["documents"][0]
+    doc = payload["data"]["documents"][0]
     # Existing required fields for downstream consumers.
     assert "document_id" in doc
     assert "path" in doc

@@ -55,13 +55,12 @@ Example:
 
 Valid AREA identifiers for this repository:
 
-- `CORE` (Core logic, config, main CLI)
+- `CORE` (Core logic, config, templates, migration)
 - `CLI` (Command line interface layer)
-- `API` (API definitions)
-- `AUTH` (Authentication & Authorization)
-- `INGEST` (Data Ingestion)
 - `DOCS` (Documentation specific logic)
-- `AGENT` (Agent interaction layer)
+- `AGENT` (Agent interface, output contracts, error codes)
+- `PLAN` (Backlog tracking, task lists, workstream planning)
+- `ADOPT` (Brownfield adoption, migration tooling)
 
 Rules:
 

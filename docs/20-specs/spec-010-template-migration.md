@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-010
 type: SPEC
 title: Template Migration Specification
 status: Draft
-version: 0.1
-last_updated: 2026-03-07
+version: 0.2
+last_updated: 2026-04-14
 owner: Product Team
 docops_version: 2.0
 area: CORE
@@ -195,6 +195,13 @@ The following are rejected (require manual review):
 ### 5.2 Apply Mode
 
 Same as dry-run but with `"dry_run": false` and actual file modifications made.
+
+### 5.3 Failure Mode
+
+- Operational migration failures MUST return a schema-valid JSON error envelope.
+- The envelope MUST include `success: false` and an `error` object with a stable code and message.
+- The migration report MAY still be included in `data` for machine inspection.
+- The command MUST exit non-zero on failure in all output formats, including Markdown.
 
 ## 6. Idempotency Rules
 
