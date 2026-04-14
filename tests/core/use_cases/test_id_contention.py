@@ -58,10 +58,8 @@ def test_id_allocation_contention_multi_process(tmp_path):
     for p in processes:
         p.join()
         
-    # 3. Collect results
-    results = []
-    while not results_queue.empty():
-        results.append(results_queue.get())
+    # 3. Collect results — expected count is fixed, so get exactly that many
+    results = [results_queue.get() for _ in range(num_workers)]
         
     # 4. Verify
     assert len(results) == num_workers

@@ -145,6 +145,11 @@ def load_project_state(
         )
 
     if "documents" not in raw:
+        if raw:
+            raise ValueError(
+                f"project-state.yaml has no 'documents' key but contains other keys: "
+                f"{', '.join(raw.keys())}"
+            )
         return ProjectState()
     documents = raw.get("documents")
     if not isinstance(documents, dict):

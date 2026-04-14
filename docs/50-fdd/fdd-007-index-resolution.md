@@ -3,8 +3,8 @@ document_id: MEMINIT-FDD-007
 type: FDD
 title: Index + Resolution Helpers (meminit index/resolve/identify/link)
 status: Draft
-version: 0.3
-last_updated: 2025-12-29
+version: 0.4
+last_updated: 2026-04-14
 owner: GitCmurf
 docops_version: 2.0
 ---
@@ -25,6 +25,7 @@ Provide a stable, machine-readable index artifact and a small set of commands to
 - Command: `meminit index`
   - Builds a repository-level index artifact at `index_path` (defaults to `docs/01-indices/meminit.index.json`).
   - Index artifact includes `output_schema_version` for stable orchestration contracts.
+  - Persisted index content is deterministic and excludes runtime-only metadata such as `run_id`, absolute `root`, and wall-clock generation timestamps.
   - Includes `document_id`, path, type, title, status for each governed doc.
   - In monorepo mode (`namespaces`), index entries also include `namespace` and `repo_prefix`.
   - Excludes WIP and explicitly excluded paths.
@@ -49,6 +50,7 @@ Provide a stable, machine-readable index artifact and a small set of commands to
 - Use case: `src/meminit/core/use_cases/index_repository.py`
 - Use cases: `resolve_document.py`, `identify_document.py`
 - CLI: `meminit index|resolve|identify|link` in `src/meminit/cli/main.py`
+- Runtime correlation metadata remains available in CLI JSON output (`meminit index --format json`) rather than the committed index artifact.
 
 ## Tests
 

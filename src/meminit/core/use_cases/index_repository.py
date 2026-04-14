@@ -24,7 +24,6 @@ import frontmatter
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
-from meminit.core.services.output_formatter import generate_run_id
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
     ImplState,
@@ -58,6 +57,41 @@ def _safe_css_slug(value: str, *, default: str = "unknown") -> str:
     slug = re.sub(r"[^a-z0-9_-]+", "-", str(value).strip().lower())
     slug = re.sub(r"-{2,}", "-", slug).strip("-")
     return slug or default
+
+
+def _build_persisted_index_payload(
+    *,
+    layout_namespaces: Sequence[Any],
+    document_count: int,
+    documents: List[Dict[str, Any]],
+    warnings: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build the stable on-disk index artifact.
+
+    Persisted index files are committed and consumed across environments, so
+    runtime-only correlation metadata belongs in CLI JSON output, not here.
+    """
+    return {
+        "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
+        "success": True,
+        "command": "index",
+        "data": {
+            "index_version": "0.2",
+            "namespaces": [
+                {
+                    "namespace": ns.namespace,
+                    "docs_root": ns.docs_root,
+                    "repo_prefix": ns.repo_prefix,
+                }
+                for ns in layout_namespaces
+            ],
+            "document_count": document_count,
+            "documents": documents,
+        },
+        "warnings": warnings,
+        "violations": [],
+        "advice": [],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -823,30 +857,12 @@ class IndexRepositoryUseCase:
             {k: v for k, v in e.items() if not k.startswith("_")}
             for e in sorted_entries
         ]
-        payload = {
-            "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
-            "success": True,
-            "command": "index",
-            "run_id": generate_run_id(),
-            "root": str(self._root_dir),
-            "data": {
-                "index_version": "0.2",
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "namespaces": [
-                    {
-                        "namespace": ns.namespace,
-                        "docs_root": ns.docs_root,
-                        "repo_prefix": ns.repo_prefix,
-                    }
-                    for ns in self._layout.namespaces
-                ],
-                "document_count": len(json_entries),
-                "documents": json_entries,
-            },
-            "warnings": warnings_list,
-            "violations": [],
-            "advice": [],
-        }
+        payload = _build_persisted_index_payload(
+            layout_namespaces=self._layout.namespaces,
+            document_count=len(json_entries),
+            documents=json_entries,
+            warnings=warnings_list,
+        )
         index_path.write_text(
             json.dumps(payload, indent=2, default=_json_default) + "\n",
             encoding="utf-8",

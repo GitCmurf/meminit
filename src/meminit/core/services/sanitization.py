@@ -56,7 +56,7 @@ def escape_markdown_table(value: str) -> str:
     """
     if not value:
         return ""
-    return str(value).replace("|", "&#124;").replace("\n", " ").strip()
+    return str(value).replace("|", "&#124;").replace("\r", " ").replace("\n", " ").strip()
 
 
 def truncate_notes(value: str, max_len: int = MAX_NOTES_LENGTH) -> str:

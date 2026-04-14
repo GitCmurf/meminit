@@ -1889,7 +1889,7 @@ def migrate_templates(
                 format_envelope(
                     command="migrate-templates",
                     root=str(root_path),
-                    success=True,
+                    success=report.success,
                     data=report.as_dict(),
                     warnings=[
                         {"code": "WARNING", "message": w, "path": str(report.config_file)}
@@ -1959,6 +1959,9 @@ def migrate_templates(
                     get_console().print(f"  - {warning}")
             if report.backup_path and not dry_run:
                 get_console().print(f"\nBackup: {report.backup_path}")
+
+        if not report.success:
+            raise SystemExit(1)
 
 
 @cli.command()

@@ -93,6 +93,23 @@ def test_index_repository_builds_index(tmp_path):
     payload = json.loads(text)
     assert payload["output_schema_version"] == "2.0"
     assert payload["data"]["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    assert "run_id" not in payload
+    assert "root" not in payload
+    assert "generated_at" not in payload["data"]
+
+
+def test_index_repository_persisted_json_is_stable_across_runs(tmp_path):
+    """Persisted index excludes runtime metadata that would churn between runs."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+
+    first_report = use_case.execute()
+    first_payload = json.loads(first_report.index_path.read_text(encoding="utf-8"))
+
+    second_report = use_case.execute()
+    second_payload = json.loads(second_report.index_path.read_text(encoding="utf-8"))
+
+    assert first_payload == second_payload
 
 
 def test_index_repository_excludes_wip(tmp_path):

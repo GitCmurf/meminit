@@ -2,11 +2,8 @@
   "output_schema_version": "2.0",
   "success": true,
   "command": "index",
-  "run_id": "19c581d3-4633-45fa-97b5-c3d2dcb864df",
-  "root": "/home/cmf/code/Meminit",
   "data": {
     "index_version": "0.2",
-    "generated_at": "2026-04-13T23:53:04.007832+00:00",
     "namespaces": [
       {
         "namespace": "meminit",
@@ -21,6 +18,17 @@
     ],
     "document_count": 65,
     "documents": [
+      {
+        "document_id": "MEMINIT-FDD-007",
+        "path": "docs/50-fdd/fdd-007-index-resolution.md",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT",
+        "type": "FDD",
+        "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
+        "status": "Draft",
+        "owner": "GitCmurf",
+        "last_updated": "2026-04-14"
+      },
       {
         "document_id": "MEMINIT-PLAN-008",
         "path": "docs/05-planning/plan-008-agentic-coding-vnext-programme.md",
@@ -485,17 +493,6 @@
         "repo_prefix": "MEMINIT",
         "type": "ADR",
         "title": "Support Monorepo Namespaces",
-        "status": "Draft",
-        "owner": "GitCmurf",
-        "last_updated": "2025-12-29"
-      },
-      {
-        "document_id": "MEMINIT-FDD-007",
-        "path": "docs/50-fdd/fdd-007-index-resolution.md",
-        "namespace": "meminit",
-        "repo_prefix": "MEMINIT",
-        "type": "FDD",
-        "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
         "status": "Draft",
         "owner": "GitCmurf",
         "last_updated": "2025-12-29"

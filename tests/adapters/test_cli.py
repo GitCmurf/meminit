@@ -776,6 +776,9 @@ def test_cli_index_json_contract(tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["output_schema_version"] == "2.0"
+    assert data["command"] == "index"
+    assert "run_id" in data
+    assert data["root"] == str(tmp_path.resolve())
     assert data["data"]["document_count"] == 1
 
 
@@ -2334,6 +2337,7 @@ def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
@@ -2389,6 +2393,7 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
@@ -2442,6 +2447,7 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=False,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=str(tmp_path / "docops.config.yaml.backup"),
@@ -2510,6 +2516,7 @@ def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_pat
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=False,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=str(tmp_path / "docops.config.yaml.backup"),
@@ -2570,6 +2577,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     )
     mock_use_case.return_value.execute.return_value = MagicMock(
         dry_run=True,
+        success=True,
         config_file=str(tmp_path / "docops.config.yaml"),
         templates_dir=str(tmp_path / "docs" / "00-governance" / "templates"),
         backup_path=None,
