@@ -152,6 +152,30 @@ def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
     assert len(state.schema_violations) == 0
 
 
+def test_load_project_state_non_string_doc_id(tmp_path):
+    """Non-string document keys produce schema violations."""
+    _write_state_file(
+        tmp_path,
+        'documents:\n  123:\n    impl_state: Done\n    updated: "2026-03-05T10:00:00Z"\n    updated_by: bot\n',
+    )
+    state = load_project_state(tmp_path)
+    assert state is not None
+    assert len(state.entries) == 0
+    rules = [v.rule for v in state.schema_violations]
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in rules
+    messages = [v.message for v in state.schema_violations]
+    assert any("must be a string" in m for m in messages)
+
+
+def test_load_project_state_missing_documents_key_with_other_keys(tmp_path):
+    """Non-empty dict without 'documents' key raises MeminitError."""
+    _write_state_file(tmp_path, 'version: "1.0"\nmetadata:\n  foo: bar\n')
+    with pytest.raises(MeminitError) as exc_info:
+        load_project_state(tmp_path)
+    assert exc_info.value.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert "no 'documents' key" in exc_info.value.message
+
+
 # ---------------------------------------------------------------------------
 # save_project_state
 # ---------------------------------------------------------------------------

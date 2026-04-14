@@ -37,7 +37,7 @@ def validate_actor(value: str) -> bool:
     return bool(ACTOR_REGEX.match(value))
 
 
-def sanitize_actor(value: str) -> str:
+def sanitize_actor(value: Optional[str]) -> str:
     """Sanitize an actor/updated_by string to valid format.
 
     Converts spaces to hyphens, removes invalid characters, and truncates

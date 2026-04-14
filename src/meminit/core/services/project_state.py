@@ -54,6 +54,11 @@ def _schema_violation(file: str, message: str) -> Violation:
     )
 
 
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware, defaulting to UTC."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def _normalize_impl_state_value(value: str) -> str:
     """Normalize impl_state comparisons without changing the stored value."""
     return value.strip().lower()
@@ -210,16 +215,10 @@ def load_project_state(
             )
             continue
         elif isinstance(updated_raw, datetime):
-            updated = (
-                updated_raw
-                if updated_raw.tzinfo
-                else updated_raw.replace(tzinfo=timezone.utc)
-            )
+            updated = _ensure_utc(updated_raw)
         elif isinstance(updated_raw, str):
             try:
-                updated = datetime.fromisoformat(updated_raw)
-                if updated.tzinfo is None:
-                    updated = updated.replace(tzinfo=timezone.utc)
+                updated = _ensure_utc(datetime.fromisoformat(updated_raw))
             except ValueError:
                 schema_violations.append(
                     _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.")
@@ -232,7 +231,7 @@ def load_project_state(
                     _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.")
                 )
                 continue
-            updated = default_now
+            updated = _ensure_utc(default_now)
 
         # Validate updated_by is a string if provided.
         if not isinstance(updated_by, str):
