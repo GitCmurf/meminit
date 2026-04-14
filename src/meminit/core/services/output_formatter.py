@@ -204,7 +204,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _sort_advice(advice: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort advice by (code, message) per SPEC-004 §9.3."""
+    """Sort advice by (code, message) per SPEC-008 §6."""
 
     def _key(a: dict[str, Any]) -> tuple:
         return (a.get("code", ""), a.get("message", ""))

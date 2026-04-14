@@ -51,7 +51,7 @@ def _normalize_type_key(key: str) -> str:
     return normalized
 
 
-def _derive_repo_prefix(project_name: str) -> str:
+def derive_repo_prefix(project_name: str) -> str:
     """Derive a default repo prefix from project name."""
     clean = re.sub(r"[^a-zA-Z]", "", project_name)
     if len(clean) >= 3:
@@ -280,7 +280,7 @@ def _build_namespace_config(
     if isinstance(repo_prefix_raw, str) and repo_prefix_raw.strip():
         repo_prefix_norm = repo_prefix_raw.strip().upper()
     else:
-        repo_prefix_norm = _derive_repo_prefix(project_name)
+        repo_prefix_norm = derive_repo_prefix(project_name)
 
     docops_version_raw = raw_namespace.get(
         "docops_version", defaults.get("docops_version")

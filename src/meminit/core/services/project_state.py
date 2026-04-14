@@ -46,7 +46,7 @@ def get_state_file_rel_path(root_dir: Path) -> str:
 class ImplState(str, Enum):
     """Implementation state values.
 
-    Display names match the canonical enum values specified in PRD-007 FR-1.
+    Display names match the canonical enum values.
     Extensible per-repo via ``docops.config.yaml`` in a future iteration;
     these are the shipped defaults.
     """
@@ -330,7 +330,9 @@ def validate_project_state(
     state_file_rel = get_state_file_rel_path(root_dir)
 
     if valid_impl_states is None:
-        valid_impl_states = ImplState.canonical_values()
+        all_valid_states = set(ImplState.canonical_values())
+    else:
+        all_valid_states = set(ImplState.canonical_values()) | set(valid_impl_states)
 
     # Check alphabetical ordering.
     doc_ids = list(state.entries.keys())
@@ -347,8 +349,6 @@ def validate_project_state(
                 severity=Severity.WARNING,
             )
         )
-
-    all_valid_states = set(ImplState.canonical_values()) | set(valid_impl_states)
 
     for doc_id, entry in state.entries.items():
         # Check document ID exists in governed docs.
