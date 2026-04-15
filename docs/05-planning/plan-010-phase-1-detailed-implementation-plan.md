@@ -2,9 +2,9 @@
 document_id: MEMINIT-PLAN-010
 type: PLAN
 title: Phase 1 Detailed Implementation Plan
-status: Draft
-version: '0.4'
-last_updated: '2026-04-14'
+status: Complete
+version: '0.5'
+last_updated: '2026-04-15'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -23,8 +23,8 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-010
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.4
+> **Status:** Complete
+> **Version:** 0.5
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN
 > **Area:** AGENT
@@ -293,10 +293,13 @@ Problem:
     }
   ],
   "features": {
+    "capabilities": true,
     "correlation_id": true,
     "explain": true,
+    "graph_index": false,
+    "include_timestamp": true,
     "streaming": false,
-    "graph_index": false
+    "structured_output": true
   },
   "error_codes": ["DUPLICATE_ID", "INVALID_ID_FORMAT", "..."]
 }
@@ -405,7 +408,7 @@ Problem:
 | `summary` | string | yes | One-sentence human-readable summary |
 | `cause` | string | yes | Most likely root cause |
 | `remediation.action` | string | yes | Recommended fix, written for both human and agent consumption |
-| `remediation.resolution_type` | string | yes | One of: `"auto_fixable"` (meminit fix can resolve), `"manual"` (requires human judgment), `"retryable"` (transient; retry may succeed) |
+| `remediation.resolution_type` | string | yes | One of: `"auto_fixable"` (meminit fix can resolve), `"manual"` (requires human judgment), `"retryable"` (transient; retry may succeed), `"config_change"` (requires configuration modification) |
 | `remediation.automatable` | boolean | yes | Whether an agent can resolve this without human input |
 | `remediation.relevant_commands` | string[] | yes | CLI commands relevant to diagnosing or fixing the issue |
 | `spec_reference` | string | yes | Document ID of the governing spec |
@@ -591,3 +594,4 @@ Phase 1 can be considered complete when all of the following are true:
 | 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 1 workstreams, sequencing, and exit criteria |
 | 0.3 | 2026-04-14 | Augment Agent | Strengthened plan: added breaking-change posture; specified envelope evolution strategy with `additionalProperties: false`; defined concrete capabilities JSON schema with per-command metadata, feature flags, and deterministic ordering; specified correlation_id vs run_id semantic contract with env var fallback and input validation; detailed explain command payload schema with resolution_type taxonomy and `--list` mode; added contract-matrix test specification with self-maintaining parametrization; tightened exit criteria from 5 generic to 9 specific testable criteria |
 | 0.4 | 2026-04-14 | Codex | Added an audit-gated path for top-level schema tightening, documented safe deferment if the command surface is not fully enumerated, and clarified expected text and Markdown behavior for capabilities and explain |
+| 0.5 | 2026-04-15 | GitCmurf | Recorded implementation complete: all 5 workstreams delivered; 8 review findings resolved; normative docs updated |

@@ -31,6 +31,11 @@
       "type": "string",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
     },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
     "timestamp": {
       "type": "string",
       "format": "date-time"
@@ -297,5 +302,5 @@
       "additionalProperties": true
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-006
 type: SPEC
 title: ErrorCode Enum Specification
 status: Draft
-version: "0.1"
-last_updated: 2026-02-24
+version: "0.2"
+last_updated: 2026-04-15
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -24,8 +24,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-006
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-02-24
+> **Version:** 0.2
+> **Last Updated:** 2026-04-15
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -86,6 +86,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `E_STATE_SCHEMA_VIOLATION` | State-only | The project-state.yaml file violates the expected schema.       |
 | `E_INVALID_FILTER_VALUE`   | State-only | An invalid filter value was provided to a state or index query. |
 | `UNKNOWN_ERROR`            | Shared     | An unexpected error not covered by a specific code.             |
+| `UNKNOWN_ERROR_CODE`       | Agent      | The requested error code is not recognized by `meminit explain`. |
 
 ## 4. Adding a New Error Code
 
@@ -107,3 +108,10 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 3. No error code is removed or renamed without a deprecation period.
 
 Plain English: If these are true, error codes are governed correctly.
+
+## 7. Version History
+
+| Version | Date | Author | Changes |
+| ------- | ---- | ------ | ------- |
+| 0.1 | 2026-02-24 | Product Team | Initial spec |
+| 0.2 | 2026-04-15 | GitCmurf | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path |

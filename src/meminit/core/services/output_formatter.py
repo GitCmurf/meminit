@@ -35,6 +35,7 @@ _ENVELOPE_KEY_ORDER = [
     "success",
     "command",
     "run_id",
+    "correlation_id",
     "timestamp",
     "root",
     "files_checked",
@@ -217,6 +218,25 @@ def generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
+def normalize_correlation_id(correlation_id: str | None) -> str | None:
+    """Validate and normalize a caller-supplied correlation ID.
+
+    Returns the string as-is if valid, None if input is None (field omitted),
+    or raises ValueError on invalid input.
+    """
+    if correlation_id is None:
+        return None
+    if len(correlation_id) > 128:
+        raise ValueError(
+            f"correlation_id exceeds 128 characters (got {len(correlation_id)})"
+        )
+    if not correlation_id:
+        raise ValueError("correlation_id must not be empty")
+    if any(c.isspace() for c in correlation_id):
+        raise ValueError("correlation_id must not contain whitespace")
+    return correlation_id
+
+
 def _normalize_run_id(run_id: str | None) -> str:
     """Validate or generate a UUIDv4 run_id."""
     if run_id is None:
@@ -242,6 +262,7 @@ def format_envelope(
     error: dict | None = None,
     include_timestamp: bool = False,
     run_id: str | None = None,
+    correlation_id: str | None = None,
     extra_top_level: dict | None = None,
 ) -> str:
     """Build a v2 JSON envelope as a deterministic single-line string.
@@ -257,6 +278,8 @@ def format_envelope(
         error: Operational error object (code, message, optional details).
         include_timestamp: If True, include ISO 8601 UTC timestamp.
         run_id: Override run_id (must be a UUIDv4).
+        correlation_id: Caller-supplied orchestration token (max 128 chars,
+            no whitespace). Omitted from envelope when None.
         extra_top_level: Additional top-level fields (e.g. check counters).
             These are placed after the standard envelope keys in sorted order.
 
@@ -272,6 +295,10 @@ def format_envelope(
         "command": command,
         "run_id": _normalize_run_id(run_id),
     }
+
+    cid = normalize_correlation_id(correlation_id)
+    if cid is not None:
+        envelope["correlation_id"] = cid
 
     if include_timestamp:
         envelope["timestamp"] = (
@@ -300,6 +327,7 @@ def format_envelope(
             "success",
             "command",
             "run_id",
+            "correlation_id",
             "timestamp",
             "root",
             "data",
@@ -339,6 +367,7 @@ def format_error_envelope(
     details: dict | None = None,
     include_timestamp: bool = False,
     run_id: str | None = None,
+    correlation_id: str | None = None,
 ) -> str:
     """Build a v2 error envelope as a deterministic single-line string.
 
@@ -352,6 +381,7 @@ def format_error_envelope(
         details: Optional structured error context.
         include_timestamp: If True, include ISO 8601 UTC timestamp.
         run_id: Override run_id.
+        correlation_id: Caller-supplied orchestration token.
 
     Returns:
         A single-line JSON string with no trailing newline.
@@ -367,4 +397,5 @@ def format_error_envelope(
         error=error_obj,
         include_timestamp=include_timestamp,
         run_id=run_id,
+        correlation_id=correlation_id,
     )

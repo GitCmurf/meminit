@@ -1,13 +1,16 @@
-"""Error codes and exception handling for the Meminit CLI.
+"""Error codes, exception handling, and error explanations for the Meminit CLI.
 
-This module defines the CLI-wide ErrorCode enum and the MeminitError exception
-class as specified in PRD section 5.4. Error codes are organized into three
-categories: shared (used by both 'new' and 'check' commands), 'new'-only,
-and 'check'-only.
+This module defines the CLI-wide ErrorCode enum, the MeminitError exception
+class, and the ERROR_EXPLANATIONS registry used by `meminit explain`. Error
+explanations are co-located with the canonical error code source to prevent
+drift between the enum and its documentation.
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ErrorCode(str, Enum):
@@ -56,6 +59,447 @@ class ErrorCode(str, Enum):
     E_STATE_YAML_MALFORMED = "E_STATE_YAML_MALFORMED"
     E_STATE_SCHEMA_VIOLATION = "E_STATE_SCHEMA_VIOLATION"
     E_INVALID_FILTER_VALUE = "E_INVALID_FILTER_VALUE"
+
+    # Agent interface error codes
+    UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
+
+
+# ---------------------------------------------------------------------------
+# Error explanation registry (co-located with ErrorCode per PLAN-010 §3.4.3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RemediationInfo:
+    """Structured remediation guidance for an error code."""
+
+    action: str
+    resolution_type: str  # "manual" | "auto_fixable" | "retryable" | "config_change"
+    automatable: bool
+    relevant_commands: List[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ErrorExplanation:
+    """Full explanation metadata for a single ErrorCode member."""
+
+    code: str
+    category: str
+    summary: str
+    cause: str
+    remediation: RemediationInfo
+    spec_reference: str = ""
+
+
+ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
+    # -- Shared error codes --
+    ErrorCode.DUPLICATE_ID.value: ErrorExplanation(
+        code=ErrorCode.DUPLICATE_ID.value,
+        category="shared",
+        summary="A document_id collision was detected.",
+        cause="Two or more documents share the same REPO-TYPE-SEQ identifier, typically from copying a document without updating its frontmatter.",
+        remediation=RemediationInfo(
+            action="Rename or re-sequence one of the conflicting documents using meminit migrate-ids.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["migrate-ids"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.INVALID_ID_FORMAT.value: ErrorExplanation(
+        code=ErrorCode.INVALID_ID_FORMAT.value,
+        category="shared",
+        summary="A document_id does not match the REPO-TYPE-SEQ pattern.",
+        cause="The document_id was created manually and does not conform to the required format.",
+        remediation=RemediationInfo(
+            action="Use meminit migrate-ids to reformat the document_id.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["migrate-ids", "fix"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.INVALID_FLAG_COMBINATION.value: ErrorExplanation(
+        code=ErrorCode.INVALID_FLAG_COMBINATION.value,
+        category="shared",
+        summary="Mutually exclusive or invalid flag combination detected.",
+        cause="Two or more CLI flags were used together that cannot coexist, or a flag value is invalid.",
+        remediation=RemediationInfo(
+            action="Check the command help for valid flag combinations.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=[],
+        ),
+        spec_reference="MEMINIT-PRD-005",
+    ),
+    ErrorCode.CONFIG_MISSING.value: ErrorExplanation(
+        code=ErrorCode.CONFIG_MISSING.value,
+        category="shared",
+        summary="The DocOps configuration file is missing.",
+        cause="docops.config.yaml does not exist or is not a regular file in the repository root.",
+        remediation=RemediationInfo(
+            action="Run meminit init to scaffold the configuration.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["init"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PATH_ESCAPE.value: ErrorExplanation(
+        code=ErrorCode.PATH_ESCAPE.value,
+        category="shared",
+        summary="An operation attempted to write outside the repository root.",
+        cause="A symlink or path traversal would cause files to be created outside the repo boundary.",
+        remediation=RemediationInfo(
+            action="Remove or fix the symlink causing the path escape.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor", "check"],
+        ),
+        spec_reference="MEMINIT-GOV-003",
+    ),
+    ErrorCode.UNKNOWN_TYPE.value: ErrorExplanation(
+        code=ErrorCode.UNKNOWN_TYPE.value,
+        category="shared",
+        summary="An unrecognized document type was requested.",
+        cause="The type argument does not match any configured type in docops.config.yaml.",
+        remediation=RemediationInfo(
+            action="Run meminit context to see available types, or check the configuration.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["context"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.UNKNOWN_NAMESPACE.value: ErrorExplanation(
+        code=ErrorCode.UNKNOWN_NAMESPACE.value,
+        category="shared",
+        summary="An unrecognized namespace was referenced.",
+        cause="The namespace is not defined in docops.config.yaml namespaces configuration.",
+        remediation=RemediationInfo(
+            action="Check available namespaces in the configuration.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["context"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.FILE_EXISTS.value: ErrorExplanation(
+        code=ErrorCode.FILE_EXISTS.value,
+        category="shared",
+        summary="A file already exists at the target path.",
+        cause="meminit new attempted to create a document but the output path is occupied.",
+        remediation=RemediationInfo(
+            action="Choose a different title or remove the existing file.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["new"],
+        ),
+        spec_reference="MEMINIT-PRD-003",
+    ),
+    ErrorCode.INVALID_STATUS.value: ErrorExplanation(
+        code=ErrorCode.INVALID_STATUS.value,
+        category="shared",
+        summary="An invalid document status was specified.",
+        cause="The status value does not match the allowed values in the metadata schema.",
+        remediation=RemediationInfo(
+            action="Use a valid status: Draft, In Review, Approved, Superseded.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["fix"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.INVALID_RELATED_ID.value: ErrorExplanation(
+        code=ErrorCode.INVALID_RELATED_ID.value,
+        category="shared",
+        summary="A related document ID reference is invalid.",
+        cause="A document references another document_id that does not exist in the repository.",
+        remediation=RemediationInfo(
+            action="Fix the related_ids to reference existing documents.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["check", "fix"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.TEMPLATE_NOT_FOUND.value: ErrorExplanation(
+        code=ErrorCode.TEMPLATE_NOT_FOUND.value,
+        category="shared",
+        summary="The requested template could not be resolved.",
+        cause="No template file was found at the configured, conventional, or built-in paths.",
+        remediation=RemediationInfo(
+            action="Create a template at the conventional path or configure an explicit template in docops.config.yaml.",
+            resolution_type="config_change",
+            automatable=False,
+            relevant_commands=["new", "context"],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.SCHEMA_INVALID.value: ErrorExplanation(
+        code=ErrorCode.SCHEMA_INVALID.value,
+        category="shared",
+        summary="A document's frontmatter does not conform to the metadata schema.",
+        cause="One or more required fields are missing, or field values violate type/format constraints.",
+        remediation=RemediationInfo(
+            action="Run meminit check to see specific violations, then fix manually or with meminit fix.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["check", "fix"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.LOCK_TIMEOUT.value: ErrorExplanation(
+        code=ErrorCode.LOCK_TIMEOUT.value,
+        category="shared",
+        summary="Failed to acquire a file lock within the timeout.",
+        cause="Another process holds a lock on the target file, or a stale lock file exists.",
+        remediation=RemediationInfo(
+            action="Wait for the other process to finish, or remove stale .lock files.",
+            resolution_type="retryable",
+            automatable=False,
+            relevant_commands=[],
+        ),
+        spec_reference="MEMINIT-PRD-003",
+    ),
+    ErrorCode.FILE_NOT_FOUND.value: ErrorExplanation(
+        code=ErrorCode.FILE_NOT_FOUND.value,
+        category="shared",
+        summary="A referenced file does not exist.",
+        cause="The target file was deleted or moved after the reference was created.",
+        remediation=RemediationInfo(
+            action="Restore the file or update the reference.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.MISSING_FRONTMATTER.value: ErrorExplanation(
+        code=ErrorCode.MISSING_FRONTMATTER.value,
+        category="shared",
+        summary="A governed document has no YAML frontmatter block.",
+        cause="The file exists but does not start with the required YAML fence delimiter.",
+        remediation=RemediationInfo(
+            action="Add proper YAML frontmatter or run meminit fix to generate it.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["fix"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.MISSING_FIELD.value: ErrorExplanation(
+        code=ErrorCode.MISSING_FIELD.value,
+        category="shared",
+        summary="A required frontmatter field is missing.",
+        cause="The document's YAML frontmatter does not include all required metadata fields.",
+        remediation=RemediationInfo(
+            action="Add the missing field or run meminit fix.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["fix", "check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.INVALID_FIELD.value: ErrorExplanation(
+        code=ErrorCode.INVALID_FIELD.value,
+        category="shared",
+        summary="A frontmatter field has an invalid value.",
+        cause="A field's value does not match the expected type, format, or allowed values.",
+        remediation=RemediationInfo(
+            action="Correct the field value or run meminit fix.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["fix", "check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.OUTSIDE_DOCS_ROOT.value: ErrorExplanation(
+        code=ErrorCode.OUTSIDE_DOCS_ROOT.value,
+        category="shared",
+        summary="A governed document is located outside the configured docs root.",
+        cause="The document's directory path does not match any configured namespace.",
+        remediation=RemediationInfo(
+            action="Move the document to the correct namespace directory.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.DIRECTORY_MISMATCH.value: ErrorExplanation(
+        code=ErrorCode.DIRECTORY_MISMATCH.value,
+        category="shared",
+        summary="A document's directory does not match its type.",
+        cause="The document type in frontmatter does not match the directory it resides in.",
+        remediation=RemediationInfo(
+            action="Move the document to the correct type directory or update its type.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["fix", "check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.VALIDATION_ERROR.value: ErrorExplanation(
+        code=ErrorCode.VALIDATION_ERROR.value,
+        category="shared",
+        summary="A generic validation error occurred.",
+        cause="A document failed one or more validation rules.",
+        remediation=RemediationInfo(
+            action="Run meminit check for detailed violation information.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["check", "doctor"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.UNKNOWN_ERROR.value: ErrorExplanation(
+        code=ErrorCode.UNKNOWN_ERROR.value,
+        category="shared",
+        summary="An unexpected internal error occurred.",
+        cause="An unhandled exception was caught by the error handler.",
+        remediation=RemediationInfo(
+            action="Check stderr for the full traceback. If persistent, report as a bug.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor"],
+        ),
+        spec_reference="MEMINIT-PRD-005",
+    ),
+    # -- Templates v2 error codes --
+    ErrorCode.LEGACY_CONFIG_UNSUPPORTED.value: ErrorExplanation(
+        code=ErrorCode.LEGACY_CONFIG_UNSUPPORTED.value,
+        category="templates",
+        summary="A legacy template configuration format is not supported.",
+        cause="The docops.config.yaml uses a pre-Templates-v2 configuration structure.",
+        remediation=RemediationInfo(
+            action="Run meminit migrate-templates to upgrade to Templates v2 format.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["migrate-templates"],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.INVALID_TEMPLATE_PLACEHOLDER.value: ErrorExplanation(
+        code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER.value,
+        category="templates",
+        summary="A template uses an unsupported placeholder syntax.",
+        cause="The template contains legacy {variable} or <VARIABLE> syntax instead of {{variable}}.",
+        remediation=RemediationInfo(
+            action="Replace legacy placeholders with {{variable}} syntax.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["fix", "migrate-templates"],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.UNKNOWN_TEMPLATE_VARIABLE.value: ErrorExplanation(
+        code=ErrorCode.UNKNOWN_TEMPLATE_VARIABLE.value,
+        category="templates",
+        summary="A template references an undefined variable.",
+        cause="The template uses a {{variable}} that is not in the supported set.",
+        remediation=RemediationInfo(
+            action="Remove the unknown variable or use a supported one.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["new"],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.INVALID_TEMPLATE_FILE.value: ErrorExplanation(
+        code=ErrorCode.INVALID_TEMPLATE_FILE.value,
+        category="templates",
+        summary="A template file could not be parsed.",
+        cause="The template file has encoding issues, is not readable, or contains malformed YAML frontmatter.",
+        remediation=RemediationInfo(
+            action="Fix the template file encoding and structure.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor"],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.DUPLICATE_SECTION_ID.value: ErrorExplanation(
+        code=ErrorCode.DUPLICATE_SECTION_ID.value,
+        category="templates",
+        summary="A template contains duplicate section markers.",
+        cause="Two or more MEMINIT_SECTION markers share the same ID.",
+        remediation=RemediationInfo(
+            action="Rename duplicate section markers to unique IDs.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=[],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    ErrorCode.AMBIGUOUS_SECTION_BOUNDARY.value: ErrorExplanation(
+        code=ErrorCode.AMBIGUOUS_SECTION_BOUNDARY.value,
+        category="templates",
+        summary="A template section boundary could not be determined.",
+        cause="A MEMINIT_SECTION marker is missing its closing counterpart or is malformed.",
+        remediation=RemediationInfo(
+            action="Fix the section markers to have proper opening and closing delimiters.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=[],
+        ),
+        spec_reference="MEMINIT-SPEC-007",
+    ),
+    # -- Project State Dashboard error codes --
+    ErrorCode.E_STATE_YAML_MALFORMED.value: ErrorExplanation(
+        code=ErrorCode.E_STATE_YAML_MALFORMED.value,
+        category="state",
+        summary="The project-state.yaml file contains malformed YAML.",
+        cause="The YAML syntax is invalid, preventing parsing.",
+        remediation=RemediationInfo(
+            action="Fix the YAML syntax in project-state.yaml.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.E_STATE_SCHEMA_VIOLATION.value: ErrorExplanation(
+        code=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+        category="state",
+        summary="The project-state.yaml violates the expected schema.",
+        cause="A field has the wrong type, is missing, or contains an invalid value.",
+        remediation=RemediationInfo(
+            action="Correct the schema violation in project-state.yaml.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor", "check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.E_INVALID_FILTER_VALUE.value: ErrorExplanation(
+        code=ErrorCode.E_INVALID_FILTER_VALUE.value,
+        category="state",
+        summary="An invalid filter value was provided for a state query.",
+        cause="The filter argument does not match any valid implementation state value.",
+        remediation=RemediationInfo(
+            action="Use a valid filter value: Not Started, In Progress, Blocked, QA Required, Done.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state list"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    # -- Agent interface error codes --
+    ErrorCode.UNKNOWN_ERROR_CODE.value: ErrorExplanation(
+        code=ErrorCode.UNKNOWN_ERROR_CODE.value,
+        category="agent",
+        summary="The requested error code is not recognized.",
+        cause="An invalid or misspelled error code was passed to meminit explain.",
+        remediation=RemediationInfo(
+            action="Run meminit explain --list to see all valid error codes.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["explain"],
+        ),
+        spec_reference="MEMINIT-PRD-005",
+    ),
+}
 
 
 class MeminitError(Exception):
