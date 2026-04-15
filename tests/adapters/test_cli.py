@@ -243,6 +243,49 @@ def test_cli_check_json_output_write_failure_returns_json_error(
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_output_write_failure_preserves_correlation_id(
+    mock_use_case, tmp_path
+):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outdir"
+    output_dir.mkdir()
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            str(output_dir),
+            "--correlation-id",
+            "write-fail-trace",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["correlation_id"] == "write-fail-trace"
+    assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
 def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -281,6 +324,49 @@ def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp
     assert payload["output_schema_version"] == "2.0"
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
     assert payload["error"]["details"]["output_path"] == "/etc/report.json"
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_unsafe_output_path_preserves_correlation_id(
+    mock_use_case, tmp_path
+):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+        warnings_count=0,
+        violations_count=0,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            "/etc/report.json",
+            "--correlation-id",
+            "unsafe-path-trace",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_NOPERM", 77)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["correlation_id"] == "unsafe-path-trace"
+    assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
 
 
 def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):

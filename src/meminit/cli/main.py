@@ -243,6 +243,9 @@ def _write_output(
                         run_id=payload.get("run_id")
                         if isinstance(payload.get("run_id"), str)
                         else None,
+                        correlation_id=payload.get("correlation_id")
+                        if isinstance(payload.get("correlation_id"), str)
+                        else None,
                     )
                 )
             else:
@@ -283,6 +286,9 @@ def _write_output(
                         include_timestamp="timestamp" in payload,
                         run_id=payload.get("run_id")
                         if isinstance(payload.get("run_id"), str)
+                        else None,
+                        correlation_id=payload.get("correlation_id")
+                        if isinstance(payload.get("correlation_id"), str)
                         else None,
                     )
                 )

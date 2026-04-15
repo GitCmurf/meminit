@@ -475,13 +475,22 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
     ErrorCode.E_INVALID_FILTER_VALUE.value: ErrorExplanation(
         code=ErrorCode.E_INVALID_FILTER_VALUE.value,
         category="state",
-        summary="An invalid filter value was provided for a state query.",
-        cause="The filter argument does not match any valid implementation state value.",
+        summary="An invalid state-related value was provided.",
+        cause=(
+            "A state query filter or state update argument used an unsupported "
+            "implementation state or actor value, or omitted the required "
+            "state-set update flags."
+        ),
         remediation=RemediationInfo(
-            action="Use a valid filter value: Not Started, In Progress, Blocked, QA Required, Done.",
+            action=(
+                "For state queries, use a valid implementation state value: Not "
+                "Started, In Progress, Blocked, QA Required, Done. For state set, "
+                "provide at least one of --impl-state, --notes, or --clear, and "
+                "ensure any --impl-state or --actor value is valid."
+            ),
             resolution_type="manual",
             automatable=False,
-            relevant_commands=["state list"],
+            relevant_commands=["state list", "state set"],
         ),
         spec_reference="MEMINIT-SPEC-006",
     ),

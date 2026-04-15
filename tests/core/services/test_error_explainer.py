@@ -143,3 +143,13 @@ def test_invalid_filter_value_remediation_matches_impl_state():
     # Canonical ImplState values: Not Started, In Progress, Blocked, QA Required, Done
     assert "QA Required" in action, "Must include QA Required"
     assert "Not Started" in action, "Must use canonical display values"
+
+
+def test_invalid_filter_value_explanation_covers_state_set_misuse():
+    from meminit.core.services.error_codes import ERROR_EXPLANATIONS
+
+    entry = ERROR_EXPLANATIONS[ErrorCode.E_INVALID_FILTER_VALUE.value]
+    assert "state set" in entry.remediation.action
+    assert "--impl-state, --notes, or --clear" in entry.remediation.action
+    assert "--actor" in entry.remediation.action
+    assert "state set" in entry.remediation.relevant_commands
