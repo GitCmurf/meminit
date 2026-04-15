@@ -211,6 +211,25 @@ def _is_safe_path(path: Path) -> bool:
     return True
 
 
+def _extract_v2_metadata(output_str: str) -> Optional[Dict[str, Any]]:
+    """Parse a v2 envelope string and extract metadata fields for error rebuilding.
+
+    Returns None if the string is not a valid v2 envelope.
+    """
+    try:
+        payload = json.loads(output_str)
+    except Exception:
+        return None
+    if (
+        isinstance(payload, dict)
+        and payload.get("output_schema_version") == "2.0"
+        and isinstance(payload.get("command"), str)
+        and isinstance(payload.get("root"), str)
+    ):
+        return payload
+    return None
+
+
 def _write_output(
     output_str: str,
     output: Optional[str] = None,
@@ -221,17 +240,8 @@ def _write_output(
     if output:
         out_path = Path(output)
         if not _is_safe_path(out_path):
-            try:
-                payload = json.loads(output_str)
-            except Exception:
-                payload = None
-
-            if (
-                isinstance(payload, dict)
-                and payload.get("output_schema_version") == "2.0"
-                and isinstance(payload.get("command"), str)
-                and isinstance(payload.get("root"), str)
-            ):
+            payload = _extract_v2_metadata(output_str)
+            if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
@@ -265,17 +275,8 @@ def _write_output(
             return
         except OSError as exc:
             # Preserve machine-safe behavior for JSON output when file writes fail.
-            try:
-                payload = json.loads(output_str)
-            except Exception:
-                payload = None
-
-            if (
-                isinstance(payload, dict)
-                and payload.get("output_schema_version") == "2.0"
-                and isinstance(payload.get("command"), str)
-                and isinstance(payload.get("root"), str)
-            ):
+            payload = _extract_v2_metadata(output_str)
+            if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
@@ -358,7 +359,7 @@ def validate_root_path(
     include_timestamp: bool = False,
     run_id: Optional[str] = None,
     output: Optional[str] = None,
-    **_kwargs: object,
+    correlation_id: Optional[str] = None,
 ) -> None:
     """Validate root path exists and is a directory.
 
@@ -374,7 +375,6 @@ def validate_root_path(
         msg = f"Path is not a directory: {root_path}"
         details = {"path": str(root_path), "reason": "not_directory"}
 
-    _cid = _kwargs.get("correlation_id")
     if format == "json":
         _write_output(
             format_error_envelope(
@@ -385,7 +385,7 @@ def validate_root_path(
                 details=details,
                 include_timestamp=include_timestamp,
                 run_id=run_id or get_current_run_id(),
-                correlation_id=_cid,
+                correlation_id=correlation_id,
             ),
             output=output,
         )
@@ -407,7 +407,7 @@ def validate_initialized(
     include_timestamp: bool = False,
     run_id: Optional[str] = None,
     output: Optional[str] = None,
-    **_kwargs: object,
+    correlation_id: Optional[str] = None,
 ) -> None:
     """Validate that the repo is initialized with meminit config (F9.1).
 
@@ -434,7 +434,6 @@ def validate_initialized(
         "required": "regular file (not directory/symlink)",
     }
 
-    _cid = _kwargs.get("correlation_id")
     if format == "json":
         _write_output(
             format_error_envelope(
@@ -445,7 +444,7 @@ def validate_initialized(
                 details=details,
                 include_timestamp=include_timestamp,
                 run_id=run_id or get_current_run_id(),
-                correlation_id=_cid,
+                correlation_id=correlation_id,
             ),
             output=output,
         )

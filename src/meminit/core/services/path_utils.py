@@ -83,11 +83,10 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     """
     import json
 
-    if not index_path.exists():
-        raise FileNotFoundError(f"Index not found: {index_path}")
-
     try:
         data = json.loads(index_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Index not found: {index_path}") from exc
     except (json.JSONDecodeError, OSError) as exc:
         raise ValueError(f"Invalid JSON in index file: {index_path}") from exc
 
