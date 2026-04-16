@@ -34,6 +34,8 @@ class FixRepositoryUseCase:
         if self._default_now is not None:
             if self._default_now.tzinfo is None:
                 return self._default_now.replace(tzinfo=timezone.utc)
+            if self._default_now.tzinfo is not timezone.utc:
+                return self._default_now.astimezone(timezone.utc)
             return self._default_now
         return datetime.now(timezone.utc)
 

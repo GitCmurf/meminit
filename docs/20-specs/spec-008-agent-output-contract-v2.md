@@ -1,11 +1,11 @@
 ---
 document_id: MEMINIT-SPEC-008
 type: SPEC
-title: Agent Output Contract (Templates v2)
+title: Agent Output Contract (Templates v2 → v3)
 status: Draft
-version: "1.0"
-last_updated: 2026-03-05
-owner: Product Team
+version: "1.1"
+last_updated: 2026-04-16
+owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
 description: "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check and new)."

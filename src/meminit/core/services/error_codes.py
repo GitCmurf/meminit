@@ -62,10 +62,11 @@ class ErrorCode(str, Enum):
 
     # Agent interface error codes
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
+    INVALID_ROOT_PATH = "INVALID_ROOT_PATH"
 
 
 # ---------------------------------------------------------------------------
-# Error explanation registry (co-located with ErrorCode per PLAN-010 §3.4.3)
+# Error explanation registry (co-located with ErrorCode per MEMINIT-PLAN-010 §3.4.3)
 # ---------------------------------------------------------------------------
 
 
@@ -144,6 +145,19 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["init"],
         ),
         spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.INVALID_ROOT_PATH.value: ErrorExplanation(
+        code=ErrorCode.INVALID_ROOT_PATH.value,
+        category="shared",
+        summary="The specified root path is invalid.",
+        cause="The --root path either does not exist or is not a directory.",
+        remediation=RemediationInfo(
+            action="Verify the path exists and points to a directory. Use meminit context to discover the repository root.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["context"],
+        ),
+        spec_reference="MEMINIT-PLAN-010",
     ),
     ErrorCode.PATH_ESCAPE.value: ErrorExplanation(
         code=ErrorCode.PATH_ESCAPE.value,

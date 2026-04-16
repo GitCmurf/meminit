@@ -91,7 +91,7 @@ def test_list_codes_includes_all():
 
 
 # ---------------------------------------------------------------------------
-# Explain command: invalid-code payload shape (PLAN-010 §3.4.4)
+# Explain command: invalid-code payload shape (MEMINIT-PLAN-010 §3.4.4)
 # ---------------------------------------------------------------------------
 
 

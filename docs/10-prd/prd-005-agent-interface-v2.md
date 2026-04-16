@@ -2,7 +2,7 @@
 document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
-status: In Progress
+status: Draft
 version: "0.3"
 last_updated: 2026-04-15
 owner: GitCmurf
@@ -358,10 +358,10 @@ The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 - `--correlation-id` support across all `agent_output_options()` commands, with JSON error envelope for invalid values
 - `meminit explain <ERROR_CODE> --format json` — structured remediation for all 33 ErrorCode members
 - `meminit explain --list --format json` — full error code enumeration
-- `UNKNOWN_ERROR_CODE` added to ErrorCode enum and SPEC-006
+- `UNKNOWN_ERROR_CODE` added to ErrorCode enum and MEMINIT-SPEC-006
 - `additionalProperties: false` enforced in `agent-output.schema.v3.json`
 - `correlation_id` schema constraint (no whitespace, max 128 chars)
-- Error explanations co-located with ErrorCode enum per PLAN-010 §3.4.3
+- Error explanations co-located with ErrorCode enum per MEMINIT-PLAN-010 §3.4.3
 - Contract-matrix tests covering all JSON-capable commands (90 passed, 4 acceptable skips)
 - `root` field conditional: present for repo-aware commands, omitted for repo-agnostic (capabilities, explain, org install)
 - Schema version bumped to v3 (`output_schema_version: "3.0"`) to signal the conditional root contract

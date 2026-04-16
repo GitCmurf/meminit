@@ -2,28 +2,29 @@
 document_id: MEMINIT-PLAN-011
 type: PLAN
 title: Phase 2 Detailed Implementation Plan
-status: Draft
-version: '0.5'
-last_updated: '2026-04-14'
+status: Approved
+version: "0.5"
+last_updated: "2026-04-14"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 2 repository
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 2 repository
   graph work.
 keywords:
-- phase-2
-- planning
-- index
-- graph
+  - phase-2
+  - planning
+  - index
+  - graph
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-STRAT-001
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-STRAT-001
 ---
 
 > **Document ID:** MEMINIT-PLAN-011
 > **Owner:** GitCmurf
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 0.5
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN
@@ -124,26 +125,26 @@ The `resolve` and `identify` helpers continue to work against `nodes`.
 
 Each entry in `nodes` represents one governed document:
 
-| Field | Type | Required | Source | Notes |
-| ----- | ---- | -------- | ------ | ----- |
-| `document_id` | string | yes | frontmatter | Primary key |
-| `path` | string | yes | filesystem | Repo-relative POSIX path |
-| `namespace` | string | yes | config | Owning namespace |
-| `repo_prefix` | string | yes | config | Namespace prefix |
-| `type` | string | yes | frontmatter | Document type (ADR, PRD, etc.) |
-| `title` | string | yes | frontmatter | Sanitized title |
-| `status` | string | yes | frontmatter | Governance status |
-| `owner` | string | yes | frontmatter | Document owner |
-| `last_updated` | string | yes | frontmatter | ISO 8601 date |
-| `area` | string | no | frontmatter | Classification area |
-| `description` | string | no | frontmatter | Brief description |
-| `keywords` | string[] | no | frontmatter | Search/categorization keywords |
-| `superseded_by` | string | no | frontmatter | Document ID of successor |
-| `related_ids` | string[] | no | frontmatter | Declared related document IDs |
-| `impl_state` | string | no | project-state | Implementation state |
-| `updated` | string | no | project-state | ISO 8601 datetime |
-| `updated_by` | string | no | project-state | Actor who last changed state |
-| `notes` | string | no | project-state | Free-text notes |
+| Field           | Type     | Required | Source        | Notes                          |
+| --------------- | -------- | -------- | ------------- | ------------------------------ |
+| `document_id`   | string   | yes      | frontmatter   | Primary key                    |
+| `path`          | string   | yes      | filesystem    | Repo-relative POSIX path       |
+| `namespace`     | string   | yes      | config        | Owning namespace               |
+| `repo_prefix`   | string   | yes      | config        | Namespace prefix               |
+| `type`          | string   | yes      | frontmatter   | Document type (ADR, PRD, etc.) |
+| `title`         | string   | yes      | frontmatter   | Sanitized title                |
+| `status`        | string   | yes      | frontmatter   | Governance status              |
+| `owner`         | string   | yes      | frontmatter   | Document owner                 |
+| `last_updated`  | string   | yes      | frontmatter   | ISO 8601 date                  |
+| `area`          | string   | no       | frontmatter   | Classification area            |
+| `description`   | string   | no       | frontmatter   | Brief description              |
+| `keywords`      | string[] | no       | frontmatter   | Search/categorization keywords |
+| `superseded_by` | string   | no       | frontmatter   | Document ID of successor       |
+| `related_ids`   | string[] | no       | frontmatter   | Declared related document IDs  |
+| `impl_state`    | string   | no       | project-state | Implementation state           |
+| `updated`       | string   | no       | project-state | ISO 8601 datetime              |
+| `updated_by`    | string   | no       | project-state | Actor who last changed state   |
+| `notes`         | string   | no       | project-state | Free-text notes                |
 
 **Changes from current schema:** `area`, `description`, `keywords`,
 `superseded_by`, and `related_ids` are newly extracted from frontmatter.
@@ -155,21 +156,21 @@ These fields already exist in the `Frontmatter` entity and
 Each entry in `edges` represents a directed relationship between two
 document IDs:
 
-| Field | Type | Required | Notes |
-| ----- | ---- | -------- | ----- |
-| `source` | string | yes | Document ID of the referencing document |
-| `target` | string | yes | Document ID of the referenced document |
-| `edge_type` | string | yes | One of the defined edge types |
-| `guaranteed` | boolean | yes | Whether the edge is guaranteed-correct |
-| `context` | string | no | Human-readable provenance (e.g., "frontmatter.related_ids") |
+| Field        | Type    | Required | Notes                                                       |
+| ------------ | ------- | -------- | ----------------------------------------------------------- |
+| `source`     | string  | yes      | Document ID of the referencing document                     |
+| `target`     | string  | yes      | Document ID of the referenced document                      |
+| `edge_type`  | string  | yes      | One of the defined edge types                               |
+| `guaranteed` | boolean | yes      | Whether the edge is guaranteed-correct                      |
+| `context`    | string  | no       | Human-readable provenance (e.g., "frontmatter.related_ids") |
 
 #### 3.1.4 Edge types and guarantee levels
 
-| Edge type | Source | Guaranteed | Extraction rule |
-| --------- | ------ | ---------- | --------------- |
-| `supersedes` | frontmatter `superseded_by` on the **target** | yes | If document B has `superseded_by: A`, emit edge `{source: A, target: B, edge_type: "supersedes"}`. Direction is "A supersedes B". |
-| `related` | frontmatter `related_ids` | yes | For each ID in a document's `related_ids`, emit a directed edge from the declaring document to the referenced ID. |
-| `references` | markdown body links | best-effort | Extract standard local markdown links whose target resolves to a governed document. Best-effort because link text and format can vary. |
+| Edge type    | Source                                        | Guaranteed  | Extraction rule                                                                                                                        |
+| ------------ | --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `supersedes` | frontmatter `superseded_by` on the **target** | yes         | If document B has `superseded_by: A`, emit edge `{source: A, target: B, edge_type: "supersedes"}`. Direction is "A supersedes B".      |
+| `related`    | frontmatter `related_ids`                     | yes         | For each ID in a document's `related_ids`, emit a directed edge from the declaring document to the referenced ID.                      |
+| `references` | markdown body links                           | best-effort | Extract standard local markdown links whose target resolves to a governed document. Best-effort because link text and format can vary. |
 
 **Guaranteed** means the edge is derived from schema-validated frontmatter
 fields and the extraction is deterministic. **Best-effort** means the edge
@@ -328,14 +329,14 @@ Diagnostic code convention for this phase:
 - Severity is carried separately in the output channel and diagnostic object,
   so a future severity change does not require renaming the code.
 
-| Rule | Code | Severity | Description |
-| ---- | ---- | -------- | ----------- |
-| Dangling `related_ids` target | `GRAPH_DANGLING_RELATED_ID` | warning | A document declares a `related_ids` entry that does not match any `document_id` in the index. |
-| Dangling `superseded_by` target | `GRAPH_DANGLING_SUPERSEDED_BY` | warning | A document declares `superseded_by: X` but `X` is not in the index. |
-| Supersession without status | `GRAPH_SUPERSESSION_STATUS_MISMATCH` | warning | A document has `superseded_by` set but its `status` is not `Superseded`, or vice versa (status is `Superseded` but `superseded_by` is absent). |
-| Supersession cycle | `GRAPH_SUPERSESSION_CYCLE` | error | Following `superseded_by` chains produces a cycle (A superseded by B, B superseded by C, C superseded by A). |
-| Asymmetric `related_ids` | `GRAPH_RELATED_ID_ASYMMETRY` | info | Document A lists B in `related_ids` but B does not list A. This is advisory, not an error — directional relationships are valid. Emit through the advisory channel rather than the fatal-error path. |
-| Duplicate node ID | `GRAPH_DUPLICATE_DOCUMENT_ID` | error | Two filesystem paths produce the same `document_id`. This is fatal for graph build because edges become ambiguous. The build must halt and no partial artifact may be written. |
+| Rule                            | Code                                 | Severity | Description                                                                                                                                                                                          |
+| ------------------------------- | ------------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dangling `related_ids` target   | `GRAPH_DANGLING_RELATED_ID`          | warning  | A document declares a `related_ids` entry that does not match any `document_id` in the index.                                                                                                        |
+| Dangling `superseded_by` target | `GRAPH_DANGLING_SUPERSEDED_BY`       | warning  | A document declares `superseded_by: X` but `X` is not in the index.                                                                                                                                  |
+| Supersession without status     | `GRAPH_SUPERSESSION_STATUS_MISMATCH` | warning  | A document has `superseded_by` set but its `status` is not `Superseded`, or vice versa (status is `Superseded` but `superseded_by` is absent).                                                       |
+| Supersession cycle              | `GRAPH_SUPERSESSION_CYCLE`           | error    | Following `superseded_by` chains produces a cycle (A superseded by B, B superseded by C, C superseded by A).                                                                                         |
+| Asymmetric `related_ids`        | `GRAPH_RELATED_ID_ASYMMETRY`         | info     | Document A lists B in `related_ids` but B does not list A. This is advisory, not an error — directional relationships are valid. Emit through the advisory channel rather than the fatal-error path. |
+| Duplicate node ID               | `GRAPH_DUPLICATE_DOCUMENT_ID`        | error    | Two filesystem paths produce the same `document_id`. This is fatal for graph build because edges become ambiguous. The build must halt and no partial artifact may be written.                       |
 
 #### 3.3.2 Implementation approach
 
@@ -389,23 +390,23 @@ Problem:
 
 The following fixture cases must be covered by the test suite:
 
-| Fixture | Tests |
-| ------- | ----- |
-| Two documents with mutual `related_ids` | Symmetric `related` edges emitted; `GRAPH_RELATED_ID_ASYMMETRY` not raised |
-| Document A lists B in `related_ids` but B does not list A | Directed `related` edge A→B emitted; `GRAPH_RELATED_ID_ASYMMETRY` info raised |
-| Document with `related_ids` pointing to non-existent ID | `GRAPH_DANGLING_RELATED_ID` warning; dangling edge still emitted |
-| Document with `superseded_by` set and `status: Superseded` | `supersedes` edge emitted; no warnings |
-| Document with `superseded_by` set but `status: Draft` | `GRAPH_SUPERSESSION_STATUS_MISMATCH` warning |
-| Document with `status: Superseded` but no `superseded_by` | `GRAPH_SUPERSESSION_STATUS_MISMATCH` warning |
-| Three-document supersession chain (A→B→C) | Two `supersedes` edges; no cycle diagnostic |
-| Supersession cycle (A→B→A) | `GRAPH_SUPERSESSION_CYCLE` error |
-| Markdown body with link to another governed doc | `references` edge emitted |
-| Markdown body with link to non-governed file | No edge emitted |
-| Markdown body with external URL | No edge emitted |
-| Markdown body with multiple links to same governed doc | Single `references` edge (deduplicated) |
-| Same source→target pair via `related_ids` AND body link | Both `related` and `references` edges emitted (distinct types) |
-| Idempotency: two index runs on same content | Byte-identical JSON output |
-| Duplicate `document_id` across two files | `GRAPH_DUPLICATE_DOCUMENT_ID` error |
+| Fixture                                                    | Tests                                                                         |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Two documents with mutual `related_ids`                    | Symmetric `related` edges emitted; `GRAPH_RELATED_ID_ASYMMETRY` not raised    |
+| Document A lists B in `related_ids` but B does not list A  | Directed `related` edge A→B emitted; `GRAPH_RELATED_ID_ASYMMETRY` info raised |
+| Document with `related_ids` pointing to non-existent ID    | `GRAPH_DANGLING_RELATED_ID` warning; dangling edge still emitted              |
+| Document with `superseded_by` set and `status: Superseded` | `supersedes` edge emitted; no warnings                                        |
+| Document with `superseded_by` set but `status: Draft`      | `GRAPH_SUPERSESSION_STATUS_MISMATCH` warning                                  |
+| Document with `status: Superseded` but no `superseded_by`  | `GRAPH_SUPERSESSION_STATUS_MISMATCH` warning                                  |
+| Three-document supersession chain (A→B→C)                  | Two `supersedes` edges; no cycle diagnostic                                   |
+| Supersession cycle (A→B→A)                                 | `GRAPH_SUPERSESSION_CYCLE` error                                              |
+| Markdown body with link to another governed doc            | `references` edge emitted                                                     |
+| Markdown body with link to non-governed file               | No edge emitted                                                               |
+| Markdown body with external URL                            | No edge emitted                                                               |
+| Markdown body with multiple links to same governed doc     | Single `references` edge (deduplicated)                                       |
+| Same source→target pair via `related_ids` AND body link    | Both `related` and `references` edges emitted (distinct types)                |
+| Idempotency: two index runs on same content                | Byte-identical JSON output                                                    |
+| Duplicate `document_id` across two files                   | `GRAPH_DUPLICATE_DOCUMENT_ID` error                                           |
 
 #### 3.4.2 Performance boundaries
 
@@ -501,10 +502,10 @@ Phase 2 can be considered complete when all of the following are true:
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 2 workstreams, sequencing, and exit criteria |
-| 0.3 | 2026-04-14 | Augment Agent | Strengthened plan: added concrete graph schema (nodes and edges separation), typed edge schema with guarantee levels, deterministic extraction pipeline with 6-step specification, explicit graph integrity validation rules, comprehensive fixture coverage, performance boundaries, breaking-change posture, and tightened exit criteria |
-| 0.4 | 2026-04-14 | GitCmurf | Incorporated detailed reviewer feedback on schema, validation rules, fixture coverage, and breaking-change posture |
-| 0.5 | 2026-04-14 | Codex | Removed persisted wall-clock freshness metadata, clarified fatal duplicate-ID behavior, aligned diagnostic registries with severity, deferred graph-query helpers, added state shorthand resolution to downstream updates, and locked the graph diagnostic naming convention to stable domain-prefixed semantic codes |
+| Version | Date       | Author        | Changes                                                                                                                                                                                                                                                                                                                                    |
+| ------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1     | 2026-04-14 | GitCmurf      | Initial draft created via `meminit new`                                                                                                                                                                                                                                                                                                    |
+| 0.2     | 2026-04-14 | Codex         | Replaced stub with detailed Phase 2 workstreams, sequencing, and exit criteria                                                                                                                                                                                                                                                             |
+| 0.3     | 2026-04-14 | Augment Agent | Strengthened plan: added concrete graph schema (nodes and edges separation), typed edge schema with guarantee levels, deterministic extraction pipeline with 6-step specification, explicit graph integrity validation rules, comprehensive fixture coverage, performance boundaries, breaking-change posture, and tightened exit criteria |
+| 0.4     | 2026-04-14 | GitCmurf      | Incorporated detailed reviewer feedback on schema, validation rules, fixture coverage, and breaking-change posture                                                                                                                                                                                                                         |
+| 0.5     | 2026-04-14 | Codex         | Removed persisted wall-clock freshness metadata, clarified fatal duplicate-ID behavior, aligned diagnostic registries with severity, deferred graph-query helpers, added state shorthand resolution to downstream updates, and locked the graph diagnostic naming convention to stable domain-prefixed semantic codes                      |

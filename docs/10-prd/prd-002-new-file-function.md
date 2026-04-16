@@ -945,7 +945,7 @@ Options:
 | `MISSING_FIELD`            | Required field missing            |
 | `INVALID_FIELD`            | Field value violates schema       |
 | `INVALID_FLAG_COMBINATION` | Invalid flag/argument combination |
-| `INVALID_ID_FORMAT`        | requested `--id` is malformed      |
+| `INVALID_ID_FORMAT`        | Invalid document ID encountered during validation      |
 | `DUPLICATE_ID`             | document_id not unique            |
 | `DIRECTORY_MISMATCH`       | Type doesn't match directory      |
 | `PATH_ESCAPE`              | Path escapes repository root      |

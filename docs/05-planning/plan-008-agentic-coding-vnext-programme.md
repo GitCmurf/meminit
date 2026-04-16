@@ -2,7 +2,7 @@
 document_id: MEMINIT-PLAN-008
 type: PLAN
 title: Agentic Coding vNext Programme
-status: Draft
+status: Approved
 version: "0.7"
 last_updated: "2026-04-14"
 owner: GitCmurf
@@ -26,7 +26,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-008
 > **Owner:** GitCmurf
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 0.7
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN

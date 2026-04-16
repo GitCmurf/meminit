@@ -22,7 +22,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft7Validator
+from jsonschema import Draft7Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
 from meminit.core.services.error_codes import ErrorCode
@@ -71,7 +71,7 @@ def _get_schema_validator() -> Draft7Validator:
             .read_text(encoding="utf-8")
         )
         schema = json.loads(schema_text)
-        _SCHEMA_VALIDATOR = Draft7Validator(schema)
+        _SCHEMA_VALIDATOR = Draft7Validator(schema, format_checker=FormatChecker())
     except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError) as e:
         raise RuntimeError("Failed to load or parse output schema") from e
     return _SCHEMA_VALIDATOR

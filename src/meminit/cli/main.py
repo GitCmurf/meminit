@@ -97,7 +97,7 @@ def command_output_handler(
                 )
             else:
                 get_console().print(f"[bold red]Error: {error_msg}[/bold red]")
-            raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION))
+            raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION)) from e
     try:
         yield
     except MeminitError as e:
@@ -382,7 +382,7 @@ def validate_root_path(
             format_error_envelope(
                 command=command,
                 root=str(root_path),
-                error_code=ErrorCode.CONFIG_MISSING,
+                error_code=ErrorCode.INVALID_ROOT_PATH,
                 message=msg,
                 details=details,
                 include_timestamp=include_timestamp,
@@ -393,13 +393,13 @@ def validate_root_path(
         )
     elif format == "md":
         _write_output(
-            f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
+            f"# Meminit Error\n\n- Code: INVALID_ROOT_PATH\n- Message: {msg}\n",
             output=output,
         )
     else:
         with maybe_capture(output, format):
-            get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
-    raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
+            get_console().print(f"[bold red][ERROR INVALID_ROOT_PATH] {msg}[/bold red]")
+    raise SystemExit(exit_code_for_error(ErrorCode.INVALID_ROOT_PATH))
 
 
 def validate_initialized(

@@ -4,9 +4,17 @@ import json
 
 
 def parse_first_json_line(output: str) -> dict:
-    """Parse the first line of CLI output as JSON.
+    """Parse the first JSON line from CLI output.
 
-    CLI output may contain trailing stderr noise; this helper extracts
-    just the JSON envelope.
+    CLI output may contain non-JSON lines (e.g., stderr noise). This helper
+    skips empty lines and non-JSON lines, returning the first valid JSON dict.
     """
-    return json.loads(output.strip().splitlines()[0])
+    for line in output.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    raise ValueError("No JSON envelope found in output")

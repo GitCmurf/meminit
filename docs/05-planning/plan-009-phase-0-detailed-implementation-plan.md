@@ -2,7 +2,7 @@
 document_id: MEMINIT-PLAN-009
 type: PLAN
 title: Phase 0 Detailed Implementation Plan
-status: Draft
+status: Approved
 version: '0.3'
 last_updated: '2026-04-14'
 owner: GitCmurf
@@ -23,7 +23,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-009
 > **Owner:** GitCmurf
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 0.3
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN
@@ -221,7 +221,7 @@ Delivered changes:
 - Regression tests pin the remediation date deterministically instead of
   depending on wall-clock time.
 - A JSON command-matrix adapter test now exercises the main CLI JSON surface
-  and validates envelopes against the v2 schema.
+  and validates envelopes against the v3 schema.
 - Representative verbose JSON tests now prove the actual runtime contract:
   stdout remains machine-safe while debug logs are emitted on stderr.
 

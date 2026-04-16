@@ -29,7 +29,7 @@ def test_all_click_commands_have_capabilities_entry():
 
 
 def test_capabilities_use_case_returns_deterministic_output():
-    """Data payload is deterministic; envelope-level fields (run_id, timestamp, root) vary."""
+    """CapabilitiesUseCase.execute() returns a fully deterministic dict."""
     use_case = CapabilitiesUseCase()
     data1 = use_case.execute()
     data2 = use_case.execute()

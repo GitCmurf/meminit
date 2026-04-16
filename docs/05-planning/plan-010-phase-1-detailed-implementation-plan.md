@@ -2,7 +2,7 @@
 document_id: MEMINIT-PLAN-010
 type: PLAN
 title: Phase 1 Detailed Implementation Plan
-status: Complete
+status: Approved
 version: '0.5'
 last_updated: '2026-04-15'
 owner: GitCmurf
@@ -23,7 +23,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-010
 > **Owner:** GitCmurf
-> **Status:** Complete
+> **Status:** Approved
 > **Version:** 0.5
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN
@@ -107,26 +107,23 @@ Problem:
 
 #### 3.1.1 Envelope evolution decision
 
-This plan proposes **extending the v2 envelope in place** rather than
-creating a v3. Rationale:
+**Implementation outcome:** Phase 1 shipped `output_schema_version: "3.0"` via a new
+`agent-output.schema.v3.json` artifact. The v3 bump was required because the
+`root` field became conditional (present for repo-aware commands, absent for
+repo-agnostic commands like `capabilities`, `explain`, and `org install`). This was
+not anticipated in the original plan below, which proposed extending v2 in place.
 
-- The `output_schema_version` remains `"2.0"` because `correlation_id` is
-  additive and optional — its absence does not break existing consumers.
-- The `capabilities` and `explain` commands are new commands with new
-  `data` shapes, not changes to existing command payloads.
-- However, the schema file itself must be tightened: `correlation_id` is
-  formally added as an optional property, and `additionalProperties` at the
-  top level should be changed to `false` (breaking change) so that agents
-  can trust field exhaustiveness. Any command-specific top-level fields
-  (e.g., `files_checked` for `check`) must be explicitly declared.
-- Engineering should treat top-level schema tightening as an **audit-gated
-  change**, not a blind flip. The command surface must be fully enumerated
-  first so every top-level field emitted by every JSON-supporting command is
-  represented in the schema.
+The rationale for v2 in place was:
+`correlation_id` is additive/optional and wouldn't break existing consumers.
+However, the conditional `root` omission changes the envelope shape
+meaningfully enough to warrant a version bump so agents can detect the
+contract change via `output_schema_version`.
 
-If during implementation the changes prove more disruptive than expected,
-the fallback is to bump to `output_schema_version: "2.1"` and document the
-delta.
+Other Phase 1 changes shipped under v3:
+- `correlation_id` added as optional property
+- `additionalProperties: false` enforced at top level
+- All command-specific top-level fields explicitly declared (check counters, etc.)
+- Conditional root omission enforced via schema `if/then` rules
 
 #### 3.1.2 Canonical key ordering update
 

@@ -64,12 +64,12 @@ The contract uses a single, stable JSON envelope for all commands. This envelope
 
 Every successful or partially successful execution MUST return a JSON object with the following top-level fields:
 
-- `output_schema_version` (string): Current version of the output contract (currently `"3.0"`; superseded from `"2.0"` via PLAN-010 §3.3.2).
+- `output_schema_version` (string): Current version of the output contract (e.g., "2.0").
 - `success` (boolean): `true` if the command completed its primary task without blocking errors.
 - `command` (string): The name of the command executed.
 - `run_id` (string): UUID v4 uniquely identifying this execution.
 - `timestamp` (string): ISO 8601 timestamp of execution.
-- `root` (string): Absolute path to the repository root. **Present only for repo-aware commands** (those accepting `--root`). Omitted for repo-agnostic commands (`capabilities`, `explain`, `org install`).
+- `root` (string): Absolute path to the repository root.
 - `data` (object): Command-specific payload.
 - `warnings` (array): List of non-blocking issues found.
 - `violations` (array): List of document or repository violations.
@@ -112,7 +112,7 @@ Plain English: `files_checked` is now strictly file-validation count, and reposi
 1. Output MUST be a single JSON object on one line; a single trailing newline is permitted.
 2. JSON object key ordering MUST be stable. The recommended order is:
 
-`output_schema_version`, `success`, `command`, `run_id`, `timestamp`, `root` *(repo-aware only)*, `data`, `warnings`, `violations`, `advice`, `error`
+`output_schema_version`, `success`, `command`, `run_id`, `timestamp`, `root`, `data`, `warnings`, `violations`, `advice`, `error`
 
 3. Arrays MUST be sorted deterministically when their order is not semantically meaningful. Warnings MUST be sorted by `path`, then `line`, then `code`, then `message`. Violations MUST be sorted by `path`, then `code`, then `severity`, then `line`, then `message`. Advice MUST be sorted by `code` then `message`.
 4. When `violations` are grouped by `path`, the outer list MUST be sorted by `path` and the inner `violations` array MUST be sorted by `code`, then `severity`, then `line`, then `message`.
@@ -131,7 +131,7 @@ Plain English: If the output format changes in a breaking way, the version chang
 
 ## 11. JSON Schema (Normative)
 
-The canonical schema for this contract version is `docs/20-specs/agent-output.schema.v3.json` (superseded from v2 via PLAN-010 §3.3.2).
+The canonical schema for this contract version is `docs/20-specs/agent-output.schema.v2.json`.
 For non-migrated commands, the canonical legacy schema is `docs/20-specs/agent-output.schema.v1.json`.
 The inline schema below is a representative excerpt.
 In v2, check counters are required for non-error payloads when `command` is

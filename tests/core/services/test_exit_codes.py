@@ -49,6 +49,7 @@ def test_exit_code_for_error_mappings():
         ErrorCode.E_INVALID_FILTER_VALUE: EX_USAGE,
         # Agent interface error codes
         ErrorCode.UNKNOWN_ERROR_CODE: EX_DATAERR,
+        ErrorCode.INVALID_ROOT_PATH: EX_NOINPUT,
     }
 
     # Verify every defined ErrorCode is in our test expectation

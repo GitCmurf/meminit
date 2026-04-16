@@ -394,7 +394,7 @@ def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
     assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     assert result.output == ""
     content = output_path.read_text(encoding="utf-8")
-    assert "CONFIG_MISSING" in content
+    assert "INVALID_ROOT_PATH" in content
     assert "Path does not exist:" in content
     assert str(missing_root) in content
 
@@ -613,7 +613,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     data = json.loads(result.output)
     assert data["success"] is False
-    assert data["error"]["code"] == "CONFIG_MISSING"
+    assert data["error"]["code"] == "INVALID_ROOT_PATH"
     assert data["output_schema_version"] == "3.0"
 
 
@@ -2397,7 +2397,7 @@ document_types:
         assert "error" in data
         assert "code" in data["error"]
         assert "message" in data["error"]
-        assert data["error"]["code"] == "CONFIG_MISSING"
+        assert data["error"]["code"] == "INVALID_ROOT_PATH"
         assert "Path does not exist" in data["error"]["message"]
 
     def test_error_json_is_single_line(self, repo_for_edge_cases):

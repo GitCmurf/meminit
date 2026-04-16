@@ -5,6 +5,7 @@ self-maintaining. Adding a new JSON-supporting command automatically includes
 it in the parametrization.
 """
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -18,14 +19,30 @@ from tests.helpers import parse_first_json_line
 
 @pytest.fixture(scope="module")
 def agent_output_schema():
-    """Load the agent-output schema for validation."""
-    schema_path = (
+    """Load the agent-output schema for validation.
+
+    Uses the bundled asset (what the CLI actually loads) and asserts
+    the docs copy is identical to catch drift.
+    """
+    bundled_path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "meminit"
+        / "core"
+        / "assets"
+        / "agent-output.schema.v3.json"
+    )
+    docs_path = (
         Path(__file__).resolve().parents[2]
         / "docs"
         / "20-specs"
         / "agent-output.schema.v3.json"
     )
-    return json.loads(schema_path.read_text(encoding="utf-8"))
+    bundled_text = bundled_path.read_text(encoding="utf-8")
+    assert bundled_text == docs_path.read_text(
+        encoding="utf-8"
+    ), "Bundled and docs schema copies have drifted"
+    return json.loads(bundled_text)
 
 
 def _get_json_commands() -> list[dict]:
@@ -127,13 +144,17 @@ def _setup_fixture(name: str, tmp_path: Path) -> None:
 def _invoke_and_assert_output(name: str, tmp_path: Path, extra_args: list[str] | None = None):
     """Invoke a command and assert it produced valid output (not usage error or empty).
 
+    Isolates MEMINIT_CORRELATION_ID from the parent environment so
+    correlation-id-absence tests are deterministic.
+
     Returns the Click result for further assertions.
     """
     args = _build_args(name, tmp_path)
     if extra_args:
         args.extend(extra_args)
     runner = CliRunner()
-    result = runner.invoke(cli, args)
+    env = {k: v for k, v in os.environ.items() if k != "MEMINIT_CORRELATION_ID"}
+    result = runner.invoke(cli, args, env=env)
 
     assert result.exit_code != 2, (
         f"Command {name} hit usage error — check _build_args fixture: {result.output}"
