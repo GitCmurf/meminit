@@ -1171,6 +1171,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     get_console().print(
                         f"[bold red]Failed to save plan: {e}[/bold red]"
                     )
+                    raise SystemExit(1) from e
         elif plan:
             # Plan was requested but no actions were generated
             if format != "json":
