@@ -1143,6 +1143,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                             run_id=run_id,
                             correlation_id=correlation_id,
                         ),
+                        output,
                     )
                     raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
                 with open(plan_path, "w", encoding="utf-8") as f:
