@@ -128,14 +128,8 @@ def test_human_oriented_commands_marked_not_agent_facing():
     assert len(non_agent) >= 4
 
 
-def test_agent_facing_is_required_parameter():
-    """agent_facing must be explicitly set for every registered command.
-
-    The register_capability() function requires agent_facing as a keyword-
-    only argument with no default, so this is enforced at import time.
-    This test confirms the invariant: at least one command has agent_facing=True
-    and at least one has agent_facing=False.
-    """
+def test_registry_has_agent_and_non_agent_entries():
+    """At least one command is agent_facing and at least one is not."""
     agent = [n for n, e in _CAPABILITIES_REGISTRY.items() if e["agent_facing"]]
     non_agent = [n for n, e in _CAPABILITIES_REGISTRY.items() if not e["agent_facing"]]
     assert agent, "At least one command must be agent_facing=True"

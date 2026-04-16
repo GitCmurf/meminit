@@ -1183,26 +1183,27 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
 
                 plan_path = Path(plan)
                 if not _is_safe_path(plan_path):
-                    return  # Best-effort, don't fail on empty plan
-                empty_plan = MigrationPlan(
-                    plan_version="1.0",
-                    generated_at="1970-01-01T00:00:00Z",
-                    config_fingerprint="",
-                    actions=[],
-                )
-                empty_plan_json = format_envelope(
-                    command="scan",
-                    root=str(root_path),
-                    success=True,
-                    data={"plan": empty_plan.as_dict()},
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                )
-                with open(plan_path, "w", encoding="utf-8") as f:
-                    f.write(empty_plan_json + "\n")
-                if format != "json":
-                    get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
+                    pass  # Best-effort, skip file write for unsafe path
+                else:
+                    empty_plan = MigrationPlan(
+                        plan_version="1.0",
+                        generated_at="1970-01-01T00:00:00Z",
+                        config_fingerprint="",
+                        actions=[],
+                    )
+                    empty_plan_json = format_envelope(
+                        command="scan",
+                        root=str(root_path),
+                        success=True,
+                        data={"plan": empty_plan.as_dict()},
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        correlation_id=correlation_id,
+                    )
+                    with open(plan_path, "w", encoding="utf-8") as f:
+                        f.write(empty_plan_json + "\n")
+                    if format != "json":
+                        get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
             except Exception:
                 pass  # Best-effort write, don't fail on empty plan
 
@@ -2301,7 +2302,7 @@ def new_doc(
             return
 
         if interactive:
-            validate_root_path(root_path, format=format, command="new", output=output, correlation_id=correlation_id)
+            validate_root_path(root_path, format=format, command="new", output=output, include_timestamp=include_timestamp, run_id=run_id, correlation_id=correlation_id)
             use_case = NewDocumentUseCase(str(root_path))
             valid_types = use_case.get_valid_types(namespace)
             if not doc_type:
@@ -2676,7 +2677,6 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
         correlation_id=correlation_id,
     ):
         from meminit.core.use_cases.explain_error import ExplainErrorUseCase
-        from meminit.core.services.error_codes import ErrorCode
 
         use_case = ExplainErrorUseCase()
 
