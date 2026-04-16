@@ -45,7 +45,11 @@ _REQUIRED_FIELDS = {
     "advice",
 }
 
-_REPO_AGNOSTIC = {"capabilities", "explain", "org install"}
+
+def _repo_agnostic_commands() -> set[str]:
+    """Derive repo-agnostic command names from the capabilities registry."""
+    caps = CapabilitiesUseCase().execute()
+    return {c["name"] for c in caps["commands"] if not c.get("needs_root")}
 
 
 def _setup_initialized_repo(tmp_path: Path) -> None:
@@ -79,9 +83,6 @@ def _setup_state_repo(tmp_path: Path) -> None:
 
 def _build_args(name: str, tmp_path: Path) -> list[str]:
     """Build the CLI argument list for a command invocation."""
-    # Commands using @agent_output_options() (no --root)
-    no_root = {"capabilities", "explain", "org install"}
-    # Commands requiring special positional args
     positional_args = {
         "new": ["ADR", "Test Document"],
         "adr new": ["Test ADR"],
@@ -101,7 +102,7 @@ def _build_args(name: str, tmp_path: Path) -> list[str]:
     cmd_parts = name.split()
     args = cmd_parts + ["--format", "json"]
 
-    if name not in no_root:
+    if name not in _repo_agnostic_commands():
         args.extend(["--root", str(tmp_path)])
 
     if name in positional_args:
@@ -123,6 +124,24 @@ def _setup_fixture(name: str, tmp_path: Path) -> None:
         _setup_initialized_repo(tmp_path)
 
 
+def _invoke_and_assert_output(name: str, tmp_path: Path, extra_args: list[str] | None = None):
+    """Invoke a command and assert it produced valid output (not usage error or empty).
+
+    Returns the Click result for further assertions.
+    """
+    args = _build_args(name, tmp_path)
+    if extra_args:
+        args.extend(extra_args)
+    runner = CliRunner()
+    result = runner.invoke(cli, args)
+
+    assert result.exit_code != 2, (
+        f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+    )
+    assert result.output.strip(), f"Command {name} produced no output"
+    return result
+
+
 class TestEnvelopeValidity:
     """Every JSON-supporting command must produce a valid v3 envelope."""
 
@@ -136,21 +155,13 @@ class TestEnvelopeValidity:
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
-        args = _build_args(name, tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(cli, args)
-
-        assert result.exit_code != 2, (
-            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-        )
-        assert result.output.strip(), f"Command {name} produced no output"
-
+        result = _invoke_and_assert_output(name, tmp_path)
         data = parse_first_json_line(result.output)
         for field in _REQUIRED_FIELDS:
             assert field in data, f"Missing required field: {field}"
 
         # Repo-aware commands must include root; repo-agnostic must not.
-        if name in _REPO_AGNOSTIC:
+        if name in _repo_agnostic_commands():
             assert "root" not in data, f"Repo-agnostic command {name} must not include root"
         else:
             assert "root" in data, f"Repo-aware command {name} must include root"
@@ -165,17 +176,7 @@ class TestEnvelopeValidity:
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
-        args = _build_args(name, tmp_path)
-        args.append("--correlation-id")
-        args.append("test-cid-42")
-        runner = CliRunner()
-        result = runner.invoke(cli, args)
-
-        assert result.exit_code != 2, (
-            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-        )
-        assert result.output.strip(), f"Command {name} produced no output"
-
+        result = _invoke_and_assert_output(name, tmp_path, ["--correlation-id", "test-cid-42"])
         data = parse_first_json_line(result.output)
         assert data.get("correlation_id") == "test-cid-42"
 
@@ -189,15 +190,7 @@ class TestEnvelopeValidity:
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
-        args = _build_args(name, tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(cli, args)
-
-        assert result.exit_code != 2, (
-            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-        )
-        assert result.output.strip(), f"Command {name} produced no output"
-
+        result = _invoke_and_assert_output(name, tmp_path)
         data = parse_first_json_line(result.output)
         assert "correlation_id" not in data
 
@@ -211,20 +204,11 @@ class TestEnvelopeValidity:
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
-        args = _build_args(name, tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(cli, args)
-
-        assert result.exit_code != 2, (
-            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-        )
-        assert result.output.strip(), f"Command {name} produced no output"
-
+        result = _invoke_and_assert_output(name, tmp_path)
         try:
             parse_first_json_line(result.output)
         except json.JSONDecodeError as e:
             pytest.fail(f"Output is not valid JSON: {e}")
-
 
     @pytest.mark.parametrize(
         "cmd_info",
@@ -236,15 +220,7 @@ class TestEnvelopeValidity:
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
-        args = _build_args(name, tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(cli, args)
-
-        assert result.exit_code != 2, (
-            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-        )
-        assert result.output.strip(), f"Command {name} produced no output"
-
+        result = _invoke_and_assert_output(name, tmp_path)
         payload = parse_first_json_line(result.output)
         errors = sorted(Draft7Validator(agent_output_schema).iter_errors(payload), key=str)
         assert not errors, (
