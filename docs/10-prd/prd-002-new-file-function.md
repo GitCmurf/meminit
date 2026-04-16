@@ -518,9 +518,9 @@ class ErrorCode(str, Enum):
 | `UNKNOWN_NAMESPACE`        | Namespace not found                | 400           |
 | `DUPLICATE_ID`             | Document ID already exists         | 409           |
 | `FILE_EXISTS`              | Target file already exists         | 409           |
-| `INVALID_ID_FORMAT`        | Provided ID doesn't match pattern  | 400           |
+| `INVALID_ID_FORMAT`        | Provided `--id` value is malformed  | 400           |
 | `INVALID_STATUS`           | Status not in enum                 | 400           |
-| `INVALID_RELATED_ID`       | Related ID format invalid          | 400           |
+| `INVALID_RELATED_ID`       | Related ID value is malformed      | 400           |
 | `TEMPLATE_NOT_FOUND`       | Template file missing              | 500           |
 | `SCHEMA_INVALID`           | Generated frontmatter fails schema | 500           |
 | `PATH_ESCAPE`              | Symlink escape detected            | 403           |
@@ -945,7 +945,7 @@ Options:
 | `MISSING_FIELD`            | Required field missing            |
 | `INVALID_FIELD`            | Field value violates schema       |
 | `INVALID_FLAG_COMBINATION` | Invalid flag/argument combination |
-| `INVALID_ID_FORMAT`        | document_id doesn't match pattern |
+| `INVALID_ID_FORMAT`        | requested `--id` is malformed      |
 | `DUPLICATE_ID`             | document_id not unique            |
 | `DIRECTORY_MISMATCH`       | Type doesn't match directory      |
 | `PATH_ESCAPE`              | Path escapes repository root      |

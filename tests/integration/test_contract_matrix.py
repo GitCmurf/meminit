@@ -13,7 +13,7 @@ from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
 from meminit.core.use_cases.capabilities import CapabilitiesUseCase
-from tests.conftest import parse_first_json_line
+from tests.helpers import parse_first_json_line
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +23,7 @@ def agent_output_schema():
         Path(__file__).resolve().parents[2]
         / "docs"
         / "20-specs"
-        / "agent-output.schema.v2.json"
+        / "agent-output.schema.v3.json"
     )
     return json.loads(schema_path.read_text(encoding="utf-8"))
 
@@ -39,12 +39,13 @@ _REQUIRED_FIELDS = {
     "success",
     "command",
     "run_id",
-    "root",
     "data",
     "warnings",
     "violations",
     "advice",
 }
+
+_REPO_AGNOSTIC = {"capabilities", "explain", "org install"}
 
 
 def _setup_initialized_repo(tmp_path: Path) -> None:
@@ -123,7 +124,7 @@ def _setup_fixture(name: str, tmp_path: Path) -> None:
 
 
 class TestEnvelopeValidity:
-    """Every JSON-supporting command must produce a valid v2 envelope."""
+    """Every JSON-supporting command must produce a valid v3 envelope."""
 
     @pytest.mark.parametrize(
         "cmd_info",
@@ -139,16 +140,20 @@ class TestEnvelopeValidity:
         runner = CliRunner()
         result = runner.invoke(cli, args)
 
-        # Commands that need a non-trivial setup may fail — skip those.
-        # Exit code 2 is Click usage error (not a valid envelope).
-        if result.exit_code == 2:
-            pytest.skip(f"Command {name} usage error")
-        if not result.output.strip():
-            pytest.skip(f"Command {name} produced no output")
+        assert result.exit_code != 2, (
+            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+        )
+        assert result.output.strip(), f"Command {name} produced no output"
 
         data = parse_first_json_line(result.output)
         for field in _REQUIRED_FIELDS:
             assert field in data, f"Missing required field: {field}"
+
+        # Repo-aware commands must include root; repo-agnostic must not.
+        if name in _REPO_AGNOSTIC:
+            assert "root" not in data, f"Repo-agnostic command {name} must not include root"
+        else:
+            assert "root" in data, f"Repo-aware command {name} must include root"
 
     @pytest.mark.parametrize(
         "cmd_info",
@@ -166,8 +171,10 @@ class TestEnvelopeValidity:
         runner = CliRunner()
         result = runner.invoke(cli, args)
 
-        if result.exit_code == 2 or not result.output.strip():
-            pytest.skip(f"Command {name} usage error or no output")
+        assert result.exit_code != 2, (
+            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+        )
+        assert result.output.strip(), f"Command {name} produced no output"
 
         data = parse_first_json_line(result.output)
         assert data.get("correlation_id") == "test-cid-42"
@@ -186,8 +193,10 @@ class TestEnvelopeValidity:
         runner = CliRunner()
         result = runner.invoke(cli, args)
 
-        if result.exit_code == 2 or not result.output.strip():
-            pytest.skip(f"Command {name} usage error or no output")
+        assert result.exit_code != 2, (
+            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+        )
+        assert result.output.strip(), f"Command {name} produced no output"
 
         data = parse_first_json_line(result.output)
         assert "correlation_id" not in data
@@ -206,10 +215,10 @@ class TestEnvelopeValidity:
         runner = CliRunner()
         result = runner.invoke(cli, args)
 
-        if result.exit_code == 2:
-            pytest.skip(f"Command {name} usage error")
-        if not result.output.strip():
-            pytest.skip(f"Command {name} produced no output")
+        assert result.exit_code != 2, (
+            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+        )
+        assert result.output.strip(), f"Command {name} produced no output"
 
         try:
             parse_first_json_line(result.output)
@@ -223,7 +232,7 @@ class TestEnvelopeValidity:
         ids=lambda c: c["name"],
     )
     def test_envelope_validates_against_schema(self, cmd_info, tmp_path, agent_output_schema):
-        """Envelope must validate against agent-output.schema.v2.json."""
+        """Envelope must validate against agent-output.schema.v3.json."""
         name = cmd_info["name"]
         _setup_fixture(name, tmp_path)
 
@@ -231,10 +240,10 @@ class TestEnvelopeValidity:
         runner = CliRunner()
         result = runner.invoke(cli, args)
 
-        if result.exit_code == 2:
-            pytest.skip(f"Command {name} usage error")
-        if not result.output.strip():
-            pytest.skip(f"Command {name} produced no output")
+        assert result.exit_code != 2, (
+            f"Command {name} hit usage error — check _build_args fixture: {result.output}"
+        )
+        assert result.output.strip(), f"Command {name} produced no output"
 
         payload = parse_first_json_line(result.output)
         errors = sorted(Draft7Validator(agent_output_schema).iter_errors(payload), key=str)

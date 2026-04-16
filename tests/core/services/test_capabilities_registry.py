@@ -2,10 +2,13 @@
 
 import click
 
+from importlib.metadata import PackageNotFoundError
+
 import pytest
 
 from meminit.cli.main import cli
 from meminit.cli.shared_flags import _CAPABILITIES_REGISTRY
+from meminit.core.services import versioning
 from meminit.core.use_cases.capabilities import CapabilitiesUseCase
 
 
@@ -31,6 +34,20 @@ def test_capabilities_use_case_returns_deterministic_output():
     data1 = use_case.execute()
     data2 = use_case.execute()
     assert data1 == data2
+
+
+
+def test_capabilities_use_case_falls_back_to_pyproject_version(monkeypatch):
+    """Capabilities must work in source-tree runs when package metadata is absent."""
+    monkeypatch.setattr(
+        versioning,
+        "package_version",
+        lambda _name: (_ for _ in ()).throw(PackageNotFoundError("meminit")),
+    )
+    versioning.get_cli_version.cache_clear()
+
+    caps = CapabilitiesUseCase().execute()
+    assert caps["cli_version"] == "0.2.0"
 
 
 def test_capabilities_includes_required_fields():
@@ -82,9 +99,11 @@ def test_capabilities_commands_have_required_metadata():
         assert "description" in cmd
         assert "supports_json" in cmd
         assert "supports_correlation_id" in cmd
+        assert "needs_root" in cmd
         assert "agent_facing" in cmd
         assert isinstance(cmd["supports_json"], bool)
         assert isinstance(cmd["supports_correlation_id"], bool)
+        assert isinstance(cmd["needs_root"], bool)
         assert isinstance(cmd["agent_facing"], bool)
 
 
@@ -128,8 +147,10 @@ def test_global_flags_match_shared_options():
     caps = use_case.execute()
     flag_names = {f["flag"] for f in caps["global_flags"]}
 
-    # Expected flags from agent_output_options() and agent_repo_options()
-    expected = {"--format", "--correlation-id", "--include-timestamp", "--output", "--root"}
+    # Expected universal flags from agent_output_options() — --root is NOT
+    # universal (repo-agnostic commands don't accept it); agents should check
+    # per-command `needs_root` instead.
+    expected = {"--format", "--correlation-id", "--include-timestamp", "--output"}
     missing = expected - flag_names
     extra = flag_names - expected
     assert not missing, f"Global flags missing from capabilities: {sorted(missing)}"

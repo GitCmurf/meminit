@@ -22,7 +22,7 @@ def agent_output_schema():
         Path(__file__).resolve().parents[2]
         / "docs"
         / "20-specs"
-        / "agent-output.schema.v2.json"
+        / "agent-output.schema.v3.json"
     )
     return json.loads(schema_path.read_text(encoding="utf-8"))
 

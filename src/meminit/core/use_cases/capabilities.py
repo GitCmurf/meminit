@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from meminit.core.services.versioning import get_cli_version
+
 
 CAPABILITIES_VERSION = "1.0"
 
@@ -15,11 +17,9 @@ class CapabilitiesUseCase:
     """Build the capabilities descriptor for the current CLI build."""
 
     def execute(self) -> dict[str, Any]:
-        from importlib.metadata import version as pkg_version
-
         from meminit.cli.shared_flags import _CAPABILITIES_REGISTRY
         from meminit.core.services.error_codes import ErrorCode
-        from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
+        from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
         commands = sorted(
             _CAPABILITIES_REGISTRY.values(), key=lambda c: c["name"]
@@ -27,8 +27,8 @@ class CapabilitiesUseCase:
 
         return {
             "capabilities_version": CAPABILITIES_VERSION,
-            "cli_version": pkg_version("meminit"),
-            "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
+            "cli_version": get_cli_version(),
+            "output_schema_version": OUTPUT_SCHEMA_VERSION_V3,
             "commands": commands,
             "output_formats": ["json", "md", "text"],
             "global_flags": sorted(
@@ -55,11 +55,6 @@ class CapabilitiesUseCase:
                         "flag": "--output",
                         "type": "string",
                         "description": "Write output to file instead of stdout",
-                    },
-                    {
-                        "flag": "--root",
-                        "type": "string",
-                        "description": "Repository root path",
                     },
                 ],
                 key=lambda f: f["flag"],

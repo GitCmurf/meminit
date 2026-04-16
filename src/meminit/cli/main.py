@@ -26,6 +26,7 @@ from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.versioning import get_cli_version
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
@@ -86,7 +87,7 @@ def command_output_handler(
                 _write_output(
                     format_error_envelope(
                         command=command_name,
-                        root=str(root_path) if root_path else ".",
+                        root=root_path,
                         error_code=ErrorCode.INVALID_FLAG_COMBINATION,
                         message=error_msg,
                         include_timestamp=include_timestamp,
@@ -104,7 +105,7 @@ def command_output_handler(
             _write_output(
                 format_error_envelope(
                     command=command_name,
-                    root=str(root_path) if root_path else ".",
+                    root=root_path,
                     error_code=e.code,
                     message=e.message,
                     details=e.details,
@@ -132,7 +133,7 @@ def command_output_handler(
             _write_output(
                 format_error_envelope(
                     command=command_name,
-                    root=str(root_path) if root_path else ".",
+                    root=root_path,
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=safe_msg,
                     details={"internal_error": str(e)},
@@ -211,20 +212,21 @@ def _is_safe_path(path: Path) -> bool:
     return True
 
 
-def _extract_v2_metadata(output_str: str) -> Optional[Dict[str, Any]]:
-    """Parse a v2 envelope string and extract metadata fields for error rebuilding.
+def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
+    """Parse a CLI envelope string and extract metadata fields for error rebuilding.
 
-    Returns None if the string is not a valid v2 envelope.
+    Returns None if the string is not a valid envelope.
     """
+    from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3
+
     try:
         payload = json.loads(output_str)
     except Exception:
         return None
     if (
         isinstance(payload, dict)
-        and payload.get("output_schema_version") == "2.0"
+        and payload.get("output_schema_version") in (OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3)
         and isinstance(payload.get("command"), str)
-        and isinstance(payload.get("root"), str)
     ):
         return payload
     return None
@@ -240,12 +242,12 @@ def _write_output(
     if output:
         out_path = Path(output)
         if not _is_safe_path(out_path):
-            payload = _extract_v2_metadata(output_str)
+            payload = _extract_envelope_metadata(output_str)
             if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
-                        root=payload["root"],
+                        root=payload.get("root"),
                         error_code=ErrorCode.PATH_ESCAPE,
                         message=f"Output path is considered unsafe: {output}",
                         details={"output_path": output},
@@ -275,12 +277,12 @@ def _write_output(
             return
         except OSError as exc:
             # Preserve machine-safe behavior for JSON output when file writes fail.
-            payload = _extract_v2_metadata(output_str)
+            payload = _extract_envelope_metadata(output_str)
             if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
-                        root=payload["root"],
+                        root=payload.get("root"),
                         error_code=ErrorCode.UNKNOWN_ERROR,
                         message=f"Failed to write output file: {output}",
                         details={"output_path": output, "reason": str(exc)},
@@ -468,7 +470,7 @@ def get_severity_value(violation: Violation) -> str:
 
 
 @click.group()
-@click.version_option(package_name="meminit", prog_name="meminit")
+@click.version_option(version=get_cli_version(), prog_name="meminit")
 @click.option(
     "--no-color",
     is_flag=True,
@@ -2579,7 +2581,6 @@ def capabilities(format, output, include_timestamp, correlation_id):
             _write_output(
                 format_envelope(
                     command="capabilities",
-                    root=".",
                     success=True,
                     data=caps,
                     include_timestamp=include_timestamp,
@@ -2668,7 +2669,6 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
                 _write_output(
                     format_envelope(
                         command="explain",
-                        root=".",
                         success=True,
                         data={"error_codes": codes},
                         include_timestamp=include_timestamp,
@@ -2713,7 +2713,6 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
                 _write_output(
                     format_envelope(
                         command="explain",
-                        root=".",
                         success=False,
                         data={"requested_code": error_code},
                         error={
@@ -2743,7 +2742,6 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
             _write_output(
                 format_envelope(
                     command="explain",
-                    root=".",
                     success=True,
                     data=explanation,
                     include_timestamp=include_timestamp,
@@ -2914,7 +2912,6 @@ def org_install(profile, dry_run, force, format, output, include_timestamp, corr
             _write_output(
                 format_envelope(
                     command="org install",
-                    root=".",
                     success=True,
                     data=report.as_dict(),
                     include_timestamp=include_timestamp,

@@ -226,7 +226,7 @@ def test_format_envelope_includes_expected_fields_and_single_line(tmp_path):
     )
     assert "\n" not in output
     payload = json.loads(output)
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "3.0"
     assert payload["command"] == "context"
     assert payload["success"] is True
     assert payload["data"]["project_name"] == "Test"
@@ -354,7 +354,7 @@ def test_normalize_correlation_id_tab_raises():
 
 def _load_schema() -> dict:
     schema_path = Path(__file__).resolve().parent.parent.parent.parent / (
-        "src/meminit/core/assets/agent-output.schema.v2.json"
+        "src/meminit/core/assets/agent-output.schema.v3.json"
     )
     return json.loads(schema_path.read_text(encoding="utf-8"))
 
@@ -394,4 +394,28 @@ def test_schema_accepts_valid_correlation_id():
         )
     )
     jsonschema.validate(envelope, schema)  # Should not raise
+
+
+def test_format_envelope_omits_root_when_none():
+    output = format_envelope(
+        command="capabilities",
+        root=None,
+        success=True,
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    payload = json.loads(output)
+    assert "root" not in payload
+    assert payload["output_schema_version"] == "3.0"
+
+
+def test_format_error_envelope_omits_root_when_none():
+    output = format_error_envelope(
+        command="explain",
+        root=None,
+        error_code=ErrorCode.UNKNOWN_ERROR_CODE,
+        message="test",
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    payload = json.loads(output)
+    assert "root" not in payload
 

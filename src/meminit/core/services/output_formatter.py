@@ -1,7 +1,7 @@
-"""Shared v2 output envelope formatter for the Meminit CLI.
+"""Shared v3 output envelope formatter for the Meminit CLI.
 
 This module builds deterministic, single-line JSON envelopes that conform to
-the v2 agent output contract defined in SPEC-008 and PRD-003.
+the v3 agent output contract defined in SPEC-008 and PRD-003.
 
 Key guarantees:
 - Deterministic key ordering (§16.1 of PRD-003)
@@ -11,7 +11,7 @@ Key guarantees:
 - data always present (defaults to {})
 - timestamp only included when explicitly requested
 - run_id is a full UUIDv4
-- root is always an absolute path
+- root is an absolute path when present (omitted for repo-agnostic commands)
 - Single-line JSON output
 """
 
@@ -26,9 +26,9 @@ from jsonschema import Draft7Validator
 from jsonschema.exceptions import SchemaError
 
 from meminit.core.services.error_codes import ErrorCode
-from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
-# Canonical key ordering for the top-level v2 envelope.
+# Canonical key ordering for the top-level envelope.
 # Keys not in this list are appended in sorted order after `error`.
 _ENVELOPE_KEY_ORDER = [
     "output_schema_version",
@@ -67,7 +67,7 @@ def _get_schema_validator() -> Draft7Validator:
     try:
         schema_text = (
             resources.files("meminit.core.assets")
-            .joinpath("agent-output.schema.v2.json")
+            .joinpath("agent-output.schema.v3.json")
             .read_text(encoding="utf-8")
         )
         schema = json.loads(schema_text)
@@ -253,7 +253,7 @@ def _normalize_run_id(run_id: str | None) -> str:
 def format_envelope(
     *,
     command: str,
-    root: str | Path,
+    root: str | Path | None = None,
     success: bool,
     data: dict | None = None,
     warnings: list | None = None,
@@ -265,11 +265,12 @@ def format_envelope(
     correlation_id: str | None = None,
     extra_top_level: dict | None = None,
 ) -> str:
-    """Build a v2 JSON envelope as a deterministic single-line string.
+    """Build a v3 JSON envelope as a deterministic single-line string.
 
     Args:
         command: CLI subcommand name (e.g. "check", "context").
         root: Repository root path (will be resolved to absolute).
+            Omit from envelope when None (repo-agnostic commands).
         success: Whether the command completed without fatal error.
         data: Command-specific payload. Defaults to {}.
         warnings: Non-fatal issues. Defaults to [].
@@ -286,11 +287,8 @@ def format_envelope(
     Returns:
         A single-line JSON string with no trailing newline.
     """
-    # Resolve root to absolute path.
-    root_str = Path(root).resolve().as_posix()
-
     envelope: dict[str, Any] = {
-        "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
+        "output_schema_version": OUTPUT_SCHEMA_VERSION_V3,
         "success": success,
         "command": command,
         "run_id": _normalize_run_id(run_id),
@@ -305,7 +303,9 @@ def format_envelope(
             datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         )
 
-    envelope["root"] = root_str
+    if root is not None:
+        envelope["root"] = Path(root).resolve().as_posix()
+
     envelope["data"] = _recursively_sort_keys(data if data is not None else {})
     envelope["warnings"] = [
         _recursively_sort_keys(w) for w in _sort_warnings(warnings or [])
@@ -361,7 +361,7 @@ def format_envelope(
 def format_error_envelope(
     *,
     command: str,
-    root: str | Path,
+    root: str | Path | None = None,
     error_code: ErrorCode,
     message: str,
     details: dict | None = None,
@@ -369,13 +369,13 @@ def format_error_envelope(
     run_id: str | None = None,
     correlation_id: str | None = None,
 ) -> str:
-    """Build a v2 error envelope as a deterministic single-line string.
+    """Build a v3 error envelope as a deterministic single-line string.
 
     Convenience wrapper around format_envelope for operational error responses.
 
     Args:
         command: CLI subcommand name.
-        root: Repository root path.
+        root: Repository root path. Omit for repo-agnostic commands.
         error_code: ErrorCode enum value.
         message: Human-readable error description.
         details: Optional structured error context.

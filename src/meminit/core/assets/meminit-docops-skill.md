@@ -268,12 +268,12 @@ All `meminit` commands support `--format json`. When used, the CLI emits a singl
 
 | Field                   | Description                                                         |
 | ----------------------- | ------------------------------------------------------------------- |
-| `output_schema_version` | `"2.0"`                                                             |
+| `output_schema_version` | `"3.0"`                                                             |
 | `success`               | `true` on success; `false` on operational errors or gating failures |
 | `command`               | Canonical subcommand name                                           |
 | `run_id`                | UUIDv4 correlation token                                            |
 | `timestamp`             | ISO 8601 UTC timestamp when `--include-timestamp` is used           |
-| `root`                  | Absolute path to repo root                                          |
+| `root`                  | Absolute path to repo root (repo-aware commands only)               |
 | `data`                  | Command-specific payload (`{}` when empty)                          |
 | `warnings`              | Structured warning array                                            |
 | `violations`            | Structured violation array                                          |

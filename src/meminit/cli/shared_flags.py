@@ -181,6 +181,7 @@ def register_capability(
     *,
     supports_json: bool = True,
     supports_correlation_id: bool = True,
+    needs_root: bool = False,
     agent_facing: bool,
 ) -> None:
     """Register a command's capability descriptor."""
@@ -189,32 +190,33 @@ def register_capability(
         "description": description,
         "supports_json": supports_json,
         "supports_correlation_id": supports_correlation_id,
+        "needs_root": needs_root,
         "agent_facing": agent_facing,
     }
 
 
 # Register all known commands. Each entry must correspond to a Click command
 # in main.py. The contract test enforces this invariant.
-register_capability("check", "Run compliance checks on the repository", agent_facing=True)
-register_capability("doctor", "Diagnose common configuration issues", agent_facing=True)
-register_capability("fix", "Auto-fix detected violations", agent_facing=True)
-register_capability("scan", "Suggest a DocOps migration plan", agent_facing=True)
-register_capability("install-precommit", "Install a pre-commit hook", agent_facing=False)
-register_capability("index", "Build the document index", agent_facing=True)
-register_capability("resolve", "Resolve a document_id to a file path", agent_facing=True)
-register_capability("identify", "Identify a document's metadata", agent_facing=True)
-register_capability("link", "Print a Markdown link for a document_id", agent_facing=True)
-register_capability("migrate-ids", "Migrate legacy document_id values", agent_facing=True)
-register_capability("migrate-templates", "Migrate legacy template configs", agent_facing=True)
-register_capability("init", "Initialize a new DocOps repository", agent_facing=True)
-register_capability("new", "Create a new document", agent_facing=True)
-register_capability("adr new", "Create a new ADR", agent_facing=True)
-register_capability("context", "Show repository DocOps context", agent_facing=True)
+register_capability("check", "Run compliance checks on the repository", needs_root=True, agent_facing=True)
+register_capability("doctor", "Diagnose common configuration issues", needs_root=True, agent_facing=True)
+register_capability("fix", "Auto-fix detected violations", needs_root=True, agent_facing=True)
+register_capability("scan", "Suggest a DocOps migration plan", needs_root=True, agent_facing=True)
+register_capability("install-precommit", "Install a pre-commit hook", needs_root=True, agent_facing=False)
+register_capability("index", "Build the document index", needs_root=True, agent_facing=True)
+register_capability("resolve", "Resolve a document_id to a file path", needs_root=True, agent_facing=True)
+register_capability("identify", "Identify a document's metadata", needs_root=True, agent_facing=True)
+register_capability("link", "Print a Markdown link for a document_id", needs_root=True, agent_facing=True)
+register_capability("migrate-ids", "Migrate legacy document_id values", needs_root=True, agent_facing=True)
+register_capability("migrate-templates", "Migrate legacy template configs", needs_root=True, agent_facing=True)
+register_capability("init", "Initialize a new DocOps repository", needs_root=True, agent_facing=True)
+register_capability("new", "Create a new document", needs_root=True, agent_facing=True)
+register_capability("adr new", "Create a new ADR", needs_root=True, agent_facing=True)
+register_capability("context", "Show repository DocOps context", needs_root=True, agent_facing=True)
 register_capability("org install", "Install org profile to XDG paths", agent_facing=False)
-register_capability("org vendor", "Vendor org profile into repo", agent_facing=False)
-register_capability("org status", "Show org profile status", agent_facing=False)
-register_capability("state set", "Set document implementation state", agent_facing=True)
-register_capability("state get", "Get document implementation state", agent_facing=True)
-register_capability("state list", "List all document states", agent_facing=True)
+register_capability("org vendor", "Vendor org profile into repo", needs_root=True, agent_facing=False)
+register_capability("org status", "Show org profile status", needs_root=True, agent_facing=False)
+register_capability("state set", "Set document implementation state", needs_root=True, agent_facing=True)
+register_capability("state get", "Get document implementation state", needs_root=True, agent_facing=True)
+register_capability("state list", "List all document states", needs_root=True, agent_facing=True)
 register_capability("capabilities", "Show CLI capabilities descriptor", agent_facing=True)
 register_capability("explain", "Explain a Meminit error code", agent_facing=True)

@@ -5,7 +5,7 @@ from click.testing import CliRunner
 from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorCode
 from meminit.core.use_cases.explain_error import ExplainErrorUseCase
 from meminit.cli.main import cli
-from tests.conftest import parse_first_json_line
+from tests.helpers import parse_first_json_line
 
 
 def test_every_error_code_has_explanation():
@@ -153,3 +153,25 @@ def test_invalid_filter_value_explanation_covers_state_set_misuse():
     assert "--impl-state, --notes, or --clear" in entry.remediation.action
     assert "--actor" in entry.remediation.action
     assert "state set" in entry.remediation.relevant_commands
+
+
+def test_invalid_id_format_remediation_matches_new_input_validation():
+    import re
+
+    from meminit.core.services.error_codes import ERROR_EXPLANATIONS
+
+    entry = ERROR_EXPLANATIONS[ErrorCode.INVALID_ID_FORMAT.value]
+    assert "--id" in entry.remediation.action
+    assert "migrate-ids" not in entry.remediation.action
+    assert not re.search(r"\bfix\b", entry.remediation.action)
+    assert entry.remediation.relevant_commands == ["new"]
+
+
+def test_invalid_related_id_remediation_matches_new_input_validation():
+    from meminit.core.services.error_codes import ERROR_EXPLANATIONS
+
+    entry = ERROR_EXPLANATIONS[ErrorCode.INVALID_RELATED_ID.value]
+    assert "related_ids" in entry.remediation.action
+    assert "superseded_by" in entry.remediation.action
+    assert "non-existent" not in entry.cause
+    assert entry.remediation.relevant_commands == ["new"]

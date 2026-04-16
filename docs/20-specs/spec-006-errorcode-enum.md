@@ -57,7 +57,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | Code                       | Category   | Description                                                     |
 | -------------------------- | ---------- | --------------------------------------------------------------- |
 | `DUPLICATE_ID`             | Shared     | A document_id already exists in the index or namespace.         |
-| `INVALID_ID_FORMAT`        | Shared     | The document_id does not match the `PREFIX-TYPE-SEQ` pattern.   |
+| `INVALID_ID_FORMAT`        | Shared     | The requested `--id` value is malformed or mismatched.         |
 | `INVALID_FLAG_COMBINATION` | Shared     | Mutually exclusive or invalid CLI flags were provided.          |
 | `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing or the repo is not initialized. |
 | `PATH_ESCAPE`              | Shared     | A path argument resolves outside the repo root or docs root.    |
@@ -65,7 +65,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `UNKNOWN_NAMESPACE`        | New-only   | The requested namespace is not configured.                      |
 | `FILE_EXISTS`              | New-only   | The target file already exists (non-idempotent create).         |
 | `INVALID_STATUS`           | New-only   | The provided status value is not valid.                         |
-| `INVALID_RELATED_ID`       | New-only   | A related_id references a non-existent document.                |
+| `INVALID_RELATED_ID`       | New-only   | A `related_ids` or `superseded_by` value is malformed.         |
 | `TEMPLATE_NOT_FOUND`       | New-only   | No template found for the requested document type.              |
 | `LEGACY_CONFIG_UNSUPPORTED`| New-only   | Legacy config keys (type_directories, templates) rejected at runtime. |
 | `INVALID_TEMPLATE_PLACEHOLDER` | New-only | Legacy placeholder syntax ({title}, <REPO>) detected in template. |

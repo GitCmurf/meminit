@@ -359,10 +359,12 @@ The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 - `meminit explain <ERROR_CODE> --format json` — structured remediation for all 33 ErrorCode members
 - `meminit explain --list --format json` — full error code enumeration
 - `UNKNOWN_ERROR_CODE` added to ErrorCode enum and SPEC-006
-- `additionalProperties: false` enforced in `agent-output.schema.v2.json`
+- `additionalProperties: false` enforced in `agent-output.schema.v3.json`
 - `correlation_id` schema constraint (no whitespace, max 128 chars)
 - Error explanations co-located with ErrorCode enum per PLAN-010 §3.4.3
 - Contract-matrix tests covering all JSON-capable commands (90 passed, 4 acceptable skips)
+- `root` field conditional: present for repo-aware commands, omitted for repo-agnostic (capabilities, explain, org install)
+- Schema version bumped to v3 (`output_schema_version: "3.0"`) to signal the conditional root contract
 
 Remaining items (future phases):
 
