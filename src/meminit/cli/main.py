@@ -96,7 +96,7 @@ def command_output_handler(
                     output,
                 )
             else:
-                get_console().print(f"[bold red]Error: {error_msg}[/bold red]")
+                _write_output(f"Error: {error_msg}\n", output)
             raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION)) from e
     try:
         yield
@@ -1130,7 +1130,22 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     run_id=run_id,
                     correlation_id=correlation_id,
                 )
-                with open(plan, "w", encoding="utf-8") as f:
+                plan_path = Path(plan)
+                if not _is_safe_path(plan_path):
+                    _write_output(
+                        format_error_envelope(
+                            command="scan",
+                            root=str(root_path),
+                            error_code=ErrorCode.PATH_ESCAPE,
+                            message=f"Plan path is considered unsafe: {plan}",
+                            details={"plan_path": plan},
+                            include_timestamp=include_timestamp,
+                            run_id=run_id,
+                            correlation_id=correlation_id,
+                        ),
+                    )
+                    raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
+                with open(plan_path, "w", encoding="utf-8") as f:
                     f.write(plan_json + "\n")
                 if format != "json":
                     get_console().print(
@@ -1165,6 +1180,9 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             try:
                 from meminit.core.services.scan_plan import MigrationPlan
 
+                plan_path = Path(plan)
+                if not _is_safe_path(plan_path):
+                    return  # Best-effort, don't fail on empty plan
                 empty_plan = MigrationPlan(
                     plan_version="1.0",
                     generated_at="1970-01-01T00:00:00Z",
@@ -1180,7 +1198,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     run_id=run_id,
                     correlation_id=correlation_id,
                 )
-                with open(plan, "w", encoding="utf-8") as f:
+                with open(plan_path, "w", encoding="utf-8") as f:
                     f.write(empty_plan_json + "\n")
                 if format != "json":
                     get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
