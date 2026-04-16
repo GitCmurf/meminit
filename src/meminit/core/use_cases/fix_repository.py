@@ -1,7 +1,6 @@
 import re
 import shutil
-from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -23,12 +22,25 @@ from meminit.core.services.markdown_utils import extract_title_from_markdown, DE
 
 class FixRepositoryUseCase:
 
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, default_now: datetime | None = None):
         self._layout = load_repo_layout(root_dir)
         self.root_dir = self._layout.root_dir
         self.checker = CheckRepositoryUseCase(root_dir)
         self._existing_document_ids: set[str] = set()
         self._schema_validators: dict[str, SchemaValidator] = {}
+        self._default_now = default_now
+
+    def _governed_now(self) -> datetime:
+        if self._default_now is not None:
+            if self._default_now.tzinfo is None:
+                return self._default_now.replace(tzinfo=timezone.utc)
+            if self._default_now.tzinfo is not timezone.utc:
+                return self._default_now.astimezone(timezone.utc)
+            return self._default_now
+        return datetime.now(timezone.utc)
+
+    def _governed_today_iso(self) -> str:
+        return self._governed_now().date().isoformat()
 
     def execute(self, dry_run: bool = False, namespace: str | None = None, plan: Optional[MigrationPlan] = None) -> FixReport:
         report = FixReport()
@@ -469,7 +481,7 @@ class FixRepositoryUseCase:
         modified = False
 
         if "last_updated" in violation.message and "last_updated" not in post.metadata:
-            post.metadata["last_updated"] = date.today().isoformat()
+            post.metadata["last_updated"] = self._governed_today_iso()
             action = FixAction(rel_path, "Update last_updated", "Set to today's date")
             report.fixed_violations.append(action)
             modified = True
@@ -494,7 +506,7 @@ class FixRepositoryUseCase:
             post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
             actions.append(FixAction(rel_path, "Update docops_version", f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}"))
         if "last_updated" not in post.metadata:
-            post.metadata["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            post.metadata["last_updated"] = self._governed_today_iso()
             actions.append(
                 FixAction(rel_path, "Update last_updated", "Set to today's date")
             )

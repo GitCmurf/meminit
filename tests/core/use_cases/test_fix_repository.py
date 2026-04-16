@@ -1,5 +1,5 @@
 import tempfile
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import frontmatter
@@ -8,6 +8,15 @@ import pytest
 from meminit.core.domain.entities import Severity
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.fix_repository import FixRepositoryUseCase
+
+
+def _extract_date(value):
+    """Coerce a last_updated value (datetime, date, or str) to a date object."""
+    if hasattr(value, "date"):
+        return value.date()
+    if isinstance(value, str):
+        return date.fromisoformat(value)
+    return value
 
 
 @pytest.fixture
@@ -60,7 +69,8 @@ def test_fix_dry_run(repo_for_fix):
 
 
 def test_fix_apply(repo_for_fix):
-    fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix))
+    fixed_now = datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc)
+    fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix), default_now=fixed_now)
     report = fixer.execute(dry_run=False)
 
     # 1. Check Rename
@@ -74,18 +84,22 @@ def test_fix_apply(repo_for_fix):
     post = frontmatter.load(new_file)
     assert "last_updated" in post.metadata
     assert isinstance(post.metadata["last_updated"], str)
-    # Should be today's date
-    # Normalize date for comparison
-    actual_date = post.metadata["last_updated"]
-    if hasattr(actual_date, "date"):
-        actual_date = actual_date.date()
-    elif isinstance(actual_date, str):
-        actual_date = date.fromisoformat(actual_date)
 
-    assert actual_date == date.today()
+    assert _extract_date(post.metadata["last_updated"]) == fixed_now.date()
 
     # 3. Check DocOps Version Update
     assert post.metadata.get("docops_version") == "2.0"
+
+
+def test_fix_uses_single_controlled_date_source_for_frontmatter_repairs(repo_for_fix):
+    fixed_now = datetime(2026, 4, 14, 23, 59, tzinfo=timezone.utc)
+    fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix), default_now=fixed_now)
+
+    report = fixer.execute(dry_run=False)
+
+    assert report.fixed_violations
+    post = frontmatter.load(repo_for_fix / "docs" / "45-adr" / "bad-name.md")
+    assert _extract_date(post.metadata["last_updated"]) == fixed_now.date()
 
 
 def test_fix_rename_sanitizes_symbols(tmp_path):

@@ -22,9 +22,11 @@ from meminit.core.services.exit_codes import (
 )
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
+    normalize_correlation_id,
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.versioning import get_cli_version
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
@@ -71,8 +73,31 @@ def command_output_handler(
     include_timestamp: bool,
     run_id: str,
     root_path: Optional[Path] = None,
+    correlation_id: Optional[str] = None,
 ):
     """Centralized error handling and output formatting for CLI commands."""
+    # Validate correlation_id early so JSON mode can emit a structured error
+    # envelope instead of a raw Click usage error.
+    if correlation_id is not None:
+        try:
+            normalize_correlation_id(correlation_id)
+        except ValueError as e:
+            error_msg = f"Invalid --correlation-id: {e}"
+            if format == "json":
+                _write_output(
+                    format_error_envelope(
+                        command=command_name,
+                        root=root_path,
+                        error_code=ErrorCode.INVALID_FLAG_COMBINATION,
+                        message=error_msg,
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                    ),
+                    output,
+                )
+            else:
+                _write_output(f"Error: {error_msg}\n", output)
+            raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION)) from e
     try:
         yield
     except MeminitError as e:
@@ -80,12 +105,13 @@ def command_output_handler(
             _write_output(
                 format_error_envelope(
                     command=command_name,
-                    root=str(root_path) if root_path else ".",
+                    root=root_path,
                     error_code=e.code,
                     message=e.message,
                     details=e.details,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -99,7 +125,7 @@ def command_output_handler(
                 get_console().print(
                     f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]"
                 )
-        raise SystemExit(exit_code_for_error(e.code))
+        raise SystemExit(exit_code_for_error(e.code)) from e
     except Exception as e:
         # Secure error handling (Item 2): Mask raw exceptions in user-facing message
         safe_msg = "An unexpected internal error occurred."
@@ -107,12 +133,13 @@ def command_output_handler(
             _write_output(
                 format_error_envelope(
                     command=command_name,
-                    root=str(root_path) if root_path else ".",
+                    root=root_path,
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=safe_msg,
                     details={"internal_error": str(e)},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -185,6 +212,26 @@ def _is_safe_path(path: Path) -> bool:
     return True
 
 
+def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
+    """Parse a CLI envelope string and extract metadata fields for error rebuilding.
+
+    Returns None if the string is not a valid envelope.
+    """
+    from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3
+
+    try:
+        payload = json.loads(output_str)
+    except Exception:
+        return None
+    if (
+        isinstance(payload, dict)
+        and payload.get("output_schema_version") in (OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3)
+        and isinstance(payload.get("command"), str)
+    ):
+        return payload
+    return None
+
+
 def _write_output(
     output_str: str,
     output: Optional[str] = None,
@@ -195,27 +242,21 @@ def _write_output(
     if output:
         out_path = Path(output)
         if not _is_safe_path(out_path):
-            try:
-                payload = json.loads(output_str)
-            except Exception:
-                payload = None
-
-            if (
-                isinstance(payload, dict)
-                and payload.get("output_schema_version") == "2.0"
-                and isinstance(payload.get("command"), str)
-                and isinstance(payload.get("root"), str)
-            ):
+            payload = _extract_envelope_metadata(output_str)
+            if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
-                        root=payload["root"],
+                        root=payload.get("root"),
                         error_code=ErrorCode.PATH_ESCAPE,
                         message=f"Output path is considered unsafe: {output}",
                         details={"output_path": output},
                         include_timestamp="timestamp" in payload,
                         run_id=payload.get("run_id")
                         if isinstance(payload.get("run_id"), str)
+                        else None,
+                        correlation_id=payload.get("correlation_id")
+                        if isinstance(payload.get("correlation_id"), str)
                         else None,
                     )
                 )
@@ -236,27 +277,21 @@ def _write_output(
             return
         except OSError as exc:
             # Preserve machine-safe behavior for JSON output when file writes fail.
-            try:
-                payload = json.loads(output_str)
-            except Exception:
-                payload = None
-
-            if (
-                isinstance(payload, dict)
-                and payload.get("output_schema_version") == "2.0"
-                and isinstance(payload.get("command"), str)
-                and isinstance(payload.get("root"), str)
-            ):
+            payload = _extract_envelope_metadata(output_str)
+            if payload is not None:
                 click.echo(
                     format_error_envelope(
                         command=payload["command"],
-                        root=payload["root"],
+                        root=payload.get("root"),
                         error_code=ErrorCode.UNKNOWN_ERROR,
                         message=f"Failed to write output file: {output}",
                         details={"output_path": output, "reason": str(exc)},
                         include_timestamp="timestamp" in payload,
                         run_id=payload.get("run_id")
                         if isinstance(payload.get("run_id"), str)
+                        else None,
+                        correlation_id=payload.get("correlation_id")
+                        if isinstance(payload.get("correlation_id"), str)
                         else None,
                     )
                 )
@@ -326,7 +361,7 @@ def validate_root_path(
     include_timestamp: bool = False,
     run_id: Optional[str] = None,
     output: Optional[str] = None,
-    **_kwargs: object,
+    correlation_id: Optional[str] = None,
 ) -> None:
     """Validate root path exists and is a directory.
 
@@ -347,23 +382,24 @@ def validate_root_path(
             format_error_envelope(
                 command=command,
                 root=str(root_path),
-                error_code=ErrorCode.CONFIG_MISSING,
+                error_code=ErrorCode.INVALID_ROOT_PATH,
                 message=msg,
                 details=details,
                 include_timestamp=include_timestamp,
                 run_id=run_id or get_current_run_id(),
+                correlation_id=correlation_id,
             ),
             output=output,
         )
     elif format == "md":
         _write_output(
-            f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
+            f"# Meminit Error\n\n- Code: INVALID_ROOT_PATH\n- Message: {msg}\n",
             output=output,
         )
     else:
         with maybe_capture(output, format):
-            get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
-    raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
+            get_console().print(f"[bold red][ERROR INVALID_ROOT_PATH] {msg}[/bold red]")
+    raise SystemExit(exit_code_for_error(ErrorCode.INVALID_ROOT_PATH))
 
 
 def validate_initialized(
@@ -373,7 +409,7 @@ def validate_initialized(
     include_timestamp: bool = False,
     run_id: Optional[str] = None,
     output: Optional[str] = None,
-    **_kwargs: object,
+    correlation_id: Optional[str] = None,
 ) -> None:
     """Validate that the repo is initialized with meminit config (F9.1).
 
@@ -410,6 +446,7 @@ def validate_initialized(
                 details=details,
                 include_timestamp=include_timestamp,
                 run_id=run_id or get_current_run_id(),
+                correlation_id=correlation_id,
             ),
             output=output,
         )
@@ -433,7 +470,7 @@ def get_severity_value(violation: Violation) -> str:
 
 
 @click.group()
-@click.version_option(package_name="meminit", prog_name="meminit")
+@click.version_option(version=get_cli_version(), prog_name="meminit")
 @click.option(
     "--no-color",
     is_flag=True,
@@ -477,7 +514,7 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
     default=False,
     help="Treat warnings as errors (e.g., outside docs_root)",
 )
-def check(paths, root, format, output, include_timestamp, quiet, strict):
+def check(paths, root, format, output, include_timestamp, correlation_id, quiet, strict):
     """Run compliance checks on the repository or specified PATHS.
 
     PATHS may be relative, absolute, or glob patterns. If omitted, all governed
@@ -487,7 +524,8 @@ def check(paths, root, format, output, include_timestamp, quiet, strict):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "check", format, output, include_timestamp, run_id, root_path
+        "check", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         if format == "text" and not quiet and not paths:
             with maybe_capture(output, format):
@@ -500,6 +538,7 @@ def check(paths, root, format, output, include_timestamp, quiet, strict):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -508,6 +547,7 @@ def check(paths, root, format, output, include_timestamp, quiet, strict):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = CheckRepositoryUseCase(root_dir=str(root_path))
@@ -564,6 +604,7 @@ def check(paths, root, format, output, include_timestamp, quiet, strict):
                     extra_top_level=check_counters,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -707,13 +748,14 @@ def check(paths, root, format, output, include_timestamp, quiet, strict):
     default=False,
     help="Treat warnings as errors (exit non-zero)",
 )
-def doctor(root, format, output, include_timestamp, strict):
+def doctor(root, format, output, include_timestamp, correlation_id, strict):
     """Self-check: verify meminit can operate in this repository."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "doctor", format, output, include_timestamp, run_id, root_path
+        "doctor", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -722,6 +764,7 @@ def doctor(root, format, output, include_timestamp, strict):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = DoctorRepositoryUseCase(root_dir=str(root_path))
@@ -804,6 +847,7 @@ def doctor(root, format, output, include_timestamp, strict):
                     violations=v2_violations,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -896,13 +940,14 @@ def doctor(root, format, output, include_timestamp, strict):
     default=None,
     help="Limit fixes to a single namespace (monorepo safety)",
 )
-def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
+def fix(root, plan, dry_run, namespace, format, output, include_timestamp, correlation_id):
     """Automatically fix common compliance violations."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "fix", format, output, include_timestamp, run_id, root_path
+        "fix", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         if format == "text":
             with maybe_capture(output, format):
@@ -920,6 +965,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         plan_obj = None
@@ -941,6 +987,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
                             message=f"Failed to load plan: {e}",
                             run_id=run_id,
                             include_timestamp=include_timestamp,
+                            correlation_id=correlation_id,
                         ),
                         output,
                     )
@@ -982,6 +1029,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
                     ],
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1048,13 +1096,14 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp):
     default=None,
     help="Output deterministic migration plan to file",
 )
-def scan(root, plan, format, output, include_timestamp):
+def scan(root, plan, format, output, include_timestamp, correlation_id):
     """Scan a repository and suggest a DocOps migration plan (read-only)."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "scan", format, output, include_timestamp, run_id, root_path
+        "scan", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1063,6 +1112,7 @@ def scan(root, plan, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
@@ -1070,6 +1120,13 @@ def scan(root, plan, format, output, include_timestamp):
         scan_data = report.as_dict()
 
         if plan and report.plan:
+            plan_path = Path(plan)
+            if not _is_safe_path(plan_path):
+                raise MeminitError(
+                    ErrorCode.PATH_ESCAPE,
+                    f"Plan path is considered unsafe: {plan}",
+                    details={"plan_path": plan},
+                )
             try:
                 plan_json = format_envelope(
                     command="scan",
@@ -1078,8 +1135,9 @@ def scan(root, plan, format, output, include_timestamp):
                     data={"plan": report.plan.as_dict()},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 )
-                with open(plan, "w", encoding="utf-8") as f:
+                with open(plan_path, "w", encoding="utf-8") as f:
                     f.write(plan_json + "\n")
                 if format != "json":
                     get_console().print(
@@ -1095,6 +1153,7 @@ def scan(root, plan, format, output, include_timestamp):
                             message=f"Failed to save plan: {e}",
                             run_id=run_id,
                             include_timestamp=include_timestamp,
+                            correlation_id=correlation_id,
                         ),
                         output,
                     )
@@ -1103,6 +1162,7 @@ def scan(root, plan, format, output, include_timestamp):
                     get_console().print(
                         f"[bold red]Failed to save plan: {e}[/bold red]"
                     )
+                    raise SystemExit(1) from e
         elif plan:
             # Plan was requested but no actions were generated
             if format != "json":
@@ -1113,26 +1173,29 @@ def scan(root, plan, format, output, include_timestamp):
             try:
                 from meminit.core.services.scan_plan import MigrationPlan
 
-                empty_plan = MigrationPlan(
-                    plan_version="1.0",
-                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
-                        "%Y-%m-%dT%H:%M:%SZ"
-                    ),
-                    config_fingerprint="",
-                    actions=[],
-                )
-                empty_plan_json = format_envelope(
-                    command="scan",
-                    root=str(root_path),
-                    success=True,
-                    data={"plan": empty_plan.as_dict()},
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                )
-                with open(plan, "w", encoding="utf-8") as f:
-                    f.write(empty_plan_json + "\n")
-                if format != "json":
-                    get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
+                plan_path = Path(plan)
+                if not _is_safe_path(plan_path):
+                    pass  # Best-effort, skip file write for unsafe path
+                else:
+                    empty_plan = MigrationPlan(
+                        plan_version="1.0",
+                        generated_at="1970-01-01T00:00:00Z",
+                        config_fingerprint="",
+                        actions=[],
+                    )
+                    empty_plan_json = format_envelope(
+                        command="scan",
+                        root=str(root_path),
+                        success=True,
+                        data={"plan": empty_plan.as_dict()},
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        correlation_id=correlation_id,
+                    )
+                    with open(plan_path, "w", encoding="utf-8") as f:
+                        f.write(empty_plan_json + "\n")
+                    if format != "json":
+                        get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
             except Exception:
                 pass  # Best-effort write, don't fail on empty plan
 
@@ -1145,6 +1208,7 @@ def scan(root, plan, format, output, include_timestamp):
                     data={"report": scan_data},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1343,13 +1407,14 @@ def scan(root, plan, format, output, include_timestamp):
 
 @cli.command("install-precommit")
 @agent_repo_options()
-def install_precommit(root, format, output, include_timestamp):
+def install_precommit(root, format, output, include_timestamp, correlation_id):
     """Install a pre-commit hook to enforce meminit check."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "install-precommit", format, output, include_timestamp, run_id, root_path
+        "install-precommit", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1358,6 +1423,7 @@ def install_precommit(root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = InstallPrecommitUseCase(root_dir=str(root_path))
@@ -1376,6 +1442,7 @@ def install_precommit(root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1444,6 +1511,7 @@ def index(
     format,
     output,
     include_timestamp,
+    correlation_id,
     status_filter,
     impl_state_filter,
     output_catalog,
@@ -1455,7 +1523,8 @@ def index(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "index", format, output, include_timestamp, run_id, root_path
+        "index", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1464,6 +1533,7 @@ def index(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = IndexRepositoryUseCase(
@@ -1502,6 +1572,7 @@ def index(
                     warnings=warnings_list,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1564,13 +1635,14 @@ def index(
 @cli.command()
 @click.argument("document_id")
 @agent_repo_options()
-def resolve(document_id, root, format, output, include_timestamp):
+def resolve(document_id, root, format, output, include_timestamp, correlation_id):
     """Resolve a document_id to a path using the index."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "resolve", format, output, include_timestamp, run_id, root_path
+        "resolve", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1579,6 +1651,7 @@ def resolve(document_id, root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = ResolveDocumentUseCase(root_dir=str(root_path))
@@ -1599,6 +1672,7 @@ def resolve(document_id, root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1620,13 +1694,14 @@ def resolve(document_id, root, format, output, include_timestamp):
 @cli.command()
 @click.argument("path")
 @agent_repo_options()
-def identify(path, root, format, output, include_timestamp):
+def identify(path, root, format, output, include_timestamp, correlation_id):
     """Identify a document_id for a given path using the index."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "identify", format, output, include_timestamp, run_id, root_path
+        "identify", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1635,6 +1710,7 @@ def identify(path, root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = IdentifyDocumentUseCase(root_dir=str(root_path))
@@ -1655,6 +1731,7 @@ def identify(path, root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1676,13 +1753,14 @@ def identify(path, root, format, output, include_timestamp):
 @cli.command()
 @click.argument("document_id")
 @agent_repo_options()
-def link(document_id, root, format, output, include_timestamp):
+def link(document_id, root, format, output, include_timestamp, correlation_id):
     """Print a Markdown link for a document_id using the index."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "link", format, output, include_timestamp, run_id, root_path
+        "link", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1691,6 +1769,7 @@ def link(document_id, root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = ResolveDocumentUseCase(root_dir=str(root_path))
@@ -1713,6 +1792,7 @@ def link(document_id, root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1741,13 +1821,14 @@ def link(document_id, root, format, output, include_timestamp):
     default=False,
     help="Rewrite old IDs in document bodies",
 )
-def migrate_ids(root, dry_run, rewrite_references, format, output, include_timestamp):
+def migrate_ids(root, dry_run, rewrite_references, format, output, include_timestamp, correlation_id):
     """Migrate legacy document_id values into REPO-TYPE-SEQ format."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "migrate-ids", format, output, include_timestamp, run_id, root_path
+        "migrate-ids", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1756,6 +1837,7 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = MigrateIdsUseCase(root_dir=str(root_path))
@@ -1772,6 +1854,7 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
                     data={"report": report.as_dict()},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -1849,13 +1932,15 @@ def migrate_templates(
     format,
     output,
     include_timestamp,
+    correlation_id,
 ):
     """Migrate legacy template configs and placeholders to Templates v2 format."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "migrate-templates", format, output, include_timestamp, run_id, root_path
+        "migrate-templates", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -1864,6 +1949,7 @@ def migrate_templates(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -1872,6 +1958,7 @@ def migrate_templates(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = MigrateTemplatesUseCase(root_dir=str(root_path))
@@ -1900,6 +1987,7 @@ def migrate_templates(
                     warnings=warning_entries,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 )
             else:
                 payload = format_envelope(
@@ -1917,6 +2005,7 @@ def migrate_templates(
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 )
             _write_output(
                 payload,
@@ -1992,13 +2081,14 @@ def migrate_templates(
 
 @cli.command()
 @agent_repo_options()
-def init(root, format, output, include_timestamp):
+def init(root, format, output, include_timestamp, correlation_id):
     """Initialize a new DocOps repository structure."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "init", format, output, include_timestamp, run_id, root_path
+        "init", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         use_case = InitRepositoryUseCase(str(root_path))
         report = use_case.execute()
@@ -2015,6 +2105,7 @@ def init(root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2124,6 +2215,7 @@ def new_doc(
     format,
     output,
     include_timestamp,
+    correlation_id,
     interactive,
 ):
     """Create a new document of TYPE with TITLE."""
@@ -2131,7 +2223,8 @@ def new_doc(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "new", format, output, include_timestamp, run_id, root_path
+        "new", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         if interactive and format == "json":
             raise MeminitError(
@@ -2159,6 +2252,7 @@ def new_doc(
                 include_timestamp=include_timestamp,
                 run_id=run_id,
                 output=output,
+                correlation_id=correlation_id,
             )
             validate_initialized(
                 root_path,
@@ -2167,6 +2261,7 @@ def new_doc(
                 include_timestamp=include_timestamp,
                 run_id=run_id,
                 output=output,
+                correlation_id=correlation_id,
             )
             use_case = NewDocumentUseCase(str(root_path))
             types_list = use_case.get_available_types(namespace)
@@ -2180,6 +2275,7 @@ def new_doc(
                         data={"types": types_list},
                         include_timestamp=include_timestamp,
                         run_id=run_id,
+                        correlation_id=correlation_id,
                     ),
                     output,
                 )
@@ -2198,7 +2294,7 @@ def new_doc(
             return
 
         if interactive:
-            validate_root_path(root_path, format=format, command="new", output=output)
+            validate_root_path(root_path, format=format, command="new", output=output, include_timestamp=include_timestamp, run_id=run_id, correlation_id=correlation_id)
             use_case = NewDocumentUseCase(str(root_path))
             valid_types = use_case.get_valid_types(namespace)
             if not doc_type:
@@ -2229,6 +2325,7 @@ def new_doc(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2237,6 +2334,7 @@ def new_doc(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         if doc_type.lower() == "adr":
@@ -2319,6 +2417,7 @@ def new_doc(
                     data=response_data,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2380,13 +2479,14 @@ def adr():
 @click.option(
     "--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)"
 )
-def adr_new(title, root, format, output, include_timestamp, namespace):
+def adr_new(title, root, format, output, include_timestamp, correlation_id, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "adr new", format, output, include_timestamp, run_id, root_path
+        "adr new", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2395,6 +2495,7 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2403,6 +2504,7 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = NewDocumentUseCase(str(root_path))
@@ -2449,6 +2551,7 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
                     data=response_data,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2470,6 +2573,241 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
 
 
 @cli.command()
+@agent_output_options()
+def capabilities(format, output, include_timestamp, correlation_id):
+    """Show CLI capabilities and feature descriptor."""
+    run_id = get_current_run_id()
+
+    with command_output_handler(
+        "capabilities", format, output, include_timestamp, run_id,
+        correlation_id=correlation_id,
+    ):
+        from meminit.core.use_cases.capabilities import CapabilitiesUseCase
+
+        use_case = CapabilitiesUseCase()
+        caps = use_case.execute()
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="capabilities",
+                    success=True,
+                    data=caps,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            lines = [
+                "# Meminit Capabilities",
+                "",
+                f"**Version:** {caps['cli_version']}",
+                f"**Capabilities:** {caps['capabilities_version']}",
+                f"**Schema:** {caps['output_schema_version']}",
+                "",
+                "## Features",
+                "",
+            ]
+            for feat, enabled in sorted(caps["features"].items()):
+                status = "yes" if enabled else "no"
+                lines.append(f"- `{feat}`: {status}")
+            lines.append("")
+            lines.append("## Commands")
+            lines.append("")
+            lines.append("| Name | Agent | JSON | Correlation ID |")
+            lines.append("|------|-------|-----|----------------|")
+            for cmd in caps["commands"]:
+                af = "yes" if cmd["agent_facing"] else "no"
+                sj = "yes" if cmd["supports_json"] else "no"
+                sc = "yes" if cmd["supports_correlation_id"] else "no"
+                lines.append(f"| {cmd['name']} | {af} | {sj} | {sc} |")
+            _write_output("\n".join(lines) + "\n", output)
+            return
+
+        with maybe_capture(output, format):
+            get_console().print(
+                f"[bold]meminit[/bold] v{caps['cli_version']} "
+                f"(capabilities {caps['capabilities_version']}, "
+                f"schema {caps['output_schema_version']})"
+            )
+            table = Table(title="Commands")
+            table.add_column("Name", style="cyan")
+            table.add_column("Agent")
+            table.add_column("JSON")
+            table.add_column("Corr. ID")
+            for cmd in caps["commands"]:
+                af = "[green]yes[/green]" if cmd["agent_facing"] else "no"
+                sj = "[green]yes[/green]" if cmd["supports_json"] else "no"
+                sc = "[green]yes[/green]" if cmd["supports_correlation_id"] else "no"
+                table.add_row(cmd["name"], af, sj, sc)
+            get_console().print(table)
+
+            feat_table = Table(title="Features")
+            feat_table.add_column("Feature", style="cyan")
+            feat_table.add_column("Available")
+            for feat, enabled in sorted(caps["features"].items()):
+                status = "[green]yes[/green]" if enabled else "no"
+                feat_table.add_row(feat, status)
+            get_console().print(feat_table)
+
+
+@cli.command()
+@agent_output_options()
+@click.argument("error_code", required=False)
+@click.option("--list", "list_codes", is_flag=True, default=False,
+              help="List all known error codes.")
+def explain(error_code, list_codes, format, output, include_timestamp, correlation_id):
+    """Explain a Meminit error code in detail."""
+    run_id = get_current_run_id()
+
+    with command_output_handler(
+        "explain", format, output, include_timestamp, run_id,
+        correlation_id=correlation_id,
+    ):
+        from meminit.core.use_cases.explain_error import ExplainErrorUseCase
+
+        use_case = ExplainErrorUseCase()
+
+        if list_codes:
+            codes = use_case.list_codes()
+            if format == "json":
+                _write_output(
+                    format_envelope(
+                        command="explain",
+                        success=True,
+                        data={"error_codes": codes},
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        correlation_id=correlation_id,
+                    ),
+                    output,
+                )
+                return
+
+            if format == "md":
+                lines = ["# Meminit Error Codes", ""]
+                lines.append("| Code | Category | Summary |")
+                lines.append("|------|----------|---------|")
+                for entry in codes:
+                    lines.append(
+                        f"| `{entry['code']}` | {entry['category']} "
+                        f"| {entry['summary']} |"
+                    )
+                _write_output("\n".join(lines) + "\n", output)
+                return
+
+            with maybe_capture(output, format):
+                table = Table(title="Error Codes")
+                table.add_column("Code", style="cyan")
+                table.add_column("Category")
+                table.add_column("Summary")
+                for entry in codes:
+                    table.add_row(entry["code"], entry["category"], entry["summary"])
+                get_console().print(table)
+            return
+
+        if not error_code:
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "Provide an error code argument or use --list.",
+            )
+
+        explanation = use_case.explain(error_code)
+        if explanation is None:
+            if format == "json":
+                _write_output(
+                    format_envelope(
+                        command="explain",
+                        success=False,
+                        data={"requested_code": error_code},
+                        error={
+                            "code": ErrorCode.UNKNOWN_ERROR_CODE.value,
+                            "message": f"Unknown error code: {error_code}",
+                        },
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        correlation_id=correlation_id,
+                    ),
+                    output,
+                )
+            elif format == "md":
+                _write_output(
+                    f"# Error\n\n- Code: UNKNOWN_ERROR_CODE\n"
+                    f"- Message: Unknown error code: {error_code}\n",
+                    output,
+                )
+            else:
+                with maybe_capture(output, format):
+                    get_console().print(
+                        f"[bold red]Unknown error code: {error_code}[/bold red]"
+                    )
+            raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR_CODE))
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="explain",
+                    success=True,
+                    data=explanation,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            return
+
+        if format == "md":
+            lines = [
+                f"# {explanation['code']}",
+                "",
+                f"**Category:** {explanation['category']}",
+                f"**Summary:** {explanation['summary']}",
+                "",
+                "## Cause",
+                "",
+                explanation["cause"],
+                "",
+                "## Remediation",
+                "",
+                f"**Action:** {explanation['remediation']['action']}",
+                f"**Type:** {explanation['remediation']['resolution_type']}",
+                f"**Automatable:** {'yes' if explanation['remediation']['automatable'] else 'no'}",
+            ]
+            cmds = explanation["remediation"].get("relevant_commands", [])
+            if cmds:
+                lines.append(f"**Commands:** {', '.join(f'`meminit {c}`' for c in cmds)}")
+            if explanation.get("spec_reference"):
+                lines.append(f"**Reference:** {explanation['spec_reference']}")
+            _write_output("\n".join(lines) + "\n", output)
+            return
+
+        with maybe_capture(output, format):
+            e = explanation
+            get_console().print(f"[bold cyan]{e['code']}[/bold cyan] ({e['category']})")
+            get_console().print(f"  {e['summary']}")
+            get_console().print()
+            get_console().print("[bold]Cause:[/bold]")
+            get_console().print(f"  {e['cause']}")
+            get_console().print()
+            get_console().print("[bold]Remediation:[/bold]")
+            r = e["remediation"]
+            get_console().print(f"  {r['action']}")
+            get_console().print(
+                f"  Type: {r['resolution_type']} | "
+                f"Automatable: {'yes' if r['automatable'] else 'no'}"
+            )
+            if r.get("relevant_commands"):
+                get_console().print(
+                    f"  Commands: {', '.join(f'meminit {c}' for c in r['relevant_commands'])}"
+                )
+
+
+@cli.command()
 @agent_repo_options()
 @click.option(
     "--deep",
@@ -2477,13 +2815,14 @@ def adr_new(title, root, format, output, include_timestamp, namespace):
     default=False,
     help="Include per-namespace document counts (10s budget)",
 )
-def context(root, deep, format, output, include_timestamp):
+def context(root, deep, format, output, include_timestamp, correlation_id):
     """Emit repository configuration context for agent bootstrap (FR-6)."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "context", format, output, include_timestamp, run_id, root_path
+        "context", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2492,6 +2831,7 @@ def context(root, deep, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2500,6 +2840,7 @@ def context(root, deep, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
@@ -2515,6 +2856,7 @@ def context(root, deep, format, output, include_timestamp):
                     warnings=result.warnings,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2565,11 +2907,12 @@ def org():
     "--force/--no-force", default=False, help="Overwrite an existing installed profile"
 )
 @agent_output_options()
-def org_install(profile, dry_run, force, format, output, include_timestamp):
+def org_install(profile, dry_run, force, format, output, include_timestamp, correlation_id):
     """Install the packaged org profile into XDG user data directories."""
     run_id = get_current_run_id()
     with command_output_handler(
-        "org install", format, output, include_timestamp, run_id
+        "org install", format, output, include_timestamp, run_id,
+        correlation_id=correlation_id,
     ):
         use_case = InstallOrgProfileUseCase()
         report = use_case.execute(profile_name=profile, dry_run=dry_run, force=force)
@@ -2578,11 +2921,11 @@ def org_install(profile, dry_run, force, format, output, include_timestamp):
             _write_output(
                 format_envelope(
                     command="org install",
-                    root=".",
                     success=True,
                     data=report.as_dict(),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2611,14 +2954,15 @@ def org_install(profile, dry_run, force, format, output, include_timestamp):
     help="Vendor ORG governance markdown docs too",
 )
 def org_vendor(
-    root, profile, dry_run, force, include_org_docs, format, output, include_timestamp
+    root, profile, dry_run, force, include_org_docs, format, output, include_timestamp, correlation_id
 ):
     """Vendor (copy + pin) org standards into a repo to prevent unintentional drift."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "org vendor", format, output, include_timestamp, run_id, root_path
+        "org vendor", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2627,6 +2971,7 @@ def org_vendor(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = VendorOrgProfileUseCase(root_dir=str(root_path))
@@ -2646,6 +2991,7 @@ def org_vendor(
                     data=report.as_dict(),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2659,13 +3005,14 @@ def org_vendor(
 @org.command("status")
 @agent_repo_options()
 @click.option("--profile", default="default", help="Org profile name")
-def org_status(root, profile, format, output, include_timestamp):
+def org_status(root, profile, format, output, include_timestamp, correlation_id):
     """Show org profile install + repo lock status (drift visibility)."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "org status", format, output, include_timestamp, run_id, root_path
+        "org status", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2674,6 +3021,7 @@ def org_status(root, profile, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = OrgStatusUseCase(root_dir=str(root_path))
@@ -2688,6 +3036,7 @@ def org_status(root, profile, format, output, include_timestamp):
                     data=report.as_dict(),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2720,6 +3069,7 @@ def state_set(
     format,
     output,
     include_timestamp,
+    correlation_id,
     impl_state,
     notes,
     actor,
@@ -2732,7 +3082,8 @@ def state_set(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state set", format, output, include_timestamp, run_id, root_path
+        "state set", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2741,6 +3092,7 @@ def state_set(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2749,6 +3101,7 @@ def state_set(
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         if not clear and not impl_state and not notes:
@@ -2771,6 +3124,7 @@ def state_set(
                     data={"action": result.action, "entry": result.entry},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2812,7 +3166,7 @@ def state_set(
 @state.command("get")
 @click.argument("document_id")
 @agent_repo_options()
-def state_get(document_id, root, format, output, include_timestamp):
+def state_get(document_id, root, format, output, include_timestamp, correlation_id):
     """Get a document's implementation state."""
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
@@ -2820,7 +3174,8 @@ def state_get(document_id, root, format, output, include_timestamp):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state get", format, output, include_timestamp, run_id, root_path
+        "state get", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2829,6 +3184,7 @@ def state_get(document_id, root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2837,6 +3193,7 @@ def state_get(document_id, root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = StateDocumentUseCase(str(root_path))
@@ -2851,6 +3208,7 @@ def state_get(document_id, root, format, output, include_timestamp):
                     data=result.entry,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )
@@ -2878,7 +3236,7 @@ def state_get(document_id, root, format, output, include_timestamp):
 
 @state.command("list")
 @agent_repo_options()
-def state_list(root, format, output, include_timestamp):
+def state_list(root, format, output, include_timestamp, correlation_id):
     """List all entries in project-state.yaml."""
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
@@ -2886,7 +3244,8 @@ def state_list(root, format, output, include_timestamp):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state list", format, output, include_timestamp, run_id, root_path
+        "state list", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
     ):
         validate_root_path(
             root_path,
@@ -2895,6 +3254,7 @@ def state_list(root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
             root_path,
@@ -2903,6 +3263,7 @@ def state_list(root, format, output, include_timestamp):
             include_timestamp=include_timestamp,
             run_id=run_id,
             output=output,
+            correlation_id=correlation_id,
         )
 
         use_case = StateDocumentUseCase(str(root_path))
@@ -2938,6 +3299,7 @@ def state_list(root, format, output, include_timestamp):
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
+                    correlation_id=correlation_id,
                 ),
                 output,
             )

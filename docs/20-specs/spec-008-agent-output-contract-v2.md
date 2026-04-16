@@ -1,11 +1,11 @@
 ---
 document_id: MEMINIT-SPEC-008
 type: SPEC
-title: Agent Output Contract (Templates v2)
+title: Agent Output Contract (Templates v2 → v3)
 status: Draft
-version: "1.0"
-last_updated: 2026-03-05
-owner: Product Team
+version: "1.1"
+last_updated: 2026-04-16
+owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
 description: "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check and new)."
@@ -65,17 +65,22 @@ Out of scope:
 
 ### 4.1 Required Top-Level Fields
 
-All v2 JSON outputs MUST include the following top-level fields:
+All v3 JSON outputs MUST include the following top-level fields:
 
-1. `output_schema_version` (string)
+1. `output_schema_version` (string) — `"3.0"`
 2. `success` (boolean)
 3. `command` (string)
 4. `run_id` (string, UUIDv4)
-5. `root` (string)
-6. `data` (object)
-7. `warnings` (array)
-8. `violations` (array)
-9. `advice` (array)
+5. `data` (object)
+6. `warnings` (array)
+7. `violations` (array)
+8. `advice` (array)
+
+#### 4.1.1 Conditional Fields
+
+- `root` (string, absolute path) — **required** for repo-aware commands (`@agent_repo_options()`), **absent** for repo-agnostic commands (`capabilities`, `explain`, `org install`). Consumers MUST NOT assume `root` is universally present; check `output_schema_version` and the `command` field.
+- `correlation_id` (string) — present only when the caller supplied `--correlation-id`.
+- `timestamp` (string, ISO 8601) — present only when `--include-timestamp` is set.
 
 For `command: check`, additional required fields include counters (see [MEMINIT-SPEC-004](spec-004-agent-output-contract.md)).
 
@@ -134,4 +139,4 @@ Same as [MEMINIT-SPEC-004](spec-004-agent-output-contract.md).
 
 ## 7. JSON Schema
 
-The normative schema is `docs/20-specs/agent-output.schema.v2.json`.
+The normative schema is `docs/20-specs/agent-output.schema.v3.json`.

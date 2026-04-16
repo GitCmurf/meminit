@@ -2,31 +2,32 @@
 document_id: MEMINIT-PLAN-008
 type: PLAN
 title: Agentic Coding vNext Programme
-status: Draft
-version: '0.1'
-last_updated: '2026-04-14'
+status: Approved
+version: "0.7"
+last_updated: "2026-04-14"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Phased improvement programme for Meminit as a stronger platform for agentic
-  coding agents.
+description: "Phased improvement programme for Meminit as a stronger platform for agentic coding agents."
 keywords:
-- agent
-- roadmap
-- planning
-- orchestration
+  - agent
+  - roadmap
+  - planning
+  - orchestration
 related_ids:
-- MEMINIT-STRAT-001
-- MEMINIT-PLAN-003
-- MEMINIT-PRD-003
-- MEMINIT-PRD-005
-- MEMINIT-PRD-007
+  - MEMINIT-STRAT-001
+  - MEMINIT-PLAN-003
+  - MEMINIT-PRD-003
+  - MEMINIT-PRD-005
+  - MEMINIT-PRD-007
 ---
+
+<!-- MEMINIT_METADATA_BLOCK -->
 
 > **Document ID:** MEMINIT-PLAN-008
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
+> **Status:** Approved
+> **Version:** 0.7
 > **Last Updated:** 2026-04-14
 > **Type:** PLAN
 > **Area:** AGENT
@@ -49,13 +50,12 @@ platform for agentic coding agents operating at scale.
 
 The current gaps are structural, not cosmetic:
 
-1. The CLI is not yet self-describing at runtime.
-   - There is no `meminit capabilities --format json`.
-   - There is no `--correlation-id`.
-   - There is no machine-readable `explain` path for error codes.
+1. The CLI was not yet self-describing at runtime.
+   - `meminit capabilities --format json` and `--correlation-id` are now shipped (Phase 1).
+   - Machine-readable `explain` path is now shipped (Phase 1).
 2. The repository index is still an inventory, not a graph.
-   - It does not yet expose resolved cross-document links or supersession edges
-     as committed in MEMINIT-STRAT-001.
+   - It does not yet expose resolved cross-document links or supersession
+     edges as committed in MEMINIT-STRAT-001.
 3. Agent protocol surfaces are bootstrapped but not governed.
    - `AGENTS.md` and skill files can drift from live CLI behavior.
 4. State support is useful for dashboards but too thin for work-queue use.
@@ -78,7 +78,7 @@ agentic coding agents, with:
   scale work
 
 This plan is intentionally implementation-aware but not code-prescriptive. It
-states outcomes, decision gates, and documentation expectations; the detailed
+states outcomes, decision gates, and documentation expectations. The detailed
 feature design belongs in the PRDs, FDDs, and specs listed in Section 7.
 
 ## 2. Planning Principles
@@ -91,6 +91,12 @@ This programme follows the repo's non-negotiables:
 4. Existing governed docs are updated where they are already the right source
    of truth; new docs are created only where a new boundary is warranted.
 5. Each phase must leave the repo in a shippable, validated state.
+
+Pre-alpha contract note:
+
+- This programme does not impose a blanket backward-compatibility requirement.
+- Where a phase changes an integration contract, the expected upgrade impact
+  and migration notes must be documented explicitly.
 
 ## 3. Baseline Assessment
 
@@ -113,16 +119,25 @@ This programme follows the repo's non-negotiables:
 | Repository graph | Inventory + state merge | Agents still need secondary scans to reason about references and supersession |
 | Protocol surfaces | Created once | No built-in drift detection or sync path |
 | Work queue support | Dashboard-oriented | No direct next-task, blockers, or readiness query model |
-| Large-output ergonomics | Single JSON object | Monorepo-scale scans/indexes remain heavyweight |
+| Large-output ergonomics | Single JSON object | Monorepo-scale scans and indexes remain heavyweight |
 
 ### 3.3 Immediate quality gate
 
 Before starting new feature delivery, the current foundation must be made
 fully reliable. As of this plan's drafting, the repository test suite is not
-green because a `fix` path writes a date that can drift by one day across
-clock/timezone assumptions. That class of issue is small in code size but
-high leverage in agent workflows because it undermines deterministic repair
-loops.
+green because the `fix` command's remediation path writes a `last_updated`
+date that can drift by one day when the wall-clock date and the timezone
+assumed during YAML serialization disagree.
+
+Concretely, the failing behavior observed on April 14, 2026 was a mismatch
+between `2026-04-13` and `2026-04-14`. The root cause is that the `fix`
+service currently mixes `datetime.now()` and `date.today()` without pinning a
+single timezone-aware source.
+
+This class of issue is small in code size but high leverage in agent
+workflows because it undermines deterministic repair loops: an agent that
+runs `meminit fix` and then `meminit check` must get a stable, reproducible
+result.
 
 ## 4. Programme Summary
 
@@ -132,7 +147,7 @@ loops.
 | 1 | Agent Contract Core | Self-describing CLI surface | Capabilities, correlation, and explain implemented |
 | 2 | Repository Graph | Index becomes graph-grade agent artifact | Graph fields emitted and validated |
 | 3 | Protocol Governance | `AGENTS.md` and skills become governable clients | Drift can be detected and synced |
-| 4 | Work Queue Layer | Agents can ask "what next?" without repo-wide inference | State/query surfaces support readiness and blockers |
+| 4 | Work Queue Layer | Agents can ask "what next?" without repo-wide inference | State and query surfaces support readiness and blockers |
 | 5 | Scale and Streaming | Large repos are handled cleanly | NDJSON and incremental workflows available |
 
 ## 5. Phased Programme
@@ -149,18 +164,28 @@ Work in scope:
 - Fix the `last_updated` date-source inconsistency in remediation paths.
 - Add a command-matrix contract test that verifies every CLI command that
   claims JSON support emits a schema-valid envelope.
-- Tighten stdout/stderr isolation tests for machine-consumed modes.
+- Tighten stdout and stderr isolation tests for machine-consumed modes.
 - Reconcile any remaining drift between current implementation and the
   normative agent output docs.
 
 Acceptance criteria:
 
 1. `pytest` passes in the repository root.
-2. The `fix` path uses one consistent date source for governed metadata writes.
+2. The `fix` path uses one consistent date source for governed metadata
+   writes.
 3. The CLI command matrix has automated coverage for JSON support and envelope
    validity.
-4. PRD/SPEC text describing the current agent contract is not materially out of
-   sync with the code.
+4. PRD and SPEC text describing the current agent contract is not materially
+   out of sync with the code.
+
+Implementation status as of 2026-04-14:
+
+- Completed.
+- Detailed implementation planning and closeout are captured in
+  [MEMINIT-PLAN-009](plan-009-phase-0-detailed-implementation-plan.md).
+- The repository test suite is green again, the remediation date-source issue
+  is resolved, and Phase 0 contract coverage is now enforced in automated
+  tests.
 
 Definition of done:
 
@@ -182,6 +207,14 @@ Work in scope:
 - Implement `meminit explain <ERROR_CODE> --format json`.
 - Expose capability metadata in a deterministic, fast, filesystem-light way.
 
+Tracing note:
+
+- `correlation_id` is a caller-supplied trace token for multi-step
+  orchestration.
+- `run_id` remains Meminit's own per-invocation identifier.
+- When `--correlation-id` is supplied, both values appear in the envelope.
+- When it is omitted, only `run_id` appears.
+
 Acceptance criteria:
 
 1. `meminit capabilities --format json` exists and is deterministic.
@@ -189,8 +222,8 @@ Acceptance criteria:
    formats, and contract feature flags.
 3. `--correlation-id` is echoed back as `correlation_id` when supplied and
    omitted otherwise.
-4. `meminit explain <ERROR_CODE> --format json` returns stable, machine-readable
-   remediation guidance.
+4. `meminit explain <ERROR_CODE> --format json` returns stable,
+   machine-readable remediation guidance.
 5. Tests validate capability output and correlation behavior.
 
 Definition of done:
@@ -203,7 +236,7 @@ Definition of done:
 
 Objective:
 
-- Upgrade the index from "document inventory" to "document graph".
+- Upgrade the index from document inventory to document graph.
 
 Work in scope:
 
@@ -216,10 +249,9 @@ Work in scope:
 Acceptance criteria:
 
 1. `meminit index` emits the graph fields committed in MEMINIT-STRAT-001 or
-   explicitly records any deferral in updated strategy/planning docs.
+   explicitly records any deferral in updated strategy or planning docs.
 2. The artifact schema and examples are documented.
 3. Edge extraction is deterministic and covered by tests.
-4. `resolve`, `identify`, and `link` remain backward compatible.
 
 Definition of done:
 
@@ -236,16 +268,17 @@ Objective:
 
 Work in scope:
 
-- Define the supported protocol surfaces: at minimum `AGENTS.md` and skill
+- Define the supported protocol surfaces, at minimum `AGENTS.md` and skill
   files.
 - Add a drift-check mechanism such as `meminit protocol check`.
-- Add a safe refresh/sync path such as `meminit protocol sync`.
+- Add a safe refresh or sync path such as `meminit protocol sync`.
 - Introduce a lightweight version stamp or capability reference model so
   generated protocol content can be audited in CI.
 
 Acceptance criteria:
 
-1. Protocol surfaces and their contract relationship are explicitly documented.
+1. Protocol surfaces and their contract relationship are explicitly
+   documented.
 2. Drift between live CLI capabilities and shipped protocol assets can be
    detected automatically.
 3. The sync path is additive and safe for brownfield repos.
@@ -262,30 +295,30 @@ Definition of done:
 
 Objective:
 
-- Give agents a first-class coordination surface for "what is ready, blocked,
-  or next".
+- Give agents a first-class coordination surface for what is ready, blocked,
+  or next.
 
 Work in scope:
 
 - Extend `project-state.yaml` with optional planning fields such as priority,
   dependencies, blockers, and next action.
-- Add query-oriented commands or subcommands that answer ready/blocked/next
-  questions directly.
-- Keep byte-invariance and the current governance/status split intact.
+- Add query-oriented commands or subcommands that answer ready, blocked, and
+  next questions directly.
+- Keep byte-invariance and the current governance and status split intact.
 
 Acceptance criteria:
 
-1. The state model remains optional and backward compatible for repos that do
-   not use advanced planning fields.
+1. The state model remains optional for repos that do not use advanced
+   planning fields.
 2. At least one query path exists for next-work or ready-work retrieval.
 3. Validation rules for new state fields are deterministic and documented.
-4. Index output can surface the richer state without breaking existing clients.
+4. Index output can surface the richer state in a clearly documented way.
 
 Definition of done:
 
 - State schema updated
 - Query surface implemented
-- Dashboard/index integration documented and tested
+- Dashboard and index integration documented and tested
 
 ### 5.6 Phase 5: Scale and Streaming
 
@@ -295,16 +328,16 @@ Objective:
 
 Work in scope:
 
-- Add `ndjson` streaming for large-output commands such as `scan`, `index`, and
-  deep context modes.
+- Add `ndjson` streaming for large-output commands such as `scan`, `index`,
+  and deep context modes.
 - Define deterministic record ordering and end-of-stream behavior.
-- Investigate incremental rebuild/update paths for index-heavy workflows.
+- Investigate incremental rebuild and update paths for index-heavy workflows.
 
 Acceptance criteria:
 
 1. At least the agreed large-output commands support a documented streaming
    format.
-2. Streaming behavior is covered by schema/rule tests.
+2. Streaming behavior is covered by schema and rule tests.
 3. STDOUT remains machine-safe and logs remain isolated.
 4. The docs explain when agents should prefer standard JSON vs streaming.
 
@@ -312,7 +345,7 @@ Definition of done:
 
 - Streaming contract shipped
 - Runbook guidance added
-- No regression to existing JSON contract consumers
+- Upgrade impact for existing integrations documented explicitly
 
 ## 6. Delivery Order and Dependency Rules
 
@@ -330,6 +363,39 @@ The key dependency logic is:
 - graph before sophisticated coordination
 - deterministic core before scale features
 
+Dependency diagram:
+
+```text
+Phase 0: Foundation Hardening
+   |
+   +---> Phase 1: Agent Contract Core
+   |        |
+   |        +---> Phase 3: Protocol Governance
+   |        |
+   |        +---> Phase 5: Scale and Streaming
+   |
+   +---> Phase 2: Repository Graph
+            |
+            +---> Phase 4: Work Queue Layer
+```
+
+### 6.1 Detailed Planning Status
+
+The original detailed-planning gate for later phases has now been satisfied
+because Phase 0 is complete.
+
+Detailed phase decomposition is captured in:
+
+1. [MEMINIT-PLAN-009](plan-009-phase-0-detailed-implementation-plan.md)
+2. [MEMINIT-PLAN-010](plan-010-phase-1-detailed-implementation-plan.md)
+3. [MEMINIT-PLAN-011](plan-011-phase-2-detailed-implementation-plan.md)
+4. [MEMINIT-PLAN-012](plan-012-phase-3-detailed-implementation-plan.md)
+5. [MEMINIT-PLAN-013](plan-013-phase-4-detailed-implementation-plan.md)
+6. [MEMINIT-PLAN-014](plan-014-phase-5-detailed-implementation-plan.md)
+
+Implementation should still begin with Phase 1 and continue to respect the
+dependency rules in Section 6.
+
 ## 7. Proposed Governed Document Set
 
 This programme does not need every item to be a new document. Where an
@@ -344,14 +410,14 @@ parallel source of truth.
 | New | FDD | Agent Capabilities and Explain Commands | Implementation boundary for `capabilities`, `correlation_id`, and `explain` |
 | New | FDD | Index Graph Enrichment | Implementation boundary for links, related IDs, and supersession edges |
 | New | FDD | Protocol Surface Governance | Implementation boundary for protocol drift detection and sync |
-| New | FDD | Agent Work Queue Queries | Implementation boundary for richer state queries and readiness/blocker logic |
+| New | FDD | Agent Work Queue Queries | Implementation boundary for richer state queries and readiness and blocker logic |
 | New | SPEC | NDJSON Streaming Contract | Normative streaming record shape and ordering rules |
 | New | RUNBOOK | Agent Integration and Upgrade Workflow | Operator guidance for adopting the new capability surfaces safely |
 
 Document creation rules:
 
-- Do not create the new FDD/SPEC/RUNBOOK set until the corresponding phase is
-  approved to start.
+- Do not create the new FDD, SPEC, or RUNBOOK set until the corresponding
+  phase is approved to start.
 - If a phase is reduced in scope, reduce the document set as well rather than
   creating speculative artifacts.
 
@@ -360,10 +426,11 @@ Document creation rules:
 | Risk | Impact | Mitigation |
 | ---- | ------ | ---------- |
 | Capability output becomes a second drifting contract | High | Treat `capabilities` as a tested, versioned artifact with deterministic ordering |
-| Protocol sync becomes destructive in brownfield repos | High | Default to check/report mode; require explicit action for writes |
+| Protocol sync becomes destructive in brownfield repos | High | Default to check and report mode; require explicit action for writes |
 | Graph extraction overreaches and becomes heuristic-heavy | Medium | Ship a narrow, well-defined first edge set and test it thoroughly |
 | Work queue scope expands into project management | Medium | Keep fields optional and tightly tied to agent execution needs |
 | Streaming introduces contract ambiguity | High | Define record order, summary semantics, and error behavior before implementation |
+| `correlation_id` and `run_id` create confusing tracing semantics | Medium | Document the distinction clearly and test both paths explicitly |
 
 ## 9. Closure Criteria for the Programme
 
@@ -372,9 +439,12 @@ This programme is complete when:
 1. The planned phases that are approved for delivery have shipped with aligned
    code, docs, and tests.
 2. Meminit can describe its own capabilities at runtime.
-3. The repository index is strong enough to serve as an agent navigation graph.
+3. The repository index is strong enough to serve as an agent navigation
+   graph.
 4. Protocol surfaces can be checked for drift.
 5. Agents have a direct way to retrieve actionable next-work information.
+6. Large-output commands support a documented streaming format with an
+   explicit upgrade story for current integrations.
 
 ## 10. Version History
 
@@ -382,3 +452,8 @@ This programme is complete when:
 | ------- | ---- | ------ | ------- |
 | 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
 | 0.2 | 2026-04-14 | Codex | Replaced stub with phased vNext programme, acceptance criteria, and proposed governed document set |
+| 0.3 | 2026-04-14 | Augment Agent | Strengthened the plan with root-cause detail for Phase 0, correlation semantics, a dependency diagram, and clearer closure criteria |
+| 0.4 | 2026-04-14 | GitCmurf | Removed the blanket backward-compatibility framing for pre-alpha scope |
+| 0.5 | 2026-04-14 | Codex | Restored valid governed Markdown, cleaned the final structure, aligned the body with the recorded version history, and added an explicit entry rule for detailed planning |
+| 0.6 | 2026-04-14 | Codex | Recorded Phase 0 completion status and linked the implementation closeout in MEMINIT-PLAN-009 |
+| 0.7 | 2026-04-14 | Codex | Replaced the old Phase 0-only planning gate with links to the detailed phase plans for Phases 1 through 5 |

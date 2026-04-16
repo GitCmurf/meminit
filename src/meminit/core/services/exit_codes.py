@@ -50,5 +50,8 @@ def exit_code_for_error(error_code: ErrorCode) -> int:
         ErrorCode.E_STATE_YAML_MALFORMED: EX_DATAERR,
         ErrorCode.E_STATE_SCHEMA_VIOLATION: EX_DATAERR,
         ErrorCode.E_INVALID_FILTER_VALUE: EX_USAGE,
+        # Agent interface error codes
+        ErrorCode.UNKNOWN_ERROR_CODE: EX_DATAERR,
+        ErrorCode.INVALID_ROOT_PATH: EX_NOINPUT,
     }
     return mapping.get(error_code, EX_DATAERR)

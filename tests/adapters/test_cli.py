@@ -8,6 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
+from meminit.core.services.versioning import get_cli_version
 from meminit.core.domain.entities import CheckResult, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 
@@ -24,6 +25,7 @@ def test_cli_version():
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
     assert "meminit" in result.output
+    assert get_cli_version() in result.output
 
 
 def test_cli_no_color_sets_env(tmp_path, monkeypatch):
@@ -191,7 +193,7 @@ def test_cli_check_violations_json(mock_use_case):
         pytest.fail(f"Output is not valid JSON: {result.output}")
 
     assert data["success"] is False
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "3.0"
     assert data["files_checked"] == 1
     assert data["violations_count"] == 1
     assert len(data["violations"]) == 1
@@ -237,9 +239,52 @@ def test_cli_check_json_output_write_failure_returns_json_error(
     assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["success"] is False
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "3.0"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
     assert payload["error"]["details"]["output_path"] == str(output_dir)
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_output_write_failure_preserves_correlation_id(
+    mock_use_case, tmp_path
+):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outdir"
+    output_dir.mkdir()
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            str(output_dir),
+            "--correlation-id",
+            "write-fail-trace",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["correlation_id"] == "write-fail-trace"
+    assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
@@ -278,9 +323,52 @@ def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp
     assert result.exit_code == getattr(os, "EX_NOPERM", 77)
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["success"] is False
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "3.0"
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
     assert payload["error"]["details"]["output_path"] == "/etc/report.json"
+
+
+@patch("meminit.cli.main.CheckRepositoryUseCase")
+def test_cli_check_json_unsafe_output_path_preserves_correlation_id(
+    mock_use_case, tmp_path
+):
+    instance = mock_use_case.return_value
+    instance.execute_full_summary.return_value = CheckResult(
+        success=True,
+        files_checked=0,
+        files_passed=0,
+        files_failed=0,
+        violations=[],
+        warnings=[],
+        checked_paths=[],
+        warnings_count=0,
+        violations_count=0,
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+            "--output",
+            "/etc/report.json",
+            "--correlation-id",
+            "unsafe-path-trace",
+        ],
+    )
+
+    assert result.exit_code == getattr(os, "EX_NOPERM", 77)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["correlation_id"] == "unsafe-path-trace"
+    assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
 
 
 def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
@@ -306,7 +394,7 @@ def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
     assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     assert result.output == ""
     content = output_path.read_text(encoding="utf-8")
-    assert "CONFIG_MISSING" in content
+    assert "INVALID_ROOT_PATH" in content
     assert "Path does not exist:" in content
     assert str(missing_root) in content
 
@@ -525,8 +613,8 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
     data = json.loads(result.output)
     assert data["success"] is False
-    assert data["error"]["code"] == "CONFIG_MISSING"
-    assert data["output_schema_version"] == "2.0"
+    assert data["error"]["code"] == "INVALID_ROOT_PATH"
+    assert data["output_schema_version"] == "3.0"
 
 
 @patch("meminit.cli.main.InstallPrecommitUseCase")
@@ -642,7 +730,7 @@ def test_cli_context_json_output(tmp_path):
 
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "3.0"
     assert data["success"] is True
     assert data["data"]["project_name"] == "TestProject"
     assert data["data"]["default_owner"] == "TeamA"
@@ -775,7 +863,7 @@ def test_cli_index_json_contract(tmp_path):
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "3.0"
     assert data["command"] == "index"
     assert "run_id" in data
     assert data["root"] == str(tmp_path.resolve())
@@ -815,7 +903,7 @@ def test_cli_index_json_warnings_schema_validity(tmp_path):
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["output_schema_version"] == "2.0"
+    assert data["output_schema_version"] == "3.0"
     assert data["data"]["document_count"] == 1
     assert len(data["warnings"]) == 1
     assert data["warnings"][0]["code"] == "W_STATE_UNKNOWN_DOC_ID"
@@ -897,7 +985,7 @@ document_types:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
         assert "path" in data["data"]
         assert data["data"]["document_id"] == "TEST-ADR-001"
@@ -967,7 +1055,7 @@ document_types:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
@@ -1016,7 +1104,7 @@ document_types:
         assert result.exit_code == 0
         data = json.loads(result.output.strip().splitlines()[-1])
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
         assert "types" in data["data"]
 
@@ -1128,7 +1216,7 @@ document_types:
         json_line = lines[-1]
         data = json.loads(json_line)
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
         assert data["data"]["dry_run"] is True
         assert "would_create" in data["data"]
@@ -1278,7 +1366,7 @@ docops_version: 2.0
         assert result.exit_code == 0
         data = json.loads(result.output.strip().splitlines()[-1])
 
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
         assert data["files_checked"] == 1
         assert data["files_passed"] == 1
@@ -2269,7 +2357,7 @@ document_types:
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["success"] is False
         assert "error" in data
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
         assert "TYPE and TITLE are required" in data["error"]["message"]
 
     def test_new_invalid_document_type_returns_error_json(self, repo_for_edge_cases):
@@ -2292,7 +2380,7 @@ document_types:
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["success"] is False
         assert "error" in data
-        assert data["output_schema_version"] == "2.0"
+        assert data["output_schema_version"] == "3.0"
 
     def test_error_json_includes_error_code_and_message(self, repo_for_edge_cases):
         """Test that JSON errors include correct error code and message."""
@@ -2309,7 +2397,7 @@ document_types:
         assert "error" in data
         assert "code" in data["error"]
         assert "message" in data["error"]
-        assert data["error"]["code"] == "CONFIG_MISSING"
+        assert data["error"]["code"] == "INVALID_ROOT_PATH"
         assert "Path does not exist" in data["error"]["message"]
 
     def test_error_json_is_single_line(self, repo_for_edge_cases):
@@ -2498,7 +2586,7 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["command"] == "migrate-templates"
     assert payload["success"] is True
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "3.0"
     assert payload["data"]["dry_run"] is False
     assert payload["data"]["backup_path"] is not None
     assert payload["data"]["summary"]["config_entries_migrated"] == 2

@@ -2,7 +2,13 @@ import json
 import re
 from pathlib import Path
 
-from meminit.core.services.output_formatter import format_envelope, format_error_envelope
+import pytest
+
+from meminit.core.services.output_formatter import (
+    normalize_correlation_id,
+    format_envelope,
+    format_error_envelope,
+)
 from meminit.core.services.error_codes import ErrorCode
 
 
@@ -31,7 +37,7 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
         ],
         include_timestamp=False,
         run_id=run_id,
-        extra_top_level={"zeta": 1, "alpha": 2},
+        extra_top_level={"files_checked": 2, "files_passed": 1},
     )
     assert "\n" not in output
 
@@ -56,7 +62,7 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
         ],
         include_timestamp=False,
         run_id=run_id,
-        extra_top_level={"zeta": 1, "alpha": 2},
+        extra_top_level={"files_checked": 2, "files_passed": 1},
     )
     assert output2 == output
 
@@ -69,12 +75,12 @@ def test_format_envelope_is_deterministic_and_sorted(tmp_path):
         "command",
         "run_id",
         "root",
+        "files_checked",
+        "files_passed",
         "data",
         "warnings",
         "violations",
         "advice",
-        "alpha",
-        "zeta",
     ]
 
     # Data dicts are recursively key-sorted.
@@ -220,7 +226,7 @@ def test_format_envelope_includes_expected_fields_and_single_line(tmp_path):
     )
     assert "\n" not in output
     payload = json.loads(output)
-    assert payload["output_schema_version"] == "2.0"
+    assert payload["output_schema_version"] == "3.0"
     assert payload["command"] == "context"
     assert payload["success"] is True
     assert payload["data"]["project_name"] == "Test"
@@ -231,4 +237,185 @@ def test_format_envelope_includes_expected_fields_and_single_line(tmp_path):
     assert isinstance(payload["violations"], list)
     assert isinstance(payload["advice"], list)
     assert Path(payload["root"]).is_absolute()
+
+
+# ---------------------------------------------------------------------------
+# correlation_id
+# ---------------------------------------------------------------------------
+
+
+def test_format_envelope_with_correlation_id(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    output = format_envelope(
+        command="context",
+        root=tmp_path,
+        success=True,
+        run_id=run_id,
+        correlation_id="req-abc-123",
+    )
+    payload = json.loads(output)
+    assert payload["correlation_id"] == "req-abc-123"
+    keys = list(payload.keys())
+    assert keys.index("correlation_id") == keys.index("run_id") + 1
+
+
+def test_format_envelope_without_correlation_id_omits_field(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    output = format_envelope(
+        command="context",
+        root=tmp_path,
+        success=True,
+        run_id=run_id,
+    )
+    payload = json.loads(output)
+    assert "correlation_id" not in payload
+
+
+def test_format_envelope_correlation_id_max_length(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    cid = "a" * 128
+    output = format_envelope(
+        command="context",
+        root=tmp_path,
+        success=True,
+        run_id=run_id,
+        correlation_id=cid,
+    )
+    payload = json.loads(output)
+    assert payload["correlation_id"] == cid
+
+
+def test_format_envelope_correlation_id_exceeds_max_length_raises(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    cid = "a" * 129
+    with pytest.raises(ValueError, match="exceeds 128"):
+        format_envelope(
+            command="context",
+            root=tmp_path,
+            success=True,
+            run_id=run_id,
+            correlation_id=cid,
+        )
+
+
+def test_format_envelope_correlation_id_whitespace_raises(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    with pytest.raises(ValueError, match="whitespace"):
+        format_envelope(
+            command="context",
+            root=tmp_path,
+            success=True,
+            run_id=run_id,
+            correlation_id="has space",
+        )
+
+
+def test_format_error_envelope_with_correlation_id(tmp_path):
+    run_id = "00000000-0000-4000-8000-000000000000"
+    output = format_error_envelope(
+        command="check",
+        root=tmp_path,
+        error_code=ErrorCode.CONFIG_MISSING,
+        message="missing",
+        run_id=run_id,
+        correlation_id="trace-99",
+    )
+    payload = json.loads(output)
+    assert payload["correlation_id"] == "trace-99"
+
+
+def test_normalize_correlation_id_none():
+    assert normalize_correlation_id(None) is None
+
+
+def test_normalize_correlation_id_valid():
+    assert normalize_correlation_id("abc-123") == "abc-123"
+
+
+def test_normalize_correlation_id_empty_string_raises():
+    with pytest.raises(ValueError, match="empty"):
+        normalize_correlation_id("")
+
+
+def test_normalize_correlation_id_newline_raises():
+    with pytest.raises(ValueError, match="whitespace"):
+        normalize_correlation_id("abc\ndef")
+
+
+def test_normalize_correlation_id_tab_raises():
+    with pytest.raises(ValueError, match="whitespace"):
+        normalize_correlation_id("abc\tdef")
+
+
+# ---------------------------------------------------------------------------
+# Schema-level validation
+# ---------------------------------------------------------------------------
+
+
+def _load_schema() -> dict:
+    schema_path = Path(__file__).resolve().parent.parent.parent.parent / (
+        "src/meminit/core/assets/agent-output.schema.v3.json"
+    )
+    return json.loads(schema_path.read_text(encoding="utf-8"))
+
+
+def test_schema_rejects_whitespace_correlation_id():
+    import jsonschema
+
+    schema = _load_schema()
+    run_id = "00000000-0000-4000-8000-000000000000"
+    # Build envelope directly (bypassing normalize_correlation_id) to test
+    # the schema's no-whitespace pattern constraint independently.
+    base = json.loads(
+        format_envelope(
+            command="context",
+            root="/tmp/test",
+            success=True,
+            run_id=run_id,
+        )
+    )
+    base["correlation_id"] = "has space"
+    with pytest.raises(jsonschema.ValidationError, match="correlation_id"):
+        jsonschema.validate(base, schema)
+
+
+def test_schema_accepts_valid_correlation_id():
+    import jsonschema
+
+    schema = _load_schema()
+    run_id = "00000000-0000-4000-8000-000000000000"
+    envelope = json.loads(
+        format_envelope(
+            command="context",
+            root="/tmp/test",
+            success=True,
+            run_id=run_id,
+            correlation_id="valid-id-123",
+        )
+    )
+    jsonschema.validate(envelope, schema)  # Should not raise
+
+
+def test_format_envelope_omits_root_when_none():
+    output = format_envelope(
+        command="capabilities",
+        root=None,
+        success=True,
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    payload = json.loads(output)
+    assert "root" not in payload
+    assert payload["output_schema_version"] == "3.0"
+
+
+def test_format_error_envelope_omits_root_when_none():
+    output = format_error_envelope(
+        command="explain",
+        root=None,
+        error_code=ErrorCode.UNKNOWN_ERROR_CODE,
+        message="test",
+        run_id="00000000-0000-4000-8000-000000000000",
+    )
+    payload = json.loads(output)
+    assert "root" not in payload
 

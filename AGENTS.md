@@ -67,11 +67,11 @@ Meminit provides a deterministic, machine-parseable interface for agents and orc
 When `--format json` is used, Meminit emits exactly one JSON object on STDOUT. All human-readable logs and errors are routed to STDERR.
 
 The JSON envelope includes:
-- `output_schema_version`: `"2.0"`
+- `output_schema_version`: `"3.0"`
 - `success`: boolean status
 - `command`: canonical subcommand name
 - `run_id`: UUIDv4 correlation token
-- `root`: absolute path to repo root
+- `root`: absolute path to repo root (repo-aware commands only)
 - `data`: command-specific payload
 - `warnings`, `violations`, `advice`: structured issue arrays
 

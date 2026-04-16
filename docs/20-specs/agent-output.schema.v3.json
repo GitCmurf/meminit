@@ -1,14 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://meminit.io/schemas/agent-output.schema.v2.json",
-  "title": "Meminit Agent Output Envelope v2",
+  "$id": "https://meminit.io/schemas/agent-output.schema.v3.json",
+  "title": "Meminit Agent Output Envelope v3",
   "type": "object",
   "required": [
     "output_schema_version",
     "success",
     "command",
     "run_id",
-    "root",
     "data",
     "warnings",
     "violations",
@@ -18,7 +17,7 @@
     "output_schema_version": {
       "type": "string",
       "enum": [
-        "2.0"
+        "3.0"
       ]
     },
     "success": {
@@ -196,6 +195,35 @@
           "violations"
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list"]
+          }
+        },
+        "required": ["command"]
+      },
+      "then": {
+        "required": ["root"],
+        "properties": {
+          "root": { "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "enum": ["capabilities", "explain", "org install"]
+          }
+        },
+        "required": ["command"]
+      },
+      "then": {
+        "not": { "required": ["root"] }
+      }
     }
   ],
   "definitions": {
@@ -302,5 +330,5 @@
       "additionalProperties": true
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

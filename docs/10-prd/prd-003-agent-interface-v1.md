@@ -149,14 +149,14 @@ This means:
 ### 1.4 Current Rollout Status (Feature-complete as of 2026-02-27)
 
 Agent Interface v1 is **feature-complete** across all CLI commands. All commands now support
-`--format json` and emit a deterministic v2 envelope conforming to the
+`--format json` and emit a deterministic v3 envelope conforming to the
 [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) normative contract.
 
 Completion date was updated from 2026-02-25 to 2026-02-27 to reflect the determinism-order clarification (severity tie-breaker), the deep-scan budget alignment to 10s, and the addition of explicit verification notes.
 
 Key milestones achieved:
 
-- **Unified envelope:** All commands emit the standard `output_schema_version: "2.0"` envelope.
+- **Unified envelope:** All commands emit the standard `output_schema_version: "3.0"` envelope.
 - **Deterministic ordering:** STDOUT JSON outputs follow the canonical key and array sorting rules.
 - **Structured errors:** Operational and validation failures use stable error codes and envelopes.
 - **Bootstrap command:** `meminit context` is implemented for automated repo discovery.
@@ -1231,13 +1231,13 @@ implemented.
 
 ## 14. Output Contract (v2 Normative)
 
-This PRD defines the **product requirement**; the normative v2 contract
-lives in [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md). This section summarizes the v2 envelope for
+This PRD defines the **product requirement**; the normative v3 contract
+lives in [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md). This section summarizes the v3 envelope for
 human reviewers and agent builders.
 
 > [!IMPORTANT]
-> **All migrated commands MUST emit `output_schema_version: "2.0"`.**
-> The v1 baseline is deprecated; new migrations should target v2 directly.
+> **All migrated commands MUST emit `output_schema_version: "3.0"`.**
+> The v1/v2 baselines are deprecated; new migrations should target v3 directly.
 
 > [!NOTE]
 > JSON examples in this PRD are formatted across multiple lines for human
@@ -1796,15 +1796,14 @@ allows omission, producers should consistently provide `command`.
 
 **Implementation note:** Update [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) to make `command` required.
 
-### 20.2 `root` Field: REQUIRED and Always Absolute
+### 20.2 `root` Field: Conditional, Absolute When Present
 
-**Decision:** The `root` field is REQUIRED and MUST be absolute in JSON mode.
+**Decision:** The `root` field is REQUIRED for repo-aware commands (those accepting `--root`) and MUST be absolute when present. Repo-agnostic commands (`capabilities`, `explain`, `org install`) MUST NOT include `root`.
 
 **Rationale:** Agents frequently need to compute safe relative paths, and having
-the root available avoids a second filesystem call. If CI log privacy is a
-concern, add `--redact-paths` (or equivalent) instead of removing `root` entirely.
+the root available avoids a second filesystem call. However, repo-agnostic commands have no meaningful root concept, and including a cwd-dependent path makes their output non-deterministic (PLAN-010 §3.3.2).
 
-**Implementation note:** All commands must include absolute `root` in JSON output.
+**Implementation note:** Repo-aware commands must include absolute `root` in JSON output. Repo-agnostic commands must omit `root`. The v3 schema enforces this via `if/then` rules.
 
 ### 20.3 `timestamp` Field: OMIT by Default
 
@@ -1887,7 +1886,7 @@ and expand [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) to 
 **Rationale:** Removes ambiguity and reduces long-term maintenance. The v1
 baseline would only exist during migration, creating confusion.
 
-**Implementation note:** All newly migrated commands emit `output_schema_version: "2.0"`.
+**Implementation note:** All newly migrated commands emit `output_schema_version: "3.0"`.
 
 ---
 

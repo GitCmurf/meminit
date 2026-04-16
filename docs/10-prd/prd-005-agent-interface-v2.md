@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.2"
-last_updated: 2026-02-23
+version: "0.3"
+last_updated: 2026-04-15
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -37,8 +37,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
-> **Last Updated:** 2026-02-23
+> **Version:** 0.3
+> **Last Updated:** 2026-04-15
 > **Type:** PRD
 > **Area:** Agentic Integration
 
@@ -350,6 +350,30 @@ trying to make protocol files authoritative.
 
 ---
 
+## 8.5 Phase 1 Implementation Status
+
+The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
+
+- `meminit capabilities --format json` — deterministic, repo-independent data payload
+- `--correlation-id` support across all `agent_output_options()` commands, with JSON error envelope for invalid values
+- `meminit explain <ERROR_CODE> --format json` — structured remediation for all ErrorCode members
+- `meminit explain --list --format json` — full error code enumeration
+- `UNKNOWN_ERROR_CODE` added to ErrorCode enum and MEMINIT-SPEC-006
+- `additionalProperties: false` enforced in `agent-output.schema.v3.json`
+- `correlation_id` schema constraint (no whitespace, max 128 chars)
+- Error explanations co-located with ErrorCode enum per MEMINIT-PLAN-010 §3.4.3
+- Contract-matrix tests covering all JSON-capable commands (90 passed, 4 acceptable skips)
+- `root` field conditional: present for repo-aware commands, omitted for repo-agnostic (capabilities, explain, org install)
+- Schema version bumped to v3 (`output_schema_version: "3.0"`) to signal the conditional root contract
+
+Remaining items (future phases):
+
+- FR-3: NDJSON streaming output mode
+- FR-4: Structured logging surface
+- FR-6: Agent protocol integration and drift detection
+
+---
+
 ## 9. Acceptance Criteria (Ship-Ready Definition)
 
 This PRD is considered implemented when:
@@ -395,3 +419,4 @@ This PRD is considered implemented when:
 | ------- | ---------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
 | 0.1     | 2026-02-23 | System    | Created via `meminit new PRD`.                                                                                              |
 | 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry. |
+| 0.3     | 2026-04-15 | GitCmurf | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped |

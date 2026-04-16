@@ -53,7 +53,7 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     plan_data = json.loads(plan_path.read_text(encoding="utf-8"))
     
     # The written plan should be a full envelope natively describing the plan
-    assert plan_data["output_schema_version"] == "2.0"
+    assert plan_data["output_schema_version"] == "3.0"
     assert "plan" in plan_data["data"]
     actions = plan_data["data"]["plan"]["actions"]
     assert len(actions) > 0
@@ -72,7 +72,7 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     # But since it's dry run, it didn't fix them.
     # Let's just check the envelope
     fix_dry_env = json.loads(fix_dry_result.output.strip().splitlines()[-1])
-    assert fix_dry_env["output_schema_version"] == "2.0"
+    assert fix_dry_env["output_schema_version"] == "3.0"
     
     # The file should NOT be moved yet
     assert not (docs_dir / "45-adr" / "the-best-architecture.md").exists()

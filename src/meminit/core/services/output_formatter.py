@@ -1,7 +1,7 @@
-"""Shared v2 output envelope formatter for the Meminit CLI.
+"""Shared v3 output envelope formatter for the Meminit CLI.
 
 This module builds deterministic, single-line JSON envelopes that conform to
-the v2 agent output contract defined in SPEC-008 and PRD-003.
+the v3 agent output contract defined in SPEC-008 and PRD-003.
 
 Key guarantees:
 - Deterministic key ordering (§16.1 of PRD-003)
@@ -11,7 +11,7 @@ Key guarantees:
 - data always present (defaults to {})
 - timestamp only included when explicitly requested
 - run_id is a full UUIDv4
-- root is always an absolute path
+- root is an absolute path when present (omitted for repo-agnostic commands)
 - Single-line JSON output
 """
 
@@ -22,19 +22,20 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft7Validator
+from jsonschema import Draft7Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
 from meminit.core.services.error_codes import ErrorCode
-from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
-# Canonical key ordering for the top-level v2 envelope.
+# Canonical key ordering for the top-level envelope.
 # Keys not in this list are appended in sorted order after `error`.
 _ENVELOPE_KEY_ORDER = [
     "output_schema_version",
     "success",
     "command",
     "run_id",
+    "correlation_id",
     "timestamp",
     "root",
     "files_checked",
@@ -66,11 +67,11 @@ def _get_schema_validator() -> Draft7Validator:
     try:
         schema_text = (
             resources.files("meminit.core.assets")
-            .joinpath("agent-output.schema.v2.json")
+            .joinpath("agent-output.schema.v3.json")
             .read_text(encoding="utf-8")
         )
         schema = json.loads(schema_text)
-        _SCHEMA_VALIDATOR = Draft7Validator(schema)
+        _SCHEMA_VALIDATOR = Draft7Validator(schema, format_checker=FormatChecker())
     except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError) as e:
         raise RuntimeError("Failed to load or parse output schema") from e
     return _SCHEMA_VALIDATOR
@@ -217,6 +218,25 @@ def generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
+def normalize_correlation_id(correlation_id: str | None) -> str | None:
+    """Validate and normalize a caller-supplied correlation ID.
+
+    Returns the string as-is if valid, None if input is None (field omitted),
+    or raises ValueError on invalid input.
+    """
+    if correlation_id is None:
+        return None
+    if len(correlation_id) > 128:
+        raise ValueError(
+            f"correlation_id exceeds 128 characters (got {len(correlation_id)})"
+        )
+    if not correlation_id:
+        raise ValueError("correlation_id must not be empty")
+    if any(c.isspace() for c in correlation_id):
+        raise ValueError("correlation_id must not contain whitespace")
+    return correlation_id
+
+
 def _normalize_run_id(run_id: str | None) -> str:
     """Validate or generate a UUIDv4 run_id."""
     if run_id is None:
@@ -233,7 +253,7 @@ def _normalize_run_id(run_id: str | None) -> str:
 def format_envelope(
     *,
     command: str,
-    root: str | Path,
+    root: str | Path | None = None,
     success: bool,
     data: dict | None = None,
     warnings: list | None = None,
@@ -242,13 +262,15 @@ def format_envelope(
     error: dict | None = None,
     include_timestamp: bool = False,
     run_id: str | None = None,
+    correlation_id: str | None = None,
     extra_top_level: dict | None = None,
 ) -> str:
-    """Build a v2 JSON envelope as a deterministic single-line string.
+    """Build a v3 JSON envelope as a deterministic single-line string.
 
     Args:
         command: CLI subcommand name (e.g. "check", "context").
         root: Repository root path (will be resolved to absolute).
+            Omit from envelope when None (repo-agnostic commands).
         success: Whether the command completed without fatal error.
         data: Command-specific payload. Defaults to {}.
         warnings: Non-fatal issues. Defaults to [].
@@ -257,28 +279,33 @@ def format_envelope(
         error: Operational error object (code, message, optional details).
         include_timestamp: If True, include ISO 8601 UTC timestamp.
         run_id: Override run_id (must be a UUIDv4).
+        correlation_id: Caller-supplied orchestration token (max 128 chars,
+            no whitespace). Omitted from envelope when None.
         extra_top_level: Additional top-level fields (e.g. check counters).
             These are placed after the standard envelope keys in sorted order.
 
     Returns:
         A single-line JSON string with no trailing newline.
     """
-    # Resolve root to absolute path.
-    root_str = Path(root).resolve().as_posix()
-
     envelope: dict[str, Any] = {
-        "output_schema_version": OUTPUT_SCHEMA_VERSION_V2,
+        "output_schema_version": OUTPUT_SCHEMA_VERSION_V3,
         "success": success,
         "command": command,
         "run_id": _normalize_run_id(run_id),
     }
+
+    cid = normalize_correlation_id(correlation_id)
+    if cid is not None:
+        envelope["correlation_id"] = cid
 
     if include_timestamp:
         envelope["timestamp"] = (
             datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         )
 
-    envelope["root"] = root_str
+    if root is not None:
+        envelope["root"] = Path(root).resolve().as_posix()
+
     envelope["data"] = _recursively_sort_keys(data if data is not None else {})
     envelope["warnings"] = [
         _recursively_sort_keys(w) for w in _sort_warnings(warnings or [])
@@ -300,6 +327,7 @@ def format_envelope(
             "success",
             "command",
             "run_id",
+            "correlation_id",
             "timestamp",
             "root",
             "data",
@@ -333,25 +361,27 @@ def format_envelope(
 def format_error_envelope(
     *,
     command: str,
-    root: str | Path,
+    root: str | Path | None = None,
     error_code: ErrorCode,
     message: str,
     details: dict | None = None,
     include_timestamp: bool = False,
     run_id: str | None = None,
+    correlation_id: str | None = None,
 ) -> str:
-    """Build a v2 error envelope as a deterministic single-line string.
+    """Build a v3 error envelope as a deterministic single-line string.
 
     Convenience wrapper around format_envelope for operational error responses.
 
     Args:
         command: CLI subcommand name.
-        root: Repository root path.
+        root: Repository root path. Omit for repo-agnostic commands.
         error_code: ErrorCode enum value.
         message: Human-readable error description.
         details: Optional structured error context.
         include_timestamp: If True, include ISO 8601 UTC timestamp.
         run_id: Override run_id.
+        correlation_id: Caller-supplied orchestration token.
 
     Returns:
         A single-line JSON string with no trailing newline.
@@ -367,4 +397,5 @@ def format_error_envelope(
         error=error_obj,
         include_timestamp=include_timestamp,
         run_id=run_id,
+        correlation_id=correlation_id,
     )

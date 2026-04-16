@@ -6,6 +6,7 @@ duplication and ensure consistency (PRD-003 FR-4, FR-7).
 
 import functools
 import os
+from typing import Any, Dict
 
 import click
 
@@ -66,6 +67,33 @@ def include_timestamp_option():
     return decorator
 
 
+def correlation_id_option():
+    """Add --correlation-id option with MEMINIT_CORRELATION_ID env var fallback.
+
+    CLI flag takes precedence. The env var is only used when the flag is absent.
+    Validation is deferred to command_output_handler so that JSON mode can
+    emit a structured error envelope instead of a raw Click usage error.
+    """
+
+    def decorator(f):
+        def _resolve_correlation_id(ctx, param, value):
+            if value is None:
+                env_val = os.environ.get("MEMINIT_CORRELATION_ID", "").strip()
+                if env_val:
+                    value = env_val
+            return value
+
+        return click.option(
+            "--correlation-id",
+            "correlation_id",
+            default=None,
+            callback=_resolve_correlation_id,
+            help="Cross-system correlation identifier (max 128 chars, no whitespace).",
+        )(f)
+
+    return decorator
+
+
 def with_log_silence():
     """Silence log events for machine-consumed outputs unless verbose is enabled."""
 
@@ -74,7 +102,7 @@ def with_log_silence():
         def wrapper(*args, **kwargs):
             previous = os.environ.get("MEMINIT_LOG_SILENT")
             format_value = kwargs.get("format")
-            
+
             verbose_value = False
             ctx = click.get_current_context(silent=True)
             if ctx and ctx.parent:
@@ -105,13 +133,13 @@ def with_log_silence():
 def agent_output_options():
     """Composite decorator applying all agent interface output flags.
 
-    Applies: --format, --output, --include-timestamp.
+    Applies: --format, --output, --include-timestamp, --correlation-id.
 
     Usage::
 
         @cli.command()
         @agent_output_options()
-        def my_command(format, output, include_timestamp, ...):
+        def my_command(format, output, include_timestamp, correlation_id, ...):
             ...
     """
 
@@ -119,6 +147,7 @@ def agent_output_options():
         f = format_option()(f)
         f = output_option()(f)
         f = include_timestamp_option()(f)
+        f = correlation_id_option()(f)
         f = with_log_silence()(f)
         return f
 
@@ -128,7 +157,7 @@ def agent_output_options():
 def agent_repo_options():
     """Composite decorator applying repo-root + agent interface output flags.
 
-    Applies: --root, --format, --output, --include-timestamp.
+    Applies: --root, --format, --output, --include-timestamp, --correlation-id.
     """
 
     def decorator(f):
@@ -137,3 +166,57 @@ def agent_repo_options():
         return f
 
     return decorator
+
+
+# ---------------------------------------------------------------------------
+# Capabilities registry for the 'meminit capabilities' command.
+# ---------------------------------------------------------------------------
+
+_CAPABILITIES_REGISTRY: Dict[str, Dict[str, Any]] = {}
+
+
+def register_capability(
+    name: str,
+    description: str,
+    *,
+    supports_json: bool = True,
+    supports_correlation_id: bool = True,
+    needs_root: bool = False,
+    agent_facing: bool,
+) -> None:
+    """Register a command's capability descriptor."""
+    _CAPABILITIES_REGISTRY[name] = {
+        "name": name,
+        "description": description,
+        "supports_json": supports_json,
+        "supports_correlation_id": supports_correlation_id,
+        "needs_root": needs_root,
+        "agent_facing": agent_facing,
+    }
+
+
+# Register all known commands. Each entry must correspond to a Click command
+# in main.py. The contract test enforces this invariant.
+register_capability("check", "Run compliance checks on the repository", needs_root=True, agent_facing=True)
+register_capability("doctor", "Diagnose common configuration issues", needs_root=True, agent_facing=True)
+register_capability("fix", "Auto-fix detected violations", needs_root=True, agent_facing=True)
+register_capability("scan", "Suggest a DocOps migration plan", needs_root=True, agent_facing=True)
+register_capability("install-precommit", "Install a pre-commit hook", needs_root=True, agent_facing=False)
+register_capability("index", "Build the document index", needs_root=True, agent_facing=True)
+register_capability("resolve", "Resolve a document_id to a file path", needs_root=True, agent_facing=True)
+register_capability("identify", "Identify a document's metadata", needs_root=True, agent_facing=True)
+register_capability("link", "Print a Markdown link for a document_id", needs_root=True, agent_facing=True)
+register_capability("migrate-ids", "Migrate legacy document_id values", needs_root=True, agent_facing=True)
+register_capability("migrate-templates", "Migrate legacy template configs", needs_root=True, agent_facing=True)
+register_capability("init", "Initialize a new DocOps repository", needs_root=True, agent_facing=True)
+register_capability("new", "Create a new document", needs_root=True, agent_facing=True)
+register_capability("adr new", "Create a new ADR", needs_root=True, agent_facing=True)
+register_capability("context", "Show repository DocOps context", needs_root=True, agent_facing=True)
+register_capability("org install", "Install org profile to XDG paths", agent_facing=False)
+register_capability("org vendor", "Vendor org profile into repo", needs_root=True, agent_facing=False)
+register_capability("org status", "Show org profile status", needs_root=True, agent_facing=False)
+register_capability("state set", "Set document implementation state", needs_root=True, agent_facing=True)
+register_capability("state get", "Get document implementation state", needs_root=True, agent_facing=True)
+register_capability("state list", "List all document states", needs_root=True, agent_facing=True)
+register_capability("capabilities", "Show CLI capabilities descriptor", agent_facing=True)
+register_capability("explain", "Explain a Meminit error code", agent_facing=True)

@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-003
 owner: Product Team
 approvers: GitCmurf
 status: Draft
-version: 0.4
-last_updated: 2026-02-18
+version: 0.5
+last_updated: 2026-04-14
 title: Project Roadmap
 type: PLAN
 docops_version: 2.0
@@ -16,7 +16,7 @@ docops_version: 2.0
 > **Owner:** Product Team
 > **Approvers:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
+> **Version:** 0.5
 > **Type:** Planning
 
 # Meminit Development Roadmap
@@ -107,6 +107,8 @@ Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
 - [ ] Automated Doc Generation
 - [ ] Semantic Search
 - Detailed sequencing for the next Meminit-native agent platform work is in [MEMINIT-PLAN-008](plan-008-agentic-coding-vnext-programme.md).
+- Phase 0 foundation hardening for that programme was decomposed and closed out in [MEMINIT-PLAN-009](plan-009-phase-0-detailed-implementation-plan.md).
+- Detailed implementation planning for the remaining programme phases is captured in [MEMINIT-PLAN-010](plan-010-phase-1-detailed-implementation-plan.md), [MEMINIT-PLAN-011](plan-011-phase-2-detailed-implementation-plan.md), [MEMINIT-PLAN-012](plan-012-phase-3-detailed-implementation-plan.md), [MEMINIT-PLAN-013](plan-013-phase-4-detailed-implementation-plan.md), and [MEMINIT-PLAN-014](plan-014-phase-5-detailed-implementation-plan.md).
 
 ## Phase 5: Ecosystem
 
