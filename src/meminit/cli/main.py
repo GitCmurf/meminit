@@ -1167,9 +1167,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
 
                 empty_plan = MigrationPlan(
                     plan_version="1.0",
-                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
-                        "%Y-%m-%dT%H:%M:%SZ"
-                    ),
+                    generated_at="1970-01-01T00:00:00Z",
                     config_fingerprint="",
                     actions=[],
                 )

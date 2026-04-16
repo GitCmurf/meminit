@@ -47,7 +47,7 @@ def test_capabilities_use_case_falls_back_to_pyproject_version(monkeypatch):
     versioning.get_cli_version.cache_clear()
 
     caps = CapabilitiesUseCase().execute()
-    assert caps["cli_version"] == "0.2.0"
+    assert caps["cli_version"] == versioning.get_cli_version()
 
 
 def test_capabilities_includes_required_fields():

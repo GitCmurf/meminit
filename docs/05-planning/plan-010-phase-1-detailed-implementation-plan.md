@@ -145,7 +145,7 @@ Implementation tasks:
 2. Audit every JSON-supporting command output and enumerate all
    command-specific top-level fields currently emitted outside the common
    envelope.
-3. Add `correlation_id` to `agent-output.schema.v2.json` as an optional
+3. Add `correlation_id` to `agent-output.schema.v3.json` as an optional
    string property.
 4. After the audit is complete, change top-level `additionalProperties` to
    `false` and ensure all command-specific fields are explicitly declared in
@@ -160,7 +160,7 @@ Acceptance criteria:
 
 1. The normative document set names every new field and command introduced by
    this phase.
-2. `agent-output.schema.v2.json` validates `correlation_id` when present
+2. `agent-output.schema.v3.json` validates `correlation_id` when present
    and either rejects unknown top-level fields after a complete surface audit
    or records an explicit deferment for that tightening step.
 3. The `_ENVELOPE_KEY_ORDER` places `correlation_id` after `run_id`.

@@ -36,7 +36,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
-> **Status:** In Progress
+> **Status:** Draft
 > **Version:** 0.3
 > **Last Updated:** 2026-04-15
 > **Type:** PRD
@@ -356,7 +356,7 @@ The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 
 - `meminit capabilities --format json` — deterministic, repo-independent data payload
 - `--correlation-id` support across all `agent_output_options()` commands, with JSON error envelope for invalid values
-- `meminit explain <ERROR_CODE> --format json` — structured remediation for all 33 ErrorCode members
+- `meminit explain <ERROR_CODE> --format json` — structured remediation for all ErrorCode members
 - `meminit explain --list --format json` — full error code enumeration
 - `UNKNOWN_ERROR_CODE` added to ErrorCode enum and MEMINIT-SPEC-006
 - `additionalProperties: false` enforced in `agent-output.schema.v3.json`

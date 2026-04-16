@@ -111,10 +111,7 @@ type_directories:
     )
 
 
-def _stdout_text(result) -> str:
-    if hasattr(result, "stdout"):
-        return result.stdout
-    return result.output
+from tests.helpers import stdout_text as _stdout_text
 
 
 def _stderr_text(result) -> str:

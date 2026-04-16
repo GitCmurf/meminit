@@ -50,10 +50,9 @@ platform for agentic coding agents operating at scale.
 
 The current gaps are structural, not cosmetic:
 
-1. The CLI is not yet self-describing at runtime.
-   - There is no `meminit capabilities --format json`.
-   - There is no `--correlation-id`.
-   - There is no machine-readable `explain` path for error codes.
+1. The CLI was not yet self-describing at runtime.
+   - `meminit capabilities --format json` and `--correlation-id` are now shipped (Phase 1).
+   - Machine-readable `explain` path is now shipped (Phase 1).
 2. The repository index is still an inventory, not a graph.
    - It does not yet expose resolved cross-document links or supersession
      edges as committed in MEMINIT-STRAT-001.

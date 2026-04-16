@@ -345,7 +345,7 @@ command. The index builder already has the full node and edge sets in memory
 when it writes the artifact. Checks are applied after edge extraction and
 before serialization. Fatal diagnostics are added to the top-level
 `violations` array, warning-severity diagnostics are added to `warnings`, and
-advisory diagnostics such as `RELATED_ID_ASYMMETRY` are added to `advice`.
+advisory diagnostics such as `GRAPH_RELATED_ID_ASYMMETRY` are added to `advice`.
 
 This avoids the stale-artifact problem entirely: there is no separate
 "validate the index" step that could consume an outdated file.

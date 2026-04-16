@@ -14,7 +14,7 @@ from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
 from meminit.core.use_cases.capabilities import CapabilitiesUseCase
-from tests.helpers import parse_first_json_line
+from tests.helpers import parse_first_json_line, stdout_text
 
 
 @pytest.fixture(scope="module")
@@ -152,8 +152,9 @@ def _invoke_and_assert_output(name: str, tmp_path: Path, extra_args: list[str] |
     args = _build_args(name, tmp_path)
     if extra_args:
         args.extend(extra_args)
+    env = {k: v for k, v in os.environ.items()}
+    env["MEMINIT_CORRELATION_ID"] = None
     runner = CliRunner()
-    env = {k: v for k, v in os.environ.items() if k != "MEMINIT_CORRELATION_ID"}
     result = runner.invoke(cli, args, env=env)
 
     assert result.exit_code != 2, (
@@ -226,10 +227,11 @@ class TestEnvelopeValidity:
         _setup_fixture(name, tmp_path)
 
         result = _invoke_and_assert_output(name, tmp_path)
-        try:
-            parse_first_json_line(result.output)
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Output is not valid JSON: {e}")
+        non_empty_lines = [line for line in stdout_text(result).splitlines() if line.strip()]
+        assert len(non_empty_lines) == 1, (
+            f"Expected exactly one non-empty stdout line, got {len(non_empty_lines)}: {non_empty_lines!r}"
+        )
+        json.loads(non_empty_lines[0])
 
     @pytest.mark.parametrize(
         "cmd_info",
