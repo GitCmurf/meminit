@@ -125,7 +125,7 @@ def command_output_handler(
                 get_console().print(
                     f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]"
                 )
-        raise SystemExit(exit_code_for_error(e.code))
+        raise SystemExit(exit_code_for_error(e.code)) from e
     except Exception as e:
         # Secure error handling (Item 2): Mask raw exceptions in user-facing message
         safe_msg = "An unexpected internal error occurred."
@@ -1120,6 +1120,13 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
         scan_data = report.as_dict()
 
         if plan and report.plan:
+            plan_path = Path(plan)
+            if not _is_safe_path(plan_path):
+                raise MeminitError(
+                    ErrorCode.PATH_ESCAPE,
+                    f"Plan path is considered unsafe: {plan}",
+                    details={"plan_path": plan},
+                )
             try:
                 plan_json = format_envelope(
                     command="scan",
@@ -1130,22 +1137,6 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     run_id=run_id,
                     correlation_id=correlation_id,
                 )
-                plan_path = Path(plan)
-                if not _is_safe_path(plan_path):
-                    _write_output(
-                        format_error_envelope(
-                            command="scan",
-                            root=str(root_path),
-                            error_code=ErrorCode.PATH_ESCAPE,
-                            message=f"Plan path is considered unsafe: {plan}",
-                            details={"plan_path": plan},
-                            include_timestamp=include_timestamp,
-                            run_id=run_id,
-                            correlation_id=correlation_id,
-                        ),
-                        output,
-                    )
-                    raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
                 with open(plan_path, "w", encoding="utf-8") as f:
                     f.write(plan_json + "\n")
                 if format != "json":
