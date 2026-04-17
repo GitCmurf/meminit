@@ -55,20 +55,20 @@ def test_cli_index_filtering_does_not_persist(repo_with_docs):
     runner.invoke(cli, ["index", "--root", str(repo_with_docs)])
     index_path = repo_with_docs / "docs" / "01-indices" / "meminit.index.json"
     full_data = json.loads(index_path.read_text())
-    assert len(full_data["data"]["documents"]) == 2
-    
+    assert len(full_data["data"]["nodes"]) == 2
+
     # 2. Run filtered index
     result = runner.invoke(cli, ["index", "--status", "Draft", "--root", str(repo_with_docs), "--format", "json"])
     assert result.exit_code == 0
-    
+
     # Check JSON output in stdout (should be filtered)
     stdout_data = json.loads(result.output.strip().splitlines()[-1])
     assert stdout_data["data"]["document_count"] == 1
-    assert stdout_data["data"]["documents"][0]["document_id"] == "TEST-ADR-002"
-    
+    assert stdout_data["data"]["nodes"][0]["document_id"] == "TEST-ADR-002"
+
     # Check index file on disk (should NOT be filtered)
     disk_data = json.loads(index_path.read_text())
-    assert len(disk_data["data"]["documents"]) == 2, "Canonical index file was incorrectly filtered!"
+    assert len(disk_data["data"]["nodes"]) == 2, "Canonical index file was incorrectly filtered!"
 
 def test_cli_state_list_json(repo_with_docs):
     runner = runner_no_mixed_stderr()

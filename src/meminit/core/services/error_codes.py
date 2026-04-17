@@ -64,6 +64,10 @@ class ErrorCode(str, Enum):
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
     INVALID_ROOT_PATH = "INVALID_ROOT_PATH"
 
+    # Graph integrity error codes (Phase 2)
+    GRAPH_DUPLICATE_DOCUMENT_ID = "GRAPH_DUPLICATE_DOCUMENT_ID"
+    GRAPH_SUPERSESSION_CYCLE = "GRAPH_SUPERSESSION_CYCLE"
+
 
 # ---------------------------------------------------------------------------
 # Error explanation registry (co-located with ErrorCode per MEMINIT-PLAN-010 §3.4.3)
@@ -521,6 +525,33 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["explain"],
         ),
         spec_reference="MEMINIT-PRD-005",
+    ),
+    # -- Graph integrity error codes --
+    ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID.value: ErrorExplanation(
+        code=ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID.value,
+        category="graph",
+        summary="Two or more files declare the same document_id.",
+        cause="A document_id collision was detected during index build. Edges become ambiguous when multiple files share the same identifier.",
+        remediation=RemediationInfo(
+            action="Rename or re-sequence one of the conflicting documents so each document_id is unique.",
+            resolution_type="manual",
+            automatable=True,
+            relevant_commands=["migrate-ids"],
+        ),
+        spec_reference="MEMINIT-PLAN-011",
+    ),
+    ErrorCode.GRAPH_SUPERSESSION_CYCLE.value: ErrorExplanation(
+        code=ErrorCode.GRAPH_SUPERSESSION_CYCLE.value,
+        category="graph",
+        summary="A supersession chain forms a cycle.",
+        cause="Following superseded_by links produces a loop (e.g., A superseded by B, B superseded by C, C superseded by A).",
+        remediation=RemediationInfo(
+            action="Break the cycle by correcting the superseded_by values so the chain is acyclic.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["fix", "check"],
+        ),
+        spec_reference="MEMINIT-PLAN-011",
     ),
 }
 

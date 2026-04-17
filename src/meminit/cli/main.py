@@ -1555,7 +1555,8 @@ def index(
         data: Dict[str, Any] = {
             "index_path": relative_path_string(report.index_path, root_path),
             "document_count": report.document_count,
-            "documents": report.documents,
+            "nodes": report.documents,
+            "edges": report.edges,
         }
         if report.catalog_path:
             data["catalog_path"] = relative_path_string(report.catalog_path, root_path)

@@ -96,11 +96,15 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
             f"expected a JSON object at the top level, got {type(data).__name__}"
         )
 
-    # v2: documents nested under "data"; v1: documents at top level
+    # v1.0 graph schema: nodes under data; v0.2: documents under data; v1: documents at top level
     data_field = data.get("data")
-    if isinstance(data_field, dict) and "documents" in data_field:
-        docs = data_field.get("documents")
-        return docs if isinstance(docs, list) else []
+    if isinstance(data_field, dict):
+        if "nodes" in data_field:
+            docs = data_field.get("nodes")
+            return docs if isinstance(docs, list) else []
+        if "documents" in data_field:
+            docs = data_field.get("documents")
+            return docs if isinstance(docs, list) else []
     if "documents" in data:
         docs = data.get("documents")
         return docs if isinstance(docs, list) else []

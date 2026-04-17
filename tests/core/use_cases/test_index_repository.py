@@ -32,9 +32,9 @@ version: 0.1
 last_updated: {last_updated}
 owner: {owner}
 docops_version: 2.0
----
-
+{extra_frontmatter}---
 # {doc_type}: {title}
+{body}
 """
 
 
@@ -48,6 +48,8 @@ def _setup_doc(
     last_updated: str = "2025-12-21",
     subdir: str = "45-adr",
     filename: str | None = None,
+    body: str = "",
+    extra_frontmatter: str = "",
 ) -> Path:
     """Create a governed document under docs/."""
     docs_dir = root / "docs" / subdir
@@ -61,6 +63,8 @@ def _setup_doc(
         status=status,
         last_updated=last_updated,
         owner=owner,
+        extra_frontmatter=extra_frontmatter,
+        body=body,
     )
     doc_path.write_text(content, encoding="utf-8")
     return doc_path
@@ -92,7 +96,7 @@ def test_index_repository_builds_index(tmp_path):
     assert text.endswith("\n")
     payload = json.loads(text)
     assert payload["output_schema_version"] == "2.0"
-    assert payload["data"]["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    assert payload["data"]["nodes"][0]["document_id"] == "EXAMPLE-ADR-001"
     assert "run_id" not in payload
     assert "root" not in payload
     assert "generated_at" not in payload["data"]
@@ -156,7 +160,7 @@ def test_index_merges_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     assert doc["impl_state"] == "In Progress"
     assert doc["updated_by"] == "GitCmurf"
     assert doc["notes"] == "Phase 1"
@@ -170,7 +174,7 @@ def test_index_without_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     assert "impl_state" not in doc
     assert "updated_by" not in doc
 
@@ -377,7 +381,7 @@ def test_index_filter_by_impl_state(tmp_path):
     assert report.document_count == 1
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    ids = {d["document_id"] for d in payload["data"]["documents"]}
+    ids = {d["document_id"] for d in payload["data"]["nodes"]}
     assert ids == {"EXAMPLE-ADR-001", "EXAMPLE-ADR-002"}
 
 
@@ -442,10 +446,200 @@ def test_index_json_has_required_fields_for_resolve(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     # Existing required fields for downstream consumers.
     assert "document_id" in doc
     assert "path" in doc
     assert "type" in doc
     assert "title" in doc
     assert "status" in doc
+    # Graph fields present in node entries.
+    assert "area" in doc
+    assert "keywords" in doc
+    assert "related_ids" in doc
+    assert "superseded_by" in doc
+
+
+# ---------------------------------------------------------------------------
+# Graph integration tests (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def test_index_generates_related_edges(tmp_path):
+    """related_ids in frontmatter produces 'related' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    related_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "related"]
+    assert len(related_edges) == 1
+    assert related_edges[0]["source"] == "EXAMPLE-ADR-001"
+    assert related_edges[0]["target"] == "EXAMPLE-ADR-002"
+
+
+def test_index_generates_supersedes_edges(tmp_path):
+    """superseded_by in frontmatter produces 'supersedes' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    supersedes_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "supersedes"]
+    assert len(supersedes_edges) == 1
+    assert supersedes_edges[0]["source"] == "EXAMPLE-ADR-001"
+    assert supersedes_edges[0]["target"] == "EXAMPLE-ADR-002"
+
+
+def test_index_generates_reference_edges(tmp_path):
+    """Body links to other governed docs produce 'references' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        body="See [ADR-002](adr-002.md) for details.",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    ref_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "references"]
+    assert len(ref_edges) == 1
+    assert ref_edges[0]["source"] == "EXAMPLE-ADR-001"
+    assert ref_edges[0]["target"] == "EXAMPLE-ADR-002"
+
+
+def test_index_edges_sorted_deterministically(tmp_path):
+    """Edges are sorted by (source, target, edge_type)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-003", filename="adr-003.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    payload = json.loads(
+        (tmp_path / "docs" / "01-indices" / "meminit.index.json").read_text(encoding="utf-8")
+    )
+    edge_keys = [(e["source"], e["target"], e["edge_type"]) for e in payload["data"]["edges"]]
+    assert edge_keys == sorted(edge_keys)
+
+
+def test_index_byte_identity(tmp_path):
+    """Two index runs on same content produce byte-identical JSON."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", title="Other ADR")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    first_report = use_case.execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = use_case.execute()
+    second_bytes = second_report.index_path.read_bytes()
+
+    assert first_bytes == second_bytes
+
+
+def test_index_fatal_on_duplicate_document_id(tmp_path):
+    """Duplicate document_id across two files raises GRAPH_DUPLICATE_DOCUMENT_ID."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-duplicate.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+
+def test_index_fatal_on_supersession_cycle(tmp_path):
+    """Supersession cycle raises error and prevents artifact write."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-002",
+        status="Superseded",
+        filename="adr-002.md",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+
+def test_index_warns_on_dangling_related(tmp_path):
+    """Dangling related_ids target produces a warning."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-999\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "W_GRAPH_DANGLING_RELATED_ID" in codes
+
+    # Dangling edge is still emitted.
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    dangling = [e for e in payload["data"]["edges"] if e["target"] == "EXAMPLE-ADR-999"]
+    assert len(dangling) == 1
+
+
+def test_index_warns_on_supersession_status_mismatch(tmp_path):
+    """superseded_by without Superseded status produces a warning."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Draft",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "W_GRAPH_SUPERSESSION_STATUS_MISMATCH" in codes
+
+
+def test_index_advises_on_related_asymmetry(tmp_path):
+    """Asymmetric related_ids produces advice."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [a["code"] for a in report.advice]
+    assert "GRAPH_RELATED_ID_ASYMMETRY" in codes
+
+
+def test_index_graph_schema_version(tmp_path):
+    """Persisted index includes graph_schema_version."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    assert payload["data"]["index_version"] == "1.0"
+    assert payload["data"]["graph_schema_version"] == "1.0"
+    assert "nodes" in payload["data"]
+    assert "edges" in payload["data"]

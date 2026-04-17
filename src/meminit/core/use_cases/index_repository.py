@@ -41,6 +41,7 @@ from meminit.core.services.sanitization import (
     validate_actor,
 )
 from meminit.core.services.warning_codes import WarningCode
+from meminit.core.services import graph
 
 
 def _json_default(obj: Any) -> str:
@@ -63,8 +64,10 @@ def _build_persisted_index_payload(
     *,
     layout_namespaces: Sequence[Any],
     document_count: int,
-    documents: List[Dict[str, Any]],
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
     warnings: List[Dict[str, Any]],
+    advice: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """Build the stable on-disk index artifact.
 
@@ -76,7 +79,8 @@ def _build_persisted_index_payload(
         "success": True,
         "command": "index",
         "data": {
-            "index_version": "0.2",
+            "index_version": "1.0",
+            "graph_schema_version": "1.0",
             "namespaces": [
                 {
                     "namespace": ns.namespace,
@@ -86,11 +90,12 @@ def _build_persisted_index_payload(
                 for ns in layout_namespaces
             ],
             "document_count": document_count,
-            "documents": documents,
+            "nodes": nodes,
+            "edges": edges,
         },
         "warnings": warnings,
         "violations": [],
-        "advice": [],
+        "advice": advice,
     }
 
 
@@ -108,6 +113,8 @@ class IndexBuildReport:
     kanban_css_path: Optional[Path] = None
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     documents: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+    advice: List[Dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -744,6 +751,7 @@ class IndexRepositoryUseCase:
         # Scan governed documents.
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
+        doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -763,8 +771,9 @@ class IndexRepositoryUseCase:
                     continue
                 doc_id = doc_id.strip()
                 known_doc_ids.add(doc_id)
-
                 rel_path = path.relative_to(self._root_dir).as_posix()
+                doc_id_paths.setdefault(doc_id, []).append(rel_path)
+
                 entry: Dict[str, Any] = {
                     "document_id": doc_id,
                     "path": rel_path,
@@ -780,6 +789,12 @@ class IndexRepositoryUseCase:
                         post.metadata.get("owner"), max_length=None, html_escape=True
                     ),
                     "last_updated": post.metadata.get("last_updated"),
+                    # New graph fields from frontmatter.
+                    "area": post.metadata.get("area"),
+                    "description": post.metadata.get("description"),
+                    "keywords": post.metadata.get("keywords"),
+                    "superseded_by": post.metadata.get("superseded_by"),
+                    "related_ids": post.metadata.get("related_ids"),
                 }
 
                 # Merge state (additive — new optional fields).
@@ -816,6 +831,9 @@ class IndexRepositoryUseCase:
 
                         state_updated = state_entry.updated
 
+                # Capture body for reference edge extraction (stripped before JSON output).
+                entry["_body"] = post.content
+
                 # Compute activity recency (used for sorting, not stored in JSON) - always calculate
                 entry["_recency"] = _activity_recency(
                     entry.get("last_updated"),
@@ -823,6 +841,25 @@ class IndexRepositoryUseCase:
                 )
 
                 entries.append(entry)
+
+        # --- Graph pipeline ---
+
+        # Build path → doc_id map and extract edges.
+        path_to_doc_id = {e["path"]: e["document_id"] for e in entries}
+        all_edges = graph.build_edge_set(entries, path_to_doc_id, self._root_dir)
+
+        # Run graph integrity validation (checks duplicates, cycles, dangling refs, etc.).
+        graph_warnings, graph_advice, graph_fatal = graph.validate_graph_integrity(
+            entries, all_edges, known_doc_ids, doc_id_paths,
+        )
+        if graph_fatal:
+            raise MeminitError(
+                code=ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID,
+                message=graph_fatal[0]["message"],
+                details={"errors": graph_fatal},
+            )
+
+        warnings_list.extend(graph_warnings)
 
         # Validate project state (advisory warnings).
         if project_state:
@@ -844,24 +881,23 @@ class IndexRepositoryUseCase:
         # Apply filters.
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
 
-        # Write main index JSON (recency field stripped — internal only).
+        # Write main index JSON (recency/body fields stripped — internal only).
         # Keep canonical JSON unfiltered for downstream commands that depend on
         # full repository inventory (resolve/identify/link). Filters are for
         # command output and generated views only.
         sorted_entries = sorted(entries, key=lambda e: e.get("document_id", ""))
-        sorted_entries.sort(
-            key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)),
-            reverse=True,
-        )
-        json_entries = [
+        json_nodes = [
             {k: v for k, v in e.items() if not k.startswith("_")}
             for e in sorted_entries
         ]
+        json_edges = [e.to_dict() for e in all_edges]
         payload = _build_persisted_index_payload(
             layout_namespaces=self._layout.namespaces,
-            document_count=len(json_entries),
-            documents=json_entries,
+            document_count=len(json_nodes),
+            nodes=json_nodes,
+            edges=json_edges,
             warnings=warnings_list,
+            advice=graph_advice,
         )
         index_path.write_text(
             json.dumps(payload, indent=2, default=_json_default) + "\n",
@@ -922,4 +958,6 @@ class IndexRepositoryUseCase:
             kanban_css_path=kanban_css_path,
             warnings=warnings_list,
             documents=json_filtered,
+            edges=json_edges,
+            advice=graph_advice,
         )
