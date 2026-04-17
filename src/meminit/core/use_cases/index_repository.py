@@ -23,6 +23,10 @@ import frontmatter
 
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.diagnostics import (
+    canonicalize_advice_list,
+    canonicalize_warning_list,
+)
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
@@ -903,8 +907,8 @@ class IndexRepositoryUseCase:
             document_count=len(json_nodes),
             nodes=json_nodes,
             edges=json_edges,
-            warnings=warnings_list,
-            advice=graph_advice,
+            warnings=canonicalize_warning_list(warnings_list),
+            advice=canonicalize_advice_list(graph_advice),
         )
         index_path.write_text(
             json.dumps(payload, indent=2, default=_json_default) + "\n",

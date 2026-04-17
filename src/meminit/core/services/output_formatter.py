@@ -25,6 +25,14 @@ from typing import Any
 from jsonschema import Draft7Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
+from meminit.core.services.diagnostics import (
+    canonicalize_advice_list,
+    canonicalize_warning_list,
+    recursively_sort_keys,
+    sort_advice,
+    sort_warnings,
+    strip_none_line,
+)
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
@@ -99,15 +107,6 @@ def _sort_key_index(key: str) -> tuple[int, str]:
         return (len(_ENVELOPE_KEY_ORDER), key)
 
 
-def _recursively_sort_keys(obj: Any) -> Any:
-    """Recursively sort dictionary keys for deterministic output."""
-    if isinstance(obj, dict):
-        return {k: _recursively_sort_keys(v) for k, v in sorted(obj.items())}
-    if isinstance(obj, list):
-        return [_recursively_sort_keys(item) for item in obj]
-    return obj
-
-
 def _get_line_key(line: Any) -> tuple:
     """Helper to sort None after numeric lines."""
     if line is None:
@@ -118,29 +117,9 @@ def _get_line_key(line: Any) -> tuple:
         return (2, str(line))
 
 
-def _strip_none_line(item: dict[str, Any]) -> dict[str, Any]:
-    """Remove line key when value is None to satisfy schema expectations."""
-    if "line" in item and item.get("line") is None:
-        cleaned = dict(item)
-        cleaned.pop("line", None)
-        return cleaned
-    return item
-
-
 def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort warnings by (path, line, code, message) per PRD §16.1."""
-
-    cleaned = [_strip_none_line(w) for w in warnings]
-
-    def _key(w: dict[str, Any]) -> tuple:
-        return (
-            w.get("path", ""),
-            *_get_line_key(w.get("line")),
-            w.get("code", ""),
-            w.get("message", ""),
-        )
-
-    return sorted(cleaned, key=_key)
+    return sort_warnings(warnings)
 
 
 def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -185,10 +164,10 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for item in violations:
         if "violations" in item and isinstance(item["violations"], list):
             new_item = item.copy()
-            new_item["violations"] = [_strip_none_line(v) for v in item["violations"]]
+            new_item["violations"] = [strip_none_line(v) for v in item["violations"]]
             cleaned_outer.append(new_item)
         else:
-            cleaned_outer.append(_strip_none_line(item))
+            cleaned_outer.append(strip_none_line(item))
 
     sorted_outer = sorted(cleaned_outer, key=_outer_key)
 
@@ -206,11 +185,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _sort_advice(advice: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort advice by (code, message) per SPEC-008 §6."""
-
-    def _key(a: dict[str, Any]) -> tuple:
-        return (a.get("code", ""), a.get("message", ""))
-
-    return sorted(advice, key=_key)
+    return sort_advice(advice)
 
 
 def generate_run_id() -> str:
@@ -306,19 +281,15 @@ def format_envelope(
     if root is not None:
         envelope["root"] = Path(root).resolve().as_posix()
 
-    envelope["data"] = _recursively_sort_keys(data if data is not None else {})
-    envelope["warnings"] = [
-        _recursively_sort_keys(w) for w in _sort_warnings(warnings or [])
-    ]
+    envelope["data"] = recursively_sort_keys(data if data is not None else {})
+    envelope["warnings"] = canonicalize_warning_list(warnings or [])
     envelope["violations"] = [
-        _recursively_sort_keys(v) for v in _sort_violations(violations or [])
+        recursively_sort_keys(v) for v in _sort_violations(violations or [])
     ]
-    envelope["advice"] = [
-        _recursively_sort_keys(a) for a in _sort_advice(advice or [])
-    ]
+    envelope["advice"] = canonicalize_advice_list(advice or [])
 
     if error is not None:
-        envelope["error"] = _recursively_sort_keys(error)
+        envelope["error"] = recursively_sort_keys(error)
 
     # Add extra top-level fields (e.g. check counters) in sorted order.
     if extra_top_level:
@@ -340,7 +311,7 @@ def format_envelope(
         if overlap:
             raise ValueError(f"extra_top_level contains reserved keys: {sorted(overlap)}")
         for k in sorted(extra_top_level.keys()):
-            envelope[k] = _recursively_sort_keys(extra_top_level[k])
+            envelope[k] = recursively_sort_keys(extra_top_level[k])
 
     # Build final ordered dict respecting canonical key order.
     ordered: dict[str, Any] = {}

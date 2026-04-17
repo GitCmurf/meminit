@@ -115,6 +115,7 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 - Edge extraction: `related`, `supersedes`, and `references` edges extracted correctly with `guaranteed` flag and `context` provenance.
 - Graph validation: duplicate document IDs, supersession cycles, dangling targets, status mismatches, and related-id asymmetry all produce correct diagnostics.
 - Byte identity: two index runs on the same content produce byte-identical JSON.
+- Diagnostic arrays: persisted `warnings` and `advice` are canonically sorted before serialization, so discovery order does not change artifact bytes.
 - Timing budget: a 500-document graph build stays within the Phase 2 bound.
 - External testbed: the acceptance suite in `../AIDHA` passes against the current Meminit binary.
 - Fatal errors halt build and surface in CLI JSON envelope `violations` array.

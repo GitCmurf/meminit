@@ -558,6 +558,87 @@ def test_index_byte_identity(tmp_path):
     assert first_bytes == second_bytes
 
 
+def test_index_canonicalizes_persisted_diagnostics(tmp_path, monkeypatch):
+    """Persisted warnings/advice stay byte-identical across discovery-order changes."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+
+    warning_a = {
+        "message": "later warning",
+        "code": "GRAPH_SUPERSESSION_STATUS_MISMATCH",
+        "path": "docs/45-adr/b.md",
+        "line": 9,
+        "severity": "warning",
+    }
+    warning_b = {
+        "severity": "warning",
+        "message": "earlier warning",
+        "code": "GRAPH_DANGLING_RELATED_ID",
+        "line": None,
+        "path": "docs/45-adr/a.md",
+    }
+    advice_a = {
+        "message": "z advice",
+        "code": "GRAPH_RELATED_ID_ASYMMETRY",
+        "context": {"rhs": "EXAMPLE-ADR-002", "lhs": "EXAMPLE-ADR-001"},
+    }
+    advice_b = {
+        "context": {"lhs": "EXAMPLE-ADR-003", "rhs": "EXAMPLE-ADR-004"},
+        "code": "GRAPH_RELATED_ID_ASYMMETRY",
+        "message": "a advice",
+    }
+
+    calls = {"count": 0}
+
+    def fake_validate_graph_integrity(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] % 2 == 1:
+            return ([warning_a, warning_b], [advice_a, advice_b], [])
+        return ([warning_b, warning_a], [advice_b, advice_a], [])
+
+    monkeypatch.setattr(
+        "meminit.core.use_cases.index_repository.graph.validate_graph_integrity",
+        fake_validate_graph_integrity,
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    first_report = use_case.execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = use_case.execute()
+    second_bytes = second_report.index_path.read_bytes()
+
+    assert first_bytes == second_bytes
+
+    payload = json.loads(second_report.index_path.read_text(encoding="utf-8"))
+    assert payload["warnings"] == [
+        {
+            "code": "GRAPH_DANGLING_RELATED_ID",
+            "message": "earlier warning",
+            "path": "docs/45-adr/a.md",
+            "severity": "warning",
+        },
+        {
+            "code": "GRAPH_SUPERSESSION_STATUS_MISMATCH",
+            "line": 9,
+            "message": "later warning",
+            "path": "docs/45-adr/b.md",
+            "severity": "warning",
+        },
+    ]
+    assert payload["advice"] == [
+        {
+            "code": "GRAPH_RELATED_ID_ASYMMETRY",
+            "context": {"lhs": "EXAMPLE-ADR-003", "rhs": "EXAMPLE-ADR-004"},
+            "message": "a advice",
+        },
+        {
+            "code": "GRAPH_RELATED_ID_ASYMMETRY",
+            "context": {"lhs": "EXAMPLE-ADR-001", "rhs": "EXAMPLE-ADR-002"},
+            "message": "z advice",
+        },
+    ]
+
+
 def test_index_fatal_on_duplicate_document_id(tmp_path):
     """Duplicate document_id across two files raises GRAPH_DUPLICATE_DOCUMENT_ID."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
