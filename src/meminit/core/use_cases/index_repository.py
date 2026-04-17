@@ -81,6 +81,8 @@ def _build_persisted_index_payload(
         "data": {
             "index_version": "1.0",
             "graph_schema_version": "1.0",
+            "node_count": len(nodes),
+            "edge_count": len(edges),
             "namespaces": [
                 {
                     "namespace": ns.namespace,
@@ -853,8 +855,13 @@ class IndexRepositoryUseCase:
             entries, all_edges, known_doc_ids, doc_id_paths,
         )
         if graph_fatal:
+            fatal_code_str = graph_fatal[0].get("code", "GRAPH_DUPLICATE_DOCUMENT_ID")
+            try:
+                fatal_code = ErrorCode(fatal_code_str)
+            except ValueError:
+                fatal_code = ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
             raise MeminitError(
-                code=ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID,
+                code=fatal_code,
                 message=graph_fatal[0]["message"],
                 details={"errors": graph_fatal},
             )

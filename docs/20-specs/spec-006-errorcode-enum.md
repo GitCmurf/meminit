@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-006
 type: SPEC
 title: ErrorCode Enum Specification
 status: Draft
-version: "0.2"
-last_updated: 2026-04-15
+version: "0.3"
+last_updated: 2026-04-17
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -24,8 +24,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-006
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.2
-> **Last Updated:** 2026-04-15
+> **Version:** 0.3
+> **Last Updated:** 2026-04-17
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -49,6 +49,17 @@ Out of scope:
 
 - Warning and violation codes (those are rule codes, not operational error codes).
 - Runtime error recovery strategies.
+
+Categories:
+
+| Category   | Description                                                         |
+| ---------- | ------------------------------------------------------------------- |
+| Shared     | Codes that may be raised by multiple commands.                      |
+| New-only   | Codes specific to `meminit new`.                                    |
+| Check-only | Codes specific to `meminit check`.                                  |
+| State-only | Codes specific to `meminit state` and `meminit index --filter`.      |
+| Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
+| Graph      | Codes for graph integrity violations during `meminit index` build.  |
 
 ## 3. Canonical ErrorCode Inventory
 
@@ -85,6 +96,9 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `E_STATE_YAML_MALFORMED`   | State-only | The project-state.yaml file is not valid YAML.                 |
 | `E_STATE_SCHEMA_VIOLATION` | State-only | The project-state.yaml file violates the expected schema.       |
 | `E_INVALID_FILTER_VALUE`   | State-only | An invalid filter value was provided to a state or index query. |
+| `GRAPH_DUPLICATE_DOCUMENT_ID` | Graph   | Duplicate `document_id` detected across multiple files (fatal, halts index build). |
+| `GRAPH_SUPERSESSION_CYCLE` | Graph      | Supersession chain forms a cycle (fatal, halts index build).     |
+| `INVALID_ROOT_PATH`        | Agent      | The provided root path is not a valid directory.                 |
 | `UNKNOWN_ERROR`            | Shared     | An unexpected error not covered by a specific code.             |
 | `UNKNOWN_ERROR_CODE`       | Agent      | The requested error code is not recognized by `meminit explain`. |
 
@@ -115,3 +129,4 @@ Plain English: If these are true, error codes are governed correctly.
 | ------- | ---- | ------ | ------- |
 | 0.1 | 2026-02-24 | Product Team | Initial spec |
 | 0.2 | 2026-04-15 | GitCmurf | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path |
+| 0.3 | 2026-04-17 | GitCmurf | Added INVALID_ROOT_PATH (Agent), GRAPH_DUPLICATE_DOCUMENT_ID and GRAPH_SUPERSESSION_CYCLE (Graph) for Phase 2 index graph integrity |

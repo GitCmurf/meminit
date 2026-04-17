@@ -28,8 +28,8 @@ class TestExtractFrontmatterEdges:
             superseded_by=None,
         )
         assert len(edges) == 2
-        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-PRD-001", edge_type="related")
-        assert edges[1] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="related")
+        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-PRD-001", edge_type="related", context="frontmatter.related_ids")
+        assert edges[1] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="related", context="frontmatter.related_ids")
 
     def test_superseded_by_produces_supersedes_edge(self):
         edges = extract_frontmatter_edges(
@@ -38,7 +38,7 @@ class TestExtractFrontmatterEdges:
             superseded_by="REPO-ADR-003",
         )
         assert len(edges) == 1
-        assert edges[0] == Edge(source="REPO-ADR-002", target="REPO-ADR-003", edge_type="supersedes")
+        assert edges[0] == Edge(source="REPO-ADR-003", target="REPO-ADR-002", edge_type="supersedes", context="frontmatter.superseded_by")
 
     def test_no_fields_produces_empty_list(self):
         edges = extract_frontmatter_edges("REPO-ADR-001", related_ids=None, superseded_by=None)
@@ -75,7 +75,7 @@ class TestExtractReferenceEdges:
             "REPO-ADR-001", root / "docs/10-prd/prd-001.md", body, path_to_doc_id, root,
         )
         assert len(edges) == 1
-        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="references")
+        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="references", guaranteed=False, context="body.markdown_link")
 
     def test_ignores_external_links(self):
         root = Path("/repo")
@@ -190,7 +190,7 @@ class TestBuildEdgeSet:
         edge_types = {(e.source, e.target, e.edge_type) for e in edges}
         assert ("REPO-ADR-001", "REPO-PRD-001", "related") in edge_types
         assert ("REPO-ADR-001", "REPO-PRD-001", "references") in edge_types
-        assert ("REPO-PRD-001", "REPO-ADR-002", "supersedes") in edge_types
+        assert ("REPO-ADR-002", "REPO-PRD-001", "supersedes") in edge_types
         # Verify deterministic sort.
         assert edges == sorted(edges, key=Edge.sort_key)
 
@@ -240,6 +240,14 @@ class TestCheckSupersessionCycle:
         assert len(errors) == 1
         assert "A" in errors[0]["message"]
 
+    def test_long_chain_no_cycle(self):
+        """500-node chain with no cycle completes without error or stack overflow."""
+        edges = [
+            Edge(f"N{i:03d}", f"N{i+1:03d}", "supersedes") for i in range(500)
+        ]
+        errors = _check_cycles(edges)
+        assert errors == []
+
 
 class TestCheckDanglingTargets:
     def test_all_known(self):
@@ -250,14 +258,14 @@ class TestCheckDanglingTargets:
         edges = [Edge("A", "MISSING", "related")]
         warnings = _check_dangling(edges, {"A"})
         assert len(warnings) == 1
-        assert "W_GRAPH_DANGLING_RELATED_ID" in warnings[0]["code"]
+        assert "GRAPH_DANGLING_RELATED_ID" in warnings[0]["code"]
         assert "MISSING" in warnings[0]["message"]
 
     def test_dangling_superseded(self):
-        edges = [Edge("A", "MISSING", "supersedes")]
+        edges = [Edge("MISSING", "A", "supersedes")]
         warnings = _check_dangling(edges, {"A"})
         assert len(warnings) == 1
-        assert "W_GRAPH_DANGLING_SUPERSEDED_BY" in warnings[0]["code"]
+        assert "GRAPH_DANGLING_SUPERSEDED_BY" in warnings[0]["code"]
         assert "MISSING" in warnings[0]["message"]
 
 
@@ -367,7 +375,7 @@ def _check_dangling(edges, known_ids):
 
 def _check_supersession_status(entries, edges):
     from meminit.core.services.graph import _check_supersession_status_mismatch
-    return _check_supersession_status_mismatch(entries, edges)
+    return _check_supersession_status_mismatch(entries)
 
 
 def _check_asymmetry(edges):

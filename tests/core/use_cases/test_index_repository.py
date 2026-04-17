@@ -5,6 +5,7 @@ and backward compatibility for resolve/identify/link.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -481,6 +482,8 @@ def test_index_generates_related_edges(tmp_path):
     assert len(related_edges) == 1
     assert related_edges[0]["source"] == "EXAMPLE-ADR-001"
     assert related_edges[0]["target"] == "EXAMPLE-ADR-002"
+    assert related_edges[0]["guaranteed"] is True
+    assert related_edges[0]["context"] == "frontmatter.related_ids"
 
 
 def test_index_generates_supersedes_edges(tmp_path):
@@ -498,8 +501,10 @@ def test_index_generates_supersedes_edges(tmp_path):
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
     supersedes_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "supersedes"]
     assert len(supersedes_edges) == 1
-    assert supersedes_edges[0]["source"] == "EXAMPLE-ADR-001"
-    assert supersedes_edges[0]["target"] == "EXAMPLE-ADR-002"
+    assert supersedes_edges[0]["source"] == "EXAMPLE-ADR-002"
+    assert supersedes_edges[0]["target"] == "EXAMPLE-ADR-001"
+    assert supersedes_edges[0]["guaranteed"] is True
+    assert supersedes_edges[0]["context"] == "frontmatter.superseded_by"
 
 
 def test_index_generates_reference_edges(tmp_path):
@@ -518,6 +523,8 @@ def test_index_generates_reference_edges(tmp_path):
     assert len(ref_edges) == 1
     assert ref_edges[0]["source"] == "EXAMPLE-ADR-001"
     assert ref_edges[0]["target"] == "EXAMPLE-ADR-002"
+    assert ref_edges[0]["guaranteed"] is False
+    assert ref_edges[0]["context"] == "body.markdown_link"
 
 
 def test_index_edges_sorted_deterministically(tmp_path):
@@ -579,7 +586,7 @@ def test_index_fatal_on_supersession_cycle(tmp_path):
     use_case = IndexRepositoryUseCase(str(tmp_path))
     with pytest.raises(MeminitError) as exc_info:
         use_case.execute()
-    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+    assert exc_info.value.code == ErrorCode.GRAPH_SUPERSESSION_CYCLE
 
 
 def test_index_warns_on_dangling_related(tmp_path):
@@ -593,7 +600,7 @@ def test_index_warns_on_dangling_related(tmp_path):
     report = use_case.execute()
 
     codes = [w["code"] for w in report.warnings]
-    assert "W_GRAPH_DANGLING_RELATED_ID" in codes
+    assert "GRAPH_DANGLING_RELATED_ID" in codes
 
     # Dangling edge is still emitted.
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
@@ -614,7 +621,7 @@ def test_index_warns_on_supersession_status_mismatch(tmp_path):
     report = use_case.execute()
 
     codes = [w["code"] for w in report.warnings]
-    assert "W_GRAPH_SUPERSESSION_STATUS_MISMATCH" in codes
+    assert "GRAPH_SUPERSESSION_STATUS_MISMATCH" in codes
 
 
 def test_index_advises_on_related_asymmetry(tmp_path):
@@ -641,5 +648,21 @@ def test_index_graph_schema_version(tmp_path):
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
     assert payload["data"]["index_version"] == "1.0"
     assert payload["data"]["graph_schema_version"] == "1.0"
+    assert payload["data"]["node_count"] == 1
+    assert payload["data"]["edge_count"] == 0
     assert "nodes" in payload["data"]
     assert "edges" in payload["data"]
+
+
+def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
+    """Phase 2 graph build stays within the documented 500-doc timing budget."""
+    for i in range(500):
+        _setup_doc(tmp_path, f"EXAMPLE-ADR-{i:03d}")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    start = time.perf_counter()
+    report = use_case.execute()
+    elapsed = time.perf_counter() - start
+
+    assert report.document_count == 500
+    assert elapsed < 10, f"Index build exceeded Phase 2 budget: {elapsed:.2f}s"

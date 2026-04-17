@@ -5,6 +5,8 @@
   "data": {
     "index_version": "1.0",
     "graph_schema_version": "1.0",
+    "node_count": 71,
+    "edge_count": 156,
     "namespaces": [
       {
         "namespace": "meminit",
@@ -399,7 +401,7 @@
         "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
         "status": "Draft",
         "owner": "GitCmurf",
-        "last_updated": "2026-04-14",
+        "last_updated": "2026-04-17",
         "area": null,
         "description": null,
         "keywords": null,
@@ -1300,7 +1302,7 @@
         "title": "ErrorCode Enum Specification",
         "status": "Draft",
         "owner": "Product Team",
-        "last_updated": "2026-04-15",
+        "last_updated": "2026-04-17",
         "area": "AGENT",
         "description": "Canonical ErrorCode inventory, extensibility process, and governance rules for the meminit CLI error code enum.",
         "keywords": [
@@ -1447,782 +1449,1094 @@
       {
         "source": "MEMINIT-ADR-014",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-ADR-014",
         "target": "MEMINIT-SPEC-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-004",
         "target": "MEMINIT-FDD-011",
-        "edge_type": "references"
-      },
-      {
-        "source": "MEMINIT-FDD-004",
-        "target": "MEMINIT-FDD-011",
-        "edge_type": "supersedes"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-FDD-004",
         "target": "MEMINIT-PRD-002",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-FDD-010",
         "target": "MEMINIT-ADR-014",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-010",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-010",
         "target": "MEMINIT-SPEC-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-010",
         "target": "MEMINIT-SPEC-010",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-011",
         "target": "MEMINIT-FDD-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
+      },
+      {
+        "source": "MEMINIT-FDD-011",
+        "target": "MEMINIT-FDD-004",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "context": "frontmatter.superseded_by"
       },
       {
         "source": "MEMINIT-FDD-011",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-FDD-011",
         "target": "MEMINIT-SPEC-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-GOV-001",
         "target": "MEMINIT-ADR-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-GOV-002",
         "target": "MEMINIT-GOV-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-009",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-010",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-011",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-012",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-013",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-014",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-004",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-004",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-004",
         "target": "MEMINIT-SPEC-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-004",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-005",
         "target": "MEMINIT-PLAN-006",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-005",
         "target": "MEMINIT-RUNBOOK-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-005",
         "target": "MEMINIT-SPEC-010",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PLAN-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PLAN-007",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PLAN-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PRD-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-006",
         "target": "MEMINIT-PRD-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-007",
         "target": "MEMINIT-PLAN-006",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-007",
         "target": "MEMINIT-PLAN-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-007",
         "target": "MEMINIT-PRD-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-007",
         "target": "MEMINIT-PRD-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-007",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-009",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-010",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-011",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-012",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-013",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PLAN-014",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-PRD-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-008",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-009",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-009",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-009",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-010",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-010",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-010",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-011",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-011",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-011",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-012",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-012",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-012",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-013",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-013",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-013",
         "target": "MEMINIT-PRD-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-014",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-014",
         "target": "MEMINIT-PLAN-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PLAN-014",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-GOV-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-GOV-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-GOV-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-002",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-002",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-RUNBOOK-006",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-RUNBOOK-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-SPEC-006",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "ORG-GOV-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-003",
         "target": "ORG-GOV-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-004",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-004",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-004",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-GOV-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-GOV-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-RUNBOOK-006",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-RUNBOOK-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-005",
         "target": "ORG-GOV-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-GOV-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-002",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-002",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-PRD-005",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-006",
         "target": "ORG-GOV-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-GOV-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-GOV-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-SPEC-008",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-SPEC-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-PRD-007",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-RUNBOOK-003",
         "target": "MEMINIT-RUNBOOK-007",
-        "edge_type": "references"
-      },
-      {
-        "source": "MEMINIT-RUNBOOK-003",
-        "target": "MEMINIT-RUNBOOK-007",
-        "edge_type": "supersedes"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-RUNBOOK-007",
         "target": "MEMINIT-RUNBOOK-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
+      },
+      {
+        "source": "MEMINIT-RUNBOOK-007",
+        "target": "MEMINIT-RUNBOOK-003",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "context": "frontmatter.superseded_by"
       },
       {
         "source": "MEMINIT-SPEC-004",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-004",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-004",
         "target": "MEMINIT-SPEC-008",
-        "edge_type": "references"
-      },
-      {
-        "source": "MEMINIT-SPEC-004",
-        "target": "MEMINIT-SPEC-008",
-        "edge_type": "supersedes"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-SPEC-004",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-005",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-005",
         "target": "MEMINIT-PRD-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-005",
         "target": "MEMINIT-STRAT-001",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-006",
         "target": "MEMINIT-PRD-003",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-006",
         "target": "MEMINIT-SPEC-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-007",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-007",
         "target": "MEMINIT-SPEC-008",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-008",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-008",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       },
       {
         "source": "MEMINIT-SPEC-008",
         "target": "MEMINIT-SPEC-004",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
+      },
+      {
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-004",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "context": "frontmatter.superseded_by"
       },
       {
         "source": "MEMINIT-SPEC-008",
         "target": "MEMINIT-SPEC-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-ADR-014",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-FDD-010",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-PLAN-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-PRD-006",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-SPEC-007",
-        "edge_type": "related"
+        "edge_type": "related",
+        "guaranteed": true,
+        "context": "frontmatter.related_ids"
       },
       {
         "source": "MEMINIT-STRAT-001",
         "target": "MEMINIT-PLAN-003",
-        "edge_type": "references"
+        "edge_type": "references",
+        "guaranteed": false,
+        "context": "body.markdown_link"
       }
     ]
   },

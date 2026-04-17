@@ -7,7 +7,6 @@ that run during index build.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
@@ -24,16 +23,22 @@ _LINK_REGEX = LinkChecker.LINK_REGEX
 class Edge:
     """A directed relationship between two document IDs."""
 
-    source: str  # document_id of the referencing document
-    target: str  # document_id of the referenced document
+    source: str  # document_id of the source document
+    target: str  # document_id of the target document
     edge_type: str  # "related" | "supersedes" | "references"
+    guaranteed: bool = True  # True for frontmatter-derived, False for body-link scanned
+    context: str = ""  # Optional human-readable context about the relationship
 
-    def to_dict(self) -> Dict[str, str]:
-        return {
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
             "source": self.source,
             "target": self.target,
             "edge_type": self.edge_type,
+            "guaranteed": self.guaranteed,
         }
+        if self.context:
+            d["context"] = self.context
+        return d
 
     @staticmethod
     def sort_key(edge: Edge) -> Tuple[str, str, str]:
@@ -56,12 +61,12 @@ def extract_frontmatter_edges(
     if related_ids:
         for rid in related_ids:
             if isinstance(rid, str) and rid.strip() and rid.strip() != doc_id:
-                edges.append(Edge(source=doc_id, target=rid.strip(), edge_type="related"))
+                edges.append(Edge(source=doc_id, target=rid.strip(), edge_type="related", context="frontmatter.related_ids"))
 
     if superseded_by and isinstance(superseded_by, str) and superseded_by.strip():
-        target = superseded_by.strip()
-        if target != doc_id:
-            edges.append(Edge(source=doc_id, target=target, edge_type="supersedes"))
+        successor = superseded_by.strip()
+        if successor != doc_id:
+            edges.append(Edge(source=successor, target=doc_id, edge_type="supersedes", context="frontmatter.superseded_by"))
 
     return edges
 
@@ -106,7 +111,7 @@ def extract_reference_edges(
 
         target_id = path_to_doc_id.get(rel)
         if target_id and target_id != doc_id and target_id not in seen_targets:
-            edges.append(Edge(source=doc_id, target=target_id, edge_type="references"))
+            edges.append(Edge(source=doc_id, target=target_id, edge_type="references", guaranteed=False, context="body.markdown_link"))
             seen_targets.add(target_id)
 
     return edges
@@ -196,8 +201,10 @@ def _check_duplicate_document_ids(
 def _check_supersession_cycle(
     edges: List[Edge],
 ) -> List[Dict[str, Any]]:
-    """GRAPH_SUPERSESSION_CYCLE: supersession chain forms a cycle."""
-    # Build adjacency list for supersedes edges only.
+    """GRAPH_SUPERSESSION_CYCLE: supersession chain forms a cycle.
+
+    Uses iterative chain-following with a visited set.
+    """
     adj: Dict[str, List[str]] = {}
     for edge in edges:
         if edge.edge_type == "supersedes":
@@ -205,17 +212,35 @@ def _check_supersession_cycle(
 
     errors: List[Dict[str, Any]] = []
     visited: Set[str] = set()
-    rec_stack: Set[str] = set()
 
-    def _dfs(node: str, path: List[str]) -> None:
-        visited.add(node)
-        rec_stack.add(node)
+    for start in sorted(adj):
+        if start in visited:
+            continue
 
-        for neighbor in adj.get(node, []):
-            if neighbor not in visited:
-                _dfs(neighbor, path + [neighbor])
+        # Iterative DFS: stack holds (node, path_so_far, neighbor_index).
+        visited.add(start)
+        stack: List[Tuple[str, List[str], int]] = [(start, [start], 0)]
+        rec_stack: Set[str] = {start}
+
+        while stack:
+            node, path, idx = stack[-1]
+            neighbors = adj.get(node, [])
+
+            if idx >= len(neighbors):
+                # Exhausted all neighbors — backtrack.
+                rec_stack.discard(node)
+                stack.pop()
+                continue
+
+            # Advance the neighbor index on the current frame.
+            stack[-1] = (node, path, idx + 1)
+            neighbor = neighbors[idx]
+
+            if neighbor not in visited and neighbor not in rec_stack:
+                visited.add(neighbor)
+                rec_stack.add(neighbor)
+                stack.append((neighbor, path + [neighbor], 0))
             elif neighbor in rec_stack:
-                # Found cycle — extract the portion from the cycle start.
                 cycle_start = path.index(neighbor) if neighbor in path else -1
                 cycle = path[cycle_start:] + [neighbor]
                 errors.append(
@@ -228,12 +253,6 @@ def _check_supersession_cycle(
                     }
                 )
 
-        rec_stack.discard(node)
-
-    for node in sorted(adj):
-        if node not in visited:
-            _dfs(node, [node])
-
     return errors
 
 
@@ -245,8 +264,8 @@ def _check_dangling_targets(
     from meminit.core.services.warning_codes import WarningCode
 
     _CODE_MAP = {
-        "related": WarningCode.W_GRAPH_DANGLING_RELATED_ID,
-        "supersedes": WarningCode.W_GRAPH_DANGLING_SUPERSEDED_BY,
+        "related": WarningCode.GRAPH_DANGLING_RELATED_ID,
+        "supersedes": WarningCode.GRAPH_DANGLING_SUPERSEDED_BY,
     }
     _FIELD_MAP = {
         "related": "related_ids",
@@ -255,11 +274,14 @@ def _check_dangling_targets(
 
     warnings: List[Dict[str, Any]] = []
     for edge in edges:
-        if edge.edge_type in _CODE_MAP and edge.target not in known_doc_ids:
+        dangling_end = (
+            edge.target if edge.edge_type == "related" else edge.source
+        )
+        if edge.edge_type in _CODE_MAP and dangling_end not in known_doc_ids:
             warnings.append(
                 {
                     "code": _CODE_MAP[edge.edge_type],
-                    "message": f"{_FIELD_MAP[edge.edge_type]} target '{edge.target}' not found in index (declared by '{edge.source}')",
+                    "message": f"{_FIELD_MAP[edge.edge_type]} target '{dangling_end}' not found in index (declared by '{edge.source if edge.edge_type == 'related' else edge.target}')",
                     "severity": Severity.WARNING.value,
                     "path": "",
                     "line": 0,
@@ -270,16 +292,9 @@ def _check_dangling_targets(
 
 def _check_supersession_status_mismatch(
     entries: List[Dict[str, Any]],
-    edges: List[Edge],
 ) -> List[Dict[str, Any]]:
     """GRAPH_SUPERSESSION_STATUS_MISMATCH: superseded_by without Superseded status or vice versa."""
     from meminit.core.services.warning_codes import WarningCode
-
-    # Build lookup: doc_id → set of supersedes edge targets (where doc_id is the source).
-    has_supersedes_edge: Set[str] = set()
-    for edge in edges:
-        if edge.edge_type == "supersedes":
-            has_supersedes_edge.add(edge.source)
 
     # Build lookup: doc_id → superseded_by value from frontmatter.
     has_superseded_by: Set[str] = set()
@@ -299,7 +314,7 @@ def _check_supersession_status_mismatch(
         if has_sb and not is_superseded:
             warnings.append(
                 {
-                    "code": WarningCode.W_GRAPH_SUPERSESSION_STATUS_MISMATCH,
+                    "code": WarningCode.GRAPH_SUPERSESSION_STATUS_MISMATCH,
                     "message": f"Document '{doc_id}' has superseded_by set but status is '{status}' (expected 'Superseded')",
                     "severity": Severity.WARNING.value,
                     "path": entry.get("path", ""),
@@ -309,7 +324,7 @@ def _check_supersession_status_mismatch(
         elif is_superseded and not has_sb:
             warnings.append(
                 {
-                    "code": WarningCode.W_GRAPH_SUPERSESSION_STATUS_MISMATCH,
+                    "code": WarningCode.GRAPH_SUPERSESSION_STATUS_MISMATCH,
                     "message": f"Document '{doc_id}' has status 'Superseded' but no superseded_by field",
                     "severity": Severity.WARNING.value,
                     "path": entry.get("path", ""),
@@ -374,7 +389,7 @@ def validate_graph_integrity(
     # Non-fatal checks (only run if no fatal errors to avoid noise).
     if not errors:
         warnings.extend(_check_dangling_targets(edges, known_doc_ids))
-        warnings.extend(_check_supersession_status_mismatch(entries, edges))
+        warnings.extend(_check_supersession_status_mismatch(entries))
         advice.extend(_check_related_id_asymmetry(edges))
 
     return warnings, advice, errors
