@@ -113,7 +113,8 @@ def _remove_stale_artifacts(
     # catches historical custom catalog names without touching user files.
     for candidate in index_dir.glob("*.md"):
         try:
-            first_line = next(candidate.open(encoding="utf-8"), "")
+            with candidate.open(encoding="utf-8") as f:
+                first_line = next(f, "")
         except OSError:
             continue
         if first_line.rstrip() in {
