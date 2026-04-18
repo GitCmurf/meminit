@@ -1569,7 +1569,7 @@ def index(
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "md":
-                    lines = ["# Meminit Index\n", f"- Status: error", ""]
+                    lines = ["# Meminit Index\n", "- Status: error", ""]
                     lines.extend(["## Graph Violations", ""])
                     rows = [
                         ["ERROR", str(v.get("code")), str(v.get("path")), str(v.get("message"))]

@@ -326,12 +326,12 @@ def _check_supersession_status_mismatch(
     for entry in entries:
         sb = entry.get("superseded_by")
         if sb and isinstance(sb, str) and sb.strip():
-            has_superseded_by.add(entry["document_id"])
+            has_superseded_by.add(entry.get("document_id", ""))
 
     warnings: List[Dict[str, Any]] = []
 
     for entry in entries:
-        doc_id = entry["document_id"]
+        doc_id = entry.get("document_id", "")
         status = (entry.get("status") or "").strip()
         has_sb = doc_id in has_superseded_by
         is_superseded = status.lower() == "superseded"
@@ -382,6 +382,8 @@ def _check_related_id_asymmetry(
                 advice.append(
                     {
                         "code": "GRAPH_RELATED_ID_ASYMMETRY",
+                        "source": source,
+                        "target": target,
                         "message": f"'{source}' lists '{target}' in related_ids but '{target}' does not list '{source}'",
                     }
                 )

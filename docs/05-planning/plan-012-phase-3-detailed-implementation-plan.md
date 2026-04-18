@@ -207,7 +207,7 @@ Every supported asset must declare its ownership in one of three shapes:
 
 Region markers are only used for mixed-ownership Markdown assets:
 
-```
+```html
 <!-- MEMINIT_PROTOCOL: begin id=<asset-id> version=<semver> sha256=<hex> -->
 ...generated content...
 <!-- MEMINIT_PROTOCOL: end id=<asset-id> -->
@@ -221,7 +221,7 @@ Rules:
   Meminit package version. It only bumps when the generated content contract
   changes in a way that invalidates prior drift diagnostics.
 - `sha256` is computed over the normalized generated payload between the
-  markers (LF line endings, final newline trimmed). The hash is what makes
+  markers (LF line endings, single trailing newline). The hash is what makes
   drift detection deterministic regardless of editor behavior.
 - Fully generated assets use registry-declared whole-file normalization plus a
   registry-declared target mode (for example executable shell scripts).

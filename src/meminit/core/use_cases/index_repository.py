@@ -71,7 +71,7 @@ def _normalize_related_ids(value: Any) -> Optional[List[str]]:
     if isinstance(value, str):
         return [value] if value.strip() else None
     if isinstance(value, (list, tuple)):
-        return [v for v in value if isinstance(v, str) and v.strip()]
+        return [v.strip() for v in value if isinstance(v, str) and v.strip()]
     return None
 
 
@@ -113,10 +113,10 @@ def _remove_stale_artifacts(
     # catches historical custom catalog names without touching user files.
     for candidate in index_dir.glob("*.md"):
         try:
-            first_line = candidate.read_text(encoding="utf-8").splitlines()[:1]
+            first_line = next(candidate.open(encoding="utf-8"), "")
         except OSError:
             continue
-        if first_line and first_line[0] in {
+        if first_line.rstrip() in {
             "<!-- MEMINIT_GENERATED: catalog -->",
             "<!-- MEMINIT_GENERATED: kanban -->",
         }:
@@ -865,7 +865,6 @@ class IndexRepositoryUseCase:
                         post.metadata.get("owner"), max_length=None, html_escape=True
                     ),
                     "last_updated": post.metadata.get("last_updated"),
-                    # New graph fields from frontmatter.
                     "area": post.metadata.get("area"),
                     "description": post.metadata.get("description"),
                     "keywords": post.metadata.get("keywords"),

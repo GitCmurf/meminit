@@ -529,7 +529,7 @@ def test_index_generates_reference_edges(tmp_path):
 
 def test_index_edges_sorted_deterministically(tmp_path):
     """Edges are sorted by (source, target, edge_type)."""
-    _setup_doc(tmp_path, "EXAMPLE-ADR-001", extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n  - EXAMPLE-ADR-003\n")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-003\n  - EXAMPLE-ADR-002\n")
     _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", body="See [ADR 003](adr-003.md).")
     _setup_doc(tmp_path, "EXAMPLE-ADR-003", filename="adr-003.md")
 

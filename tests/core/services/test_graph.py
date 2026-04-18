@@ -292,14 +292,14 @@ class TestCheckDanglingTargets:
         edges = [Edge("A", "MISSING", "related")]
         warnings = _check_dangling(edges, {"A"})
         assert len(warnings) == 1
-        assert "GRAPH_DANGLING_RELATED_ID" in warnings[0]["code"]
+        assert warnings[0]["code"] == "GRAPH_DANGLING_RELATED_ID"
         assert "MISSING" in warnings[0]["message"]
 
     def test_dangling_superseded(self):
         edges = [Edge("MISSING", "A", "supersedes")]
         warnings = _check_dangling(edges, {"A"})
         assert len(warnings) == 1
-        assert "GRAPH_DANGLING_SUPERSEDED_BY" in warnings[0]["code"]
+        assert warnings[0]["code"] == "GRAPH_DANGLING_SUPERSEDED_BY"
         assert "MISSING" in warnings[0]["message"]
 
 
@@ -342,6 +342,8 @@ class TestCheckRelatedIdAsymmetry:
         advice = _check_asymmetry(edges)
         assert len(advice) == 1
         assert advice[0]["code"] == "GRAPH_RELATED_ID_ASYMMETRY"
+        assert advice[0]["source"] == "A"
+        assert advice[0]["target"] == "B"
 
 
 class TestValidateGraphIntegrity:
