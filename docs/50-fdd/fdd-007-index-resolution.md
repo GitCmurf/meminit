@@ -3,8 +3,8 @@ document_id: MEMINIT-FDD-007
 type: FDD
 title: Index + Resolution Helpers (meminit index/resolve/identify/link)
 status: Draft
-version: 0.5
-last_updated: 2026-04-17
+version: 0.6
+last_updated: 2026-04-18
 owner: GitCmurf
 docops_version: 2.0
 ---
@@ -48,6 +48,8 @@ The index artifact was upgraded from a flat document inventory to a graph-grade 
 - `output_schema_version` belongs to the CLI envelope, not the committed index
   artifact. The artifact schema itself uses `index_version` and
   `graph_schema_version`.
+- Generated-view choices such as catalog filenames are operational metadata
+  and are not persisted in the canonical index artifact.
 - The `documents` array was renamed to `nodes`. `document_count` is retained alongside new `node_count` and `edge_count`.
 - New `edges` array containing directed relationships between documents.
 - New `advice` array for non-binding recommendations (e.g., `GRAPH_RELATED_ID_ASYMMETRY`).
@@ -64,6 +66,11 @@ The index artifact was upgraded from a flat document inventory to a graph-grade 
 | `edge_type`| string | yes      | `"related"`, `"supersedes"`, or `"references"` |
 | `guaranteed`| bool  | yes      | `true` for frontmatter-derived edges, `false` for body-link scanned |
 | `context`  | string | no       | Provenance: `"frontmatter.related_ids"`, `"frontmatter.superseded_by"`, `"body.markdown_link"` |
+
+When the same logical edge `(source, target, edge_type)` is discovered from
+multiple sources, Meminit persists a single edge and keeps the strongest
+provenance deterministically: frontmatter-derived (`guaranteed: true`)
+metadata wins over body-link scanned metadata.
 
 Edge direction conventions:
 
@@ -90,7 +97,7 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 
 - Successful index: `nodes`, `edges`, `warnings`, and `advice` are all populated in the JSON envelope.
 - Filtered output (`--status`, `--impl-state`): on-disk index remains canonical (unfiltered); stdout edges are filtered to the visible node subset.
-- Fatal graph errors: surfaced in `violations` alongside `error` in the JSON envelope.
+- Fatal graph errors: surfaced in `violations` alongside `error` in the JSON envelope. When fatal violations are present, the `warnings` and `advice` arrays are not guaranteed complete (they may be omitted or partial) — downstream consumers must not assume completeness.
 
 ## Non-goals (v0.1)
 
@@ -106,6 +113,9 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 - Use cases: `resolve_document.py`, `identify_document.py`
 - CLI: `meminit index|resolve|identify|link` in `src/meminit/cli/main.py`
 - Runtime correlation metadata remains available in CLI JSON output (`meminit index --format json`) rather than the committed index artifact.
+- Generated side views (`catalog.md`, custom catalog names, `kanban.md`,
+  `kanban.css`) are tracked operationally by Meminit-generated file markers and
+  cleaned up outside the canonical index artifact.
 
 ## Tests
 

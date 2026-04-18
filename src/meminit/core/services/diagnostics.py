@@ -18,7 +18,7 @@ def recursively_sort_keys(obj: Any) -> Any:
     return obj
 
 
-def _get_line_key(line: Any) -> tuple[int, Any]:
+def line_sort_key(line: Any) -> tuple[int, Any]:
     """Sort numeric lines first, missing lines second, non-numeric last."""
     if line is None:
         return (1, 0.0)
@@ -44,7 +44,7 @@ def sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     def _key(warning: dict[str, Any]) -> tuple[Any, ...]:
         return (
             warning.get("path", ""),
-            *_get_line_key(warning.get("line")),
+            *line_sort_key(warning.get("line")),
             warning.get("code", ""),
             warning.get("message", ""),
         )

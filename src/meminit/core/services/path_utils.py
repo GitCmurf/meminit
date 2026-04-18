@@ -68,8 +68,14 @@ def relative_path_string(path: Path, base: Path) -> str:
 def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     """Load documents from a meminit index JSON file.
 
-    Supports both v2 envelope (documents nested under ``data``) and
-    v1 format (documents at top level) for backward compatibility.
+    Supports the v1.0 graph schema (``nodes`` under ``data``), the v0.2
+    envelope (``documents`` under ``data``), and the v1 top-level format
+    for backward compatibility.
+
+    A malformed or truncated envelope (e.g. ``data`` is a dict but
+    contains neither ``nodes`` nor ``documents``) raises ``ValueError``
+    so callers do not misinterpret an empty return as a valid zero-document
+    index.
 
     Args:
         index_path: Path to the ``meminit.index.json`` file.
@@ -79,7 +85,7 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
 
     Raises:
         FileNotFoundError: If the index file does not exist.
-        ValueError: If the index file is not valid JSON.
+        ValueError: If the index file is not valid JSON or the envelope is malformed.
     """
     import json
 
@@ -105,6 +111,10 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
         if "documents" in data_field:
             docs = data_field.get("documents")
             return docs if isinstance(docs, list) else []
+        raise ValueError(
+            f"Malformed index envelope in {index_path}: "
+            f"'data' dict contains neither 'nodes' nor 'documents'"
+        )
     if "documents" in data:
         docs = data.get("documents")
         return docs if isinstance(docs, list) else []

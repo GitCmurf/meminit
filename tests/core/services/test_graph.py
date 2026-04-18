@@ -48,13 +48,23 @@ class TestExtractFrontmatterEdges:
         edges = extract_frontmatter_edges("REPO-ADR-001", related_ids=[], superseded_by=None)
         assert edges == []
 
-    def test_self_reference_skipped(self):
+    def test_self_reference_related_skipped(self):
         edges = extract_frontmatter_edges(
             "REPO-ADR-001",
             related_ids=["REPO-ADR-001"],
-            superseded_by="REPO-ADR-001",
+            superseded_by=None,
         )
         assert edges == []
+
+    def test_self_reference_superseded_by_creates_edge(self):
+        """Self-referential superseded_by creates an edge (cycle detection catches it)."""
+        edges = extract_frontmatter_edges(
+            "REPO-ADR-001",
+            related_ids=None,
+            superseded_by="REPO-ADR-001",
+        )
+        assert len(edges) == 1
+        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-ADR-001", edge_type="supersedes", context="frontmatter.superseded_by")
 
     def test_non_string_related_ids_filtered(self):
         edges = extract_frontmatter_edges(
@@ -145,6 +155,16 @@ class TestDeduplicateEdges:
         ]
         result = deduplicate_edges(edges)
         assert len(result) == 2
+
+    def test_merges_duplicate_logical_edge_with_strongest_provenance(self):
+        edges = [
+            Edge("A", "B", "related", guaranteed=False, context="body.markdown_link"),
+            Edge("A", "B", "related", guaranteed=True, context="frontmatter.related_ids"),
+        ]
+        result = deduplicate_edges(edges)
+        assert result == [
+            Edge("A", "B", "related", guaranteed=True, context="frontmatter.related_ids")
+        ]
 
 
 class TestSortEdges:
@@ -240,6 +260,20 @@ class TestCheckSupersessionCycle:
         assert len(errors) == 1
         assert "A" in errors[0]["message"]
 
+    def test_reports_multiple_distinct_cycles(self):
+        edges = [
+            Edge("A", "B", "supersedes"),
+            Edge("B", "C", "supersedes"),
+            Edge("C", "A", "supersedes"),
+            Edge("A", "D", "supersedes"),
+            Edge("D", "A", "supersedes"),
+        ]
+        errors = _check_cycles(edges)
+        assert len(errors) == 2
+        messages = {error["message"] for error in errors}
+        assert "Supersession cycle detected: A -> B -> C -> A" in messages
+        assert "Supersession cycle detected: A -> D -> A" in messages
+
     def test_long_chain_no_cycle(self):
         """500-node chain with no cycle completes without error or stack overflow."""
         edges = [
@@ -274,13 +308,13 @@ class TestCheckSupersessionStatusMismatch:
         entries = [
             {"document_id": "A", "status": "Superseded", "superseded_by": "B"},
         ]
-        assert _check_supersession_status(entries, []) == []
+        assert _check_supersession_status(entries) == []
 
     def test_has_field_wrong_status(self):
         entries = [
             {"document_id": "A", "status": "Draft", "superseded_by": "B"},
         ]
-        warnings = _check_supersession_status(entries, [])
+        warnings = _check_supersession_status(entries)
         assert len(warnings) == 1
         assert "Draft" in warnings[0]["message"]
 
@@ -288,7 +322,7 @@ class TestCheckSupersessionStatusMismatch:
         entries = [
             {"document_id": "A", "status": "Superseded"},
         ]
-        warnings = _check_supersession_status(entries, [])
+        warnings = _check_supersession_status(entries)
         assert len(warnings) == 1
         assert "no superseded_by" in warnings[0]["message"]
 
@@ -332,7 +366,7 @@ class TestValidateGraphIntegrity:
             {"document_id": "A", "path": "a.md", "status": "Draft", "related_ids": ["MISSING"]},
         ]
         edges = [Edge("A", "MISSING", "related")]
-        warnings, advice, errors = validate_graph_integrity(
+        warnings, _advice, errors = validate_graph_integrity(
             entries, edges, {"A"}, {"A": ["a.md"]},
         )
         assert errors == []
@@ -344,7 +378,7 @@ class TestValidateGraphIntegrity:
             {"document_id": "A", "path": "a.md"},
         ]
         doc_id_paths = {"A": ["a.md", "b.md"]}
-        warnings, advice, errors = validate_graph_integrity(
+        warnings, _advice, errors = validate_graph_integrity(
             entries, [], {"A"}, doc_id_paths,
         )
         assert len(errors) == 1
@@ -373,7 +407,7 @@ def _check_dangling(edges, known_ids):
     return _check_dangling_targets(edges, known_ids)
 
 
-def _check_supersession_status(entries, edges):
+def _check_supersession_status(entries):
     from meminit.core.services.graph import _check_supersession_status_mismatch
     return _check_supersession_status_mismatch(entries)
 

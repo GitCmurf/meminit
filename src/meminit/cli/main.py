@@ -1568,7 +1568,22 @@ def index(
                         output,
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
-                # text/md: re-raise so command_output_handler formats the error
+                if format == "md":
+                    lines = ["# Meminit Index\n", f"- Status: error", ""]
+                    lines.extend(["## Graph Violations", ""])
+                    rows = [
+                        ["ERROR", str(v.get("code")), str(v.get("path")), str(v.get("message"))]
+                        for v in violations
+                    ]
+                    lines.append(_md_table(["Severity", "Code", "Path", "Message"], rows))
+                    _write_output("\n".join(lines), output)
+                else:
+                    with maybe_capture(output, format):
+                        for v in violations:
+                            get_console().print(
+                                f"[bold red][ERROR {v.get('code')}] {v.get('message')}[/bold red]"
+                            )
+                raise SystemExit(exit_code_for_error(e.code)) from e
             raise
 
         warnings_list = getattr(report, "warnings", [])
@@ -1650,6 +1665,14 @@ def index(
                 lines.append(
                     _md_table(["Severity", "Code", "Path", "Line", "Message"], rows)
                 )
+            advice_list = getattr(report, "advice", [])
+            if advice_list:
+                lines.extend(["", "## Advice", ""])
+                advice_rows = [
+                    ["INFO", str(a.get("code")), str(a.get("message"))]
+                    for a in advice_list
+                ]
+                lines.append(_md_table(["Severity", "Code", "Message"], advice_rows))
             lines.append("")
             _write_output("\n".join(lines), output)
             if has_error:
@@ -1665,6 +1688,10 @@ def index(
             for warning in warnings_list:
                 get_console().print(
                     f"  - [{warning.get('severity')}] {warning.get('code')}: {warning.get('message')}"
+                )
+            for advice_item in getattr(report, "advice", []):
+                get_console().print(
+                    f"  - [dim]advice[/dim] {advice_item.get('code')}: {advice_item.get('message')}"
                 )
             if report.catalog_path:
                 get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")

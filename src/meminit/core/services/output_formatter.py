@@ -28,6 +28,7 @@ from jsonschema.exceptions import SchemaError
 from meminit.core.services.diagnostics import (
     canonicalize_advice_list,
     canonicalize_warning_list,
+    line_sort_key,
     recursively_sort_keys,
     sort_advice,
     sort_warnings,
@@ -107,16 +108,6 @@ def _sort_key_index(key: str) -> tuple[int, str]:
         return (len(_ENVELOPE_KEY_ORDER), key)
 
 
-def _get_line_key(line: Any) -> tuple:
-    """Helper to sort None after numeric lines."""
-    if line is None:
-        return (1, 0.0)
-    try:
-        return (0, float(line))
-    except (TypeError, ValueError):
-        return (2, str(line))
-
-
 def _sort_warnings(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort warnings by (path, line, code, message) per PRD §16.1."""
     return sort_warnings(warnings)
@@ -135,7 +126,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Sorts before flat items for the same path
             return (path, 0, "", "", 0, 0, "")
         # Flat item: (path, 1, code, severity, line_key[0], line_key[1], message)
-        line_key = _get_line_key(v.get("line"))
+        line_key = line_sort_key(v.get("line"))
         severity = v.get("severity") or "error"
         return (
             path,
@@ -149,7 +140,7 @@ def _sort_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     def _inner_violation_key(v: dict[str, Any]) -> tuple:
         # Grouped inner items: sort by code, severity, line, then message per PRD §16.1
-        line_key = _get_line_key(v.get("line"))
+        line_key = line_sort_key(v.get("line"))
         severity = v.get("severity") or "error"
         return (
             v.get("code", ""),

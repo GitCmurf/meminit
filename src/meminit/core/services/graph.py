@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.validators import LinkChecker
+from meminit.core.services.warning_codes import WarningCode
 
 # Reuse the same regex that LinkChecker uses for body-link extraction.
 _LINK_REGEX = LinkChecker.LINK_REGEX
@@ -42,6 +43,8 @@ class Edge:
 
     @staticmethod
     def sort_key(edge: Edge) -> Tuple[str, str, str]:
+        # Logical identity is the directed relationship triple. Metadata such
+        # as guaranteed/context is merged deterministically during dedup.
         return (edge.source, edge.target, edge.edge_type)
 
 
@@ -59,14 +62,15 @@ def extract_frontmatter_edges(
     edges: List[Edge] = []
 
     if related_ids:
+        if isinstance(related_ids, str):
+            related_ids = [related_ids]
         for rid in related_ids:
             if isinstance(rid, str) and rid.strip() and rid.strip() != doc_id:
                 edges.append(Edge(source=doc_id, target=rid.strip(), edge_type="related", context="frontmatter.related_ids"))
 
     if superseded_by and isinstance(superseded_by, str) and superseded_by.strip():
         successor = superseded_by.strip()
-        if successor != doc_id:
-            edges.append(Edge(source=successor, target=doc_id, edge_type="supersedes", context="frontmatter.superseded_by"))
+        edges.append(Edge(source=successor, target=doc_id, edge_type="supersedes", context="frontmatter.superseded_by"))
 
     return edges
 
@@ -93,7 +97,7 @@ def extract_reference_edges(
         _, link_target = match.groups()
 
         lower_target = link_target.lower()
-        if lower_target.startswith(("http://", "https://", "mailto:")) or link_target.startswith("#"):
+        if lower_target.startswith(("http://", "https://", "mailto:", "javascript:", "data:", "tel:")) or lower_target.startswith("#"):
             continue
 
         # Strip fragments.
@@ -118,15 +122,31 @@ def extract_reference_edges(
 
 
 def deduplicate_edges(edges: List[Edge]) -> List[Edge]:
-    """Remove duplicate edges (same source + target + edge_type)."""
-    seen: set = set()
-    result: List[Edge] = []
+    """Remove duplicate logical edges and merge provenance deterministically."""
+    merged: Dict[Tuple[str, str, str], Edge] = {}
     for edge in edges:
         key = Edge.sort_key(edge)
-        if key not in seen:
-            seen.add(key)
-            result.append(edge)
-    return result
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = edge
+            continue
+
+        guaranteed = existing.guaranteed or edge.guaranteed
+        contexts = sorted({c for c in (existing.context, edge.context) if c})
+        if guaranteed:
+            preferred = [c for c in contexts if c.startswith("frontmatter.")]
+            context = preferred[0] if preferred else (contexts[0] if contexts else "")
+        else:
+            context = contexts[0] if contexts else ""
+
+        merged[key] = Edge(
+            source=edge.source,
+            target=edge.target,
+            edge_type=edge.edge_type,
+            guaranteed=guaranteed,
+            context=context,
+        )
+    return list(merged.values())
 
 
 def sort_edges(edges: List[Edge]) -> List[Edge]:
@@ -191,7 +211,7 @@ def _check_duplicate_document_ids(
                     "code": ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID.value,
                     "message": f"Duplicate document_id '{doc_id}' in: {', '.join(sorted(paths))}",
                     "severity": Severity.ERROR.value,
-                    "path": paths[0],
+                    "path": sorted(paths)[0],
                     "line": 0,
                 }
             )
@@ -210,15 +230,18 @@ def _check_supersession_cycle(
         if edge.edge_type == "supersedes":
             adj.setdefault(edge.source, []).append(edge.target)
 
+    def _canonical_cycle_key(cycle_nodes: Sequence[str]) -> Tuple[str, ...]:
+        rotations = [
+            tuple(cycle_nodes[i:]) + tuple(cycle_nodes[:i])
+            for i in range(len(cycle_nodes))
+        ]
+        return min(rotations)
+
     errors: List[Dict[str, Any]] = []
-    visited: Set[str] = set()
+    seen_cycles: Set[Tuple[str, ...]] = set()
 
     for start in sorted(adj):
-        if start in visited:
-            continue
-
         # Iterative DFS: stack holds (node, path_so_far, neighbor_index).
-        visited.add(start)
         stack: List[Tuple[str, List[str], int]] = [(start, [start], 0)]
         rec_stack: Set[str] = {start}
 
@@ -236,22 +259,26 @@ def _check_supersession_cycle(
             stack[-1] = (node, path, idx + 1)
             neighbor = neighbors[idx]
 
-            if neighbor not in visited and neighbor not in rec_stack:
-                visited.add(neighbor)
-                rec_stack.add(neighbor)
-                stack.append((neighbor, path + [neighbor], 0))
-            elif neighbor in rec_stack:
+            if neighbor in rec_stack:
                 cycle_start = path.index(neighbor) if neighbor in path else -1
-                cycle = path[cycle_start:] + [neighbor]
-                errors.append(
-                    {
-                        "code": ErrorCode.GRAPH_SUPERSESSION_CYCLE.value,
-                        "message": f"Supersession cycle detected: {' -> '.join(cycle)}",
-                        "severity": Severity.ERROR.value,
-                        "path": "",
-                        "line": 0,
-                    }
-                )
+                cycle_nodes = path[cycle_start:]
+                cycle_key = _canonical_cycle_key(cycle_nodes)
+                if cycle_key not in seen_cycles:
+                    seen_cycles.add(cycle_key)
+                    cycle = list(cycle_key) + [cycle_key[0]]
+                    errors.append(
+                        {
+                            "code": ErrorCode.GRAPH_SUPERSESSION_CYCLE.value,
+                            "message": f"Supersession cycle detected: {' -> '.join(cycle)}",
+                            "severity": Severity.ERROR.value,
+                            "path": "",
+                            "line": 0,
+                        }
+                    )
+                continue
+
+            stack.append((neighbor, path + [neighbor], 0))
+            rec_stack.add(neighbor)
 
     return errors
 
@@ -261,7 +288,6 @@ def _check_dangling_targets(
     known_doc_ids: Set[str],
 ) -> List[Dict[str, Any]]:
     """Dangling edge targets: related_ids or superseded_by pointing to unknown document IDs."""
-    from meminit.core.services.warning_codes import WarningCode
 
     _CODE_MAP = {
         "related": WarningCode.GRAPH_DANGLING_RELATED_ID,
@@ -294,7 +320,6 @@ def _check_supersession_status_mismatch(
     entries: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """GRAPH_SUPERSESSION_STATUS_MISMATCH: superseded_by without Superseded status or vice versa."""
-    from meminit.core.services.warning_codes import WarningCode
 
     # Build lookup: doc_id → superseded_by value from frontmatter.
     has_superseded_by: Set[str] = set()

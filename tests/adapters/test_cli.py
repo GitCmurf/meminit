@@ -158,7 +158,7 @@ def test_cli_check_violations_text(mock_use_case):
     assert result.exit_code == 1
     assert "docs/bad.md" in result.output
     assert "TEST_RULE" in result.output
-    assert "ERROR" in result.output or "error" in result.output
+    assert "Found 1 violations across 1 checked files." in result.output
     assert "Severity.ERROR" not in result.output
 
 
@@ -1090,7 +1090,7 @@ def test_cli_index_non_graph_error_text_output(tmp_path):
     result = runner.invoke(cli, ["index", "--status", "BogusStatus", "--root", str(tmp_path)])
     assert result.exit_code != 0
     # Text mode should show the error code in the output (not silently exit).
-    assert "E_INVALID_FILTER_VALUE" in result.output or "ERROR" in result.output
+    assert "E_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_index_fatal_duplicate_id_text(tmp_path):
@@ -1158,6 +1158,89 @@ def test_cli_index_fatal_cycle_md(tmp_path):
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "md"])
     assert result.exit_code != 0
     assert "GRAPH_SUPERSESSION_CYCLE" in result.output
+
+
+def test_cli_index_fatal_multiple_violations_text(tmp_path):
+    """Multiple graph fatals all surface in text output."""
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    fm_a = (
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n"
+    )
+    fm_b = (
+        "---\n"
+        "document_id: EXAMPLE-ADR-002\n"
+        "type: ADR\n"
+        "title: Test Two\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test Two\n"
+    )
+    # Two duplicate pairs = two violations.
+    (docs_dir / "adr-001.md").write_text(fm_a, encoding="utf-8")
+    (docs_dir / "adr-001b.md").write_text(fm_a, encoding="utf-8")
+    (docs_dir / "adr-002.md").write_text(fm_b, encoding="utf-8")
+    (docs_dir / "adr-002b.md").write_text(fm_b, encoding="utf-8")
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["index", "--root", str(tmp_path)])
+    assert result.exit_code != 0
+    assert result.output.count("GRAPH_DUPLICATE_DOCUMENT_ID") >= 2
+
+
+def test_cli_index_advice_in_text(tmp_path):
+    """Asymmetric related_ids produces visible advice in text mode."""
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "related_ids:\n"
+        "  - EXAMPLE-ADR-002\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+    (docs_dir / "adr-002.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-002\n"
+        "type: ADR\n"
+        "title: Test Two\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test Two\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, ["index", "--root", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "GRAPH_RELATED_ID_ASYMMETRY" in result.output
 
 
 class TestCliNewJsonOutput:

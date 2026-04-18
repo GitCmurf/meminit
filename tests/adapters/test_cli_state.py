@@ -87,7 +87,7 @@ def test_cli_index_filtered_md_output(repo_with_docs):
     # MD output should show 1 node (only TEST-ADR-002 has status Draft).
     assert "Nodes: 1" in result.output
     # Edge count should match the filtered edges (0 if no edges between visible nodes).
-    assert "Edges:" in result.output
+    assert "Edges: 0" in result.output
 
 
 def test_cli_state_list_json(repo_with_docs):

@@ -529,8 +529,8 @@ def test_index_generates_reference_edges(tmp_path):
 
 def test_index_edges_sorted_deterministically(tmp_path):
     """Edges are sorted by (source, target, edge_type)."""
-    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
-    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n  - EXAMPLE-ADR-003\n")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", body="See [ADR 003](adr-003.md).")
     _setup_doc(tmp_path, "EXAMPLE-ADR-003", filename="adr-003.md")
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -556,6 +556,24 @@ def test_index_byte_identity(tmp_path):
     second_bytes = second_report.index_path.read_bytes()
 
     assert first_bytes == second_bytes
+
+
+def test_index_byte_identity_ignores_catalog_output_flags(tmp_path):
+    """Persisted index bytes do not depend on catalog generation flags."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+
+    base_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    base_bytes = base_report.index_path.read_bytes()
+
+    catalog_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md"
+    ).execute()
+    catalog_bytes = catalog_report.index_path.read_bytes()
+
+    assert base_bytes == catalog_bytes
+    assert catalog_report.catalog_path is not None
+    assert catalog_report.catalog_path.name == "review-catalog.md"
+    assert catalog_report.catalog_path.exists()
 
 
 def test_index_canonicalizes_persisted_diagnostics(tmp_path, monkeypatch):
@@ -670,6 +688,149 @@ def test_index_fatal_on_supersession_cycle(tmp_path):
     assert exc_info.value.code == ErrorCode.GRAPH_SUPERSESSION_CYCLE
 
 
+def test_index_fatal_on_self_referential_superseded_by(tmp_path):
+    """Self-referential superseded_by produces a cycle error and invalidates the index."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_SUPERSESSION_CYCLE
+    assert "EXAMPLE-ADR-001" in exc_info.value.message
+
+
+def test_index_fatal_invalidates_stale_artifact(tmp_path):
+    """Graph fatal errors remove all previously written generated artifacts."""
+    # First, create a valid index with catalog (custom name), kanban, and user state.
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "project-state.yaml").write_text(
+        "documents:\n", encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+    )
+    report = use_case.execute()
+    index_dir = tmp_path / "docs" / "01-indices"
+    assert report.index_path.exists()
+    review_catalog = index_dir / "review-catalog.md"
+    kanban_path = index_dir / "kanban.md"
+    kanban_css_path = index_dir / "kanban.css"
+    state_file = index_dir / "project-state.yaml"
+    assert review_catalog.exists()
+    assert kanban_path.exists()
+    assert kanban_css_path.exists()
+
+    # Now introduce a duplicate ID that triggers a fatal error (with default catalog name).
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+    use_case2 = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+    )
+    with pytest.raises(MeminitError) as exc_info:
+        use_case2.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+    # All stale generated artifacts should be removed, but project-state.yaml must survive.
+    assert not report.index_path.exists()
+    assert not review_catalog.exists()
+    assert not kanban_path.exists()
+    assert not kanban_css_path.exists()
+    assert state_file.exists()
+
+
+def test_index_success_cleanup_removes_stale_generated_views(tmp_path):
+    """Successful reruns remove obsolete generated views when output flags change."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    index_dir = tmp_path / "docs" / "01-indices"
+
+    first_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+    ).execute()
+    assert first_report.catalog_path is not None
+    review_catalog = index_dir / "review-catalog.md"
+    kanban_path = index_dir / "kanban.md"
+    kanban_css_path = index_dir / "kanban.css"
+    assert review_catalog.exists()
+    assert kanban_path.exists()
+    assert kanban_css_path.exists()
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert second_report.index_path.exists()
+    assert second_report.catalog_path is None
+    assert not review_catalog.exists()
+    assert not kanban_path.exists()
+    assert not kanban_css_path.exists()
+
+
+def test_index_fatal_preserves_user_managed_files(tmp_path):
+    """User-managed files (e.g. README.md) survive graph-fatal cleanup."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "project-state.yaml").write_text(
+        "documents:\n", encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+    )
+    use_case.execute()
+
+    # User adds a review notes file in the index directory.
+    readme = index_dir / "README.md"
+    readme.write_text("# Review notes\n", encoding="utf-8")
+    assert readme.exists()
+
+    # Introduce a duplicate ID to trigger graph fatal.
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+    use_case2 = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case2.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+    # User-managed README.md must survive; only Meminit artifacts are removed.
+    assert readme.exists()
+    assert not (index_dir / "meminit.index.json").exists()
+    assert not (index_dir / "kanban.md").exists()
+    assert not (index_dir / "kanban.css").exists()
+    assert not (index_dir / "catalog.md").exists()
+    assert (index_dir / "project-state.yaml").exists()
+
+
+def test_index_cleanup_removes_legacy_catalog_path_artifact(tmp_path):
+    """Cleanup still removes old custom catalogs tracked only via legacy index metadata."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    legacy_catalog = index_dir / "legacy-catalog.md"
+    legacy_catalog.write_text("# old catalog\n", encoding="utf-8")
+    (index_dir / "meminit.index.json").write_text(
+        json.dumps({"data": {"catalog_path": "legacy-catalog.md"}}),
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.index_path.exists()
+    assert not legacy_catalog.exists()
+
+
+def test_index_fatal_cleanup_missing_file_no_mask(tmp_path):
+    """Cleanup handles already-missing stale files without masking the graph error."""
+    # Introduce a duplicate ID with no prior index files.
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+
 def test_index_warns_on_dangling_related(tmp_path):
     """Dangling related_ids target produces a warning."""
     _setup_doc(
@@ -735,6 +896,7 @@ def test_index_graph_schema_version(tmp_path):
     assert "edges" in payload["data"]
 
 
+@pytest.mark.slow
 def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
     """Phase 2 graph build stays within the documented 500-doc timing budget."""
     for i in range(500):
