@@ -5,6 +5,7 @@ and backward compatibility for resolve/identify/link.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,9 +33,9 @@ version: 0.1
 last_updated: {last_updated}
 owner: {owner}
 docops_version: 2.0
----
-
+{extra_frontmatter}---
 # {doc_type}: {title}
+{body}
 """
 
 
@@ -48,6 +49,8 @@ def _setup_doc(
     last_updated: str = "2025-12-21",
     subdir: str = "45-adr",
     filename: str | None = None,
+    body: str = "",
+    extra_frontmatter: str = "",
 ) -> Path:
     """Create a governed document under docs/."""
     docs_dir = root / "docs" / subdir
@@ -61,6 +64,8 @@ def _setup_doc(
         status=status,
         last_updated=last_updated,
         owner=owner,
+        extra_frontmatter=extra_frontmatter,
+        body=body,
     )
     doc_path.write_text(content, encoding="utf-8")
     return doc_path
@@ -92,7 +97,7 @@ def test_index_repository_builds_index(tmp_path):
     assert text.endswith("\n")
     payload = json.loads(text)
     assert payload["output_schema_version"] == "2.0"
-    assert payload["data"]["documents"][0]["document_id"] == "EXAMPLE-ADR-001"
+    assert payload["data"]["nodes"][0]["document_id"] == "EXAMPLE-ADR-001"
     assert "run_id" not in payload
     assert "root" not in payload
     assert "generated_at" not in payload["data"]
@@ -156,7 +161,7 @@ def test_index_merges_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     assert doc["impl_state"] == "In Progress"
     assert doc["updated_by"] == "GitCmurf"
     assert doc["notes"] == "Phase 1"
@@ -170,7 +175,7 @@ def test_index_without_project_state(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     assert "impl_state" not in doc
     assert "updated_by" not in doc
 
@@ -377,7 +382,7 @@ def test_index_filter_by_impl_state(tmp_path):
     assert report.document_count == 1
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    ids = {d["document_id"] for d in payload["data"]["documents"]}
+    ids = {d["document_id"] for d in payload["data"]["nodes"]}
     assert ids == {"EXAMPLE-ADR-001", "EXAMPLE-ADR-002"}
 
 
@@ -442,10 +447,465 @@ def test_index_json_has_required_fields_for_resolve(tmp_path):
     report = use_case.execute()
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    doc = payload["data"]["documents"][0]
+    doc = payload["data"]["nodes"][0]
     # Existing required fields for downstream consumers.
     assert "document_id" in doc
     assert "path" in doc
     assert "type" in doc
     assert "title" in doc
     assert "status" in doc
+    # Graph fields present in node entries.
+    assert "area" in doc
+    assert "keywords" in doc
+    assert "related_ids" in doc
+    assert "superseded_by" in doc
+
+
+# ---------------------------------------------------------------------------
+# Graph integration tests (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def test_index_generates_related_edges(tmp_path):
+    """related_ids in frontmatter produces 'related' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    related_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "related"]
+    assert len(related_edges) == 1
+    assert related_edges[0]["source"] == "EXAMPLE-ADR-001"
+    assert related_edges[0]["target"] == "EXAMPLE-ADR-002"
+    assert related_edges[0]["guaranteed"] is True
+    assert related_edges[0]["context"] == "frontmatter.related_ids"
+
+
+def test_index_generates_supersedes_edges(tmp_path):
+    """superseded_by in frontmatter produces 'supersedes' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    supersedes_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "supersedes"]
+    assert len(supersedes_edges) == 1
+    assert supersedes_edges[0]["source"] == "EXAMPLE-ADR-002"
+    assert supersedes_edges[0]["target"] == "EXAMPLE-ADR-001"
+    assert supersedes_edges[0]["guaranteed"] is True
+    assert supersedes_edges[0]["context"] == "frontmatter.superseded_by"
+
+
+def test_index_generates_reference_edges(tmp_path):
+    """Body links to other governed docs produce 'references' edges."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        body="See [ADR-002](adr-002.md) for details.",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    ref_edges = [e for e in payload["data"]["edges"] if e["edge_type"] == "references"]
+    assert len(ref_edges) == 1
+    assert ref_edges[0]["source"] == "EXAMPLE-ADR-001"
+    assert ref_edges[0]["target"] == "EXAMPLE-ADR-002"
+    assert ref_edges[0]["guaranteed"] is False
+    assert ref_edges[0]["context"] == "body.markdown_link"
+
+
+def test_index_edges_sorted_deterministically(tmp_path):
+    """Edges are sorted by (source, target, edge_type)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-003\n  - EXAMPLE-ADR-002\n")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", body="See [ADR 003](adr-003.md).")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-003", filename="adr-003.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    payload = json.loads(
+        (tmp_path / "docs" / "01-indices" / "meminit.index.json").read_text(encoding="utf-8")
+    )
+    edge_keys = [(e["source"], e["target"], e["edge_type"]) for e in payload["data"]["edges"]]
+    assert edge_keys == sorted(edge_keys)
+
+
+def test_index_byte_identity(tmp_path):
+    """Two index runs on same content produce byte-identical JSON."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", title="Other ADR")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    first_report = use_case.execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = use_case.execute()
+    second_bytes = second_report.index_path.read_bytes()
+
+    assert first_bytes == second_bytes
+
+
+def test_index_byte_identity_ignores_catalog_output_flags(tmp_path):
+    """Persisted index bytes do not depend on catalog generation flags."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+
+    base_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    base_bytes = base_report.index_path.read_bytes()
+
+    catalog_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md"
+    ).execute()
+    catalog_bytes = catalog_report.index_path.read_bytes()
+
+    assert base_bytes == catalog_bytes
+    assert catalog_report.catalog_path is not None
+    assert catalog_report.catalog_path.name == "review-catalog.md"
+    assert catalog_report.catalog_path.exists()
+
+
+def test_index_canonicalizes_persisted_diagnostics(tmp_path, monkeypatch):
+    """Persisted warnings/advice stay byte-identical across discovery-order changes."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Stable ADR")
+
+    warning_a = {
+        "message": "later warning",
+        "code": "GRAPH_SUPERSESSION_STATUS_MISMATCH",
+        "path": "docs/45-adr/b.md",
+        "line": 9,
+        "severity": "warning",
+    }
+    warning_b = {
+        "severity": "warning",
+        "message": "earlier warning",
+        "code": "GRAPH_DANGLING_RELATED_ID",
+        "line": None,
+        "path": "docs/45-adr/a.md",
+    }
+    advice_a = {
+        "message": "z advice",
+        "code": "GRAPH_RELATED_ID_ASYMMETRY",
+        "context": {"rhs": "EXAMPLE-ADR-002", "lhs": "EXAMPLE-ADR-001"},
+    }
+    advice_b = {
+        "context": {"lhs": "EXAMPLE-ADR-003", "rhs": "EXAMPLE-ADR-004"},
+        "code": "GRAPH_RELATED_ID_ASYMMETRY",
+        "message": "a advice",
+    }
+
+    calls = {"count": 0}
+
+    def fake_validate_graph_integrity(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] % 2 == 1:
+            return ([warning_a, warning_b], [advice_a, advice_b], [])
+        return ([warning_b, warning_a], [advice_b, advice_a], [])
+
+    monkeypatch.setattr(
+        "meminit.core.use_cases.index_repository.graph.validate_graph_integrity",
+        fake_validate_graph_integrity,
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    first_report = use_case.execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = use_case.execute()
+    second_bytes = second_report.index_path.read_bytes()
+
+    assert first_bytes == second_bytes
+
+    payload = json.loads(second_report.index_path.read_text(encoding="utf-8"))
+    assert payload["warnings"] == [
+        {
+            "code": "GRAPH_DANGLING_RELATED_ID",
+            "message": "earlier warning",
+            "path": "docs/45-adr/a.md",
+            "severity": "warning",
+        },
+        {
+            "code": "GRAPH_SUPERSESSION_STATUS_MISMATCH",
+            "line": 9,
+            "message": "later warning",
+            "path": "docs/45-adr/b.md",
+            "severity": "warning",
+        },
+    ]
+    assert payload["advice"] == [
+        {
+            "code": "GRAPH_RELATED_ID_ASYMMETRY",
+            "context": {"lhs": "EXAMPLE-ADR-003", "rhs": "EXAMPLE-ADR-004"},
+            "message": "a advice",
+        },
+        {
+            "code": "GRAPH_RELATED_ID_ASYMMETRY",
+            "context": {"lhs": "EXAMPLE-ADR-001", "rhs": "EXAMPLE-ADR-002"},
+            "message": "z advice",
+        },
+    ]
+
+
+def test_index_fatal_on_duplicate_document_id(tmp_path):
+    """Duplicate document_id across two files raises GRAPH_DUPLICATE_DOCUMENT_ID."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-duplicate.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+
+def test_index_fatal_on_supersession_cycle(tmp_path):
+    """Supersession cycle raises error and prevents artifact write."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-002",
+        status="Superseded",
+        filename="adr-002.md",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_SUPERSESSION_CYCLE
+
+
+def test_index_fatal_on_self_referential_superseded_by(tmp_path):
+    """Self-referential superseded_by produces a cycle error and invalidates the index."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Superseded",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_SUPERSESSION_CYCLE
+    assert "EXAMPLE-ADR-001" in exc_info.value.message
+
+
+def test_index_fatal_invalidates_stale_artifact(tmp_path):
+    """Graph fatal errors remove all previously written generated artifacts."""
+    # First, create a valid index with catalog (custom name), kanban, and user state.
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "project-state.yaml").write_text(
+        "documents:\n", encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+    )
+    report = use_case.execute()
+    index_dir = tmp_path / "docs" / "01-indices"
+    assert report.index_path.exists()
+    review_catalog = index_dir / "review-catalog.md"
+    kanban_path = index_dir / "kanban.md"
+    kanban_css_path = index_dir / "kanban.css"
+    state_file = index_dir / "project-state.yaml"
+    assert review_catalog.exists()
+    assert kanban_path.exists()
+    assert kanban_css_path.exists()
+
+    # Now introduce a duplicate ID that triggers a fatal error (with default catalog name).
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+    use_case2 = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+    )
+    with pytest.raises(MeminitError) as exc_info:
+        use_case2.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+    # All stale generated artifacts should be removed, but project-state.yaml must survive.
+    assert not report.index_path.exists()
+    assert not review_catalog.exists()
+    assert not kanban_path.exists()
+    assert not kanban_css_path.exists()
+    assert state_file.exists()
+
+
+def test_index_success_cleanup_removes_stale_generated_views(tmp_path):
+    """Successful reruns remove obsolete generated views when output flags change."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    index_dir = tmp_path / "docs" / "01-indices"
+
+    first_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+    ).execute()
+    assert first_report.catalog_path is not None
+    review_catalog = index_dir / "review-catalog.md"
+    kanban_path = index_dir / "kanban.md"
+    kanban_css_path = index_dir / "kanban.css"
+    assert review_catalog.exists()
+    assert kanban_path.exists()
+    assert kanban_css_path.exists()
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert second_report.index_path.exists()
+    assert second_report.catalog_path is None
+    assert not review_catalog.exists()
+    assert not kanban_path.exists()
+    assert not kanban_css_path.exists()
+
+
+def test_index_fatal_preserves_user_managed_files(tmp_path):
+    """User-managed files (e.g. README.md) survive graph-fatal cleanup."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "project-state.yaml").write_text(
+        "documents:\n", encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+    )
+    use_case.execute()
+
+    # User adds a review notes file in the index directory.
+    readme = index_dir / "README.md"
+    readme.write_text("# Review notes\n", encoding="utf-8")
+    assert readme.exists()
+
+    # Introduce a duplicate ID to trigger graph fatal.
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+    use_case2 = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case2.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+    # User-managed README.md must survive; only Meminit artifacts are removed.
+    assert readme.exists()
+    assert not (index_dir / "meminit.index.json").exists()
+    assert not (index_dir / "kanban.md").exists()
+    assert not (index_dir / "kanban.css").exists()
+    assert not (index_dir / "catalog.md").exists()
+    assert (index_dir / "project-state.yaml").exists()
+
+
+def test_index_cleanup_removes_legacy_catalog_path_artifact(tmp_path):
+    """Cleanup still removes old custom catalogs tracked only via legacy index metadata."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    legacy_catalog = index_dir / "legacy-catalog.md"
+    legacy_catalog.write_text("# old catalog\n", encoding="utf-8")
+    (index_dir / "meminit.index.json").write_text(
+        json.dumps({"data": {"catalog_path": "legacy-catalog.md"}}),
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.index_path.exists()
+    assert not legacy_catalog.exists()
+
+
+def test_index_fatal_cleanup_missing_file_no_mask(tmp_path):
+    """Cleanup handles already-missing stale files without masking the graph error."""
+    # Introduce a duplicate ID with no prior index files.
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute()
+    assert exc_info.value.code == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+
+
+def test_index_warns_on_dangling_related(tmp_path):
+    """Dangling related_ids target produces a warning."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-999\n",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "GRAPH_DANGLING_RELATED_ID" in codes
+
+    # Dangling edge is still emitted.
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    dangling = [e for e in payload["data"]["edges"] if e["target"] == "EXAMPLE-ADR-999"]
+    assert len(dangling) == 1
+
+
+def test_index_warns_on_supersession_status_mismatch(tmp_path):
+    """superseded_by without Superseded status produces a warning."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        status="Draft",
+        extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "GRAPH_SUPERSESSION_STATUS_MISMATCH" in codes
+
+
+def test_index_advises_on_related_asymmetry(tmp_path):
+    """Asymmetric related_ids produces advice."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [a["code"] for a in report.advice]
+    assert "GRAPH_RELATED_ID_ASYMMETRY" in codes
+
+
+def test_index_graph_schema_version(tmp_path):
+    """Persisted index includes graph_schema_version."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    assert payload["data"]["index_version"] == "1.0"
+    assert payload["data"]["graph_schema_version"] == "1.0"
+    assert payload["data"]["node_count"] == 1
+    assert payload["data"]["edge_count"] == 0
+    assert "nodes" in payload["data"]
+    assert "edges" in payload["data"]
+
+
+@pytest.mark.slow
+def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
+    """Phase 2 graph build stays within the documented 500-doc timing budget."""
+    for i in range(500):
+        _setup_doc(tmp_path, f"EXAMPLE-ADR-{i:03d}")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    start = time.perf_counter()
+    report = use_case.execute()
+    elapsed = time.perf_counter() - start
+
+    assert report.document_count == 500
+    assert elapsed < 10, f"Index build exceeded Phase 2 budget: {elapsed:.2f}s"

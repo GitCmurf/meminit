@@ -1544,7 +1544,47 @@ def index(
             status_filter=status_filter,
             impl_state_filter=impl_state_filter,
         )
-        report = use_case.execute()
+        try:
+            report = use_case.execute()
+        except MeminitError as e:
+            # Only intercept graph fatal diagnostics (details.errors present).
+            # Re-raise all other MeminitErrors so command_output_handler
+            # formats them consistently for text/md/json modes.
+            is_graph_fatal = isinstance(e.details, dict) and "errors" in e.details
+            if is_graph_fatal:
+                violations = e.details["errors"]
+                if format == "json":
+                    _write_output(
+                        format_envelope(
+                            command="index",
+                            root=str(root_path),
+                            success=False,
+                            violations=violations,
+                            error={"code": e.code.value, "message": e.message, "details": e.details},
+                            include_timestamp=include_timestamp,
+                            run_id=run_id,
+                            correlation_id=correlation_id,
+                        ),
+                        output,
+                    )
+                    raise SystemExit(exit_code_for_error(e.code)) from e
+                if format == "md":
+                    lines = ["# Meminit Index\n", "- Status: error", ""]
+                    lines.extend(["## Graph Violations", ""])
+                    rows = [
+                        ["ERROR", str(v.get("code")), str(v.get("path")), str(v.get("message"))]
+                        for v in violations
+                    ]
+                    lines.append(_md_table(["Severity", "Code", "Path", "Message"], rows))
+                    _write_output("\n".join(lines), output)
+                else:
+                    with maybe_capture(output, format):
+                        for v in violations:
+                            get_console().print(
+                                f"[bold red][ERROR {v.get('code')}] {v.get('message')}[/bold red]"
+                            )
+                raise SystemExit(exit_code_for_error(e.code)) from e
+            raise
 
         warnings_list = getattr(report, "warnings", [])
         has_error = any(
@@ -1552,10 +1592,27 @@ def index(
         )
         status = "error" if has_error else ("warn" if warnings_list else "ok")
 
+        # Filter edges to only include those whose endpoints are in the visible
+        # node set — but only when the user requested node filtering.  On the
+        # unfiltered path we must preserve dangling edges (e.g. related_ids
+        # pointing to a non-existent document) so agents see the full graph.
+        has_filter = status_filter is not None or impl_state_filter is not None
+        if has_filter:
+            visible_ids = {n["document_id"] for n in report.documents}
+            display_edges = [
+                e for e in report.edges
+                if e.get("source") in visible_ids and e.get("target") in visible_ids
+            ]
+        else:
+            display_edges = report.edges
+
         data: Dict[str, Any] = {
             "index_path": relative_path_string(report.index_path, root_path),
-            "document_count": report.document_count,
-            "documents": report.documents,
+            "node_count": report.document_count,
+            "edge_count": len(display_edges),
+            "nodes": report.documents,
+            "edges": display_edges,
+            "filtered": has_filter,
         }
         if report.catalog_path:
             data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
@@ -1570,6 +1627,7 @@ def index(
                     success=not has_error,
                     data=data,
                     warnings=warnings_list,
+                    advice=getattr(report, "advice", []),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,
@@ -1585,7 +1643,8 @@ def index(
                 "# Meminit Index\n",
                 f"- Status: {status}",
                 f"- Index path: `{data.get('index_path')}`",
-                f"- Documents: {report.document_count}",
+                f"- Nodes: {report.document_count}",
+                f"- Edges: {len(display_edges)}",
             ]
             if report.catalog_path:
                 lines.append(f"- Catalog: `{data.get('catalog_path')}`")
@@ -1606,6 +1665,14 @@ def index(
                 lines.append(
                     _md_table(["Severity", "Code", "Path", "Line", "Message"], rows)
                 )
+            advice_list = getattr(report, "advice", [])
+            if advice_list:
+                lines.extend(["", "## Advice", ""])
+                advice_rows = [
+                    ["INFO", str(a.get("code")), str(a.get("message"))]
+                    for a in advice_list
+                ]
+                lines.append(_md_table(["Severity", "Code", "Message"], advice_rows))
             lines.append("")
             _write_output("\n".join(lines), output)
             if has_error:
@@ -1616,11 +1683,15 @@ def index(
             style = "red" if has_error else ("yellow" if warnings_list else "green")
             get_console().print(
                 f"[bold {style}]Index written:[/bold {style}] {report.index_path} "
-                f"({report.document_count} documents)"
+                f"({report.document_count} nodes, {len(display_edges)} edges)"
             )
             for warning in warnings_list:
                 get_console().print(
                     f"  - [{warning.get('severity')}] {warning.get('code')}: {warning.get('message')}"
+                )
+            for advice_item in getattr(report, "advice", []):
+                get_console().print(
+                    f"  - [dim]advice[/dim] {advice_item.get('code')}: {advice_item.get('message')}"
                 )
             if report.catalog_path:
                 get_console().print(f"[green]Catalog:[/green] {report.catalog_path}")

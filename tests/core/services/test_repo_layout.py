@@ -106,7 +106,7 @@ namespaces:
     assert report.index_path == index_path
     payload = json.loads(index_path.read_text(encoding="utf-8"))
     assert payload["output_schema_version"] == "2.0"
-    assert {d["namespace"] for d in payload["data"]["documents"]} == {"root", "phyla"}
+    assert {d["namespace"] for d in payload["data"]["nodes"]} == {"root", "phyla"}
 
     resolved = ResolveDocumentUseCase(str(tmp_path)).execute("PHYLA-ADR-001")
     assert resolved.path == "packages/phyla/docs/45-adr/adr-001-phyla.md"

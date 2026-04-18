@@ -18,7 +18,7 @@ def test_every_error_code_has_explanation():
 
 
 def test_explanation_categories_are_valid():
-    valid_categories = {"shared", "templates", "state", "agent"}
+    valid_categories = {"shared", "templates", "state", "agent", "graph"}
     for code, explanation in ERROR_EXPLANATIONS.items():
         assert explanation.category in valid_categories, (
             f"{code}: invalid category '{explanation.category}'"

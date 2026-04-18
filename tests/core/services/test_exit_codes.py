@@ -50,6 +50,9 @@ def test_exit_code_for_error_mappings():
         # Agent interface error codes
         ErrorCode.UNKNOWN_ERROR_CODE: EX_DATAERR,
         ErrorCode.INVALID_ROOT_PATH: EX_NOINPUT,
+        # Graph integrity error codes
+        ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID: EX_DATAERR,
+        ErrorCode.GRAPH_SUPERSESSION_CYCLE: EX_DATAERR,
     }
 
     # Verify every defined ErrorCode is in our test expectation

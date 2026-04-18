@@ -23,6 +23,10 @@ import frontmatter
 
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.diagnostics import (
+    canonicalize_advice_list,
+    canonicalize_warning_list,
+)
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
@@ -41,6 +45,7 @@ from meminit.core.services.sanitization import (
     validate_actor,
 )
 from meminit.core.services.warning_codes import WarningCode
+from meminit.core.services import graph
 
 
 def _json_default(obj: Any) -> str:
@@ -59,12 +64,80 @@ def _safe_css_slug(value: str, *, default: str = "unknown") -> str:
     return slug or default
 
 
+def _normalize_related_ids(value: Any) -> Optional[List[str]]:
+    """Ensure related_ids is always a list of strings or None."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value] if value.strip() else None
+    if isinstance(value, (list, tuple)):
+        return [v.strip() for v in value if isinstance(v, str) and v.strip()]
+    return None
+
+
+def _remove_stale_artifacts(
+    index_dir: Path,
+    catalog_name: Optional[str] = None,
+    *,
+    remove_index: bool = False,
+) -> None:
+    """Best-effort removal of generated index-side artifacts.
+
+    Only removes Meminit-generated files so that user-managed files
+    (e.g. ``README.md``) in the index directory are never touched.
+    Filesystem errors are silently swallowed so the caller's structured
+    graph diagnostic is never masked.
+    """
+    known: set[Path] = set()
+    if remove_index:
+        known.add(index_dir / "meminit.index.json")
+
+    # Fixed generated view files.
+    known.add(index_dir / "kanban.md")
+    known.add(index_dir / "kanban.css")
+    if catalog_name:
+        known.add(index_dir / Path(catalog_name).name)
+
+    # Transitional cleanup: discover the catalog filename from a previous
+    # successful run that still persisted legacy catalog_path metadata.
+    old_index = index_dir / "meminit.index.json"
+    try:
+        old_data = json.loads(old_index.read_text(encoding="utf-8")).get("data", {})
+        old_catalog = old_data.get("catalog_path")
+        if isinstance(old_catalog, str) and old_catalog.strip():
+            known.add(index_dir / Path(old_catalog).name)
+    except (OSError, json.JSONDecodeError, AttributeError):
+        pass
+
+    # Marker-based discovery for Meminit-generated Markdown views. This
+    # catches historical custom catalog names without touching user files.
+    for candidate in index_dir.glob("*.md"):
+        try:
+            with candidate.open(encoding="utf-8") as f:
+                first_line = next(f, "")
+        except OSError:
+            continue
+        if first_line.rstrip() in {
+            "<!-- MEMINIT_GENERATED: catalog -->",
+            "<!-- MEMINIT_GENERATED: kanban -->",
+        }:
+            known.add(candidate)
+
+    for path in known:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def _build_persisted_index_payload(
     *,
     layout_namespaces: Sequence[Any],
     document_count: int,
-    documents: List[Dict[str, Any]],
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
     warnings: List[Dict[str, Any]],
+    advice: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """Build the stable on-disk index artifact.
 
@@ -76,7 +149,10 @@ def _build_persisted_index_payload(
         "success": True,
         "command": "index",
         "data": {
-            "index_version": "0.2",
+            "index_version": "1.0",
+            "graph_schema_version": "1.0",
+            "node_count": len(nodes),
+            "edge_count": len(edges),
             "namespaces": [
                 {
                     "namespace": ns.namespace,
@@ -86,11 +162,12 @@ def _build_persisted_index_payload(
                 for ns in layout_namespaces
             ],
             "document_count": document_count,
-            "documents": documents,
+            "nodes": nodes,
+            "edges": edges,
         },
         "warnings": warnings,
         "violations": [],
-        "advice": [],
+        "advice": advice,
     }
 
 
@@ -108,6 +185,8 @@ class IndexBuildReport:
     kanban_css_path: Optional[Path] = None
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     documents: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+    advice: List[Dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +360,8 @@ def _generate_catalog(
 ) -> str:
     """Generate catalog table view with dynamic padding and composite grouping."""
     lines: List[str] = []
+    lines.append("<!-- MEMINIT_GENERATED: catalog -->")
+    lines.append("")
     lines.append("# Project Dashboard")
     lines.append("")
     lines.append(f"_Auto-generated by `meminit index`. Last built: {generated_at}._")
@@ -377,6 +458,8 @@ def _generate_kanban(
     2. Enhanced HTML kanban board
     """
     lines: List[str] = []
+    lines.append("<!-- MEMINIT_GENERATED: kanban -->")
+    lines.append("")
     lines.append(f"# {project_name} Project Status Board")
     lines.append("")
     # Link the stylesheet for HTML renderers (MkDocs, local browsers).
@@ -517,6 +600,7 @@ def _generate_kanban(
 # ---------------------------------------------------------------------------
 
 KANBAN_CSS = """\
+/* MEMINIT_GENERATED: kanban_css */
 /* Modern Kanban Board Styles (Glassmorphism & Clean Typography) */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -744,6 +828,7 @@ class IndexRepositoryUseCase:
         # Scan governed documents.
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
+        doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -763,8 +848,9 @@ class IndexRepositoryUseCase:
                     continue
                 doc_id = doc_id.strip()
                 known_doc_ids.add(doc_id)
-
                 rel_path = path.relative_to(self._root_dir).as_posix()
+                doc_id_paths.setdefault(doc_id, []).append(rel_path)
+
                 entry: Dict[str, Any] = {
                     "document_id": doc_id,
                     "path": rel_path,
@@ -780,6 +866,11 @@ class IndexRepositoryUseCase:
                         post.metadata.get("owner"), max_length=None, html_escape=True
                     ),
                     "last_updated": post.metadata.get("last_updated"),
+                    "area": post.metadata.get("area"),
+                    "description": post.metadata.get("description"),
+                    "keywords": post.metadata.get("keywords"),
+                    "superseded_by": post.metadata.get("superseded_by"),
+                    "related_ids": _normalize_related_ids(post.metadata.get("related_ids")),
                 }
 
                 # Merge state (additive — new optional fields).
@@ -816,6 +907,9 @@ class IndexRepositoryUseCase:
 
                         state_updated = state_entry.updated
 
+                # Capture body for reference edge extraction (stripped before JSON output).
+                entry["_body"] = post.content
+
                 # Compute activity recency (used for sorting, not stored in JSON) - always calculate
                 entry["_recency"] = _activity_recency(
                     entry.get("last_updated"),
@@ -823,6 +917,41 @@ class IndexRepositoryUseCase:
                 )
 
                 entries.append(entry)
+
+        # --- Graph pipeline ---
+
+        # Build path → doc_id map and extract edges.
+        path_to_doc_id = {e["path"]: e["document_id"] for e in entries}
+        all_edges = graph.build_edge_set(entries, path_to_doc_id, self._root_dir)
+
+        # Run graph integrity validation (checks duplicates, cycles, dangling refs, etc.).
+        graph_warnings, graph_advice, graph_fatal = graph.validate_graph_integrity(
+            entries, all_edges, known_doc_ids, doc_id_paths,
+        )
+        catalog_out_name = Path(self._catalog_name).name if self._output_catalog else None
+        if graph_fatal:
+            # Invalidate all stale generated artifacts so downstream
+            # commands and human readers don't see outputs from a
+            # previous successful run while the repo is unindexable.
+            index_dir = self._layout.index_file.parent
+            _remove_stale_artifacts(
+                index_dir,
+                catalog_name=catalog_out_name,
+                remove_index=True,
+            )
+
+            fatal_code_str = graph_fatal[0].get("code", "GRAPH_DUPLICATE_DOCUMENT_ID")
+            try:
+                fatal_code = ErrorCode(fatal_code_str)
+            except ValueError:
+                fatal_code = ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID
+            raise MeminitError(
+                code=fatal_code,
+                message=graph_fatal[0]["message"],
+                details={"errors": graph_fatal},
+            )
+
+        warnings_list.extend(graph_warnings)
 
         # Validate project state (advisory warnings).
         if project_state:
@@ -844,24 +973,35 @@ class IndexRepositoryUseCase:
         # Apply filters.
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
 
-        # Write main index JSON (recency field stripped — internal only).
+        # Remove stale generated side views from previous runs before writing
+        # the current optional outputs. This keeps successful reruns from
+        # leaving obsolete catalog/kanban files behind when flags change.
+        _remove_stale_artifacts(
+            index_path.parent,
+            catalog_name=catalog_out_name,
+            remove_index=False,
+        )
+
+        # Write main index JSON (recency/body fields stripped — internal only).
         # Keep canonical JSON unfiltered for downstream commands that depend on
         # full repository inventory (resolve/identify/link). Filters are for
         # command output and generated views only.
         sorted_entries = sorted(entries, key=lambda e: e.get("document_id", ""))
-        sorted_entries.sort(
-            key=lambda e: e.get("_recency", datetime.min.replace(tzinfo=timezone.utc)),
-            reverse=True,
-        )
-        json_entries = [
+        json_nodes = [
             {k: v for k, v in e.items() if not k.startswith("_")}
             for e in sorted_entries
         ]
+        json_edges = [e.to_dict() for e in all_edges]
+        canonical_warnings = canonicalize_warning_list(warnings_list)
+        canonical_advice = canonicalize_advice_list(graph_advice)
+
         payload = _build_persisted_index_payload(
             layout_namespaces=self._layout.namespaces,
-            document_count=len(json_entries),
-            documents=json_entries,
-            warnings=warnings_list,
+            document_count=len(json_nodes),
+            nodes=json_nodes,
+            edges=json_edges,
+            warnings=canonical_warnings,
+            advice=canonical_advice,
         )
         index_path.write_text(
             json.dumps(payload, indent=2, default=_json_default) + "\n",
@@ -873,7 +1013,6 @@ class IndexRepositoryUseCase:
         # Generate catalog view (FR-3).
         catalog_path: Optional[Path] = None
         if self._output_catalog:
-            catalog_out_name = Path(self._catalog_name).name
             catalog_path = index_path.parent / catalog_out_name
             ensure_safe_write_path(root_dir=self._root_dir, target_path=catalog_path)
             catalog_content = _generate_catalog(
@@ -920,6 +1059,8 @@ class IndexRepositoryUseCase:
             catalog_path=catalog_path,
             kanban_path=kanban_path,
             kanban_css_path=kanban_css_path,
-            warnings=warnings_list,
+            warnings=canonical_warnings,
             documents=json_filtered,
+            edges=json_edges,
+            advice=canonical_advice,
         )
