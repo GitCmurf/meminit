@@ -200,7 +200,7 @@
       "if": {
         "properties": {
           "command": {
-            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list"]
+            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "protocol check", "protocol sync", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list"]
           }
         },
         "required": ["command"]

@@ -107,6 +107,8 @@ def _build_args(name: str, tmp_path: Path) -> list[str]:
         "resolve": ["TEST-ADR-001"],
         "identify": ["docs/45-adr/test.md"],
         "link": ["TEST-ADR-001"],
+        "protocol check": [],
+        "protocol sync": [],
         "state set": ["TEST-ADR-001", "--impl-state", "not-started"],
         "state get": ["TEST-ADR-001"],
         "state list": [],

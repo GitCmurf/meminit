@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from meminit.core.services.protocol_assets import ProtocolAssetRegistry
 from meminit.core.use_cases.init_repository import InitRepositoryUseCase
 
 
@@ -146,3 +147,52 @@ def test_init_short_dir_name_falls_back_to_REPO(tmp_path: Path):
 
     config = yaml.safe_load((repo_dir / "docops.config.yaml").read_text())
     assert config["repo_prefix"] == "REPO"
+
+
+def test_init_writes_canonical_protocol_assets(empty_repo):
+    """All protocol assets from the registry must match canonical renders after init."""
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    config = yaml.safe_load((empty_repo / "docops.config.yaml").read_text())
+    project_name = config["project_name"]
+    repo_prefix = config["repo_prefix"]
+    registry = ProtocolAssetRegistry.default()
+
+    for asset in registry.assets:
+        target = empty_repo / asset.target_path
+        assert target.exists(), f"Missing protocol asset: {asset.target_path}"
+
+        canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
+        on_disk = target.read_text(encoding="utf-8")
+        assert on_disk == canonical, (
+            f"Asset {asset.id} on-disk content does not match canonical render"
+        )
+
+
+def test_init_agents_md_has_protocol_markers(empty_repo):
+    """AGENTS.md must contain MEMINIT_PROTOCOL begin/end markers after init."""
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    agents = (empty_repo / "AGENTS.md").read_text(encoding="utf-8")
+    assert "MEMINIT_PROTOCOL: begin" in agents
+    assert "MEMINIT_PROTOCOL: end" in agents
+    assert "id=agents-md" in agents
+    assert "version=1.0" in agents
+    assert "sha256=" in agents
+
+
+def test_init_brownfield_script_is_executable(empty_repo):
+    """Brownfield helper script must have executable permission set via registry."""
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    registry = ProtocolAssetRegistry.default()
+    script_asset = registry.get_by_id("meminit-brownfield-script")
+    assert script_asset is not None
+
+    target = empty_repo / script_asset.target_path
+    assert target.exists()
+    mode = target.stat().st_mode
+    assert mode & script_asset.file_mode, "Script file_mode not applied"

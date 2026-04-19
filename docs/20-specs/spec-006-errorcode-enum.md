@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-006
 type: SPEC
 title: ErrorCode Enum Specification
 status: Draft
-version: "0.3"
-last_updated: 2026-04-17
+version: "0.4"
+last_updated: 2026-04-18
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -24,8 +24,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-006
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-17
+> **Version:** 0.4
+> **Last Updated:** 2026-04-18
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -60,6 +60,7 @@ Categories:
 | State-only | Codes specific to `meminit state` and `meminit index --filter`.      |
 | Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
 | Graph      | Codes for graph integrity violations during `meminit index` build.  |
+| Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`). |
 
 ## 3. Canonical ErrorCode Inventory
 
@@ -101,6 +102,11 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `INVALID_ROOT_PATH`        | Agent      | The provided root path is not a valid directory.                 |
 | `UNKNOWN_ERROR`            | Shared     | An unexpected error not covered by a specific code.             |
 | `UNKNOWN_ERROR_CODE`       | Agent      | The requested error code is not recognized by `meminit explain`. |
+| `PROTOCOL_ASSET_MISSING`   | Protocol   | A governed protocol asset file is absent from the repo.          |
+| `PROTOCOL_ASSET_LEGACY`    | Protocol   | A protocol asset has no MEMINIT_PROTOCOL markers (pre-v1.0 state). |
+| `PROTOCOL_ASSET_STALE`     | Protocol   | A protocol asset's managed region is version/hash-stale vs canonical. |
+| `PROTOCOL_ASSET_TAMPERED`  | Protocol   | A protocol asset's managed region was edited without updating markers. |
+| `PROTOCOL_ASSET_UNPARSEABLE` | Protocol | A protocol asset's markers are malformed (unparseable state). |
 
 ## 4. Adding a New Error Code
 
@@ -130,3 +136,4 @@ Plain English: If these are true, error codes are governed correctly.
 | 0.1 | 2026-02-24 | Product Team | Initial spec |
 | 0.2 | 2026-04-15 | GitCmurf | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path |
 | 0.3 | 2026-04-17 | GitCmurf | Added INVALID_ROOT_PATH (Agent), GRAPH_DUPLICATE_DOCUMENT_ID and GRAPH_SUPERSESSION_CYCLE (Graph) for Phase 2 index graph integrity |
+| 0.4 | 2026-04-18 | GitCmurf | Added Protocol category and 5 PROTOCOL_* codes for Phase 3 protocol governance (check/sync) |

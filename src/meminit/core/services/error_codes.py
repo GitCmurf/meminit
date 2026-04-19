@@ -68,6 +68,13 @@ class ErrorCode(str, Enum):
     GRAPH_DUPLICATE_DOCUMENT_ID = "GRAPH_DUPLICATE_DOCUMENT_ID"
     GRAPH_SUPERSESSION_CYCLE = "GRAPH_SUPERSESSION_CYCLE"
 
+    # Protocol governance error codes (Phase 3)
+    PROTOCOL_ASSET_MISSING = "PROTOCOL_ASSET_MISSING"
+    PROTOCOL_ASSET_LEGACY = "PROTOCOL_ASSET_LEGACY"
+    PROTOCOL_ASSET_STALE = "PROTOCOL_ASSET_STALE"
+    PROTOCOL_ASSET_TAMPERED = "PROTOCOL_ASSET_TAMPERED"
+    PROTOCOL_ASSET_UNPARSEABLE = "PROTOCOL_ASSET_UNPARSEABLE"
+
 
 # ---------------------------------------------------------------------------
 # Error explanation registry (co-located with ErrorCode per MEMINIT-PLAN-010 §3.4.3)
@@ -552,6 +559,72 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["fix", "check"],
         ),
         spec_reference="MEMINIT-PLAN-011",
+    ),
+    # -- Protocol governance error codes --
+    ErrorCode.PROTOCOL_ASSET_MISSING.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_MISSING.value,
+        category="protocol",
+        summary="A protocol asset is missing from the repository.",
+        cause="The expected protocol asset file does not exist at its target path.",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to create the missing asset.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_LEGACY.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_LEGACY.value,
+        category="protocol",
+        summary="A protocol asset predates the marker format.",
+        cause="The mixed-ownership asset exists but contains no MEMINIT_PROTOCOL region markers (installed before protocol markers were introduced).",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to wrap existing content in markers.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_STALE.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_STALE.value,
+        category="protocol",
+        summary="A protocol asset is out of date with the current contract.",
+        cause="The canonical render has changed since the asset was last synchronized.",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to update the asset.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_TAMPERED.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_TAMPERED.value,
+        category="protocol",
+        summary="The managed region of a protocol asset has been modified outside of meminit.",
+        cause="The recorded sha256 in the MEMINIT_PROTOCOL marker does not match the actual managed content on disk.",
+        remediation=RemediationInfo(
+            action="Review the changes in the managed region. If intentional, run meminit protocol sync --force --no-dry-run to overwrite. If unintentional, restore from version control.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["protocol sync", "protocol check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_UNPARSEABLE.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_UNPARSEABLE.value,
+        category="protocol",
+        summary="The MEMINIT_PROTOCOL markers in a protocol asset are malformed.",
+        cause="The begin/end markers are duplicated, unterminated, or have mismatched IDs.",
+        remediation=RemediationInfo(
+            action="Manually fix or restore the malformed markers from version control, then run meminit protocol sync --no-dry-run.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["protocol check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
     ),
 }
 

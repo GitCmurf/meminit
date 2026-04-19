@@ -305,11 +305,11 @@ Two distinct failure modes:
 
 Always check `success` first, then inspect `error` vs. `violations` to determine the failure type.
 
-Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-004` documents the v2 envelope shape, but some prose there still reflects older migration-state wording.
+Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-008` is the normative v3 output contract (superseding MEMINIT-SPEC-004).
 
 ## References (in this repo)
 
 - Brownfield migration runbook: `docs/60-runbooks/runbook-005-brownfield-repo-migration.md`
 - CI/CD enforcement runbook: `docs/60-runbooks/runbook-004-ci-cd-enforcement.md`
-- Agent output contract: `docs/20-specs/spec-004-agent-output-contract.md`
+- Agent output contract: `docs/20-specs/spec-008-agent-output-contract-v2.md`
 - Agent interface v2 PRD: `docs/10-prd/prd-005-agent-interface-v2.md`

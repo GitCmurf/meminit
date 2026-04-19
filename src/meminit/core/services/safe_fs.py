@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import tempfile
+
 from pathlib import Path
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -75,3 +78,46 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
                     "root_dir": str(root_dir),
                 },
             )
+
+
+def atomic_write(
+    target_path: Path,
+    content: str | bytes,
+    *,
+    encoding: str = "utf-8",
+) -> None:
+    """Write content to target path atomically using temp-file + os.replace.
+
+    Creates a temporary file in the same directory as the target, writes
+    the content, then atomically replaces the target.  Ensures no partial
+    writes are visible to concurrent readers.
+
+    The caller is responsible for validating the target path with
+    ``ensure_safe_write_path`` before calling this function.
+    """
+    if isinstance(content, str):
+        data = content.encode(encoding)
+    else:
+        data = content
+
+    fd, tmp_path = tempfile.mkstemp(
+        dir=str(target_path.parent),
+        prefix=f".{target_path.name}.tmp.",
+        suffix=".tmp",
+    )
+    try:
+        os.write(fd, data)
+        os.close(fd)
+        fd = None
+        os.replace(tmp_path, str(target_path))
+    except BaseException:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

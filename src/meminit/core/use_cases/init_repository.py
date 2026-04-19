@@ -7,12 +7,12 @@ import logging
 import yaml
 
 from meminit.core.services.org_profiles import resolve_org_profile
+from meminit.core.services.protocol_assets import (
+    ProtocolAssetRegistry,
+    resolve_repo_metadata,
+)
 from meminit.core.services.repo_config import derive_repo_prefix
-from meminit.core.services.safe_fs import ensure_safe_write_path
-
-# Agent skill paths
-_AGENTS_SKILLS_DIR = Path(".agents") / "skills"
-_MEMINIT_DOCOPS_SKILL = "meminit-docops"
+from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 
 _FALLBACK_SCHEMA_JSON = b"""{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -202,62 +202,49 @@ class InitRepositoryUseCase:
             else:
                 record(dest, created=False)
 
-        # 4. Create AGENTS.md
-        repo_prefix = self._load_repo_prefix_from_config()
-        agents_path = self.root_dir / "AGENTS.md"
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_path)
-        if not agents_path.exists():
-            agents_content = self._load_agents_template()
-            agents_content = agents_content.replace(
-                "{{PROJECT_NAME}}", self.root_dir.name
-            ).replace("{{REPO_PREFIX}}", repo_prefix)
-            agents_path.write_text(agents_content, encoding="utf-8")
-            record(agents_path, created=True)
-        else:
-            record(agents_path, created=False)
+        # 4. Install protocol assets from registry (AGENTS.md, skill manifest, brownfield script)
+        registry = ProtocolAssetRegistry.default()
+        project_name, repo_prefix = resolve_repo_metadata(self.root_dir)
 
-        # 5. Create agent skills directory
-        # Codex expects .agents/skills/ in latest versions
-        agents_skills_dir = self.root_dir / _AGENTS_SKILLS_DIR / _MEMINIT_DOCOPS_SKILL
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=agents_skills_dir)
-        created = True
-        try:
-            agents_skills_dir.mkdir(parents=True, exist_ok=False)
-        except FileExistsError:
-            if not agents_skills_dir.is_dir():
-                raise
-            created = False
-        record(agents_skills_dir, created=created)
+        for asset in registry.assets:
+            target = self.root_dir / asset.target_path
+            ensure_safe_write_path(root_dir=self.root_dir, target_path=target)
 
-        # 5a. Install SKILL.md (even if directory already exists)
-        self._install_optional_asset(
-            target_path=agents_skills_dir / "SKILL.md",
-            package_resource_path="meminit-docops-skill.md",
-            record_fn=record,
-            error_context="meminit-docops SKILL.md",
-        )
+            if target.exists():
+                if not target.is_file():
+                    raise FileExistsError(f"{target} exists and is not a file")
+                if asset.file_mode is not None:
+                    self._set_executable_permission(target)
+                record(target, created=False)
+                continue
 
-        # 5b. Install scripts directory and brownfield helper script
-        scripts_dir = agents_skills_dir / "scripts"
-        ensure_safe_write_path(root_dir=self.root_dir, target_path=scripts_dir)
-        created = True
-        try:
-            scripts_dir.mkdir(parents=True, exist_ok=False)
-        except FileExistsError:
-            if not scripts_dir.is_dir():
-                raise
-            created = False
-        record(scripts_dir, created=created)
+            try:
+                canonical = asset.render(
+                    project_name=project_name, repo_prefix=repo_prefix
+                )
+            except (OSError, FileNotFoundError):
+                canonical = None
 
-        self._install_optional_asset(
-            target_path=scripts_dir / "meminit_brownfield_plan.sh",
-            package_resource_path="scripts/meminit_brownfield_plan.sh",
-            record_fn=record,
-            error_context="brownfield helper script",
-            make_executable=True,
-        )
+            if canonical is not None:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                atomic_write(target, canonical, encoding="utf-8")
+                if asset.file_mode is not None:
+                    target.chmod(asset.file_mode)
+                record(target, created=True)
+            elif asset.id == "agents-md":
+                # Fallback: write a minimal AGENTS.md even without the bundled template
+                agents_content = self._load_agents_template()
+                agents_content = agents_content.replace(
+                    "{{PROJECT_NAME}}", project_name
+                ).replace("{{REPO_PREFIX}}", repo_prefix)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(agents_content, encoding="utf-8")
+                record(target, created=True)
+            else:
+                logging.warning("Failed to install protocol asset %s", asset.id)
+                record(target, created=False)
 
-        # 6. Install gov-001 constitution document
+        # 5. Install gov-001 constitution document
         self._install_optional_asset(
             target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
             package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
@@ -320,12 +307,7 @@ class InitRepositoryUseCase:
             record_fn(target_path, created=False)
 
     def _load_agents_template(self) -> str:
-        """
-        Load the bundled AGENTS.md template from package resources.
-
-        This must work when meminit is installed from a wheel (assets are not guaranteed to
-        exist as plain files on disk).
-        """
+        """Load the bundled AGENTS.md template from package resources (legacy fallback)."""
         try:
             template = (
                 resources.files("meminit.core.assets")
@@ -333,7 +315,6 @@ class InitRepositoryUseCase:
                 .read_text(encoding="utf-8")
             )
         except Exception:
-            # Conservative fallback: still allow init to proceed with a minimal but valid file.
             template = (
                 "# AGENTS.md\n\n"
                 "This repository uses Meminit DocOps.\n\n"
@@ -341,18 +322,6 @@ class InitRepositoryUseCase:
                 "- Repo prefix: {{REPO_PREFIX}}\n"
             )
         return template
-
-    def _load_repo_prefix_from_config(self) -> str:
-        config_path = self.root_dir / "docops.config.yaml"
-        if config_path.exists():
-            try:
-                config = yaml.safe_load(config_path.read_text()) or {}
-                configured = config.get("repo_prefix")
-                if isinstance(configured, str) and configured.strip():
-                    return configured.strip().upper()
-            except Exception:
-                pass
-        return derive_repo_prefix(self.root_dir.name)
 
     def _set_executable_permission(self, path: Path) -> None:
         """Set executable permission bits on a file, preserving existing permissions."""

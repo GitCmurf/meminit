@@ -4,6 +4,7 @@ import pytest
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import (
     EX_CANTCREAT,
+    EX_COMPLIANCE_FAIL,
     EX_DATAERR,
     EX_NOINPUT,
     EX_NOPERM,
@@ -53,6 +54,12 @@ def test_exit_code_for_error_mappings():
         # Graph integrity error codes
         ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID: EX_DATAERR,
         ErrorCode.GRAPH_SUPERSESSION_CYCLE: EX_DATAERR,
+        # Protocol governance error codes
+        ErrorCode.PROTOCOL_ASSET_MISSING: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_ASSET_LEGACY: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_ASSET_STALE: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_ASSET_TAMPERED: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_ASSET_UNPARSEABLE: EX_COMPLIANCE_FAIL,
     }
 
     # Verify every defined ErrorCode is in our test expectation
