@@ -12,6 +12,7 @@ from meminit.core.services.protocol_assets import (
     classify_drift,
     resolve_repo_metadata,
 )
+from meminit.core.services.safe_fs import ensure_existing_regular_file_path
 
 
 @dataclass(frozen=True)
@@ -52,8 +53,11 @@ class ProtocolChecker:
 
         assets = self._registry.assets
         if asset_ids:
+            # Preserve caller order while preventing duplicate work on the same
+            # asset when repeatable --asset flags are used.
+            unique_asset_ids = list(dict.fromkeys(asset_ids))
             filtered = []
-            for aid in asset_ids:
+            for aid in unique_asset_ids:
                 a = self._registry.get_by_id(aid)
                 if a is not None:
                     filtered.append(a)
@@ -65,8 +69,14 @@ class ProtocolChecker:
         for asset in assets:
             target = self._root_dir / asset.target_path
             on_disk_content = None
-            if target.exists():
-                on_disk_content = target.read_text(encoding="utf-8")
+            if target.exists() or target.is_symlink():
+                ensure_existing_regular_file_path(
+                    root_dir=self._root_dir,
+                    target_path=target,
+                )
+                on_disk_content = target.read_bytes().decode(
+                    "utf-8", errors="surrogateescape"
+                )
 
             canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
             status = classify_drift(asset, canonical, on_disk_content)

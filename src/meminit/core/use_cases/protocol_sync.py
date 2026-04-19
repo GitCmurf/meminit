@@ -14,7 +14,11 @@ from meminit.core.services.protocol_assets import (
     parse_protocol_markers,
     resolve_repo_metadata,
 )
-from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
+from meminit.core.services.safe_fs import (
+    atomic_write,
+    ensure_existing_regular_file_path,
+    ensure_safe_write_path,
+)
 
 
 @dataclass(frozen=True)
@@ -164,13 +168,19 @@ class ProtocolSyncer:
         user_bytes: Optional[bytes] = None
 
         if asset.ownership == AssetOwnership.MIXED:
-            if target.exists():
+            if target.exists() or target.is_symlink():
+                ensure_existing_regular_file_path(
+                    root_dir=self._root_dir,
+                    target_path=target,
+                )
                 if prior_status == DriftOutcome.LEGACY.value:
                     user_bytes = target.read_bytes()
                     preserved_bytes = len(user_bytes)
                 else:
                     existing_bytes = target.read_bytes()
-                    existing_text = existing_bytes.decode("utf-8")
+                    existing_text = existing_bytes.decode(
+                        "utf-8", errors="surrogateescape"
+                    )
                     parsed = parse_protocol_markers(existing_text)
                     if parsed is not None:
                         # Compute byte offset from raw bytes directly.

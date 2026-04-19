@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     DriftOutcome,
@@ -61,6 +62,12 @@ def _write_asset(tmp_path: Path, asset: ProtocolAsset, content: str) -> None:
     target.write_text(content, encoding="utf-8")
 
 
+def _write_asset_bytes(tmp_path: Path, asset: ProtocolAsset, content: bytes) -> None:
+    target = tmp_path / asset.target_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+
+
 class TestProtocolSyncerNoop:
     def test_aligned_assets_are_noop(self, tmp_path):
         _setup_config(tmp_path)
@@ -89,6 +96,15 @@ class TestProtocolSyncerRewrite:
         assert asset["action"] == "rewrite"
         assert asset["prior_status"] == "missing"
         assert (tmp_path / "AGENTS.md").exists()
+
+    def test_duplicate_asset_ids_are_deduplicated(self, tmp_path):
+        _setup_config(tmp_path)
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(asset_ids=["agents-md", "agents-md"], dry_run=False)
+        assert report.summary["total"] == 1
+        assert [a["id"] for a in report.assets] == ["agents-md"]
+        result = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        assert result.count("MEMINIT_PROTOCOL: begin") == 1
 
     def test_stale_asset_updated(self, tmp_path):
         _setup_config(tmp_path)
@@ -331,6 +347,35 @@ class TestProtocolSyncerValidation:
         result = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
         assert "## Custom" in result
         assert "User notes preserved." in result
+
+    def test_non_utf8_user_bytes_preserved(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        asset = registry.get_by_id("agents-md")
+        assert asset is not None
+        canonical = asset.render(project_name="TestProject", repo_prefix="TEST").encode("utf-8")
+        stale = canonical.replace(b"version=1.0", b"version=0.9", 1) + b"## Custom\ninvalid:\xff\n"
+        _write_asset_bytes(tmp_path, asset, stale)
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(asset_ids=["agents-md"], dry_run=False)
+        assert report.assets[0]["action"] == "rewrite"
+        result_bytes = (tmp_path / "AGENTS.md").read_bytes()
+        assert b"invalid:\xff\n" in result_bytes
+
+    def test_directory_target_is_rejected(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        asset = registry.get_by_id("agents-md")
+        assert asset is not None
+        target = tmp_path / asset.target_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.mkdir()
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            syncer.execute(asset_ids=["agents-md"], dry_run=False)
+        assert exc_info.value.code == ErrorCode.PATH_ESCAPE
 
     def test_whitespace_only_user_region_preserved(self, tmp_path):
         """Whitespace-only user content after end marker should not be silently dropped."""

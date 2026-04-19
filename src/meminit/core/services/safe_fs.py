@@ -80,6 +80,27 @@ def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
             )
 
 
+def ensure_existing_regular_file_path(*, root_dir: Path, target_path: Path) -> None:
+    """Ensure an existing target path is a regular file within the repo root.
+
+    This reuses the write-path safety checks to reject symlink escapes and then
+    adds a regular-file check so read-only commands do not follow symlinks or
+    operate on directories, devices, or other non-regular targets.
+    """
+    ensure_safe_write_path(root_dir=root_dir, target_path=target_path)
+
+    target_path = Path(target_path)
+    if not target_path.is_file():
+        raise MeminitPathEscapeError(
+            message=f"Path '{target_path}' is not a regular file",
+            details={
+                "target_path": str(target_path),
+                "root_dir": str(Path(root_dir).resolve()),
+                "required": "regular file (not directory/symlink)",
+            },
+        )
+
+
 def atomic_write(
     target_path: Path,
     content: str | bytes,

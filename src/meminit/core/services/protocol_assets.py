@@ -192,6 +192,17 @@ def normalize_protocol_payload(content: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _sha256_normalized_text(content: str) -> str:
+    """Hash normalized text using surrogate-safe UTF-8 encoding.
+
+    Surrogate escape preserves any non-UTF-8 bytes that were decoded from disk
+    so byte-preserving protocol workflows can classify drift without crashing.
+    """
+    return hashlib.sha256(
+        normalize_protocol_payload(content).encode("utf-8", errors="surrogateescape")
+    ).hexdigest()
+
+
 # ---------------------------------------------------------------------------
 # Marker parsing
 # ---------------------------------------------------------------------------
@@ -298,15 +309,18 @@ def classify_drift(
     5. For mixed assets with parseable markers: hash mismatch -> tampered
     6. For mixed assets self-consistent: version/hash mismatch vs canonical -> stale/aligned
     """
-    canonical_normalized = normalize_protocol_payload(canonical_render)
     # For mixed assets, the comparison hash is of the managed payload only
     # (what's stored in the begin marker sha256 attribute), not the full
     # render including markers.
     if asset.ownership == AssetOwnership.MIXED:
         canonical_parsed = parse_protocol_markers(canonical_render)
-        canonical_sha = canonical_parsed.recorded_sha256 if canonical_parsed else hashlib.sha256(canonical_normalized.encode("utf-8")).hexdigest()
+        canonical_sha = (
+            canonical_parsed.recorded_sha256
+            if canonical_parsed
+            else _sha256_normalized_text(canonical_render)
+        )
     else:
-        canonical_sha = hashlib.sha256(canonical_normalized.encode("utf-8")).hexdigest()
+        canonical_sha = _sha256_normalized_text(canonical_render)
 
     # 1. Missing
     if on_disk_content is None:
@@ -322,8 +336,7 @@ def classify_drift(
 
     # Fully generated assets: whole-file comparison
     if asset.ownership == AssetOwnership.GENERATED:
-        disk_normalized = normalize_protocol_payload(on_disk_content)
-        disk_sha = hashlib.sha256(disk_normalized.encode("utf-8")).hexdigest()
+        disk_sha = _sha256_normalized_text(on_disk_content)
         if disk_sha == canonical_sha:
             return DriftStatus(
                 asset_id=asset.id,
@@ -370,8 +383,7 @@ def classify_drift(
         )
 
     # 5. Parseable markers: recompute hash of managed payload
-    managed_normalized = normalize_protocol_payload(parsed.managed_payload)
-    actual_sha = hashlib.sha256(managed_normalized.encode("utf-8")).hexdigest()
+    actual_sha = _sha256_normalized_text(parsed.managed_payload)
 
     if actual_sha != parsed.recorded_sha256:
         return DriftStatus(

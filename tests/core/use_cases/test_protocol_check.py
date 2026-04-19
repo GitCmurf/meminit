@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     DriftOutcome,
@@ -30,6 +31,12 @@ def _write_asset(tmp_path: Path, asset: ProtocolAsset, content: str) -> None:
     target = tmp_path / asset.target_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
+
+
+def _write_asset_bytes(tmp_path: Path, asset: ProtocolAsset, content: bytes) -> None:
+    target = tmp_path / asset.target_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +91,13 @@ class TestProtocolCheckAssetFilter:
         checker = ProtocolChecker(str(tmp_path))
         report = checker.execute(asset_ids=["agents-md", "meminit-docops-skill"])
         assert report.summary["total"] == 2
+
+    def test_duplicate_asset_ids_are_deduplicated(self, tmp_path):
+        _setup_config(tmp_path)
+        checker = ProtocolChecker(str(tmp_path))
+        report = checker.execute(asset_ids=["agents-md", "agents-md"])
+        assert report.summary["total"] == 1
+        assert [a["id"] for a in report.assets] == ["agents-md"]
 
     def test_unknown_asset_raises(self, tmp_path):
         _setup_config(tmp_path)
@@ -156,6 +170,36 @@ class TestProtocolCheckDriftOutcomes:
         assert report.assets[0]["status"] == "unparseable"
         assert report.assets[0]["auto_fixable"] is False
         assert report.success is False
+
+    def test_non_utf8_user_bytes_do_not_crash(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        asset = registry.get_by_id("agents-md")
+        assert asset is not None
+        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+        payload = canonical.encode("utf-8") + b"## Custom\ninvalid:\xff\n"
+        _write_asset_bytes(tmp_path, asset, payload)
+
+        checker = ProtocolChecker(str(tmp_path))
+        report = checker.execute(asset_ids=["agents-md"])
+        assert report.assets[0]["status"] == "aligned"
+        assert report.success is True
+
+    def test_symlink_asset_is_rejected(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        asset = registry.get_by_id("agents-md")
+        assert asset is not None
+        outside = tmp_path.parent / "outside-agents.md"
+        outside.write_text("outside\n", encoding="utf-8")
+        target = tmp_path / asset.target_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(outside)
+
+        checker = ProtocolChecker(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            checker.execute(asset_ids=["agents-md"])
+        assert exc_info.value.code == ErrorCode.PATH_ESCAPE
 
 
 class TestProtocolCheckReportShape:
