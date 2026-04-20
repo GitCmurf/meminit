@@ -3582,7 +3582,11 @@ def protocol_sync(asset_ids, dry_run, force, root, format, output, include_times
 
         exit_code = 0 if report.success else EX_COMPLIANCE_FAIL
 
-        sync_violations = _drift_violations(report.assets, "prior_status") if not report.success else []
+        if report.dry_run:
+            sync_violations = _drift_violations(report.assets, "prior_status") if not report.success else []
+        else:
+            refused = [a for a in report.assets if a["action"] == "refuse"]
+            sync_violations = _drift_violations(refused, "prior_status") if refused else []
 
         if format == "json":
             _write_output(

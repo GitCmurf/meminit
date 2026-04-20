@@ -14,6 +14,15 @@ def _setup_config(tmp_path: Path, project_name: str = "TestProject", repo_prefix
     )
 
 
+def _write_canonical(tmp_path: Path, asset) -> None:
+    canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+    target = tmp_path / asset.target_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(canonical, encoding="utf-8")
+    if asset.file_mode is not None:
+        target.chmod(asset.file_mode)
+
+
 def _write_asset(tmp_path: Path, asset_id: str, content: str) -> None:
     registry = ProtocolAssetRegistry.default()
     asset = registry.get_by_id(asset_id)
@@ -44,10 +53,7 @@ def setup_f01_aligned(tmp_path: Path) -> Dict[str, str]:
     _setup_config(tmp_path)
     registry = ProtocolAssetRegistry.default()
     for asset in registry.assets:
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "true", "expected_drifted": "0"}
 
 
@@ -58,10 +64,7 @@ def setup_f02_missing_agents_md(tmp_path: Path) -> Dict[str, str]:
     for asset in registry.assets:
         if asset.id == "agents-md":
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_missing": "agents-md"}
 
 
@@ -72,10 +75,7 @@ def setup_f03_missing_skill_manifest(tmp_path: Path) -> Dict[str, str]:
     for asset in registry.assets:
         if asset.id == "meminit-docops-skill":
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_missing": "meminit-docops-skill"}
 
 
@@ -87,10 +87,7 @@ def setup_f04_legacy_agents_md(tmp_path: Path) -> Dict[str, str]:
         if asset.id == "agents-md":
             _write_asset(tmp_path, asset.id, "# Legacy AGENTS.md\n\nOld content here.\n")
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_legacy": "agents-md"}
 
 
@@ -104,10 +101,7 @@ def setup_f05_stale_version(tmp_path: Path) -> Dict[str, str]:
             content = canonical.replace("version=1.0", "version=0.9")
             _write_asset(tmp_path, asset.id, content)
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_stale": "agents-md"}
 
 
@@ -140,10 +134,7 @@ def setup_f06_stale_hash(tmp_path: Path) -> Dict[str, str]:
             )
             _write_asset(tmp_path, asset.id, "\n".join(modified_lines))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_stale": "agents-md"}
 
 
@@ -158,10 +149,7 @@ def setup_f07_tampered(tmp_path: Path) -> Dict[str, str]:
             lines.insert(2, "TAMPERED LINE")
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "1", "expected_tampered": "agents-md"}
 
 
@@ -176,10 +164,7 @@ def setup_f08_duplicate_begin_marker(tmp_path: Path) -> Dict[str, str]:
             lines.insert(1, lines[0])  # duplicate begin marker
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
 
 
@@ -194,10 +179,7 @@ def setup_f09_missing_end_marker(tmp_path: Path) -> Dict[str, str]:
             filtered = [l for l in lines if "MEMINIT_PROTOCOL: end" not in l]
             _write_asset(tmp_path, asset.id, "\n".join(filtered))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
 
 
@@ -217,10 +199,7 @@ def setup_f10_stale_with_user_content(tmp_path: Path) -> Dict[str, str]:
             full_content = "\n".join(content_lines) + user_section
             _write_asset(tmp_path, asset.id, full_content)
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {
         "expected_check_success": "false",
         "expected_drifted": "1",
@@ -240,6 +219,8 @@ def setup_f11_crlf_normalized(tmp_path: Path) -> Dict[str, str]:
         target = tmp_path / asset.target_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(crlf_content, encoding="utf-8")
+        if asset.file_mode is not None:
+            target.chmod(asset.file_mode)
     return {"expected_check_success": "true", "expected_drifted": "0"}
 
 
@@ -255,6 +236,8 @@ def setup_f12_trailing_whitespace_normalized(tmp_path: Path) -> Dict[str, str]:
         target = tmp_path / asset.target_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(padded, encoding="utf-8")
+        if asset.file_mode is not None:
+            target.chmod(asset.file_mode)
     return {"expected_check_success": "true", "expected_drifted": "0"}
 
 
@@ -268,10 +251,7 @@ def setup_f13_asset_filter(tmp_path: Path) -> Dict[str, str]:
     registry = ProtocolAssetRegistry.default()
     asset = registry.get_by_id("meminit-brownfield-script")
     assert asset is not None
-    canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-    target = tmp_path / asset.target_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(canonical, encoding="utf-8")
+    _write_canonical(tmp_path, asset)
     return {
         "expected_check_success": "false",
         "expected_drifted": "2",
@@ -292,10 +272,7 @@ def setup_f16_preamble_before_begin(tmp_path: Path) -> Dict[str, str]:
             lines.insert(0, "# User preamble\n")
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
 
 
@@ -312,10 +289,7 @@ def setup_f17_duplicate_end_marker(tmp_path: Path) -> Dict[str, str]:
             lines.insert(end_idx + 1, lines[end_idx])
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
-        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-        target = tmp_path / asset.target_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(canonical, encoding="utf-8")
+        _write_canonical(tmp_path, asset)
     return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
 
 

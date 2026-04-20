@@ -106,12 +106,16 @@ def atomic_write(
     content: str | bytes,
     *,
     encoding: str = "utf-8",
+    file_mode: int | None = None,
 ) -> None:
     """Write content to target path atomically using temp-file + os.replace.
 
     Creates a temporary file in the same directory as the target, writes
     the content, then atomically replaces the target.  Ensures no partial
     writes are visible to concurrent readers.
+
+    If *file_mode* is given, it is applied to the temp file before the
+    atomic rename so that chmod failures abort the write entirely.
 
     The caller is responsible for validating the target path with
     ``ensure_safe_write_path`` before calling this function.
@@ -121,13 +125,32 @@ def atomic_write(
     else:
         data = content
 
+    effective_mode = file_mode
+    if effective_mode is None:
+        try:
+            effective_mode = target_path.stat().st_mode & 0o777
+        except OSError:
+            current_umask = os.umask(0)
+            os.umask(current_umask)
+            effective_mode = 0o666 & ~current_umask
+
     fd, tmp_path = tempfile.mkstemp(
         dir=str(target_path.parent),
         prefix=f".{target_path.name}.tmp.",
         suffix=".tmp",
     )
     try:
-        os.write(fd, data)
+        try:
+            os.fchmod(fd, effective_mode)
+        except AttributeError:
+            os.chmod(tmp_path, effective_mode)
+        view = memoryview(data)
+        written = 0
+        while written < len(view):
+            count = os.write(fd, view[written:])
+            if count <= 0:
+                raise OSError("short write while writing atomic temp file")
+            written += count
         os.close(fd)
         fd = None
         os.replace(tmp_path, str(target_path))

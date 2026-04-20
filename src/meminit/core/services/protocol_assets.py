@@ -15,6 +15,9 @@ from importlib import resources
 from pathlib import Path
 from typing import Optional, Tuple
 
+import yaml
+
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import load_repo_config
 
 
@@ -111,6 +114,8 @@ class DriftStatus:
     expected_sha256: Optional[str] = None
     recorded_sha256: Optional[str] = None
     actual_sha256: Optional[str] = None
+    expected_file_mode: Optional[int] = None
+    actual_file_mode: Optional[int] = None
     auto_fixable: bool = False
 
 
@@ -135,8 +140,8 @@ class ProtocolAssetRegistry:
         unknown = [aid for aid in asset_ids if aid not in self._ids]
         if unknown:
             raise MeminitError(
-                code=ErrorCode.INVALID_FLAG_COMBINATION,
-                message=f"Unknown asset IDs: {', '.join(sorted(unknown))}. "
+                code=ErrorCode.UNKNOWN_TYPE,
+                message=f"Unknown protocol asset IDs: {', '.join(sorted(unknown))}. "
                 f"Valid IDs: {', '.join(self._ids)}",
                 details={"unknown_ids": sorted(unknown), "valid_ids": list(self._ids)},
             )
@@ -227,12 +232,14 @@ def parse_protocol_markers(content: str) -> Optional[ParsedMarkers]:
     ]
 
     if not begin_indices:
-        # Any MEMINIT_PROTOCOL marker text without a valid begin marker is
-        # malformed. This covers stray end markers, malformed begin markers,
-        # and any other protocol-marker text that cannot be parsed as a valid
-        # managed region header.
-        if any("MEMINIT_PROTOCOL" in line for line in lines):
-            raise ValueError("MEMINIT_PROTOCOL marker text found without begin marker")
+        # Reject lines that look like marker syntax (begin/end prefix) but
+        # aren't valid markers — those indicate a broken managed region.
+        # Plain prose mentioning MEMINIT_PROTOCOL is allowed (legacy).
+        if any(
+            line.lstrip().startswith("<!-- MEMINIT_PROTOCOL:")
+            for line in lines
+        ):
+            raise ValueError("MEMINIT_PROTOCOL marker syntax found without valid begin marker")
         return None
 
     if len(begin_indices) > 1:
@@ -298,6 +305,7 @@ def classify_drift(
     asset: ProtocolAsset,
     canonical_render: str,
     on_disk_content: Optional[str],
+    on_disk_mode: Optional[int] = None,
 ) -> DriftStatus:
     """Classify the drift state of a single protocol asset.
 
@@ -331,12 +339,26 @@ def classify_drift(
             status=DriftOutcome.MISSING,
             expected_version=PROTOCOL_ASSET_VERSION,
             expected_sha256=canonical_sha,
+            expected_file_mode=asset.file_mode,
             auto_fixable=True,
         )
 
     # Fully generated assets: whole-file comparison
     if asset.ownership == AssetOwnership.GENERATED:
         disk_sha = _sha256_normalized_text(on_disk_content)
+        if asset.file_mode is not None and on_disk_mode != asset.file_mode:
+            return DriftStatus(
+                asset_id=asset.id,
+                target_path=asset.target_path,
+                ownership=asset.ownership.value,
+                status=DriftOutcome.STALE,
+                expected_version=PROTOCOL_ASSET_VERSION,
+                expected_sha256=canonical_sha,
+                actual_sha256=disk_sha,
+                expected_file_mode=asset.file_mode,
+                actual_file_mode=on_disk_mode,
+                auto_fixable=True,
+            )
         if disk_sha == canonical_sha:
             return DriftStatus(
                 asset_id=asset.id,
@@ -355,6 +377,8 @@ def classify_drift(
             expected_version=PROTOCOL_ASSET_VERSION,
             expected_sha256=canonical_sha,
             actual_sha256=disk_sha,
+            expected_file_mode=asset.file_mode,
+            actual_file_mode=on_disk_mode,
             auto_fixable=True,
         )
 
@@ -372,6 +396,18 @@ def classify_drift(
 
     # 3. No markers found -> legacy
     if parsed is None:
+        if asset.file_mode is not None and on_disk_mode != asset.file_mode:
+            return DriftStatus(
+                asset_id=asset.id,
+                target_path=asset.target_path,
+                ownership=asset.ownership.value,
+                status=DriftOutcome.STALE,
+                expected_version=PROTOCOL_ASSET_VERSION,
+                expected_sha256=canonical_sha,
+                expected_file_mode=asset.file_mode,
+                actual_file_mode=on_disk_mode,
+                auto_fixable=True,
+            )
         return DriftStatus(
             asset_id=asset.id,
             target_path=asset.target_path,
@@ -379,13 +415,32 @@ def classify_drift(
             status=DriftOutcome.LEGACY,
             expected_version=PROTOCOL_ASSET_VERSION,
             expected_sha256=canonical_sha,
+            expected_file_mode=asset.file_mode,
+            actual_file_mode=on_disk_mode,
             auto_fixable=True,
         )
 
     # 5. Parseable markers: recompute hash of managed payload
     actual_sha = _sha256_normalized_text(parsed.managed_payload)
+    mode_mismatch = asset.file_mode is not None and on_disk_mode != asset.file_mode
 
-    if actual_sha != parsed.recorded_sha256:
+    if parsed.asset_id != asset.id:
+        return DriftStatus(
+            asset_id=asset.id,
+            target_path=asset.target_path,
+            ownership=asset.ownership.value,
+            status=DriftOutcome.STALE,
+            expected_version=PROTOCOL_ASSET_VERSION,
+            recorded_version=parsed.version,
+            expected_sha256=canonical_sha,
+            recorded_sha256=parsed.recorded_sha256,
+            actual_sha256=actual_sha,
+            expected_file_mode=asset.file_mode,
+            actual_file_mode=on_disk_mode,
+            auto_fixable=True,
+        )
+
+    if actual_sha != parsed.recorded_sha256.lower():
         return DriftStatus(
             asset_id=asset.id,
             target_path=asset.target_path,
@@ -396,13 +451,15 @@ def classify_drift(
             expected_sha256=canonical_sha,
             recorded_sha256=parsed.recorded_sha256,
             actual_sha256=actual_sha,
+            expected_file_mode=asset.file_mode,
+            actual_file_mode=on_disk_mode,
             auto_fixable=False,
         )
 
     # 6. Self-consistent: compare version and hash against canonical
     version_match = parsed.version == PROTOCOL_ASSET_VERSION
     hash_match = actual_sha == canonical_sha
-    if version_match and hash_match:
+    if version_match and hash_match and not mode_mismatch:
         return DriftStatus(
             asset_id=asset.id,
             target_path=asset.target_path,
@@ -413,6 +470,8 @@ def classify_drift(
             expected_sha256=canonical_sha,
             recorded_sha256=parsed.recorded_sha256,
             actual_sha256=actual_sha,
+            expected_file_mode=asset.file_mode,
+            actual_file_mode=on_disk_mode,
         )
 
     return DriftStatus(
@@ -425,6 +484,8 @@ def classify_drift(
         expected_sha256=canonical_sha,
         recorded_sha256=parsed.recorded_sha256,
         actual_sha256=actual_sha,
+        expected_file_mode=asset.file_mode,
+        actual_file_mode=on_disk_mode,
         auto_fixable=True,
     )
 
@@ -438,3 +499,81 @@ def resolve_repo_metadata(root_dir: Path) -> Tuple[str, str]:
     """Resolve project_name and repo_prefix from the repository."""
     config = load_repo_config(root_dir)
     return config.project_name, config.repo_prefix
+
+
+def resolve_repo_metadata_strict(root_dir: Path) -> Tuple[str, str]:
+    """Resolve project_name and repo_prefix from an initialized repository.
+
+    Unlike :func:`resolve_repo_metadata`, this helper does not guess defaults.
+    It requires a valid ``docops.config.yaml`` with explicit ``project_name``
+    and ``repo_prefix`` values and raises ``CONFIG_MISSING`` otherwise.
+    """
+    config_path = root_dir / "docops.config.yaml"
+    if not config_path.is_file() or config_path.is_symlink():
+        raise MeminitError(
+            code=ErrorCode.CONFIG_MISSING,
+            message=(
+                "Repository not initialized: missing valid docops.config.yaml. "
+                "Run 'meminit init' first."
+            ),
+            details={
+                "hint": "meminit init",
+                "root": str(root_dir),
+                "missing_file": "docops.config.yaml",
+                "required": "regular file (not directory/symlink)",
+            },
+        )
+
+    try:
+        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        raise MeminitError(
+            code=ErrorCode.CONFIG_MISSING,
+            message=(
+                "Repository not initialized: missing valid docops.config.yaml. "
+                "Run 'meminit init' first."
+            ),
+            details={
+                "hint": "meminit init",
+                "root": str(root_dir),
+                "missing_file": "docops.config.yaml",
+                "required": "parseable YAML with project_name and repo_prefix",
+                "reason": str(exc),
+            },
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise MeminitError(
+            code=ErrorCode.CONFIG_MISSING,
+            message=(
+                "Repository not initialized: missing valid docops.config.yaml. "
+                "Run 'meminit init' first."
+            ),
+            details={
+                "hint": "meminit init",
+                "root": str(root_dir),
+                "missing_file": "docops.config.yaml",
+                "required": "mapping with project_name and repo_prefix",
+                "reason": "not_a_mapping",
+            },
+        )
+
+    project_name = str(data.get("project_name") or "").strip()
+    repo_prefix = str(data.get("repo_prefix") or "").strip().upper()
+    if not project_name or not repo_prefix:
+        raise MeminitError(
+            code=ErrorCode.CONFIG_MISSING,
+            message=(
+                "Repository not initialized: missing valid docops.config.yaml. "
+                "Run 'meminit init' first."
+            ),
+            details={
+                "hint": "meminit init",
+                "root": str(root_dir),
+                "missing_file": "docops.config.yaml",
+                "required": "project_name and repo_prefix",
+                "reason": "missing_required_fields",
+            },
+        )
+
+    return project_name, repo_prefix

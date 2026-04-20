@@ -48,11 +48,11 @@ class ProtocolChecker:
         Returns:
             ProtocolCheckReport with per-asset status and summary.
         """
-        if asset_ids:
+        if asset_ids is not None:
             self._registry.validate_asset_ids(asset_ids)
 
         assets = self._registry.assets
-        if asset_ids:
+        if asset_ids is not None:
             # Preserve caller order while preventing duplicate work on the same
             # asset when repeatable --asset flags are used.
             unique_asset_ids = list(dict.fromkeys(asset_ids))
@@ -69,17 +69,24 @@ class ProtocolChecker:
         for asset in assets:
             target = self._root_dir / asset.target_path
             on_disk_content = None
+            on_disk_mode = None
             if target.exists() or target.is_symlink():
                 ensure_existing_regular_file_path(
                     root_dir=self._root_dir,
                     target_path=target,
                 )
+                on_disk_mode = target.stat().st_mode & 0o777
                 on_disk_content = target.read_bytes().decode(
                     "utf-8", errors="surrogateescape"
                 )
 
             canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
-            status = classify_drift(asset, canonical, on_disk_content)
+            status = classify_drift(
+                asset,
+                canonical,
+                on_disk_content,
+                on_disk_mode,
+            )
             statuses.append(status)
 
         # Sort by asset_id for determinism
@@ -112,6 +119,10 @@ class ProtocolChecker:
                 d["recorded_sha256"] = s.recorded_sha256
             if s.actual_sha256 is not None:
                 d["actual_sha256"] = s.actual_sha256
+            if s.expected_file_mode is not None:
+                d["expected_file_mode"] = s.expected_file_mode
+            if s.actual_file_mode is not None:
+                d["actual_file_mode"] = s.actual_file_mode
             asset_dicts.append(d)
 
         return ProtocolCheckReport(

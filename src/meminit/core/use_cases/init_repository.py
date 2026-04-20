@@ -1,3 +1,4 @@
+import hashlib
 from importlib import resources
 from pathlib import Path
 from dataclasses import dataclass
@@ -8,8 +9,10 @@ import yaml
 
 from meminit.core.services.org_profiles import resolve_org_profile
 from meminit.core.services.protocol_assets import (
+    PROTOCOL_ASSET_VERSION,
     ProtocolAssetRegistry,
     resolve_repo_metadata,
+    normalize_protocol_payload,
 )
 from meminit.core.services.repo_config import derive_repo_prefix
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
@@ -60,6 +63,24 @@ _FALLBACK_TEMPLATES: dict[str, bytes] = {
 class InitReport:
     created_paths: List[str]
     skipped_paths: List[str]
+
+
+def _record_created_ancestors(target: Path, record_fn) -> None:
+    """Create parent directories and record any that are newly created."""
+    created: List[Path] = []
+    # Walk from the deepest ancestor upward, collecting missing dirs
+    root = target.root
+    for parent in reversed(target.parents):
+        if parent == root or parent == target:
+            continue
+        if not parent.exists():
+            created.append(parent)
+    if created:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        for d in created:
+            record_fn(d, created=True)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
 
 
 class InitRepositoryUseCase:
@@ -226,19 +247,21 @@ class InitRepositoryUseCase:
                 canonical = None
 
             if canonical is not None:
-                target.parent.mkdir(parents=True, exist_ok=True)
+                _record_created_ancestors(target, record)
                 atomic_write(target, canonical, encoding="utf-8")
                 if asset.file_mode is not None:
                     target.chmod(asset.file_mode)
                 record(target, created=True)
             elif asset.id == "agents-md":
-                # Fallback: write a minimal AGENTS.md even without the bundled template
-                agents_content = self._load_agents_template()
-                agents_content = agents_content.replace(
-                    "{{PROJECT_NAME}}", project_name
-                ).replace("{{REPO_PREFIX}}", repo_prefix)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(agents_content, encoding="utf-8")
+                # Fallback: write a protocol-governed AGENTS.md even when the
+                # bundled template cannot be rendered. This preserves the
+                # init -> check/sync contract instead of creating a legacy file.
+                agents_content = self._render_agents_fallback(
+                    project_name=project_name,
+                    repo_prefix=repo_prefix,
+                )
+                _record_created_ancestors(target, record)
+                atomic_write(target, agents_content, encoding="utf-8")
                 record(target, created=True)
             else:
                 logging.warning("Failed to install protocol asset %s", asset.id)
@@ -322,6 +345,21 @@ class InitRepositoryUseCase:
                 "- Repo prefix: {{REPO_PREFIX}}\n"
             )
         return template
+
+    def _render_agents_fallback(self, *, project_name: str, repo_prefix: str) -> str:
+        """Render a protocol-governed AGENTS.md fallback with markers."""
+        content = self._load_agents_template()
+        content = content.replace("{{PROJECT_NAME}}", project_name).replace(
+            "{{REPO_PREFIX}}", repo_prefix
+        )
+        normalized = normalize_protocol_payload(content)
+        sha = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        begin = (
+            f"<!-- MEMINIT_PROTOCOL: begin id=agents-md "
+            f"version={PROTOCOL_ASSET_VERSION} sha256={sha} -->"
+        )
+        end = "<!-- MEMINIT_PROTOCOL: end id=agents-md -->"
+        return f"{begin}\n{normalized}{end}\n"
 
     def _set_executable_permission(self, path: Path) -> None:
         """Set executable permission bits on a file, preserving existing permissions."""

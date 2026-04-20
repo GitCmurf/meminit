@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from meminit.core.services.protocol_assets import ProtocolAssetRegistry
+from meminit.core.services.protocol_assets import ProtocolAsset, ProtocolAssetRegistry
 from meminit.core.use_cases.init_repository import InitRepositoryUseCase
 
 
@@ -181,6 +181,29 @@ def test_init_agents_md_has_protocol_markers(empty_repo):
     assert "id=agents-md" in agents
     assert "version=1.0" in agents
     assert "sha256=" in agents
+
+
+def test_init_agents_md_fallback_stays_protocol_governed(monkeypatch, empty_repo):
+    """If mixed-asset rendering fails, init must still write protocol markers."""
+    original_render = ProtocolAsset.render
+
+    def fake_render(self, *args, **kwargs):
+        if self.id == "agents-md":
+            raise OSError("simulated render failure")
+        return original_render(self, *args, **kwargs)
+
+    monkeypatch.setattr(ProtocolAsset, "render", fake_render)
+
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    report = use_case.execute()
+
+    agents = (empty_repo / "AGENTS.md").read_text(encoding="utf-8")
+    assert "MEMINIT_PROTOCOL: begin" in agents
+    assert "MEMINIT_PROTOCOL: end" in agents
+    assert "id=agents-md" in agents
+    assert "version=1.0" in agents
+    assert "sha256=" in agents
+    assert "AGENTS.md" in report.created_paths
 
 
 def test_init_brownfield_script_is_executable(empty_repo):

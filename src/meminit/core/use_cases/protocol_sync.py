@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -71,7 +71,7 @@ class ProtocolSyncer:
         Returns:
             ProtocolSyncReport with per-asset results and summary.
         """
-        if asset_ids:
+        if asset_ids is not None:
             self._registry.validate_asset_ids(asset_ids)
 
         # Run checker to get current statuses
@@ -82,40 +82,78 @@ class ProtocolSyncer:
 
         project_name, repo_prefix = resolve_repo_metadata(self._root_dir)
 
-        results: List[SyncAssetResult] = []
-        warnings: List[Dict] = []
-        any_write = False
+        planned: List[tuple[Dict, "ProtocolAsset", str, str]] = []
+        refuse_found = False
 
         for asset_status in check_report.assets:
             prior = asset_status["status"]
             action = _decide_action(prior, force)
+            asset_desc = self._registry.get_by_id(asset_status["id"])
+            if asset_desc is None:
+                continue
+            planned.append((asset_status, asset_desc, prior, action))
+            if action == "refuse":
+                refuse_found = True
 
-            preserved_bytes = None
-            if action == "rewrite" and not dry_run:
-                asset_desc = self._registry.get_by_id(asset_status["id"])
-                if asset_desc is None:
-                    continue
-                preserved_bytes = self._rewrite_asset(
-                    asset_desc, prior, project_name, repo_prefix,
-                )
-                any_write = True
-
-            results.append(
-                SyncAssetResult(
-                    id=asset_status["id"],
-                    target_path=asset_status["target_path"],
-                    prior_status=prior,
-                    action=action,
-                    preserved_user_bytes=preserved_bytes,
-                )
+        results: List[SyncAssetResult] = [
+            SyncAssetResult(
+                id=asset_status["id"],
+                target_path=asset_status["target_path"],
+                prior_status=prior,
+                action=action,
+                preserved_user_bytes=None,
             )
+            for asset_status, _, prior, action in planned
+        ]
+
+        warnings: List[Dict] = []
+        any_mutation = False
+        rewrote_content = False
+        tampered_rewritten = False
+        mode_repaired = False
+
+        if not dry_run:
+            for idx, (asset_status, asset_desc, prior, action) in enumerate(planned):
+                if action == "refuse":
+                    continue
+                if action == "rewrite":
+                    preserved_bytes = self._rewrite_asset(
+                        asset_desc, prior, project_name, repo_prefix,
+                    )
+                    results[idx] = replace(
+                        results[idx], preserved_user_bytes=preserved_bytes
+                    )
+                    rewrote_content = True
+                    any_mutation = True
+                    if prior == DriftOutcome.TAMPERED.value:
+                        tampered_rewritten = True
+                elif action == "noop" and asset_desc.file_mode is not None:
+                    if self._apply_file_mode_if_needed(asset_desc):
+                        mode_repaired = True
+                        any_mutation = True
 
         results.sort(key=lambda r: r.id)
 
-        if force and any_write:
+        if force:
+            force_message = "Force mode was requested"
+            if dry_run:
+                force_message += " (dry run; no assets were rewritten)"
+            elif refuse_found:
+                if rewrote_content or mode_repaired:
+                    force_message += "; non-refused assets were synced; refused assets were left untouched"
+                else:
+                    force_message += "; no assets were synced (all were refused or noop)"
+            elif tampered_rewritten:
+                force_message += "; tampered assets were overwritten"
+            elif rewrote_content:
+                force_message += "; no tampered assets required rewriting; safe assets were synced"
+            elif mode_repaired:
+                force_message += "; no tampered assets required rewriting; registered file modes were repaired"
+            else:
+                force_message += "; no tampered assets required rewriting"
             warnings.append({
                 "code": "PROTOCOL_SYNC_FORCE_USED",
-                "message": "Force mode was used; tampered assets were overwritten",
+                "message": force_message,
                 "path": str(self._root_dir),
             })
 
@@ -138,7 +176,7 @@ class ProtocolSyncer:
 
         return ProtocolSyncReport(
             dry_run=dry_run,
-            applied=any_write and not dry_run,
+            applied=any_mutation and not dry_run,
             summary={
                 "total": total,
                 "rewritten": rewritten,
@@ -205,16 +243,52 @@ class ProtocolSyncer:
         else:
             full_content = canonical_bytes
 
-        atomic_write(target, full_content)
-
-        # Apply file mode if declared
-        if asset.file_mode is not None:
-            try:
-                target.chmod(asset.file_mode)
-            except OSError:
-                pass
+        try:
+            atomic_write(target, full_content, file_mode=asset.file_mode)
+        except OSError as exc:
+            if asset.file_mode is not None and "chmod" in str(exc).lower():
+                raise MeminitError(
+                    code=ErrorCode.UNKNOWN_ERROR,
+                    message=(
+                        f"Failed to apply file mode {oct(asset.file_mode)} to "
+                        f"{asset.target_path}"
+                    ),
+                    details={
+                        "target_path": asset.target_path,
+                        "expected_mode": asset.file_mode,
+                    },
+                ) from exc
+            raise
 
         return preserved_bytes
+
+    def _apply_file_mode_if_needed(self, asset: "ProtocolAsset") -> bool:
+        """Ensure the registered executable bit is present.
+
+        Returns True when the file mode was changed.
+        """
+        if asset.file_mode is None:
+            return False
+
+        target = self._root_dir / asset.target_path
+        try:
+            current_mode = target.stat().st_mode & 0o777
+            if current_mode == asset.file_mode:
+                return False
+            target.chmod(asset.file_mode)
+            return True
+        except OSError:
+            raise MeminitError(
+                code=ErrorCode.UNKNOWN_ERROR,
+                message=(
+                    f"Failed to apply file mode {oct(asset.file_mode)} to "
+                    f"{asset.target_path}"
+                ),
+                details={
+                    "target_path": asset.target_path,
+                    "expected_mode": asset.file_mode,
+                },
+            )
 
 
 def _decide_action(prior_status: str, force: bool) -> str:

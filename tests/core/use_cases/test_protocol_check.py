@@ -45,8 +45,17 @@ def _write_asset_bytes(tmp_path: Path, asset: ProtocolAsset, content: bytes) -> 
 
 
 class TestProtocolCheckerFreshRepo:
-    def test_all_aligned_on_fresh_repo(self, tmp_path):
-        """A freshly initialized repo with no assets should report all missing."""
+    def test_missing_config_derives_defaults(self, tmp_path):
+        """Protocol check uses standard config resolution which derives defaults."""
+        checker = ProtocolChecker(str(tmp_path))
+        report = checker.execute()
+        assert report.success is False
+        assert report.summary["total"] == 3
+        assert report.summary["drifted"] == 3
+
+    def test_all_aligned_on_initialized_repo(self, tmp_path):
+        """An initialized repo with no assets should report all missing."""
+        _setup_config(tmp_path)
         checker = ProtocolChecker(str(tmp_path))
         report = checker.execute()
         assert report.success is False
@@ -62,6 +71,9 @@ class TestProtocolCheckerFreshRepo:
         for asset in registry.assets:
             content = asset.render(project_name="TestProject", repo_prefix="TEST")
             _write_asset(tmp_path, asset, content)
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        (tmp_path / script_asset.target_path).chmod(script_asset.file_mode)
 
         checker = ProtocolChecker(str(tmp_path))
         report = checker.execute()
@@ -72,6 +84,7 @@ class TestProtocolCheckerFreshRepo:
 
     def test_assets_sorted_by_id(self, tmp_path):
         """Assets in report are sorted lexicographically by ID."""
+        _setup_config(tmp_path)
         checker = ProtocolChecker(str(tmp_path))
         report = checker.execute()
         ids = [a["id"] for a in report.assets]
@@ -102,15 +115,24 @@ class TestProtocolCheckAssetFilter:
     def test_unknown_asset_raises(self, tmp_path):
         _setup_config(tmp_path)
         checker = ProtocolChecker(str(tmp_path))
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(MeminitError) as exc_info:
             checker.execute(asset_ids=["nonexistent"])
+        assert exc_info.value.code == ErrorCode.UNKNOWN_TYPE
         assert "nonexistent" in str(exc_info.value)
 
     def test_unknown_asset_among_valid(self, tmp_path):
         _setup_config(tmp_path)
         checker = ProtocolChecker(str(tmp_path))
-        with pytest.raises(Exception):
+        with pytest.raises(MeminitError) as exc_info:
             checker.execute(asset_ids=["agents-md", "bogus"])
+        assert exc_info.value.code == ErrorCode.UNKNOWN_TYPE
+
+    def test_explicit_empty_list_selects_no_assets(self, tmp_path):
+        _setup_config(tmp_path)
+        checker = ProtocolChecker(str(tmp_path))
+        report = checker.execute(asset_ids=[])
+        assert report.summary["total"] == 0
+        assert report.success is True
 
 
 class TestProtocolCheckDriftOutcomes:
@@ -169,6 +191,23 @@ class TestProtocolCheckDriftOutcomes:
         report = checker.execute(asset_ids=["agents-md"])
         assert report.assets[0]["status"] == "unparseable"
         assert report.assets[0]["auto_fixable"] is False
+
+    def test_executable_bit_drift_is_reported_as_stale(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        asset = registry.get_by_id("meminit-brownfield-script")
+        assert asset is not None
+        canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+        _write_asset(tmp_path, asset, canonical)
+        target = tmp_path / asset.target_path
+        target.chmod(0o644)
+
+        checker = ProtocolChecker(str(tmp_path))
+        report = checker.execute(asset_ids=["meminit-brownfield-script"])
+        assert report.assets[0]["status"] == "stale"
+        assert report.assets[0]["auto_fixable"] is True
+        assert report.assets[0]["expected_file_mode"] == 0o755
+        assert report.assets[0]["actual_file_mode"] == 0o644
         assert report.success is False
 
     def test_non_utf8_user_bytes_do_not_crash(self, tmp_path):

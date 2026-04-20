@@ -6,6 +6,7 @@ import pytest
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
+    AssetOwnership,
     PROTOCOL_ASSET_VERSION,
     DriftOutcome,
     ProtocolAsset,
@@ -69,12 +70,23 @@ def _write_asset_bytes(tmp_path: Path, asset: ProtocolAsset, content: bytes) -> 
 
 
 class TestProtocolSyncerNoop:
+    def test_missing_config_derives_defaults(self, tmp_path):
+        """Protocol sync uses standard config resolution which derives defaults."""
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(dry_run=False)
+        assert report.summary["total"] == 3
+        assert report.summary["rewritten"] == 3
+        assert report.applied is True
+
     def test_aligned_assets_are_noop(self, tmp_path):
         _setup_config(tmp_path)
         registry = ProtocolAssetRegistry.default()
         for asset in registry.assets:
             canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
             _write_asset(tmp_path, asset, canonical)
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        (tmp_path / script_asset.target_path).chmod(script_asset.file_mode)
 
         syncer = ProtocolSyncer(str(tmp_path))
         report = syncer.execute()
@@ -84,6 +96,75 @@ class TestProtocolSyncerNoop:
         assert report.summary["refused"] == 0
         for a in report.assets:
             assert a["action"] == "noop"
+
+    def test_aligned_executable_bit_is_restored(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        for asset in registry.assets:
+            canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+            _write_asset(tmp_path, asset, canonical)
+
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        script_path = tmp_path / script_asset.target_path
+        script_path.chmod(0o644)
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(dry_run=False)
+        assert report.success is True
+        assert report.applied is True
+        assert report.summary["noop"] == 2
+        assert report.summary["rewritten"] == 1
+        assert script_path.stat().st_mode & script_asset.file_mode != 0
+
+    def test_executable_bit_drift_is_reported_before_sync(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        for asset in registry.assets:
+            canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+            _write_asset(tmp_path, asset, canonical)
+
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        script_path = tmp_path / script_asset.target_path
+        script_path.chmod(0o644)
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(dry_run=True)
+        assert report.success is False
+        assert report.summary["rewritten"] == 1
+        script_result = next(a for a in report.assets if a["id"] == "meminit-brownfield-script")
+        assert script_result["prior_status"] == "stale"
+        assert script_result["action"] == "rewrite"
+        assert script_result["target_path"] == script_asset.target_path
+
+    def test_chmod_failure_raises_structured_error(self, monkeypatch, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        for asset in registry.assets:
+            canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
+            _write_asset(tmp_path, asset, canonical)
+
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        script_path = tmp_path / script_asset.target_path
+        script_path.chmod(0o644)
+
+        original_fchmod = __import__("os").fchmod
+
+        def fake_fchmod(fd, mode):
+            raise OSError("simulated chmod failure")
+
+        monkeypatch.setattr("os.fchmod", fake_fchmod, raising=True)
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            syncer.execute(dry_run=False)
+        assert exc_info.value.code == ErrorCode.UNKNOWN_ERROR
+        assert "Failed to apply file mode" in str(exc_info.value)
+
+        # Verify the file was NOT partially written (temp file cleaned up)
+        assert script_path.read_text(encoding="utf-8") != ""
 
 
 class TestProtocolSyncerRewrite:
@@ -136,6 +217,14 @@ class TestProtocolSyncerRewrite:
 
 
 class TestProtocolSyncerForce:
+    def test_force_dry_run_emits_warning(self, tmp_path):
+        _setup_config(tmp_path)
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(dry_run=True, force=True)
+        assert report.success is False
+        assert any(w["code"] == "PROTOCOL_SYNC_FORCE_USED" for w in report.warnings)
+        assert "dry run" in report.warnings[0]["message"]
+
     def test_tampered_refuses_without_force(self, tmp_path):
         _setup_config(tmp_path)
         registry = ProtocolAssetRegistry.default()
@@ -166,6 +255,24 @@ class TestProtocolSyncerForce:
         assert report.assets[0]["action"] == "rewrite"
         assert report.success is True
         assert "PROTOCOL_SYNC_FORCE_USED" in [w["code"] for w in report.warnings]
+        msg = [w["message"] for w in report.warnings if w["code"] == "PROTOCOL_SYNC_FORCE_USED"][0]
+        assert "tampered assets were overwritten" in msg
+
+    def test_force_noop_still_emits_warning(self, tmp_path):
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        for asset in registry.assets:
+            _write_asset(tmp_path, asset, asset.render(project_name="TestProject", repo_prefix="TEST"))
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        (tmp_path / script_asset.target_path).chmod(script_asset.file_mode)
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(dry_run=False, force=True)
+        assert report.success is True
+        assert report.summary["noop"] == 3
+        assert any(w["code"] == "PROTOCOL_SYNC_FORCE_USED" for w in report.warnings)
+        assert "no tampered assets" in report.warnings[0]["message"]
 
     def test_unparseable_always_refuses_even_with_force(self, tmp_path):
         _setup_config(tmp_path)
@@ -182,6 +289,64 @@ class TestProtocolSyncerForce:
         report = syncer.execute(asset_ids=["agents-md"], dry_run=False, force=True)
         assert report.assets[0]["action"] == "refuse"
         assert report.success is False
+
+    def test_refusal_skips_only_refused_assets_safe_assets_still_synced(self, tmp_path):
+        _setup_config(tmp_path)
+        mixed_asset = ProtocolAsset(
+            id="zzz-mixed",
+            target_path="AGENTS.md",
+            package_resource="AGENTS.md",
+            ownership=AssetOwnership.MIXED,
+        )
+        generated_asset = ProtocolAsset(
+            id="aaa-generated",
+            target_path="docs/generated/protocol.txt",
+            package_resource="meminit-docops-skill.md",
+            ownership=AssetOwnership.GENERATED,
+        )
+        custom_registry = ProtocolAssetRegistry(
+            assets=(generated_asset, mixed_asset)
+        )
+        canonical = mixed_asset.render(project_name="TestProject", repo_prefix="TEST")
+        tampered = canonical.replace("MEMINIT_PROTOCOL: end", "MEMINIT_PROTOCOL: tampered")
+        _write_asset(tmp_path, mixed_asset, tampered)
+
+        syncer = ProtocolSyncer(str(tmp_path), registry=custom_registry)
+        report = syncer.execute(dry_run=False)
+        assert report.success is False
+        assert report.summary["refused"] == 1
+        assert report.summary["rewritten"] == 1
+        assert report.applied is True
+        assert (tmp_path / "docs/generated/protocol.txt").exists()
+        assert (tmp_path / "AGENTS.md").exists()
+        assert (tmp_path / "AGENTS.md").read_text(encoding="utf-8") == tampered
+
+    def test_force_warning_when_refused_and_safe_assets_synced(self, tmp_path):
+        _setup_config(tmp_path)
+        mixed_asset = ProtocolAsset(
+            id="zzz-mixed",
+            target_path="AGENTS.md",
+            package_resource="AGENTS.md",
+            ownership=AssetOwnership.MIXED,
+        )
+        generated_asset = ProtocolAsset(
+            id="aaa-generated",
+            target_path="docs/generated/protocol.txt",
+            package_resource="meminit-docops-skill.md",
+            ownership=AssetOwnership.GENERATED,
+        )
+        custom_registry = ProtocolAssetRegistry(
+            assets=(generated_asset, mixed_asset)
+        )
+        canonical = mixed_asset.render(project_name="TestProject", repo_prefix="TEST")
+        tampered = canonical.replace("MEMINIT_PROTOCOL: end", "MEMINIT_PROTOCOL: tampered")
+        _write_asset(tmp_path, mixed_asset, tampered)
+
+        syncer = ProtocolSyncer(str(tmp_path), registry=custom_registry)
+        report = syncer.execute(dry_run=False, force=True)
+        assert report.warnings
+        msg = report.warnings[0]["message"]
+        assert "non-refused assets were synced" in msg
 
 
 class TestProtocolSyncerDryRun:
@@ -304,9 +469,18 @@ class TestProtocolSyncerValidation:
     def test_unknown_asset_raises(self, tmp_path):
         _setup_config(tmp_path)
         syncer = ProtocolSyncer(str(tmp_path))
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(MeminitError) as exc_info:
             syncer.execute(asset_ids=["nonexistent"])
+        assert exc_info.value.code == ErrorCode.UNKNOWN_TYPE
         assert "nonexistent" in str(exc_info.value)
+
+    def test_explicit_empty_list_selects_no_assets(self, tmp_path):
+        _setup_config(tmp_path)
+        syncer = ProtocolSyncer(str(tmp_path))
+        report = syncer.execute(asset_ids=[], dry_run=False)
+        assert report.summary["total"] == 0
+        assert report.summary["rewritten"] == 0
+        assert report.applied is False
 
     def test_preserves_user_bytes_in_report(self, tmp_path):
         _setup_config(tmp_path)

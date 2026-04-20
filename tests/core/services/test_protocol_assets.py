@@ -9,14 +9,15 @@ from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     AssetOwnership,
     DriftOutcome,
-    ParsedMarkers,
     ProtocolAsset,
     ProtocolAssetRegistry,
     classify_drift,
     normalize_protocol_payload,
     parse_protocol_markers,
     resolve_repo_metadata,
+    resolve_repo_metadata_strict,
 )
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +101,10 @@ class TestParseProtocolMarkers:
     def test_no_markers_returns_none(self):
         assert parse_protocol_markers("# Just a file\n") is None
 
+    def test_prose_mention_of_token_returns_none(self):
+        content = "This document mentions MEMINIT_PROTOCOL in prose only.\n"
+        assert parse_protocol_markers(content) is None
+
     def test_duplicate_begin_raises(self):
         body = "content"
         sha = _hash(body)
@@ -163,18 +168,28 @@ class TestParseProtocolMarkers:
 
     def test_end_only_marker_raises(self):
         content = "Some content\n<!-- MEMINIT_PROTOCOL: end id=x -->\nMore content\n"
-        with pytest.raises(ValueError, match="marker text found without begin"):
+        with pytest.raises(ValueError, match="marker syntax found without valid begin marker"):
             parse_protocol_markers(content)
 
     def test_end_marker_with_garbage_before_it_raises(self):
         content = "Header\n<!-- MEMINIT_PROTOCOL: end id=x -->\nBody\n"
-        with pytest.raises(ValueError, match="marker text found without begin"):
+        with pytest.raises(ValueError, match="marker syntax found without valid begin marker"):
             parse_protocol_markers(content)
 
     def test_malformed_begin_marker_without_valid_begin_raises(self):
         content = "Header\n<!-- MEMINIT_PROTOCOL: begin id=x version=1.0 -->\nBody\n"
-        with pytest.raises(ValueError, match="marker text found without begin"):
+        with pytest.raises(ValueError, match="marker syntax found without valid begin marker"):
             parse_protocol_markers(content)
+
+    def test_harmless_protocol_mention_after_end_is_allowed(self):
+        body = "content"
+        sha = _hash(body)
+        begin = f"<!-- MEMINIT_PROTOCOL: begin id=x version=1.0 sha256={sha} -->"
+        end = "<!-- MEMINIT_PROTOCOL: end id=x -->"
+        content = f"{begin}\n{body}\n{end}\n<!-- MEMINIT_PROTOCOL: malformed -->\n"
+        result = parse_protocol_markers(content)
+        assert result is not None
+        assert result.asset_id == "x"
 
 # ---------------------------------------------------------------------------
 # classify_drift
@@ -216,6 +231,26 @@ class TestClassifyDrift:
         status = classify_drift(asset, canonical, canonical)
         assert status.status == DriftOutcome.ALIGNED
 
+    def test_mixed_aligned_with_uppercase_hex(self):
+        asset = _make_asset(ownership=AssetOwnership.MIXED)
+        canonical = asset.render(project_name="Test", repo_prefix="TEST")
+        # Uppercase the sha256 in the begin marker
+        uppercase = canonical.replace("sha256=", "sha256=").upper()
+        # Only uppercase the hex part, not the rest of the content
+        lines = canonical.split("\n")
+        modified_lines = list(lines)
+        for i, line in enumerate(modified_lines):
+            if "sha256=" in line:
+                import re
+                modified_lines[i] = re.sub(
+                    r"(sha256=)([0-9a-f]{64})",
+                    lambda m: m.group(1) + m.group(2).upper(),
+                    line,
+                )
+        uppercase_content = "\n".join(modified_lines)
+        status = classify_drift(asset, canonical, uppercase_content)
+        assert status.status == DriftOutcome.ALIGNED
+
     def test_mixed_tampered(self):
         asset = _make_asset(ownership=AssetOwnership.MIXED)
         canonical = asset.render(project_name="Test", repo_prefix="TEST")
@@ -229,6 +264,24 @@ class TestClassifyDrift:
         status = classify_drift(asset, canonical, edited)
         assert status.status == DriftOutcome.TAMPERED
         assert status.auto_fixable is False
+
+    def test_mixed_marker_id_mismatch_is_stale(self):
+        asset = _make_asset(ownership=AssetOwnership.MIXED)
+        canonical = asset.render(project_name="Test", repo_prefix="TEST")
+        parsed = parse_protocol_markers(canonical)
+        assert parsed is not None
+        # Replace the asset id in markers with a wrong one
+        lines = canonical.split("\n")
+        lines[parsed.begin_line] = lines[parsed.begin_line].replace(
+            f"id={parsed.asset_id}", "id=wrong-asset-id"
+        )
+        lines[parsed.end_line] = lines[parsed.end_line].replace(
+            f"id={parsed.asset_id}", "id=wrong-asset-id"
+        )
+        mismatched = "\n".join(lines)
+        status = classify_drift(asset, canonical, mismatched)
+        assert status.status == DriftOutcome.STALE
+        assert status.auto_fixable is True
 
     def test_mixed_unparseable_duplicate_begin(self):
         asset = _make_asset(ownership=AssetOwnership.MIXED)
@@ -373,3 +426,42 @@ class TestResolveRepoMetadata:
         )
         name, prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
+
+
+class TestResolveRepoMetadataStrict:
+    def test_with_config(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text(
+            "project_name: MyRepo\nrepo_prefix: MYREPO\ndocops_version: '2.0'\n",
+            encoding="utf-8",
+        )
+        name, prefix = resolve_repo_metadata_strict(tmp_path)
+        assert name == "MyRepo"
+        assert prefix == "MYREPO"
+
+    def test_missing_config_raises(self, tmp_path):
+        with pytest.raises(MeminitError) as exc_info:
+            resolve_repo_metadata_strict(tmp_path)
+        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+    def test_malformed_config_raises(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text("{{{invalid yaml", encoding="utf-8")
+        with pytest.raises(MeminitError) as exc_info:
+            resolve_repo_metadata_strict(tmp_path)
+        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+    def test_missing_required_fields_raises(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text(
+            "project_name: ''\nrepo_prefix: ''\ndocops_version: '2.0'\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(MeminitError) as exc_info:
+            resolve_repo_metadata_strict(tmp_path)
+        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+    def test_repo_prefix_uppercased(self, tmp_path):
+        (tmp_path / "docops.config.yaml").write_text(
+            "project_name: MyRepo\nrepo_prefix: myrepo\ndocops_version: '2.0'\n",
+            encoding="utf-8",
+        )
+        name, prefix = resolve_repo_metadata_strict(tmp_path)
+        assert prefix == "MYREPO"
