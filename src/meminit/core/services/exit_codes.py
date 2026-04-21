@@ -60,5 +60,6 @@ def exit_code_for_error(error_code: ErrorCode) -> int:
         ErrorCode.PROTOCOL_ASSET_STALE: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_TAMPERED: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_UNPARSEABLE: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_SYNC_WRITE_FAILED: EX_NOPERM,
     }
     return mapping.get(error_code, EX_DATAERR)

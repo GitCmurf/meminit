@@ -75,6 +75,7 @@ class ErrorCode(str, Enum):
     PROTOCOL_ASSET_STALE = "PROTOCOL_ASSET_STALE"
     PROTOCOL_ASSET_TAMPERED = "PROTOCOL_ASSET_TAMPERED"
     PROTOCOL_ASSET_UNPARSEABLE = "PROTOCOL_ASSET_UNPARSEABLE"
+    PROTOCOL_SYNC_WRITE_FAILED = "PROTOCOL_SYNC_WRITE_FAILED"
 
 
 # ---------------------------------------------------------------------------
@@ -637,6 +638,19 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             resolution_type="manual",
             automatable=False,
             relevant_commands=["protocol check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_SYNC_WRITE_FAILED.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED.value,
+        category="protocol",
+        summary="A protocol sync write operation failed due to an I/O error.",
+        cause="An OSError occurred while writing or chmod-ing a protocol asset (e.g., disk full, permission denied, or short write).",
+        remediation=RemediationInfo(
+            action="Check disk space and file permissions, then retry.",
+            resolution_type="retryable",
+            automatable=False,
+            relevant_commands=["protocol sync"],
         ),
         spec_reference="MEMINIT-SPEC-006",
     ),

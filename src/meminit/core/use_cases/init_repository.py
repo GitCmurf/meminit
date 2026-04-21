@@ -74,11 +74,8 @@ def _record_created_ancestors(target: Path, record_fn) -> None:
             created.append(parent)
         except FileExistsError:
             pass
-    if not created:
-        target.parent.mkdir(parents=True, exist_ok=True)
-    else:
-        for d in created:
-            record_fn(d, created=True)
+    for d in created:
+        record_fn(d, created=True)
 
 
 class InitRepositoryUseCase:

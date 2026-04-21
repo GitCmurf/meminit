@@ -417,8 +417,7 @@ class TestResolveRepoMetadata:
     def test_without_config_uses_dirname(self, tmp_path):
         name, prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
-        import re as _re
-        clean = _re.sub(r"[^a-zA-Z]", "", tmp_path.name)
+        clean = re.sub(r"[^a-zA-Z]", "", tmp_path.name)
         expected_prefix = clean[:10].upper() if len(clean) >= 3 else "REPO"
         assert prefix == expected_prefix
 

@@ -61,6 +61,7 @@ def test_exit_code_for_error_mappings():
         ErrorCode.PROTOCOL_ASSET_STALE: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_TAMPERED: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_UNPARSEABLE: EX_COMPLIANCE_FAIL,
+        ErrorCode.PROTOCOL_SYNC_WRITE_FAILED: EX_NOPERM,
     }
 
     # Verify every defined ErrorCode is in our test expectation

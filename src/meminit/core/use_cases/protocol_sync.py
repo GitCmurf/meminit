@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import errno
+import logging
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -234,6 +236,14 @@ class ProtocolSyncer:
                                 byte_offset += 1  # the \n that split() removed
                         user_bytes = existing_bytes[byte_offset:]
                         preserved_bytes = len(user_bytes)
+                    else:
+                        user_bytes = existing_bytes
+                        preserved_bytes = len(user_bytes)
+                        logging.warning(
+                            "Protocol markers disappeared for %s between "
+                            "check and sync; preserving full file content",
+                            asset.target_path,
+                        )
 
         canonical_bytes = canonical.encode("utf-8")
 
@@ -247,12 +257,15 @@ class ProtocolSyncer:
         try:
             atomic_write(target, full_content, file_mode=asset.file_mode)
         except OSError as exc:
-            reason = "chmod" if "chmod" in str(exc).lower() else str(exc)
+            if exc.errno in (errno.EPERM, errno.EACCES):
+                reason = "permission denied"
+            elif exc.errno == errno.ENOSPC:
+                reason = "disk full"
+            else:
+                reason = str(exc)
             raise MeminitError(
-                code=ErrorCode.PROTOCOL_ASSET_STALE,
-                message=(
-                    f"Failed to write protocol asset {asset.target_path}: {reason}"
-                ),
+                code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED,
+                message=f"Failed to write protocol asset {asset.target_path}: {reason}",
                 details={
                     "target_path": asset.target_path,
                     "expected_mode": asset.file_mode,
@@ -283,7 +296,7 @@ class ProtocolSyncer:
             return True
         except OSError as exc:
             raise MeminitError(
-                code=ErrorCode.PROTOCOL_ASSET_STALE,
+                code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED,
                 message=(
                     f"Failed to apply file mode {oct(asset.file_mode)} to "
                     f"{asset.target_path}"

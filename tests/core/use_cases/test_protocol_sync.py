@@ -15,6 +15,20 @@ from meminit.core.services.protocol_assets import (
 from meminit.core.use_cases.protocol_sync import ProtocolSyncer, _decide_action
 
 
+def _prev_version() -> str:
+    parts = PROTOCOL_ASSET_VERSION.split(".")
+    major, minor = int(parts[0]), int(parts[1])
+    if minor > 0:
+        minor -= 1
+    else:
+        major -= 1
+        minor = 9
+    return f"{major}.{minor}"
+
+
+_PREV = _prev_version()
+
+
 # ---------------------------------------------------------------------------
 # _decide_action
 # ---------------------------------------------------------------------------
@@ -150,7 +164,7 @@ class TestProtocolSyncerNoop:
         script_path = tmp_path / script_asset.target_path
         script_path.chmod(0o644)
 
-        original_fchmod = __import__("os").fchmod
+        original_bytes = script_path.read_bytes()
 
         def fake_fchmod(fd, mode):
             raise OSError("simulated chmod failure")
@@ -160,11 +174,10 @@ class TestProtocolSyncerNoop:
         syncer = ProtocolSyncer(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             syncer.execute(dry_run=False)
-        assert exc_info.value.code == ErrorCode.PROTOCOL_ASSET_STALE
-        assert "chmod" in str(exc_info.value)
+        assert exc_info.value.code == ErrorCode.PROTOCOL_SYNC_WRITE_FAILED
+        assert "permission denied" in str(exc_info.value).lower() or "chmod" in str(exc_info.value).lower()
 
-        # Verify the file was NOT partially written (temp file cleaned up)
-        assert script_path.read_text(encoding="utf-8") != ""
+        assert script_path.read_bytes() == original_bytes
 
 
 class TestProtocolSyncerRewrite:
@@ -280,7 +293,7 @@ class TestProtocolSyncerForce:
         asset = registry.get_by_id("agents-md")
         assert asset is not None
         content = (
-            "<!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 "
+            "<!-- MEMINIT_PROTOCOL: begin id=agents-md version=" + PROTOCOL_ASSET_VERSION + " "
             "sha256=" + "0" * 64 + " -->\nno end marker\n"
         )
         _write_asset(tmp_path, asset, content)
@@ -417,7 +430,7 @@ class TestProtocolSyncerUserContentPreservation:
         )
         # Make it stale by bumping version
         content_lines = list(parsed_lines[: end_idx + 1])
-        content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+        content_lines[0] = content_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         # User content with CRLF line endings — must be preserved byte-identical
         user_section = "\n## Custom\r\nUser notes with CRLF.\r\n"
         full_content = "\n".join(content_lines) + user_section
@@ -451,7 +464,7 @@ class TestProtocolSyncerUserContentPreservation:
         )
         # Bump version in begin marker to make the managed region stale
         content_lines = list(parsed_lines[:end_idx + 1])
-        content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+        content_lines[0] = content_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         user_section = "\n## Custom\nUser notes here.\n"
         full_content = "\n".join(content_lines) + user_section
         _write_asset(tmp_path, asset, full_content)
@@ -528,7 +541,7 @@ class TestProtocolSyncerValidation:
         asset = registry.get_by_id("agents-md")
         assert asset is not None
         canonical = asset.render(project_name="TestProject", repo_prefix="TEST").encode("utf-8")
-        stale = canonical.replace(b"version=1.0", b"version=0.9", 1) + b"## Custom\ninvalid:\xff\n"
+        stale = canonical.replace(f"version={PROTOCOL_ASSET_VERSION}".encode(), f"version={_PREV}".encode(), 1) + b"## Custom\ninvalid:\xff\n"
         _write_asset_bytes(tmp_path, asset, stale)
 
         syncer = ProtocolSyncer(str(tmp_path))
@@ -564,7 +577,7 @@ class TestProtocolSyncerValidation:
             if "MEMINIT_PROTOCOL: end" in line
         )
         content_lines = list(parsed_lines[: end_idx + 1])
-        content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+        content_lines[0] = content_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         # User content is whitespace-only (just newlines)
         user_section = "\n\n\n"
         full_content = "\n".join(content_lines) + user_section
@@ -589,7 +602,7 @@ class TestProtocolSyncerValidation:
             if "MEMINIT_PROTOCOL: end" in line
         )
         content_lines = list(parsed_lines[: end_idx + 1])
-        content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+        content_lines[0] = content_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         # User content starts immediately (no leading blank line)
         user_section = "## Custom\nNotes.\n"
         full_content = "\n".join(content_lines) + "\n" + user_section
@@ -625,7 +638,7 @@ class TestProtocolSyncerValidation:
             if "MEMINIT_PROTOCOL: end" in line
         )
         content_lines = list(parsed_lines[: end_idx + 1])
-        content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+        content_lines[0] = content_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         # Write with CRLF in managed region and LF in user region
         managed_region = "\r\n".join(content_lines)
         user_section = "\n## Custom\nUser notes.\n"
@@ -662,7 +675,7 @@ class TestProtocolSyncerValidation:
             if "MEMINIT_PROTOCOL: end" in line
         )
         managed_lines = list(parsed_lines[: end_idx + 1])
-        managed_lines[0] = managed_lines[0].replace("version=1.0", "version=0.9")
+        managed_lines[0] = managed_lines[0].replace(f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREV}")
         # Encode managed region with CRLF line endings
         managed_bytes = "\r\n".join(managed_lines).encode("utf-8") + b"\r\n"
         # Exact user suffix with null-byte sentinel — any boundary shift fails

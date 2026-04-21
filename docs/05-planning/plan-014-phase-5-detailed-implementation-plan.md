@@ -768,7 +768,7 @@ A manifest fingerprint covers the inputs to the index as a whole:
 
 Cache root: `.meminit/cache/index/` under the repo root. Layout:
 
-```
+```text
 .meminit/
   cache/
     index/
