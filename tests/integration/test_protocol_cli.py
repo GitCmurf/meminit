@@ -29,7 +29,7 @@ class TestProtocolCheckCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"])
         assert result.exit_code != 2
-        non_empty = [l for l in result.output.splitlines() if l.strip()]
+        non_empty = [line for line in result.output.splitlines() if line.strip()]
         assert len(non_empty) == 1
 
     def test_text_output_not_empty(self, tmp_path):
@@ -44,7 +44,7 @@ class TestProtocolCheckCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "md"])
         assert result.exit_code != 2
-        non_empty = [l for l in result.output.splitlines() if l.strip()]
+        non_empty = [line for line in result.output.splitlines() if line.strip()]
         # Markdown table: header row + separator + data rows
         assert non_empty[0].startswith("|")
         assert non_empty[1].startswith("|")
@@ -65,7 +65,7 @@ class TestProtocolSyncCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "json"])
         assert result.exit_code != 2
-        non_empty = [l for l in result.output.splitlines() if l.strip()]
+        non_empty = [line for line in result.output.splitlines() if line.strip()]
         assert len(non_empty) == 1
 
     def test_text_output_not_empty(self, tmp_path):
@@ -80,7 +80,7 @@ class TestProtocolSyncCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "md"])
         assert result.exit_code != 2
-        non_empty = [l for l in result.output.splitlines() if l.strip()]
+        non_empty = [line for line in result.output.splitlines() if line.strip()]
         assert non_empty[0].startswith("|")
         assert non_empty[1].startswith("|")
         for line in non_empty:
@@ -128,7 +128,7 @@ class TestProtocolSyncViolationCodes:
 
     def _json(self, result) -> dict:
         import json
-        lines = [l for l in result.output.splitlines() if l.strip()]
+        lines = [line for line in result.output.splitlines() if line.strip()]
         return json.loads(lines[0])
 
     def test_missing_emits_missing_code(self, tmp_path):

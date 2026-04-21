@@ -33,6 +33,11 @@ def test_path_escape_is_also_meminit_error(tmp_path):
 
 
 def test_atomic_write_retries_short_writes(tmp_path, monkeypatch):
+    """Validate os.write-based retry in atomic_write.
+
+    Monkeypatches os.write to simulate a short write on the first call,
+    verifying that atomic_write retries until all bytes are flushed.
+    """
     from meminit.core.services.safe_fs import atomic_write
 
     target = tmp_path / "artifact.txt"
@@ -50,7 +55,8 @@ def test_atomic_write_retries_short_writes(tmp_path, monkeypatch):
     atomic_write(target, "abcdef")
 
     assert target.read_text(encoding="utf-8") == "abcdef"
-    assert len(writes) >= 2
+    assert writes[0] == 6, "First call should receive the full payload"
+    assert len(writes) >= 2, "Short write should trigger at least one retry"
 
 
 def test_atomic_write_preserves_existing_mode(tmp_path):
@@ -66,18 +72,15 @@ def test_atomic_write_preserves_existing_mode(tmp_path):
     assert target.stat().st_mode & 0o777 == 0o640
 
 
-def test_atomic_write_uses_umask_for_new_files(tmp_path):
+def test_atomic_write_new_file_default_mode(tmp_path):
+    """New files (no pre-existing target) should get mode 0o666."""
     from meminit.core.services.safe_fs import atomic_write
 
     target = tmp_path / "artifact.txt"
-    original_umask = os.umask(0o027)
-    try:
-        atomic_write(target, "new")
-    finally:
-        os.umask(original_umask)
+    atomic_write(target, "new")
 
     assert target.read_text(encoding="utf-8") == "new"
-    assert target.stat().st_mode & 0o777 == 0o640
+    assert target.stat().st_mode & 0o777 == 0o666
 
 
 def test_ensure_existing_regular_file_rejects_directory(tmp_path):

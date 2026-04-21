@@ -89,8 +89,8 @@ class ProtocolChecker:
             )
             statuses.append(status)
 
-        # Sort by asset_id for determinism
-        statuses.sort(key=lambda s: s.asset_id)
+        if asset_ids is None:
+            statuses.sort(key=lambda s: s.asset_id)
 
         aligned = sum(1 for s in statuses if s.status == DriftOutcome.ALIGNED)
         unparseable = sum(1 for s in statuses if s.status == DriftOutcome.UNPARSEABLE)

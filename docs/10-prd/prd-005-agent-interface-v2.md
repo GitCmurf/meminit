@@ -37,10 +37,10 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-15
+> **Version:** 0.4
+> **Last Updated:** 2026-04-18
 > **Type:** PRD
-> **Area:** Agentic Integration
+> **Area:** AGENT
 
 ## Table of Contents
 

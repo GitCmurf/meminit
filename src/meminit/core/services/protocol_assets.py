@@ -278,7 +278,7 @@ def parse_protocol_markers(content: str) -> Optional[ParsedMarkers]:
     # Reject protocol markers outside the managed region (after end marker)
     for line in lines[end_idx + 1 :]:
         stripped = line.strip()
-        if _MARKER_BEGIN_RE.match(stripped) or _MARKER_END_RE.match(stripped):
+        if stripped.startswith("<!-- MEMINIT_PROTOCOL:"):
             raise ValueError("Protocol markers found outside the managed region")
 
     managed_payload = "\n".join(lines[begin_idx + 1 : end_idx])

@@ -180,12 +180,21 @@ class TestParseProtocolMarkers:
         with pytest.raises(ValueError, match="marker syntax found without valid begin marker"):
             parse_protocol_markers(content)
 
-    def test_harmless_protocol_mention_after_end_is_allowed(self):
+    def test_malformed_protocol_comment_after_end_is_rejected(self):
         body = "content"
         sha = _hash(body)
         begin = f"<!-- MEMINIT_PROTOCOL: begin id=x version=1.0 sha256={sha} -->"
         end = "<!-- MEMINIT_PROTOCOL: end id=x -->"
         content = f"{begin}\n{body}\n{end}\n<!-- MEMINIT_PROTOCOL: malformed -->\n"
+        with pytest.raises(ValueError, match="outside the managed region"):
+            parse_protocol_markers(content)
+
+    def test_prose_mention_after_end_is_allowed(self):
+        body = "content"
+        sha = _hash(body)
+        begin = f"<!-- MEMINIT_PROTOCOL: begin id=x version=1.0 sha256={sha} -->"
+        end = "<!-- MEMINIT_PROTOCOL: end id=x -->"
+        content = f"{begin}\n{body}\n{end}\nThis mentions MEMINIT_PROTOCOL in prose.\n"
         result = parse_protocol_markers(content)
         assert result is not None
         assert result.asset_id == "x"
@@ -415,7 +424,7 @@ class TestResolveRepoMetadata:
 
     def test_malformed_config_falls_back(self, tmp_path):
         (tmp_path / "docops.config.yaml").write_text("{{{invalid yaml", encoding="utf-8")
-        name, prefix = resolve_repo_metadata(tmp_path)
+        name, _prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
 
     def test_empty_project_name_in_config(self, tmp_path):

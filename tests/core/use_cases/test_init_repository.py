@@ -217,5 +217,7 @@ def test_init_brownfield_script_is_executable(empty_repo):
 
     target = empty_repo / script_asset.target_path
     assert target.exists()
-    mode = target.stat().st_mode
-    assert mode & script_asset.file_mode, "Script file_mode not applied"
+    actual_mode = target.stat().st_mode & 0o777
+    assert actual_mode == script_asset.file_mode, (
+        f"Expected mode {oct(script_asset.file_mode)}, got {oct(actual_mode)}"
+    )

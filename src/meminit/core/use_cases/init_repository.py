@@ -69,14 +69,16 @@ def _record_created_ancestors(target: Path, record_fn) -> None:
     """Create parent directories and record any that are newly created."""
     created: List[Path] = []
     for parent in reversed(target.parents):
-        if not parent.exists():
+        try:
+            parent.mkdir(exist_ok=False)
             created.append(parent)
-    if created:
+        except FileExistsError:
+            pass
+    if not created:
         target.parent.mkdir(parents=True, exist_ok=True)
+    else:
         for d in created:
             record_fn(d, created=True)
-    else:
-        target.parent.mkdir(parents=True, exist_ok=True)
 
 
 class InitRepositoryUseCase:

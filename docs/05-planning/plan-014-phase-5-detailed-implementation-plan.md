@@ -1013,7 +1013,7 @@ Documentation scope (maps to \u00a72.2 outputs):
    \u00a73.1.
 5. **New FDD** \u2014 implementation-side doc covering the emitter,
    producer protocol, cache format, and rebuild algorithm. Lives
-   under `docs/30-fdd/` following the FDD template.
+   under `docs/50-fdd/` following the FDD template.
 6. **Runbook update** \u2014 extend the Agent Integration and Upgrade
    Workflow runbook with: a decision table for JSON vs NDJSON; a
    troubleshooting section for truncated streams, stale cache,

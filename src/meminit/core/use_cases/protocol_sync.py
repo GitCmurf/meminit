@@ -10,6 +10,7 @@ from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
     AssetOwnership,
     DriftOutcome,
+    ProtocolAsset,
     ProtocolAssetRegistry,
     parse_protocol_markers,
     resolve_repo_metadata,
@@ -82,7 +83,7 @@ class ProtocolSyncer:
 
         project_name, repo_prefix = resolve_repo_metadata(self._root_dir)
 
-        planned: List[tuple[Dict, "ProtocolAsset", str, str]] = []
+        planned: List[tuple[Dict, ProtocolAsset, str, str]] = []
         refuse_found = False
 
         for asset_status in check_report.assets:
@@ -190,7 +191,7 @@ class ProtocolSyncer:
 
     def _rewrite_asset(
         self,
-        asset: "ProtocolAsset",
+        asset: ProtocolAsset,
         prior_status: str,
         project_name: str,
         repo_prefix: str,
@@ -262,7 +263,7 @@ class ProtocolSyncer:
 
         return preserved_bytes
 
-    def _apply_file_mode_if_needed(self, asset: "ProtocolAsset") -> bool:
+    def _apply_file_mode_if_needed(self, asset: ProtocolAsset) -> bool:
         """Ensure the registered executable bit is present.
 
         Returns True when the file mode was changed.
@@ -271,13 +272,17 @@ class ProtocolSyncer:
             return False
 
         target = self._root_dir / asset.target_path
+        ensure_safe_write_path(root_dir=self._root_dir, target_path=target)
+        ensure_existing_regular_file_path(
+            root_dir=self._root_dir, target_path=target,
+        )
         try:
             current_mode = target.stat().st_mode & 0o777
             if current_mode == asset.file_mode:
                 return False
             target.chmod(asset.file_mode)
             return True
-        except OSError:
+        except OSError as exc:
             raise MeminitError(
                 code=ErrorCode.UNKNOWN_ERROR,
                 message=(
@@ -288,7 +293,7 @@ class ProtocolSyncer:
                     "target_path": asset.target_path,
                     "expected_mode": asset.file_mode,
                 },
-            )
+            ) from exc
 
 
 def _decide_action(prior_status: str, force: bool) -> str:

@@ -139,9 +139,7 @@ def atomic_write(
         try:
             effective_mode = target_path.stat().st_mode & 0o777
         except OSError:
-            current_umask = os.umask(0)
-            os.umask(current_umask)
-            effective_mode = 0o666 & ~current_umask
+            effective_mode = 0o666
 
     fd, tmp_path = tempfile.mkstemp(
         dir=str(target_path.parent),

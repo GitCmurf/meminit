@@ -54,7 +54,7 @@ Three assets are registered by default:
 
 Mixed-ownership files use HTML comment markers to delimit the Meminit-managed region:
 
-```
+```html
 <!-- MEMINIT_PROTOCOL: begin id=<asset_id> version=<semver> sha256=<hex64> -->
 ... managed content ...
 <!-- MEMINIT_PROTOCOL: end id=<asset_id> -->
@@ -68,14 +68,23 @@ Validation rules (unparseable if violated):
 
 ### Drift Classification
 
-Six outcomes in priority order:
+Six outcomes in classification order (matches `classify_drift` in
+`protocol_assets.py`):
 
 1. **Missing**: Target file absent.
 2. **Aligned**: Content matches canonical (after normalization).
-3. **Legacy**: No markers found (pre-v1.0 state).
-4. **Stale**: Markers present but version or hash differs from canonical.
-5. **Tampered**: Managed region hash doesn't match recorded hash in begin marker.
-6. **Unparseable**: Markers are malformed (preamble, duplicates, missing end).
+3. **Legacy**: No markers found (pre-protocol state).
+4. **Unparseable**: Markers are malformed (preamble, duplicates,
+   missing end, mismatched IDs). Detected before tampered/stale
+   checks so that structural corruption is reported first.
+5. **Tampered**: Managed region hash doesn't match recorded hash in
+   begin marker.
+6. **Stale**: Self-consistent markers but version or hash differs
+   from canonical.
+
+Any `<!-- MEMINIT_PROTOCOL:` comment outside the managed region is
+rejected. Plain prose mentioning `MEMINIT_PROTOCOL` (without the HTML
+comment syntax) is allowed.
 
 ### Commands
 

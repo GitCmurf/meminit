@@ -117,8 +117,8 @@ def setup_f06_stale_hash(tmp_path: Path) -> Dict[str, str]:
             # but keep markers self-consistent by updating the sha256 in the begin marker
             modified_lines = list(lines)
             # Find begin and end markers
-            begin_idx = next(i for i, l in enumerate(lines) if "MEMINIT_PROTOCOL: begin" in l)
-            end_idx = next(i for i, l in enumerate(lines) if "MEMINIT_PROTOCOL: end" in l)
+            begin_idx = next(i for i, line in enumerate(lines) if "MEMINIT_PROTOCOL: begin" in line)
+            end_idx = next(i for i, line in enumerate(lines) if "MEMINIT_PROTOCOL: end" in line)
             # Modify the managed payload
             modified_lines[begin_idx + 1] = modified_lines[begin_idx + 1] + " (old version)"
             # Recompute sha256 for the modified managed payload
@@ -176,7 +176,7 @@ def setup_f09_missing_end_marker(tmp_path: Path) -> Dict[str, str]:
         if asset.id == "agents-md":
             canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
             lines = canonical.split("\n")
-            filtered = [l for l in lines if "MEMINIT_PROTOCOL: end" not in l]
+            filtered = [line for line in lines if "MEMINIT_PROTOCOL: end" not in line]
             _write_asset(tmp_path, asset.id, "\n".join(filtered))
             continue
         _write_canonical(tmp_path, asset)
@@ -191,7 +191,7 @@ def setup_f10_stale_with_user_content(tmp_path: Path) -> Dict[str, str]:
         if asset.id == "agents-md":
             canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
             lines = canonical.split("\n")
-            end_idx = next(i for i, l in enumerate(lines) if "MEMINIT_PROTOCOL: end" in l)
+            end_idx = next(i for i, line in enumerate(lines) if "MEMINIT_PROTOCOL: end" in line)
             # Bump version to make it stale
             content_lines = list(lines[: end_idx + 1])
             content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
@@ -232,7 +232,7 @@ def setup_f12_trailing_whitespace_normalized(tmp_path: Path) -> Dict[str, str]:
         canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
         # Add trailing whitespace to each line
         lines = canonical.split("\n")
-        padded = "\n".join(l + "  " for l in lines) + "\n"
+        padded = "\n".join(line + "  " for line in lines) + "\n"
         target = tmp_path / asset.target_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(padded, encoding="utf-8")
@@ -285,7 +285,7 @@ def setup_f17_duplicate_end_marker(tmp_path: Path) -> Dict[str, str]:
             canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
             # Duplicate the end marker
             lines = canonical.split("\n")
-            end_idx = next(i for i, l in enumerate(lines) if "MEMINIT_PROTOCOL: end" in l)
+            end_idx = next(i for i, line in enumerate(lines) if "MEMINIT_PROTOCOL: end" in line)
             lines.insert(end_idx + 1, lines[end_idx])
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
