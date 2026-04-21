@@ -718,9 +718,10 @@ The kanban view (`kanban.md`) already organises entries by column
 (`Not Started`, `In Progress`, etc.). Phase 4 adds:
 
 - **In-column ordering**: within each column, entries are sorted by
-  priority ascending (`P0` first), then by `updated` ascending. This
-  matches the `state next` selection order for the `Not Started`
-  column.
+  priority ascending (`P0` first), then by `unblocks` count descending
+  (most-unblocking first), then by `updated` ascending, then by
+  `document_id` ascending. This matches the `state next` selection
+  order for the `Not Started` column.
 - **Badges**: each card gains a priority badge (`P0..P3`) and a
   blocker badge when `open_blockers` is non-empty. Badges use the
   existing CSS class hook pattern from MEMINIT-PRD-007.

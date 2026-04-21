@@ -549,7 +549,7 @@ class TestProtocolSyncerValidation:
         syncer = ProtocolSyncer(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             syncer.execute(asset_ids=["agents-md"], dry_run=False)
-        assert exc_info.value.code == ErrorCode.PATH_ESCAPE
+        assert exc_info.value.code == ErrorCode.NOT_A_REGULAR_FILE
 
     def test_whitespace_only_user_region_preserved(self, tmp_path):
         """Whitespace-only user content after end marker should not be silently dropped."""

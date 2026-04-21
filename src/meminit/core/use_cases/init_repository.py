@@ -68,11 +68,7 @@ class InitReport:
 def _record_created_ancestors(target: Path, record_fn) -> None:
     """Create parent directories and record any that are newly created."""
     created: List[Path] = []
-    # Walk from the deepest ancestor upward, collecting missing dirs
-    root = target.root
     for parent in reversed(target.parents):
-        if parent == root or parent == target:
-            continue
         if not parent.exists():
             created.append(parent)
     if created:
@@ -248,9 +244,7 @@ class InitRepositoryUseCase:
 
             if canonical is not None:
                 _record_created_ancestors(target, record)
-                atomic_write(target, canonical, encoding="utf-8")
-                if asset.file_mode is not None:
-                    target.chmod(asset.file_mode)
+                atomic_write(target, canonical, encoding="utf-8", file_mode=asset.file_mode)
                 record(target, created=True)
             elif asset.id == "agents-md":
                 # Fallback: write a protocol-governed AGENTS.md even when the

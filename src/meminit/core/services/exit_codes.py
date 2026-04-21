@@ -53,6 +53,7 @@ def exit_code_for_error(error_code: ErrorCode) -> int:
         # Agent interface error codes
         ErrorCode.UNKNOWN_ERROR_CODE: EX_DATAERR,
         ErrorCode.INVALID_ROOT_PATH: EX_NOINPUT,
+        ErrorCode.NOT_A_REGULAR_FILE: EX_NOINPUT,
         # Protocol governance error codes
         ErrorCode.PROTOCOL_ASSET_MISSING: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_LEGACY: EX_COMPLIANCE_FAIL,

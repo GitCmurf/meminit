@@ -28,7 +28,7 @@ Activate this skill when the user asks to:
 ## Safety rules (non-negotiable)
 
 1. Prefer read-only commands first: `scan`, `doctor`, `check`.
-2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, or any rename/rewrite) without:
+2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, `protocol sync --no-dry-run`, or any rename/rewrite) without:
    - showing a dry-run preview, and
    - explicit user confirmation.
 3. Never attempt to “fix” semantic governance manually (ownership, approvals, status promotion) without asking.

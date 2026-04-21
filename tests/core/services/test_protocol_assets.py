@@ -15,7 +15,6 @@ from meminit.core.services.protocol_assets import (
     normalize_protocol_payload,
     parse_protocol_markers,
     resolve_repo_metadata,
-    resolve_repo_metadata_strict,
 )
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 
@@ -426,42 +425,3 @@ class TestResolveRepoMetadata:
         )
         name, prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
-
-
-class TestResolveRepoMetadataStrict:
-    def test_with_config(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text(
-            "project_name: MyRepo\nrepo_prefix: MYREPO\ndocops_version: '2.0'\n",
-            encoding="utf-8",
-        )
-        name, prefix = resolve_repo_metadata_strict(tmp_path)
-        assert name == "MyRepo"
-        assert prefix == "MYREPO"
-
-    def test_missing_config_raises(self, tmp_path):
-        with pytest.raises(MeminitError) as exc_info:
-            resolve_repo_metadata_strict(tmp_path)
-        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
-
-    def test_malformed_config_raises(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text("{{{invalid yaml", encoding="utf-8")
-        with pytest.raises(MeminitError) as exc_info:
-            resolve_repo_metadata_strict(tmp_path)
-        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
-
-    def test_missing_required_fields_raises(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text(
-            "project_name: ''\nrepo_prefix: ''\ndocops_version: '2.0'\n",
-            encoding="utf-8",
-        )
-        with pytest.raises(MeminitError) as exc_info:
-            resolve_repo_metadata_strict(tmp_path)
-        assert exc_info.value.code == ErrorCode.CONFIG_MISSING
-
-    def test_repo_prefix_uppercased(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text(
-            "project_name: MyRepo\nrepo_prefix: myrepo\ndocops_version: '2.0'\n",
-            encoding="utf-8",
-        )
-        name, prefix = resolve_repo_metadata_strict(tmp_path)
-        assert prefix == "MYREPO"

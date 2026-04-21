@@ -30,6 +30,15 @@ class MeminitPathEscapeError(MeminitError, UnsafePathError):
         )
 
 
+class MeminitFileTypeError(MeminitError):
+    """Error raised when a path exists but is not a regular file."""
+
+    def __init__(self, message: str, details: dict | None = None):
+        super().__init__(
+            code=ErrorCode.NOT_A_REGULAR_FILE, message=message, details=details or {}
+        )
+
+
 def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:
     """
     Ensure a target path is safe to write within a repository root.
@@ -91,7 +100,7 @@ def ensure_existing_regular_file_path(*, root_dir: Path, target_path: Path) -> N
 
     target_path = Path(target_path)
     if not target_path.is_file():
-        raise MeminitPathEscapeError(
+        raise MeminitFileTypeError(
             message=f"Path '{target_path}' is not a regular file",
             details={
                 "target_path": str(target_path),

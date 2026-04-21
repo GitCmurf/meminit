@@ -2,7 +2,15 @@ import os
 
 import pytest
 
-from meminit.core.services.safe_fs import ensure_safe_write_path, UnsafePathError
+from pathlib import Path
+
+from meminit.core.services.safe_fs import (
+    ensure_safe_write_path,
+    ensure_existing_regular_file_path,
+    UnsafePathError,
+    MeminitFileTypeError,
+    MeminitPathEscapeError,
+)
 from meminit.core.services.error_codes import MeminitError, ErrorCode
 
 
@@ -70,3 +78,38 @@ def test_atomic_write_uses_umask_for_new_files(tmp_path):
 
     assert target.read_text(encoding="utf-8") == "new"
     assert target.stat().st_mode & 0o777 == 0o640
+
+
+def test_ensure_existing_regular_file_rejects_directory(tmp_path):
+    (tmp_path / "subdir").mkdir()
+    with pytest.raises(MeminitFileTypeError) as exc_info:
+        ensure_existing_regular_file_path(
+            root_dir=tmp_path, target_path=tmp_path / "subdir"
+        )
+    assert exc_info.value.code == ErrorCode.NOT_A_REGULAR_FILE
+    assert isinstance(exc_info.value, MeminitError)
+    assert not isinstance(exc_info.value, MeminitPathEscapeError)
+
+
+def test_ensure_existing_regular_file_rejects_missing(tmp_path):
+    with pytest.raises(MeminitFileTypeError) as exc_info:
+        ensure_existing_regular_file_path(
+            root_dir=tmp_path, target_path=tmp_path / "nonexistent"
+        )
+    assert exc_info.value.code == ErrorCode.NOT_A_REGULAR_FILE
+
+
+def test_ensure_existing_regular_file_accepts_regular_file(tmp_path):
+    target = tmp_path / "file.txt"
+    target.write_text("hello", encoding="utf-8")
+    ensure_existing_regular_file_path(root_dir=tmp_path, target_path=target)
+
+
+def test_ensure_existing_regular_file_symlink_escape_is_path_escape(tmp_path):
+    outside = tmp_path.parent / "outside-file.txt"
+    outside.write_text("outside", encoding="utf-8")
+    link = tmp_path / "link.txt"
+    link.symlink_to(outside)
+    with pytest.raises(MeminitPathEscapeError) as exc_info:
+        ensure_existing_regular_file_path(root_dir=tmp_path, target_path=link)
+    assert exc_info.value.code == ErrorCode.PATH_ESCAPE

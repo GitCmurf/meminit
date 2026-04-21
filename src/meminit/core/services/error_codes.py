@@ -63,6 +63,7 @@ class ErrorCode(str, Enum):
     # Agent interface error codes
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
     INVALID_ROOT_PATH = "INVALID_ROOT_PATH"
+    NOT_A_REGULAR_FILE = "NOT_A_REGULAR_FILE"
 
     # Graph integrity error codes (Phase 2)
     GRAPH_DUPLICATE_DOCUMENT_ID = "GRAPH_DUPLICATE_DOCUMENT_ID"
@@ -169,6 +170,19 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["context"],
         ),
         spec_reference="MEMINIT-PLAN-010",
+    ),
+    ErrorCode.NOT_A_REGULAR_FILE.value: ErrorExplanation(
+        code=ErrorCode.NOT_A_REGULAR_FILE.value,
+        category="shared",
+        summary="Expected a regular file but found a different file type.",
+        cause="The target path exists but is not a regular file (e.g., it is a directory, symlink, or device).",
+        remediation=RemediationInfo(
+            action="Ensure the target path points to a regular file. Remove or relocate the non-file entry.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor", "check"],
+        ),
+        spec_reference="MEMINIT-GOV-003",
     ),
     ErrorCode.PATH_ESCAPE.value: ErrorExplanation(
         code=ErrorCode.PATH_ESCAPE.value,

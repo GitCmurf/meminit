@@ -15,8 +15,6 @@ from importlib import resources
 from pathlib import Path
 from typing import Optional, Tuple
 
-import yaml
-
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import load_repo_config
 
@@ -136,7 +134,6 @@ class ProtocolAssetRegistry:
         return self._by_id.get(asset_id)
 
     def validate_asset_ids(self, asset_ids) -> None:
-        from meminit.core.services.error_codes import ErrorCode, MeminitError
         unknown = [aid for aid in asset_ids if aid not in self._ids]
         if unknown:
             raise MeminitError(
@@ -501,79 +498,5 @@ def resolve_repo_metadata(root_dir: Path) -> Tuple[str, str]:
     return config.project_name, config.repo_prefix
 
 
-def resolve_repo_metadata_strict(root_dir: Path) -> Tuple[str, str]:
-    """Resolve project_name and repo_prefix from an initialized repository.
 
-    Unlike :func:`resolve_repo_metadata`, this helper does not guess defaults.
-    It requires a valid ``docops.config.yaml`` with explicit ``project_name``
-    and ``repo_prefix`` values and raises ``CONFIG_MISSING`` otherwise.
-    """
-    config_path = root_dir / "docops.config.yaml"
-    if not config_path.is_file() or config_path.is_symlink():
-        raise MeminitError(
-            code=ErrorCode.CONFIG_MISSING,
-            message=(
-                "Repository not initialized: missing valid docops.config.yaml. "
-                "Run 'meminit init' first."
-            ),
-            details={
-                "hint": "meminit init",
-                "root": str(root_dir),
-                "missing_file": "docops.config.yaml",
-                "required": "regular file (not directory/symlink)",
-            },
-        )
 
-    try:
-        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except Exception as exc:
-        raise MeminitError(
-            code=ErrorCode.CONFIG_MISSING,
-            message=(
-                "Repository not initialized: missing valid docops.config.yaml. "
-                "Run 'meminit init' first."
-            ),
-            details={
-                "hint": "meminit init",
-                "root": str(root_dir),
-                "missing_file": "docops.config.yaml",
-                "required": "parseable YAML with project_name and repo_prefix",
-                "reason": str(exc),
-            },
-        ) from exc
-
-    if not isinstance(data, dict):
-        raise MeminitError(
-            code=ErrorCode.CONFIG_MISSING,
-            message=(
-                "Repository not initialized: missing valid docops.config.yaml. "
-                "Run 'meminit init' first."
-            ),
-            details={
-                "hint": "meminit init",
-                "root": str(root_dir),
-                "missing_file": "docops.config.yaml",
-                "required": "mapping with project_name and repo_prefix",
-                "reason": "not_a_mapping",
-            },
-        )
-
-    project_name = str(data.get("project_name") or "").strip()
-    repo_prefix = str(data.get("repo_prefix") or "").strip().upper()
-    if not project_name or not repo_prefix:
-        raise MeminitError(
-            code=ErrorCode.CONFIG_MISSING,
-            message=(
-                "Repository not initialized: missing valid docops.config.yaml. "
-                "Run 'meminit init' first."
-            ),
-            details={
-                "hint": "meminit init",
-                "root": str(root_dir),
-                "missing_file": "docops.config.yaml",
-                "required": "project_name and repo_prefix",
-                "reason": "missing_required_fields",
-            },
-        )
-
-    return project_name, repo_prefix
