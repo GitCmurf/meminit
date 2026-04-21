@@ -1,9 +1,26 @@
-"""Protocol fixture scenarios for check/sync tests (F01-F15)."""
+"""Protocol fixture scenarios for check/sync tests (F01–F13, F16–F17)."""
 
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
-from meminit.core.services.protocol_assets import ProtocolAssetRegistry
+from meminit.core.services.protocol_assets import (
+    PROTOCOL_ASSET_VERSION,
+    ProtocolAssetRegistry,
+)
+
+
+def _previous_version() -> str:
+    parts = PROTOCOL_ASSET_VERSION.split(".")
+    major, minor = int(parts[0]), int(parts[1])
+    if minor > 0:
+        minor -= 1
+    else:
+        major -= 1
+        minor = 9
+    return f"{major}.{minor}"
+
+
+_PREVIOUS_VERSION = _previous_version()
 
 
 def _setup_config(tmp_path: Path, project_name: str = "TestProject", repo_prefix: str = "TEST") -> None:
@@ -98,7 +115,9 @@ def setup_f05_stale_version(tmp_path: Path) -> Dict[str, str]:
     for asset in registry.assets:
         if asset.id == "agents-md":
             canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
-            content = canonical.replace("version=1.0", "version=0.9")
+            content = canonical.replace(
+                f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREVIOUS_VERSION}"
+            )
             _write_asset(tmp_path, asset.id, content)
             continue
         _write_canonical(tmp_path, asset)
@@ -194,7 +213,9 @@ def setup_f10_stale_with_user_content(tmp_path: Path) -> Dict[str, str]:
             end_idx = next(i for i, line in enumerate(lines) if "MEMINIT_PROTOCOL: end" in line)
             # Bump version to make it stale
             content_lines = list(lines[: end_idx + 1])
-            content_lines[0] = content_lines[0].replace("version=1.0", "version=0.9")
+            content_lines[0] = content_lines[0].replace(
+                f"version={PROTOCOL_ASSET_VERSION}", f"version={_PREVIOUS_VERSION}"
+            )
             user_section = "\n## Custom\nUser notes here.\n"
             full_content = "\n".join(content_lines) + user_section
             _write_asset(tmp_path, asset.id, full_content)

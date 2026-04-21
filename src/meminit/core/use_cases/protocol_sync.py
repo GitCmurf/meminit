@@ -114,7 +114,7 @@ class ProtocolSyncer:
         mode_repaired = False
 
         if not dry_run:
-            for idx, (asset_status, asset_desc, prior, action) in enumerate(planned):
+            for idx, (_, asset_desc, prior, action) in enumerate(planned):
                 if action == "refuse":
                     continue
                 if action == "rewrite":
@@ -247,19 +247,18 @@ class ProtocolSyncer:
         try:
             atomic_write(target, full_content, file_mode=asset.file_mode)
         except OSError as exc:
-            if asset.file_mode is not None and "chmod" in str(exc).lower():
-                raise MeminitError(
-                    code=ErrorCode.UNKNOWN_ERROR,
-                    message=(
-                        f"Failed to apply file mode {oct(asset.file_mode)} to "
-                        f"{asset.target_path}"
-                    ),
-                    details={
-                        "target_path": asset.target_path,
-                        "expected_mode": asset.file_mode,
-                    },
-                ) from exc
-            raise
+            reason = "chmod" if "chmod" in str(exc).lower() else str(exc)
+            raise MeminitError(
+                code=ErrorCode.PROTOCOL_ASSET_STALE,
+                message=(
+                    f"Failed to write protocol asset {asset.target_path}: {reason}"
+                ),
+                details={
+                    "target_path": asset.target_path,
+                    "expected_mode": asset.file_mode,
+                    "reason": reason,
+                },
+            ) from exc
 
         return preserved_bytes
 
@@ -284,7 +283,7 @@ class ProtocolSyncer:
             return True
         except OSError as exc:
             raise MeminitError(
-                code=ErrorCode.UNKNOWN_ERROR,
+                code=ErrorCode.PROTOCOL_ASSET_STALE,
                 message=(
                     f"Failed to apply file mode {oct(asset.file_mode)} to "
                     f"{asset.target_path}"
@@ -292,6 +291,7 @@ class ProtocolSyncer:
                 details={
                     "target_path": asset.target_path,
                     "expected_mode": asset.file_mode,
+                    "reason": str(exc),
                 },
             ) from exc
 

@@ -1,6 +1,7 @@
 """Tests for protocol asset registry, normalizer, marker parser, drift classifier."""
 
 import hashlib
+import re
 from pathlib import Path
 
 import pytest
@@ -242,14 +243,10 @@ class TestClassifyDrift:
     def test_mixed_aligned_with_uppercase_hex(self):
         asset = _make_asset(ownership=AssetOwnership.MIXED)
         canonical = asset.render(project_name="Test", repo_prefix="TEST")
-        # Uppercase the sha256 in the begin marker
-        uppercase = canonical.replace("sha256=", "sha256=").upper()
-        # Only uppercase the hex part, not the rest of the content
         lines = canonical.split("\n")
         modified_lines = list(lines)
         for i, line in enumerate(modified_lines):
             if "sha256=" in line:
-                import re
                 modified_lines[i] = re.sub(
                     r"(sha256=)([0-9a-f]{64})",
                     lambda m: m.group(1) + m.group(2).upper(),
@@ -420,7 +417,10 @@ class TestResolveRepoMetadata:
     def test_without_config_uses_dirname(self, tmp_path):
         name, prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
-        assert prefix == prefix.upper()
+        import re as _re
+        clean = _re.sub(r"[^a-zA-Z]", "", tmp_path.name)
+        expected_prefix = clean[:10].upper() if len(clean) >= 3 else "REPO"
+        assert prefix == expected_prefix
 
     def test_malformed_config_falls_back(self, tmp_path):
         (tmp_path / "docops.config.yaml").write_text("{{{invalid yaml", encoding="utf-8")
@@ -432,5 +432,5 @@ class TestResolveRepoMetadata:
             "project_name: ''\nrepo_prefix: ''\ndocops_version: '2.0'\n",
             encoding="utf-8",
         )
-        name, prefix = resolve_repo_metadata(tmp_path)
+        name, _prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name

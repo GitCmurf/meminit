@@ -160,8 +160,8 @@ class TestProtocolSyncerNoop:
         syncer = ProtocolSyncer(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             syncer.execute(dry_run=False)
-        assert exc_info.value.code == ErrorCode.UNKNOWN_ERROR
-        assert "Failed to apply file mode" in str(exc_info.value)
+        assert exc_info.value.code == ErrorCode.PROTOCOL_ASSET_STALE
+        assert "chmod" in str(exc_info.value)
 
         # Verify the file was NOT partially written (temp file cleaned up)
         assert script_path.read_text(encoding="utf-8") != ""
