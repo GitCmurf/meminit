@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.3"
-last_updated: 2026-04-15
+version: "0.4"
+last_updated: 2026-04-18
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -37,10 +37,10 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-15
+> **Version:** 0.4
+> **Last Updated:** 2026-04-18
 > **Type:** PRD
-> **Area:** Agentic Integration
+> **Area:** AGENT
 
 ## Table of Contents
 
@@ -370,7 +370,25 @@ Remaining items (future phases):
 
 - FR-3: NDJSON streaming output mode
 - FR-4: Structured logging surface
-- FR-6: Agent protocol integration and drift detection
+
+---
+
+## 8.6 Phase 3 Implementation Status
+
+The following Phase 3 items are now implemented:
+
+- **FR-6: Agent protocol integration and drift detection** — `meminit protocol check` and `meminit protocol sync` shipped
+- Protocol asset registry with 3 governed assets (AGENTS.md, skill manifest, brownfield script)
+- 6-outcome drift classification: aligned, missing, legacy, stale, tampered, unparseable
+- `meminit protocol check --format json` — read-only drift detection with structured violations
+- `meminit protocol sync --format json` — safe remediation with `--dry-run` default, `--force` for tampered assets
+- MEMINIT_PROTOCOL marker grammar for mixed-ownership assets (begin/end HTML comments with version + sha256)
+- Atomic writes via `tempfile.mkstemp` + `os.replace` for safe remediation
+- User content preservation for mixed-ownership assets during sync
+- 5 `PROTOCOL_*` error codes added to ErrorCode enum and MEMINIT-SPEC-006
+- Init (`meminit init`) consumes `ProtocolAssetRegistry` as single source of truth for all protocol assets
+- Contract-matrix tests auto-include `protocol check` and `protocol sync` via capabilities registry
+- 25 fixture-driven parametrized tests covering scenarios F01-F15
 
 ---
 
@@ -420,3 +438,4 @@ This PRD is considered implemented when:
 | 0.1     | 2026-02-23 | System    | Created via `meminit new PRD`.                                                                                              |
 | 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry. |
 | 0.3     | 2026-04-15 | GitCmurf | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped |
+| 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |

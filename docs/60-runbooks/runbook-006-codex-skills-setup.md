@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2025-12-26
+last_updated: 2026-04-19
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
-version: 0.1
+version: "0.2"
 ---
 
 # Runbook: Codex Skills Setup for Meminit
@@ -109,7 +109,7 @@ Depending on the Codex build, these may appear with slightly different names in 
 Does:
 
 - Provide a safe decision tree for `scan → context → doctor → check → fix → index`.
-- Use the **Agent Interface v1** (output schema v2) for all commands.
+- Use the **Agent Interface v3** (output schema v3.0) for all commands.
 - Emphasize deterministic, machine-safe JSON outputs via `--format json`.
 - Support standardized agent flags: `--output`, `--include-timestamp`, and `--verbose`.
 
@@ -120,9 +120,62 @@ Does not:
 
 ## Agent Interface Compliance
 
-The `meminit-docops` skill is designed to work with the **v2 output contract**. When developing or modifying skills that consume Meminit:
+The `meminit-docops` skill is designed to work with the **v3 output contract** (see MEMINIT-SPEC-008). When developing or modifying skills that consume Meminit:
 
 1. **Always use `--format json`** for machine parsing.
 2. **Expect exactly one JSON object on STDOUT**.
 3. **Handle errors structuredly** via the `error` object in the envelope.
 4. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+
+## Protocol Asset Governance
+
+As of Phase 3, repo-local protocol files (AGENTS.md, skill manifests, bundled scripts) are governed clients of the Meminit runtime contract. Two commands manage them:
+
+### Checking for drift
+
+```bash
+meminit protocol check --root . --format json
+```
+
+This detects six drift outcomes: aligned, missing, legacy, stale, tampered, and unparseable. Exit code is 0 only when all assets are aligned.
+
+### Syncing to canonical
+
+```bash
+# Preview changes (default — no writes)
+meminit protocol sync --root . --format json
+
+# Apply changes
+meminit protocol sync --root . --no-dry-run --format json
+
+# Force-overwrite tampered assets
+meminit protocol sync --root . --no-dry-run --force --format json
+```
+
+Key safety defaults:
+
+- `--dry-run` is on by default; you must pass `--no-dry-run` to write.
+- Tampered assets require `--force`; unparseable assets always refuse.
+- User content in mixed-ownership files (e.g., custom sections in AGENTS.md) is preserved byte-identical.
+
+### CI integration
+
+Add to your CI pipeline to catch protocol drift on PRs:
+
+```bash
+meminit protocol check --root . --format json
+```
+
+This fails (exit 1) if any asset is drifted or unparseable, blocking the merge until the developer runs `meminit protocol sync --no-dry-run`.
+
+### Upgrading Meminit
+
+After upgrading the Meminit package, protocol assets may become stale (new version/hash). Run:
+
+```bash
+meminit protocol check --root .
+meminit protocol sync --root . --no-dry-run
+meminit protocol check --root .
+```
+
+The last command confirms alignment. See MEMINIT-FDD-012 for the full specification.

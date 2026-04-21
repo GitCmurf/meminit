@@ -28,7 +28,7 @@ Activate this skill when the user asks to:
 ## Safety rules (non-negotiable)
 
 1. Prefer read-only commands first: `scan`, `doctor`, `check`.
-2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, or any rename/rewrite) without:
+2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, `protocol sync --no-dry-run`, or any rename/rewrite) without:
    - showing a dry-run preview, and
    - explicit user confirmation.
 3. Never attempt to “fix” semantic governance manually (ownership, approvals, status promotion) without asking.
@@ -59,6 +59,9 @@ Activate this skill when the user asks to:
   - `meminit resolve <DOCUMENT_ID> --format json`
   - `meminit identify <PATH> --format json`
   - `meminit link <DOCUMENT_ID> --format json`
+- Protocol governance:
+  - `meminit protocol check --format json` (drift detection for governed assets)
+  - `meminit protocol sync --format json` (preview-only by default; add `--no-dry-run` to apply)
 
 > [!TIP]
 > Use `--output <path>` to capture JSON artifacts for CI or downstream tools. All commands support `--include-timestamp` if timing data is needed in the envelope.
@@ -302,11 +305,11 @@ Two distinct failure modes:
 
 Always check `success` first, then inspect `error` vs. `violations` to determine the failure type.
 
-Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-004` documents the v2 envelope shape, but some prose there still reflects older migration-state wording.
+Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-008` is the normative v3 output contract (superseding MEMINIT-SPEC-004).
 
 ## References (in this repo)
 
 - Brownfield migration runbook: `docs/60-runbooks/runbook-005-brownfield-repo-migration.md`
 - CI/CD enforcement runbook: `docs/60-runbooks/runbook-004-ci-cd-enforcement.md`
-- Agent output contract: `docs/20-specs/spec-004-agent-output-contract.md`
+- Agent output contract: `docs/20-specs/spec-008-agent-output-contract-v2.md`
 - Agent interface v2 PRD: `docs/10-prd/prd-005-agent-interface-v2.md`

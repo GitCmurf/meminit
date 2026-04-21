@@ -3434,5 +3434,208 @@ def state_list(root, format, output, include_timestamp, correlation_id):
             get_console().print(table)
 
 
+_DRIFT_ERROR_CODE = {
+    "missing": "PROTOCOL_ASSET_MISSING",
+    "legacy": "PROTOCOL_ASSET_LEGACY",
+    "stale": "PROTOCOL_ASSET_STALE",
+    "tampered": "PROTOCOL_ASSET_TAMPERED",
+    "unparseable": "PROTOCOL_ASSET_UNPARSEABLE",
+}
+
+_DRIFT_ERROR_STATES = frozenset({"tampered", "unparseable"})
+
+
+def _drift_violations(assets, status_field):
+    violations = []
+    for a in assets:
+        status = a[status_field]
+        code = _DRIFT_ERROR_CODE.get(status)
+        if code:
+            violations.append({
+                "code": code,
+                "message": f"{status}: {a['target_path']}",
+                "path": a["target_path"],
+                "severity": "error" if status in _DRIFT_ERROR_STATES else "warning",
+            })
+    return violations
+
+
+@cli.group()
+def protocol():
+    """Protocol governance: check and sync governed files."""
+    pass
+
+
+@protocol.command("check")
+@agent_repo_options()
+@click.option(
+    "--asset",
+    "asset_ids",
+    multiple=True,
+    help="Restrict check to specific asset IDs (repeatable).",
+)
+def protocol_check(asset_ids, root, format, output, include_timestamp, correlation_id):
+    """Check protocol assets for drift (read-only)."""
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "protocol check", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="protocol check",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
+        )
+
+        from meminit.core.use_cases.protocol_check import ProtocolChecker
+
+        checker = ProtocolChecker(str(root_path))
+        ids = list(asset_ids) if asset_ids else None
+        report = checker.execute(asset_ids=ids)
+
+        exit_code = 0 if report.success else EX_COMPLIANCE_FAIL
+
+        violations = _drift_violations(report.assets, "status")
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="protocol check",
+                    root=str(root_path),
+                    success=report.success,
+                    data={
+                        "summary": report.summary,
+                        "assets": report.assets,
+                    },
+                    violations=violations,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            raise SystemExit(exit_code)
+
+        # text and md formatting
+        if format == "md":
+            headers = ["Status", "Asset ID", "Path"]
+            rows = []
+            for a in report.assets:
+                rows.append([a["status"].upper(), a["id"], a["target_path"]])
+            _write_output(_md_table(headers, rows), output)
+            raise SystemExit(exit_code)
+
+        with maybe_capture(output, format):
+            get_console().print("[bold blue]Meminit Protocol Check[/bold blue]")
+            if report.success:
+                get_console().print("[bold green]All protocol assets aligned.[/bold green]")
+            else:
+                for a in report.assets:
+                    if a["status"] == "aligned":
+                        get_console().print(f"  OK {a['target_path']}")
+                    else:
+                        color = "red" if not a["auto_fixable"] else "yellow"
+                        get_console().print(f"  [{color}]{a['status'].upper()}[/{color}] {a['target_path']}")
+        raise SystemExit(exit_code)
+
+
+@protocol.command("sync")
+@agent_repo_options()
+@click.option(
+    "--asset",
+    "asset_ids",
+    multiple=True,
+    help="Restrict sync to specific asset IDs (repeatable).",
+)
+@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing (default: dry-run).")
+@click.option("--force/--no-force", default=False, help="Allow overwriting tampered assets.")
+def protocol_sync(asset_ids, dry_run, force, root, format, output, include_timestamp, correlation_id):
+    """Synchronize protocol assets with the canonical contract."""
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "protocol sync", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
+    ):
+        validate_root_path(
+            root_path,
+            format=format,
+            command="protocol sync",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
+        )
+
+        from meminit.core.use_cases.protocol_sync import ProtocolSyncer
+
+        syncer = ProtocolSyncer(str(root_path))
+        ids = list(asset_ids) if asset_ids else None
+        report = syncer.execute(dry_run=dry_run, force=force, asset_ids=ids)
+
+        exit_code = 0 if report.success else EX_COMPLIANCE_FAIL
+
+        if report.dry_run:
+            sync_violations = _drift_violations(report.assets, "prior_status") if not report.success else []
+        else:
+            refused = [a for a in report.assets if a["action"] == "refuse"]
+            sync_violations = _drift_violations(refused, "prior_status") if refused else []
+
+        if format == "json":
+            _write_output(
+                format_envelope(
+                    command="protocol sync",
+                    root=str(root_path),
+                    success=report.success,
+                    data={
+                        "dry_run": report.dry_run,
+                        "applied": report.applied,
+                        "summary": report.summary,
+                        "assets": report.assets,
+                    },
+                    violations=sync_violations,
+                    warnings=report.warnings,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            raise SystemExit(exit_code)
+
+        if format == "md":
+            headers = ["Action", "Asset ID", "Path"]
+            rows = []
+            for a in report.assets:
+                detail = a["action"]
+                if a.get("preserved_user_bytes") is not None:
+                    detail += f" ({a['preserved_user_bytes']} user bytes preserved)"
+                rows.append([detail, a["id"], a["target_path"]])
+            _write_output(_md_table(headers, rows), output)
+            raise SystemExit(exit_code)
+
+        with maybe_capture(output, format):
+            label = "DRY RUN" if dry_run else "APPLY"
+            get_console().print(f"[bold blue]Meminit Protocol Sync[/bold blue] [yellow]({label})[/yellow]")
+            for a in report.assets:
+                if a["action"] == "noop":
+                    get_console().print(f"  [dim]noop[/dim] {a['target_path']}")
+                elif a["action"] == "rewrite":
+                    msg = f"rewrite {a['target_path']}"
+                    if a.get("preserved_user_bytes") is not None:
+                        msg += f" ({a['preserved_user_bytes']} user bytes preserved)"
+                    get_console().print(f"  [green]{msg}[/green]")
+                elif a["action"] == "refuse":
+                    get_console().print(f"  [red]refuse {a['target_path']}[/red]")
+        raise SystemExit(exit_code)
+
+
 if __name__ == "__main__":
     cli()

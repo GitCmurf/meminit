@@ -220,3 +220,5 @@ register_capability("state get", "Get document implementation state", needs_root
 register_capability("state list", "List all document states", needs_root=True, agent_facing=True)
 register_capability("capabilities", "Show CLI capabilities descriptor", agent_facing=True)
 register_capability("explain", "Explain a Meminit error code", agent_facing=True)
+register_capability("protocol check", "Check protocol assets for drift", needs_root=True, agent_facing=True)
+register_capability("protocol sync", "Synchronize protocol assets with canonical contract", needs_root=True, agent_facing=True)

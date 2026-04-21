@@ -63,10 +63,19 @@ class ErrorCode(str, Enum):
     # Agent interface error codes
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
     INVALID_ROOT_PATH = "INVALID_ROOT_PATH"
+    NOT_A_REGULAR_FILE = "NOT_A_REGULAR_FILE"
 
     # Graph integrity error codes (Phase 2)
     GRAPH_DUPLICATE_DOCUMENT_ID = "GRAPH_DUPLICATE_DOCUMENT_ID"
     GRAPH_SUPERSESSION_CYCLE = "GRAPH_SUPERSESSION_CYCLE"
+
+    # Protocol governance error codes (Phase 3)
+    PROTOCOL_ASSET_MISSING = "PROTOCOL_ASSET_MISSING"
+    PROTOCOL_ASSET_LEGACY = "PROTOCOL_ASSET_LEGACY"
+    PROTOCOL_ASSET_STALE = "PROTOCOL_ASSET_STALE"
+    PROTOCOL_ASSET_TAMPERED = "PROTOCOL_ASSET_TAMPERED"
+    PROTOCOL_ASSET_UNPARSEABLE = "PROTOCOL_ASSET_UNPARSEABLE"
+    PROTOCOL_SYNC_WRITE_FAILED = "PROTOCOL_SYNC_WRITE_FAILED"
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +171,19 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["context"],
         ),
         spec_reference="MEMINIT-PLAN-010",
+    ),
+    ErrorCode.NOT_A_REGULAR_FILE.value: ErrorExplanation(
+        code=ErrorCode.NOT_A_REGULAR_FILE.value,
+        category="shared",
+        summary="Expected a regular file but found a different file type.",
+        cause="The target path exists but is not a regular file (e.g., it is a directory, symlink, or device).",
+        remediation=RemediationInfo(
+            action="Ensure the target path points to a regular file. Remove or relocate the non-file entry.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["doctor", "check"],
+        ),
+        spec_reference="MEMINIT-GOV-003",
     ),
     ErrorCode.PATH_ESCAPE.value: ErrorExplanation(
         code=ErrorCode.PATH_ESCAPE.value,
@@ -552,6 +574,85 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             relevant_commands=["fix", "check"],
         ),
         spec_reference="MEMINIT-PLAN-011",
+    ),
+    # -- Protocol governance error codes --
+    ErrorCode.PROTOCOL_ASSET_MISSING.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_MISSING.value,
+        category="protocol",
+        summary="A protocol asset is missing from the repository.",
+        cause="The expected protocol asset file does not exist at its target path.",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to create the missing asset.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_LEGACY.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_LEGACY.value,
+        category="protocol",
+        summary="A protocol asset predates the marker format.",
+        cause="The mixed-ownership asset exists but contains no MEMINIT_PROTOCOL region markers (installed before protocol markers were introduced).",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to wrap existing content in markers.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_STALE.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_STALE.value,
+        category="protocol",
+        summary="A protocol asset is out of date with the current contract.",
+        cause="The canonical render has changed since the asset was last synchronized.",
+        remediation=RemediationInfo(
+            action="Run meminit protocol sync --no-dry-run to update the asset.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_TAMPERED.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_TAMPERED.value,
+        category="protocol",
+        summary="The managed region of a protocol asset has been modified outside of meminit.",
+        cause="The recorded sha256 in the MEMINIT_PROTOCOL marker does not match the actual managed content on disk.",
+        remediation=RemediationInfo(
+            action="Review the changes in the managed region. If intentional, run meminit protocol sync --no-dry-run --force to overwrite. If unintentional, restore from version control.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["protocol sync", "protocol check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_ASSET_UNPARSEABLE.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_ASSET_UNPARSEABLE.value,
+        category="protocol",
+        summary="The MEMINIT_PROTOCOL markers in a protocol asset are malformed.",
+        cause="The begin/end markers are duplicated, unterminated, or have mismatched IDs.",
+        remediation=RemediationInfo(
+            action="Manually fix or restore the malformed markers from version control, then run meminit protocol sync --no-dry-run.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["protocol check"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.PROTOCOL_SYNC_WRITE_FAILED.value: ErrorExplanation(
+        code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED.value,
+        category="protocol",
+        summary="A protocol sync write operation failed due to an I/O error.",
+        cause="An OSError occurred while writing or chmod-ing a protocol asset (e.g., disk full, permission denied, or short write).",
+        remediation=RemediationInfo(
+            action="Check disk space and file permissions, then retry.",
+            resolution_type="retryable",
+            automatable=False,
+            relevant_commands=["protocol sync"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
     ),
 }
 
