@@ -65,10 +65,12 @@ class InitReport:
     skipped_paths: List[str]
 
 
-def _record_created_ancestors(target: Path, record_fn) -> None:
+def _record_created_ancestors(target: Path, record_fn, root_dir: Path) -> None:
     """Create parent directories and record any that are newly created."""
     created: List[Path] = []
     for parent in reversed(target.parents):
+        if parent != root_dir and not parent.is_relative_to(root_dir):
+            continue
         try:
             parent.mkdir(exist_ok=False)
             created.append(parent)
@@ -229,6 +231,10 @@ class InitRepositoryUseCase:
             if target.exists():
                 if not target.is_file():
                     raise FileExistsError(f"{target} exists and is not a file")
+                # Pre-existing files: only ensure executability (OR in exec bits)
+                # rather than overwriting with the full registered file_mode.
+                # Authoritative mode enforcement is handled by
+                # ProtocolSyncer._apply_file_mode_if_needed on subsequent syncs.
                 if asset.file_mode is not None:
                     self._set_executable_permission(target)
                 record(target, created=False)
@@ -238,11 +244,11 @@ class InitRepositoryUseCase:
                 canonical = asset.render(
                     project_name=project_name, repo_prefix=repo_prefix
                 )
-            except (OSError, FileNotFoundError):
+            except OSError:
                 canonical = None
 
             if canonical is not None:
-                _record_created_ancestors(target, record)
+                _record_created_ancestors(target, record, self.root_dir)
                 atomic_write(target, canonical, encoding="utf-8", file_mode=asset.file_mode)
                 record(target, created=True)
             elif asset.id == "agents-md":
@@ -253,7 +259,7 @@ class InitRepositoryUseCase:
                     project_name=project_name,
                     repo_prefix=repo_prefix,
                 )
-                _record_created_ancestors(target, record)
+                _record_created_ancestors(target, record, self.root_dir)
                 atomic_write(target, agents_content, encoding="utf-8")
                 record(target, created=True)
             else:
