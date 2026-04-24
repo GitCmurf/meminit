@@ -180,6 +180,51 @@ def test_index_without_project_state(tmp_path):
     assert "updated_by" not in doc
 
 
+def test_index_derived_fields_always_emitted_without_state(tmp_path):
+    """Documents without state entries still get ready/open_blockers/unblocks."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    doc = payload["data"]["nodes"][0]
+    assert doc["ready"] is True
+    assert doc["open_blockers"] == []
+    assert doc["unblocks"] == []
+
+
+def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
+    """Document with state (blocked) and document without state both get derived fields."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(tmp_path, {
+        "EXAMPLE-ADR-001": {
+            "impl_state": "Not Started",
+            "updated": "2026-04-20T10:00:00+00:00",
+            "updated_by": "test",
+            "depends_on": ["EXAMPLE-ADR-002"],
+        },
+        "EXAMPLE-ADR-002": {
+            "impl_state": "Not Started",
+            "updated": "2026-04-20T10:00:00+00:00",
+            "updated_by": "test",
+        },
+    })
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    nodes = {n["document_id"]: n for n in payload["data"]["nodes"]}
+
+    assert nodes["EXAMPLE-ADR-001"]["ready"] is False
+    assert "EXAMPLE-ADR-002" in nodes["EXAMPLE-ADR-001"]["open_blockers"]
+
+    assert nodes["EXAMPLE-ADR-002"]["ready"] is True
+    assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
+
+
 # ---------------------------------------------------------------------------
 # Catalog generation
 # ---------------------------------------------------------------------------

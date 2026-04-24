@@ -1069,6 +1069,7 @@ class IndexRepositoryUseCase:
                 warnings_list.append(w)
 
         # Compute derived fields (ready, open_blockers, unblocks) from state.
+        # Spec (PLAN-013 §3.4.1): ready, open_blockers, unblocks are always emitted.
         if project_state and project_state.entries:
             from meminit.core.services.state_derived import compute_derived_fields
             derived = compute_derived_fields(project_state, known_doc_ids)
@@ -1079,6 +1080,15 @@ class IndexRepositoryUseCase:
                     entry["ready"] = d.ready
                     entry["open_blockers"] = list(d.open_blockers)
                     entry["unblocks"] = list(d.unblocks)
+                else:
+                    entry["ready"] = True
+                    entry["open_blockers"] = []
+                    entry["unblocks"] = []
+        else:
+            for entry in entries:
+                entry["ready"] = True
+                entry["open_blockers"] = []
+                entry["unblocks"] = []
 
         # Apply filters.
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
