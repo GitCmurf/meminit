@@ -175,3 +175,21 @@ def test_invalid_related_id_remediation_matches_new_input_validation():
     assert "superseded_by" in entry.remediation.action
     assert "non-existent" not in entry.cause
     assert entry.remediation.relevant_commands == ["new"]
+
+
+def test_state_invalid_priority_explanation_covers_dual_contexts():
+    """STATE_INVALID_PRIORITY explanation must reference both fatal (write)
+    and warning (read/skip) contexts (GG-A consolidation contract test)."""
+    use_case = ExplainErrorUseCase()
+    result = use_case.explain("STATE_INVALID_PRIORITY")
+    assert result is not None
+    assert result["code"] == "STATE_INVALID_PRIORITY"
+
+    from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorCode
+
+    entry = ERROR_EXPLANATIONS[ErrorCode.STATE_INVALID_PRIORITY.value]
+    assert "fatal" in entry.summary.lower() or "fatal" in entry.cause.lower()
+    assert "warning" in entry.summary.lower() or "warning" in entry.cause.lower()
+    assert "state set" in entry.cause.lower()
+    assert "state next" in entry.cause.lower() or "state list" in entry.cause.lower()
+    assert "state set" in entry.remediation.relevant_commands

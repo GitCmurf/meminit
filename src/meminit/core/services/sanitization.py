@@ -13,12 +13,11 @@ from typing import Optional
 
 # Valid actor pattern: alphanumeric, dots, underscores, hyphens (PRD strict).
 ACTOR_REGEX = re.compile(r"^[a-zA-Z0-9._-]+$")
+_SAFE_RE = re.compile(r"^[^<>&\"']+$")
 
-# Maximum notes length.
 MAX_NOTES_LENGTH = 500
-
-# Maximum title/description length.
 MAX_TITLE_LENGTH = 200
+MAX_ASSIGNEE_LENGTH = 120
 
 
 def sanitize_html(value: str) -> str:
@@ -94,5 +93,7 @@ def sanitize_field(
     if max_length is not None and len(value) > max_length:
         value = value[:max_length]
     if html_escape:
+        if _SAFE_RE.fullmatch(value):
+            return value
         value = sanitize_html(value)
     return value

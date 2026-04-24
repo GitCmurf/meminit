@@ -897,8 +897,9 @@ def test_index_graph_schema_version(tmp_path):
 
 
 @pytest.mark.slow
-def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
-    """Phase 2 graph build stays within the documented 500-doc timing budget."""
+def test_index_handles_500_docs_within_phase_4_budget(tmp_path):
+    """Phase 4 index build (scan + state merge + validation + derived fields)
+    stays within the 30-second budget for 500 documents."""
     for i in range(500):
         _setup_doc(tmp_path, f"EXAMPLE-ADR-{i:03d}")
 
@@ -908,4 +909,101 @@ def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
     elapsed = time.perf_counter() - start
 
     assert report.document_count == 500
-    assert elapsed < 10, f"Index build exceeded Phase 2 budget: {elapsed:.2f}s"
+    assert elapsed < 30, f"Index build exceeded Phase 4 budget: {elapsed:.2f}s"
+
+
+# ---------------------------------------------------------------------------
+# BV-C: Stored-XSS via priority in kanban class attribute
+# ---------------------------------------------------------------------------
+
+def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
+    """A hand-edited priority with attribute-breaking chars must not escape
+    the HTML class attribute in kanban cards (BV-C).
+
+    The execute() gate drops invalid priorities, so a real XSS payload never
+    reaches the kanban card. We test two layers:
+    1. _safe_css_slug defence-in-depth (direct unit test).
+    2. A valid priority (P0) renders with a safe slug in the kanban output.
+    """
+    assert _safe_css_slug('P0" onclick=alert(1) x="') == "p0-onclick-alert-1-x"
+    assert '"' not in _safe_css_slug('P0" onclick=alert(1) x="')
+
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "P0",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert "badge-priority-p0" in kanban_content
+    assert 'onclick' not in kanban_content
+
+
+def test_index_invalid_priority_emits_warning_and_is_dropped(tmp_path):
+    """Invalid priority values are dropped from the index and produce a
+    STATE_INVALID_PRIORITY warning in the envelope (BV-C execute gate)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "INVALID",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    node = payload["data"]["nodes"][0]
+    assert "priority" not in node, "Invalid priority should be dropped from index node"
+
+    warning_codes = [w["code"] for w in payload.get("warnings", [])]
+    assert "STATE_INVALID_PRIORITY" in warning_codes
+
+
+def test_index_invalid_priority_single_warning(tmp_path):
+    """Invalid priority produces exactly one STATE_INVALID_PRIORITY warning
+    in the index envelope — validate_project_state is the sole emitter (AR-new-2)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "INVALID",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    pip_warnings = [
+        w for w in payload.get("warnings", []) if w["code"] == "STATE_INVALID_PRIORITY"
+    ]
+    assert len(pip_warnings) == 1, (
+        f"Expected exactly 1 STATE_INVALID_PRIORITY warning, "
+        f"got {len(pip_warnings)}: {pip_warnings}"
+    )

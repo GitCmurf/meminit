@@ -55,8 +55,12 @@ Activate this skill when the user asks to:
 - Org profile helpers (optional): `meminit org status --format json`, `meminit org vendor --format json`
 - State management:
   - `meminit state set <DOCUMENT_ID> --impl-state "In Progress" --notes "Optional notes" --format json`
+  - `meminit state set <DOCUMENT_ID> --priority P1 --assignee agent:codex --next-action "Draft FDD" --format json`
+  - `meminit state set <DOCUMENT_ID> --add-depends-on MEMINIT-PLAN-013 --add-blocked-by MEMINIT-SPEC-006 --format json`
   - `meminit state get <DOCUMENT_ID> --format json`
   - `meminit state list --format json`
+  - `meminit state next --format json` — deterministic next work item
+  - `meminit state blockers --format json` — list blocked entries and open blockers
 - Index + resolution:
   - `meminit index --output-catalog --output-kanban --format json`
   - `meminit resolve <DOCUMENT_ID> --format json`

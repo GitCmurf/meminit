@@ -218,6 +218,8 @@ register_capability("org status", "Show org profile status", needs_root=True, ag
 register_capability("state set", "Set document implementation state", needs_root=True, agent_facing=True)
 register_capability("state get", "Get document implementation state", needs_root=True, agent_facing=True)
 register_capability("state list", "List all document states", needs_root=True, agent_facing=True)
+register_capability("state next", "Select the next ready work item", needs_root=True, agent_facing=True)
+register_capability("state blockers", "List blocked work items and open blockers", needs_root=True, agent_facing=True)
 register_capability("capabilities", "Show CLI capabilities descriptor", agent_facing=True)
 register_capability("explain", "Explain a Meminit error code", agent_facing=True)
 register_capability("protocol check", "Check protocol assets for drift", needs_root=True, agent_facing=True)

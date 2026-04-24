@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-007
 type: PRD
 title: Project State Dashboard
 status: Draft
-version: "0.5"
-last_updated: 2026-03-05
+version: "0.7"
+last_updated: 2026-04-22
 owner: GitCmurf
 docops_version: "2.0"
 area: CLI
@@ -18,6 +18,8 @@ keywords:
   - index
   - catalog
   - mkdocs
+  - queue
+  - blockers
 related_ids:
   - MEMINIT-STRAT-001
   - MEMINIT-PLAN-003
@@ -25,6 +27,8 @@ related_ids:
   - MEMINIT-PRD-004
   - MEMINIT-GOV-001
   - MEMINIT-SPEC-008
+  - MEMINIT-PRD-005
+  - MEMINIT-PLAN-013
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -32,8 +36,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-007
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-03-05
+> **Version:** 0.7
+> **Last Updated:** 2026-04-23
 > **Type:** PRD
 > **Area:** CLI
 
@@ -419,7 +423,9 @@ metadata and implementation state in the envelope payload.
 The JSON output MUST conform to the v2 envelope shape (MEMINIT-SPEC-008) and
 include per-document records with at minimum: `document_id`, `type`, `title`,
 `status` (governance), `impl_state` (present only if tracked), `updated`,
-`updated_by`, `owner`, and `path`.
+`updated_by`, `owner`, and `path`. Queue-oriented consumers MUST also receive
+the derived fields required by Phase 4 (`ready`, `open_blockers`, `unblocks`)
+when the merged state view contains them.
 
 **Schema nullability:** The SPEC-008 amendment MUST mark `impl_state`,
 `updated`, `updated_by`, and `notes` as optional fields in the JSON Schema
@@ -428,7 +434,9 @@ present — they appear only when a `project-state.yaml` entry exists for the
 document. This prevents agent crashes when fields are omitted due to absence
 or sanitization failure.
 
-Implementation notes: This is the primary agent-consumption surface.
+Implementation notes: This is the primary agent-consumption surface. The same
+v2 envelope profile also applies to `state next` and `state blockers`, which
+expose queue-selection data under `data`.
 
 #### FR-6 Filtering
 
@@ -519,6 +527,8 @@ programmatic and human-friendly management of `project-state.yaml`.
   or clear a document's implementation state and/or its notes. At least one of `--impl-state`, `--notes`, or `--clear` must be provided.
 - `meminit state get <document_id>` — display current state for a document
 - `meminit state list` — display all tracked documents and their states
+- `meminit state next` — deterministically select the next ready work item
+- `meminit state blockers` — list blocked work items and their open blockers
 
 **Automatic field population:**
 
@@ -530,13 +540,18 @@ programmatic and human-friendly management of `project-state.yaml`.
 **Key ordering:** After any mutation, `meminit state` MUST re-sort entries
 alphabetically by `document_id` to minimize merge conflict radius (see FR-1).
 
-**Output:** MUST conform to the v2 envelope shape. JSON output includes the
-updated entry; human output shows the change summary.
+**Output:** MUST conform to the v2 envelope shape. JSON output for `set` and
+`get` includes the updated entry; `list` returns the full merged entry array;
+`next` returns the selected queue item plus selection metadata; `blockers`
+returns blocked entries plus a summary. Human output shows the change summary
+or queue explanation.
 
 Implementation notes: This command is the recommended interface for both
-humans and agents. Direct YAML editing is permitted but not encouraged, as
-it bypasses automatic `updated`/`updated_by` population and sort-order
-enforcement.
+humans and agents. Direct YAML editing is permitted but not encouraged, as it
+bypasses automatic `updated`/`updated_by` population and sort-order
+enforcement. Queue consumers should prefer `state next` as the deterministic
+work item selector and `state blockers` when they need to understand why a
+ready item is not available.
 
 Plain English: User-supplied text must never be rendered as executable HTML.
 This prevents content injection in MkDocs-hosted dashboards.
@@ -887,9 +902,11 @@ This PRD is considered implemented when:
    across HTML and JSON channels.
 7. All validation and filtering paths emit structured, machine-readable
    warning/error codes (not free-text messages).
-8. `meminit state set` / `get` / `list` commands work, auto-populating
+8. `meminit state set` / `get` / `list` / `next` / `blockers` commands work, auto-populating
    `updated` and `updated_by` and maintaining alphabetical key order.
 9. Repos without `project-state.yaml` experience no change in behavior.
+10. `state next` is deterministic for identical inputs and uses the documented
+    queue selection rule without hidden heuristics.
 
 ---
 
@@ -912,8 +929,10 @@ This PRD is considered implemented when:
 | [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md) | Project Meminit Vision   | Strategic design center; byte-invariance and determinism constraints |
 | [MEMINIT-GOV-001](../00-governance/gov-001-document-standards.md)       | Document Standards       | Governance rules for filenames, frontmatter, and directory structure |
 | [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)              | Agent Interface v1       | Baseline CLI contract; index output extensions build on this         |
+| [MEMINIT-PRD-005](../10-prd/prd-005-agent-interface-v2.md)              | Agent Interface v2       | Queue surfaces share the v3 agent-output contract                    |
 | [MEMINIT-PRD-004](../10-prd/prd-004-brownfield-adoption-hardening.md)   | Brownfield Adoption      | Scan/fix workflows that the dashboard complements                    |
 | [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)    | Agent Output Contract v2 | Normative JSON envelope schema that index output must conform to     |
+| [MEMINIT-PLAN-013](../05-planning/plan-013-phase-4-detailed-implementation-plan.md) | Phase 4 Detailed Implementation Plan | Detailed queue-work implementation plan and acceptance criteria |
 | [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)       | Agent Output Contract v1 | Historical: superseded by SPEC-008; context for envelope evolution   |
 | [MEMINIT-PLAN-003](../05-planning/plan-003-roadmap.md)                  | Roadmap                  | Strategic roadmap context                                            |
 
@@ -929,3 +948,4 @@ This PRD is considered implemented when:
 | 0.4     | 2026-03-05 | GitCmurf | Round 3: date→datetime for sub-day sort resolution, merge conflict mitigation (alphabetical key ordering), promote `meminit state` CLI to FR-9 with auto `updated`/`updated_by`, nullable JSON schema fields, filtered catalog header, explicit advisory transitions (no gating), manual-only task→PRD rollups, `W_STATE_UNSORTED_KEYS` code. Integrate user's OQ decisions. |
 | 0.5     | 2026-03-05 | GitCmurf | Round 4: fix `<details>` regression in FDD scope, add CSS-based duplicate-content hiding for kanban fallback, extend SPEC-008 amendment to include `meminit state` payload profile, clarify timestamp display policy (date in Markdown, full datetime in JSON), split section 9 into resolved decisions and remaining open questions, renumber sections.                     |
 | 0.6     | 2026-03-07 | Codex    | Update FR-9 to reflect that `meminit state set` supports optional `--impl-state` when `--notes` or `--clear` are provided.                                                                                                                                                                                                                                                   |
+| 0.7     | 2026-04-21 | Codex    | Added Phase 4 queue surfaces (`state next`, `state blockers`), enriched merged state payload fields, and deterministic queue-selection acceptance criteria. |
