@@ -337,11 +337,6 @@ def test_state_next_selection(scenario_id: str, tmp_path: Path):
     meta = _FIXTURE_BUILDERS[scenario_id](tmp_path)
     data = _invoke_state_next(tmp_path)
 
-    if "expected_error" in meta:
-        assert data.get("_exit_code", 0) != 0
-        assert meta["expected_error"] in data.get("_output", "")
-        return
-
     assert data["success"] is True
     entry = data["data"]["entry"]
     reason = data["data"]["reason"]
@@ -374,9 +369,6 @@ def test_state_blockers(scenario_id: str, tmp_path: Path):
 
 
 # --- Parametrized state set validation (Q10, Q11, Q12, Q13) ---
-
-_SET_VALIDATION_SCENARIOS = ["Q10", "Q11", "Q12", "Q13"]
-
 
 @pytest.mark.parametrize("scenario_id", _SET_VALIDATION_SCENARIOS)
 def test_state_set_validation(scenario_id: str, tmp_path: Path):

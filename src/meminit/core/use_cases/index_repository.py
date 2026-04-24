@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import frontmatter
 
@@ -467,8 +467,13 @@ def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
     priority_rank = _PRIORITY_RANK.get(priority, 2)
     unblocks_count = -len(entry.get("unblocks", []))
     updated_str = entry.get("updated", "")
+    try:
+        updated_dt = datetime.fromisoformat(updated_str)
+        updated_ts = updated_dt.astimezone(timezone.utc).timestamp()
+    except (ValueError, TypeError):
+        updated_ts = 0.0
     doc_id = entry.get("document_id", "")
-    return (priority_rank, unblocks_count, updated_str, doc_id)
+    return (priority_rank, unblocks_count, updated_ts, doc_id)
 
 
 def _kanban_badge_prefix(entry: Dict[str, Any]) -> str:

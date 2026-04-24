@@ -53,8 +53,10 @@ def test_exit_code_for_error_mappings():
         ErrorCode.STATE_SELF_DEPENDENCY: EX_DATAERR,
         ErrorCode.STATE_DEPENDENCY_CYCLE: EX_DATAERR,
         ErrorCode.STATE_FIELD_TOO_LONG: EX_DATAERR,
+        ErrorCode.STATE_FIELD_INVALID_FORMAT: EX_DATAERR,
         ErrorCode.STATE_MIXED_MUTATION_MODE: EX_USAGE,
         ErrorCode.STATE_CLEAR_MUTATION_CONFLICT: EX_USAGE,
+        ErrorCode.STATE_NO_MUTATION_PROVIDED: EX_USAGE,
         ErrorCode.STATE_UNDEFINED_DEPENDENCY: EX_DATAERR,
         ErrorCode.STATE_DEPENDENCY_STATUS_CONFLICT: EX_DATAERR,
         # Agent interface error codes

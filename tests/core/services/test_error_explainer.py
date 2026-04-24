@@ -185,8 +185,6 @@ def test_state_invalid_priority_explanation_covers_dual_contexts():
     assert result is not None
     assert result["code"] == "STATE_INVALID_PRIORITY"
 
-    from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorCode
-
     entry = ERROR_EXPLANATIONS[ErrorCode.STATE_INVALID_PRIORITY.value]
     assert "fatal" in entry.summary.lower() or "fatal" in entry.cause.lower()
     assert "warning" in entry.summary.lower() or "warning" in entry.cause.lower()

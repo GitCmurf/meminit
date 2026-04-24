@@ -419,8 +419,8 @@ def test_validate_next_action_contains_newline(tmp_path):
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
-    assert ErrorCode.STATE_FIELD_TOO_LONG.value in codes
-    msgs = [v.message for v in issues if v.rule == ErrorCode.STATE_FIELD_TOO_LONG.value]
+    assert ErrorCode.STATE_FIELD_INVALID_FORMAT.value in codes
+    msgs = [v.message for v in issues if v.rule == ErrorCode.STATE_FIELD_INVALID_FORMAT.value]
     assert any("next_action" in m and "newline" in m for m in msgs)
 
 

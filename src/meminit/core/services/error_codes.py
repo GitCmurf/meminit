@@ -66,8 +66,10 @@ class ErrorCode(str, Enum):
     STATE_DEPENDENCY_CYCLE = "STATE_DEPENDENCY_CYCLE"
     STATE_DEPENDENCY_STATUS_CONFLICT = "STATE_DEPENDENCY_STATUS_CONFLICT"
     STATE_FIELD_TOO_LONG = "STATE_FIELD_TOO_LONG"
+    STATE_FIELD_INVALID_FORMAT = "STATE_FIELD_INVALID_FORMAT"
     STATE_MIXED_MUTATION_MODE = "STATE_MIXED_MUTATION_MODE"
     STATE_CLEAR_MUTATION_CONFLICT = "STATE_CLEAR_MUTATION_CONFLICT"
+    STATE_NO_MUTATION_PROVIDED = "STATE_NO_MUTATION_PROVIDED"
 
     # Agent interface error codes
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
@@ -668,6 +670,32 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         cause="The --clear flag removes the entire entry, so combining it with --impl-state, --notes, or planning-field flags is contradictory.",
         remediation=RemediationInfo(
             action="Use --clear alone to remove an entry, or omit --clear and set specific fields.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_FIELD_INVALID_FORMAT.value: ErrorExplanation(
+        code=ErrorCode.STATE_FIELD_INVALID_FORMAT.value,
+        category="state",
+        summary="A planning field has an invalid format.",
+        cause="A planning field value contains characters or patterns that are not permitted (e.g., embedded newlines in next_action).",
+        remediation=RemediationInfo(
+            action="Remove the invalid characters from the field value.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_NO_MUTATION_PROVIDED.value: ErrorExplanation(
+        code=ErrorCode.STATE_NO_MUTATION_PROVIDED.value,
+        category="state",
+        summary="No mutation flag was provided to state set.",
+        cause="state set requires at least one mutation flag (--impl-state, --notes, --clear, or a planning field flag).",
+        remediation=RemediationInfo(
+            action="Provide at least one mutation flag when calling state set.",
             resolution_type="manual",
             automatable=False,
             relevant_commands=["state set"],

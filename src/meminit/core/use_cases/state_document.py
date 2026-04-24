@@ -174,6 +174,7 @@ def _collect_read_validation_warnings(
     state_path = get_state_file_rel_path(root_dir)
     warnings: List[Dict[str, Any]] = []
     skip_doc_ids: Set[str] = set()
+    found_invalid_priority = False
     for v in issues:
         w: Dict[str, Any] = {
             "code": v.rule,
@@ -184,10 +185,11 @@ def _collect_read_validation_warnings(
             w["line"] = v.line
         warnings.append(w)
         if v.rule == ErrorCode.STATE_INVALID_PRIORITY.value:
-            for doc_id in state.entries:
-                entry = state.entries[doc_id]
-                if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
-                    skip_doc_ids.add(doc_id)
+            found_invalid_priority = True
+    if found_invalid_priority:
+        for doc_id, entry in state.entries.items():
+            if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
+                skip_doc_ids.add(doc_id)
     return warnings, skip_doc_ids
 
 
@@ -354,9 +356,9 @@ class StateDocumentUseCase:
 
         if clear:
             has_other = any([
-                impl_state, notes, priority,
-                depends_on, add_depends_on, remove_depends_on, clear_depends_on,
-                blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+                impl_state is not None, notes is not None, priority is not None,
+                depends_on is not None, add_depends_on is not None, remove_depends_on is not None, clear_depends_on,
+                blocked_by is not None, add_blocked_by is not None, remove_blocked_by is not None, clear_blocked_by,
                 assignee is not None, next_action is not None,
             ])
             if has_other:
@@ -382,11 +384,13 @@ class StateDocumentUseCase:
             existing.depends_on if existing else (),
             replace=depends_on, add=add_depends_on,
             remove=remove_depends_on, clear=clear_depends_on,
+            field_name="depends_on",
         )
         final_blocked_by = _apply_list_mutation(
             existing.blocked_by if existing else (),
             replace=blocked_by, add=add_blocked_by,
             remove=remove_blocked_by, clear=clear_blocked_by,
+            field_name="blocked_by",
         )
         final_assignee = _resolve_assignee(assignee, existing)
         final_next_action = _resolve_next_action(next_action, existing)
@@ -442,11 +446,20 @@ class StateDocumentUseCase:
             )
 
         if existing and _entry_is_idempotent(existing, entry):
+            result_warnings: List[Dict[str, Any]] = []
+            state_file_rel = get_state_file_rel_path(self._root_dir)
+            for issue in validation_issues:
+                if issue.severity == "warning":
+                    result_warnings.append(
+                        _build_state_warning(
+                            code=issue.code, message=issue.message, path=state_file_rel,
+                        )
+                    )
             return StateResult(
                 document_id=document_id,
                 action="set",
                 entry=_entry_to_dict(existing),
-                warnings=None,
+                warnings=result_warnings or None,
             )
 
         state.set_entry(entry)
@@ -803,7 +816,7 @@ def _select_next_candidate(
 
 def _build_next_result(
     candidates: List[Tuple[ProjectStateEntry, DerivedEntry]],
-    invalid_priority_warnings: List[Dict[str, Any]],
+    validation_warnings: List[Dict[str, Any]],
     assignee: Optional[str],
     priority_at_least: Optional[str],
 ) -> StateResult:
@@ -818,7 +831,7 @@ def _build_next_result(
             entry=None,
             reason="queue_empty",
             selection={**selection_base, "candidates_considered": 0},
-            warnings=invalid_priority_warnings if invalid_priority_warnings else None,
+            warnings=validation_warnings if validation_warnings else None,
         )
 
     candidates.sort(key=lambda pair: next_selection_key(pair[0], pair[1]))
@@ -830,7 +843,7 @@ def _build_next_result(
         entry=_entry_to_dict(winner_entry, winner_derived),
         reason=None,
         selection={**selection_base, "candidates_considered": len(candidates)},
-        warnings=invalid_priority_warnings if invalid_priority_warnings else None,
+        warnings=validation_warnings if validation_warnings else None,
     )
 
 

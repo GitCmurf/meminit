@@ -334,7 +334,7 @@ def _md_escape(value: object) -> str:
 _MD_INLINE_SPECIAL = str.maketrans({
     "*": "\\*", "_": "\\_", "[": "\\[", "]": "\\]",
     "`": "\\`", "|": "\\|", "<": "&lt;", ">": "&gt;",
-    "\n": " ",
+    "&": "&amp;", "\n": " ",
 })
 
 
@@ -435,8 +435,8 @@ def validate_initialized(
     config_file = root_path / "docops.config.yaml"
 
     if config_file.is_file() and not config_file.is_symlink():
+        import yaml as _yaml
         try:
-            import yaml as _yaml
             raw = _yaml.safe_load(config_file.read_text(encoding="utf-8"))
             if isinstance(raw, dict) and "docops_version" in raw:
                 return
@@ -445,17 +445,19 @@ def validate_initialized(
                 "required fields (e.g., docops_version). Run 'meminit init' to repair."
             )
             details = {
+                "reason": "missing_version",
                 "hint": "meminit init",
                 "root": str(root_path),
                 "file": "docops.config.yaml",
                 "required": "valid YAML with docops_version",
             }
-        except Exception as exc:
+        except (_yaml.YAMLError, OSError) as exc:
             msg = (
                 f"Repository config is malformed: docops.config.yaml could not be "
                 f"parsed ({exc}). Run 'meminit init' to repair."
             )
             details = {
+                "reason": "unparseable",
                 "hint": "meminit init",
                 "root": str(root_path),
                 "file": "docops.config.yaml",
@@ -467,6 +469,7 @@ def validate_initialized(
             "regular file (e.g., directory or symlink). Run 'meminit init' to repair."
         )
         details = {
+            "reason": "not_regular_file",
             "hint": "meminit init",
             "root": str(root_path),
             "file": "docops.config.yaml",
@@ -478,6 +481,7 @@ def validate_initialized(
             "Run 'meminit init' first."
         )
         details = {
+            "reason": "missing",
             "hint": "meminit init",
             "root": str(root_path),
             "missing_file": "docops.config.yaml",
@@ -3179,7 +3183,7 @@ def _validate_mutation_exclusivity(
 
     try:
         _assert_single_mutation_mode(field_name, replace, add, remove, clear)
-    except MeminitError:
+    except MeminitError as exc:
         flag_names = {
             "depends_on": ("--depends-on", "--add-depends-on/--remove-depends-on", "--clear-depends-on"),
             "blocked_by": ("--blocked-by", "--add-blocked-by/--remove-blocked-by", "--clear-blocked-by"),
@@ -3193,7 +3197,7 @@ def _validate_mutation_exclusivity(
             f"{' and '.join(active)} are mutually exclusive. "
             f"Use exactly one mode per field family.",
             details={"field": field_name, "conflicting_flags": active},
-        )
+        ) from exc
 
 
 def _state_set_validate_args(
@@ -3209,7 +3213,7 @@ def _state_set_validate_args(
     ])
     if not clear and not impl_state and not notes and not has_planning_flags:
         raise MeminitError(
-            ErrorCode.E_INVALID_FILTER_VALUE,
+            ErrorCode.STATE_NO_MUTATION_PROVIDED,
             "Must provide --impl-state, --notes, --clear, or a planning field flag.",
         )
     if clear and (impl_state or notes or has_planning_flags):
@@ -3267,7 +3271,7 @@ def _render_state_set_json(
             root=str(root_path),
             success=True,
             data=data,
-            warnings=result.warnings or [],
+            warnings=result.warnings,
             include_timestamp=include_timestamp,
             run_id=run_id,
             correlation_id=correlation_id,
@@ -3304,8 +3308,8 @@ def _render_state_set_text(result, format, output):
             get_console().print(
                 f"[bold green]Updated state for {result.document_id}[/bold green]"
             )
-            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
-            get_console().print(f"Updated By: {result.entry.get('updated_by')}")
+            get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
+            get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
             if result.entry.get("notes"):
                 get_console().print(f"Notes: {result.entry.get('notes')}")
 

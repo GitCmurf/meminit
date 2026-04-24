@@ -148,7 +148,12 @@ def _parse_planning_fields(
 
     raw_depends = fields.get("depends_on")
     depends_on: Tuple[str, ...] = ()
-    if isinstance(raw_depends, list):
+    if raw_depends is not None and not isinstance(raw_depends, list):
+        violations.append(_schema_violation(
+            state_file_rel,
+            f"Field 'depends_on' for '{doc_id}' must be a list, got {type(raw_depends).__name__}.",
+        ))
+    elif isinstance(raw_depends, list):
         dropped = [d for d in raw_depends if not isinstance(d, str)]
         if dropped:
             violations.append(_schema_violation(
@@ -159,7 +164,12 @@ def _parse_planning_fields(
 
     raw_blocked = fields.get("blocked_by")
     blocked_by: Tuple[str, ...] = ()
-    if isinstance(raw_blocked, list):
+    if raw_blocked is not None and not isinstance(raw_blocked, list):
+        violations.append(_schema_violation(
+            state_file_rel,
+            f"Field 'blocked_by' for '{doc_id}' must be a list, got {type(raw_blocked).__name__}.",
+        ))
+    elif isinstance(raw_blocked, list):
         dropped = [b for b in raw_blocked if not isinstance(b, str)]
         if dropped:
             violations.append(_schema_violation(
@@ -408,9 +418,9 @@ def save_project_state(root_dir: Path, state: ProjectState) -> Path:
     """
     state_file_rel = get_state_file_rel_path(root_dir)
     state_path = root_dir / state_file_rel
-    state_path.parent.mkdir(parents=True, exist_ok=True)
 
     ensure_safe_write_path(root_dir=root_dir, target_path=state_path)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
 
     documents: Dict[str, Dict[str, Any]] = {}
     for doc_id in sorted(state.entries.keys()):
@@ -576,7 +586,7 @@ def _validate_entry_text_bounds(
             Violation(
                 file=state_file_rel,
                 line=0,
-                rule=ErrorCode.STATE_FIELD_TOO_LONG.value,
+                rule=ErrorCode.STATE_FIELD_INVALID_FORMAT.value,
                 message=f"next_action for document '{doc_id}' contains embedded newlines.",
                 severity=Severity.WARNING,
             )
