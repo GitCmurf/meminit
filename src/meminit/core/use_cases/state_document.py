@@ -27,6 +27,7 @@ from meminit.core.services.project_state import (
     ImplState,
     ProjectState,
     ProjectStateEntry,
+    _normalize_impl_state_value,
     get_state_file_rel_path,
     load_project_state,
     save_project_state,
@@ -167,7 +168,7 @@ def _collect_read_validation_warnings(
         return [], set()
     from meminit.core.services.project_state import validate_project_state
 
-    known_ids = _get_known_ids(root_dir) | set(state.entries.keys())
+    known_ids = _get_known_ids(root_dir)
     issues = validate_project_state(state, known_ids, root_dir)
     if not issues:
         return [], set()
@@ -274,7 +275,7 @@ def _resolve_next_action(
         return None
     if final is not None and "\n" in final:
         raise MeminitError(
-            code=ErrorCode.STATE_FIELD_TOO_LONG,
+            code=ErrorCode.STATE_FIELD_INVALID_FORMAT,
             message="next_action must not contain embedded newlines.",
         )
     if final is not None and len(final) > MAX_NOTES_LENGTH:
@@ -724,7 +725,7 @@ def _build_entries_with_derived(
 ) -> Tuple[List[Dict[str, Any]], int, int]:
     assignee_set = set(assignee) if assignee else None
     priority_set = set(priority) if priority else None
-    impl_state_set = set(impl_state) if impl_state else None
+    impl_state_set = set(_normalize_impl_state_value(v) for v in impl_state) if impl_state else None
 
     entries_list: List[Dict[str, Any]] = []
     ready_count = 0
@@ -748,7 +749,7 @@ def _build_entries_with_derived(
             continue
         if priority_set is not None and (entry.priority or DEFAULT_PRIORITY) not in priority_set:
             continue
-        if impl_state_set is not None and entry.impl_state not in impl_state_set:
+        if impl_state_set is not None and _normalize_impl_state_value(entry.impl_state) not in impl_state_set:
             continue
 
         entries_list.append(_entry_to_dict(entry, d))

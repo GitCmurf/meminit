@@ -493,8 +493,9 @@ def test_cli_state_next_invalid_priority_warning_has_path(repo_with_docs):
     envelope = json.loads(result.output.strip().splitlines()[-1])
     assert envelope["success"] is True
     assert envelope["warnings"] is not None
-    assert len(envelope["warnings"]) == 1
-    warning = envelope["warnings"][0]
+    pip_w = [w for w in envelope["warnings"] if w["code"] == "STATE_INVALID_PRIORITY"]
+    assert len(pip_w) == 1
+    warning = pip_w[0]
     assert "code" in warning
     assert "message" in warning
     assert "path" in warning
@@ -641,6 +642,19 @@ def test_cli_state_blockers_md_escapes_assignee_html(repo_with_docs):
     ])
     assert result.exit_code == 0
     assert "<img" not in result.output
+
+
+def test_cli_state_next_md_escapes_backslash(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--next-action", "test \\ text", "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "next", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "\\\\ text" in result.output
 
 
 # ---------------------------------------------------------------------------

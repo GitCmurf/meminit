@@ -62,8 +62,10 @@ def _schema_violation(file: str, message: str) -> Violation:
 
 
 def _ensure_utc(dt: datetime) -> datetime:
-    """Ensure a datetime is timezone-aware, defaulting to UTC."""
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    """Ensure a datetime is timezone-aware in UTC, converting non-UTC offsets."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _normalize_impl_state_value(value: str) -> str:

@@ -115,6 +115,14 @@ def test_set_invalid_impl_state_raises(tmp_path):
     assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
 
 
+def test_set_next_action_newline_raises_invalid_format(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                           next_action="line1\nline2")
+    assert exc_info.value.code == ErrorCode.STATE_FIELD_INVALID_FORMAT
+
+
 def test_get_document_state(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Done")
@@ -252,6 +260,17 @@ def test_list_states_impl_state_filter(tmp_path):
     assert "MEMINIT-ADR-002" not in ids
 
 
+def test_list_states_impl_state_filter_case_insensitive(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="In Progress")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Done")
+
+    result = use_case.list_states(impl_state=["done"])
+    ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-002" in ids
+    assert "MEMINIT-ADR-001" not in ids
+
+
 def test_list_states_impl_state_repeatable(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="In Progress")
@@ -283,10 +302,11 @@ def test_next_state_skips_invalid_priority_in_state_file(tmp_path):
     assert result.entry is None
     assert result.reason == "queue_empty"
     assert result.warnings is not None
-    assert len(result.warnings) == 1
-    assert result.warnings[0]["code"] == "STATE_INVALID_PRIORITY"
-    assert "MEMINIT-ADR-001" in result.warnings[0]["message"]
-    assert result.warnings[0]["path"] == "docs/01-indices/project-state.yaml"
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_INVALID_PRIORITY" in codes
+    pip_w = [w for w in result.warnings if w["code"] == "STATE_INVALID_PRIORITY"]
+    assert "MEMINIT-ADR-001" in pip_w[0]["message"]
+    assert pip_w[0]["path"] == "docs/01-indices/project-state.yaml"
 
 
 def test_next_state_warns_invalid_priority_on_non_ready_entry(tmp_path):
@@ -304,9 +324,10 @@ def test_next_state_warns_invalid_priority_on_non_ready_entry(tmp_path):
     assert result.entry is None
     assert result.reason == "queue_empty"
     assert result.warnings is not None
-    assert len(result.warnings) == 1
-    assert result.warnings[0]["code"] == "STATE_INVALID_PRIORITY"
-    assert "MEMINIT-ADR-001" in result.warnings[0]["message"]
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_INVALID_PRIORITY" in codes
+    pip_w = [w for w in result.warnings if w["code"] == "STATE_INVALID_PRIORITY"]
+    assert "MEMINIT-ADR-001" in pip_w[0]["message"]
 
 
 def test_next_state_valid_entry_selected_despite_other_having_bad_priority(tmp_path):
@@ -324,7 +345,8 @@ def test_next_state_valid_entry_selected_despite_other_having_bad_priority(tmp_p
     assert result.entry is not None
     assert result.entry["document_id"] == "MEMINIT-ADR-001"
     assert result.warnings is not None
-    assert len(result.warnings) == 1
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_INVALID_PRIORITY" in codes
 
 
 class TestMixedMutationModeRejection:
@@ -526,3 +548,14 @@ def test_blockers_state_excludes_invalid_priority_rows(tmp_path):
     blocked_ids = [b["document_id"] for b in result.blocked]
     assert "MEMINIT-ADR-001" not in blocked_ids
     assert "MEMINIT-ADR-003" in blocked_ids
+
+
+def test_list_states_warns_on_unknown_doc_id_in_state(tmp_path):
+    """Stale state entries for docs not on disk produce W_STATE_UNKNOWN_DOC_ID."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Done")
+
+    result = use_case.list_states()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "W_STATE_UNKNOWN_DOC_ID" in codes

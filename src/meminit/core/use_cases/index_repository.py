@@ -634,12 +634,12 @@ def _kanban_html_card(
             rel_val = ""
     else:
         rel_val = ""
-    title_raw = entry.get("title", "")
+    title_escaped = sanitize_html(str(entry.get("title", "")) if entry.get("title") is not None else "")
     status_raw = entry.get("status", "Draft")
     status_slug = _safe_css_slug(status_raw, default="draft")
     status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
-    notes_raw = entry.get("notes")
-    lines.append(f'<article class="kanban-card" aria-label="{title_raw}">')
+    notes_escaped = sanitize_html(str(entry.get("notes"))) if entry.get("notes") else None
+    lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
     if rel_val:
         lines.append(
             f'<strong class="card-id"><a href="{sanitize_html(rel_val)}">{doc_id}</a></strong>'
@@ -647,7 +647,7 @@ def _kanban_html_card(
     else:
         lines.append(f'<strong class="card-id">{doc_id}</strong>')
     lines.append(
-        f'<span class="card-title kanban-truncate" title="{title_raw}">{title_raw}</span>'
+        f'<span class="card-title kanban-truncate" title="{title_escaped}">{title_escaped}</span>'
     )
     lines.append(
         f'<span class="card-status badge-{status_slug}">{status_escaped}</span>'
@@ -663,9 +663,9 @@ def _kanban_html_card(
         lines.append(
             f'<span class="card-blocked badge-blocked">{len(open_blockers)} blocked</span>'
         )
-    if notes_raw:
+    if notes_escaped:
         lines.append(
-            f'<p class="card-notes kanban-truncate-lines" title="{notes_raw}">{notes_raw}</p>'
+            f'<p class="card-notes kanban-truncate-lines" title="{notes_escaped}">{notes_escaped}</p>'
         )
     lines.append("</article>")
     return lines
@@ -993,6 +993,9 @@ class IndexRepositoryUseCase:
                                 entry["_raw_notes"] = state_entry.notes
 
                         if state_entry.priority is not None:
+                            # Intentionally dropped: validate_project_state (called
+                            # upstream) emits STATE_INVALID_PRIORITY for invalid
+                            # values; we silently omit them from the index entry.
                             if state_entry.priority in VALID_PRIORITIES:
                                 entry["priority"] = state_entry.priority
                         if state_entry.depends_on:

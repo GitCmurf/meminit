@@ -668,6 +668,26 @@ def test_utc_normalization_on_load(tmp_path):
     assert entry.updated.utcoffset().total_seconds() == 0
 
 
+def test_load_project_state_converts_non_utc_offset_to_utc(tmp_path):
+    from datetime import timedelta
+    from meminit.core.services.project_state import load_project_state
+    (tmp_path / "docs").mkdir()
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text(
+        "version: 2\n"
+        "documents:\n  MEMINIT-ADR-001:\n    impl_state: Done\n"
+        "    updated: '2026-04-21T10:00:00-05:00'\n    updated_by: test\n"
+    )
+    state = load_project_state(tmp_path)
+    assert state is not None
+    entry = state.get("MEMINIT-ADR-001")
+    assert entry is not None
+    assert entry.updated.tzinfo is not None
+    assert entry.updated.utcoffset().total_seconds() == 0
+    assert entry.updated.hour == 15
+
+
 class TestProjectStateSchemaV2:
     """GG-2: Validate project-state.yaml against the published v2 JSON Schema."""
 

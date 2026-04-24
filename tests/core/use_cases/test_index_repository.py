@@ -223,6 +223,7 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
 
     assert nodes["EXAMPLE-ADR-002"]["ready"] is True
     assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
+    assert nodes["EXAMPLE-ADR-002"]["unblocks"] == ["EXAMPLE-ADR-001"]
 
 
 # ---------------------------------------------------------------------------
@@ -994,6 +995,33 @@ def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
     assert 'onclick' not in kanban_content
 
 
+def test_index_kanban_title_notes_xss_sanitized(tmp_path):
+    """Title and notes with HTML-breaking chars are sanitized in kanban cards."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        title='test" onmouseover="alert(1)',
+    )
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "notes": '<script>alert("xss")</script>',
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert '<script>' not in kanban_content
+    assert '&lt;script&gt;' in kanban_content
+    assert 'onmouseover=&quot;' in kanban_content or 'test&quot;' in kanban_content
+
+
 def test_index_invalid_priority_emits_warning_and_is_dropped(tmp_path):
     """Invalid priority values are dropped from the index and produce a
     STATE_INVALID_PRIORITY warning in the envelope (BV-C execute gate)."""
@@ -1045,10 +1073,10 @@ def test_index_invalid_priority_single_warning(tmp_path):
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
-    pip_warnings = [
+    priority_warnings = [
         w for w in payload.get("warnings", []) if w["code"] == "STATE_INVALID_PRIORITY"
     ]
-    assert len(pip_warnings) == 1, (
+    assert len(priority_warnings) == 1, (
         f"Expected exactly 1 STATE_INVALID_PRIORITY warning, "
-        f"got {len(pip_warnings)}: {pip_warnings}"
+        f"got {len(priority_warnings)}: {priority_warnings}"
     )
