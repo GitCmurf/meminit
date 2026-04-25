@@ -996,7 +996,7 @@ def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
 
 
 def test_index_kanban_title_notes_xss_sanitized(tmp_path):
-    """Title and notes with HTML-breaking chars are sanitized in kanban cards."""
+    """Title and notes with HTML-breaking chars are sanitized in kanban HTML cards."""
     _setup_doc(
         tmp_path, "EXAMPLE-ADR-001",
         title='test" onmouseover="alert(1)',
@@ -1017,9 +1017,13 @@ def test_index_kanban_title_notes_xss_sanitized(tmp_path):
     report = use_case.execute()
     kanban_content = report.kanban_path.read_text(encoding="utf-8")
 
-    assert '<script>' not in kanban_content
-    assert '&lt;script&gt;' in kanban_content
-    assert 'onmouseover=&quot;' in kanban_content or 'test&quot;' in kanban_content
+    start = kanban_content.find('<div class="kanban-board"')
+    html_section = kanban_content[start:] if start >= 0 else kanban_content
+
+    assert '<script>' not in html_section
+    assert 'onmouseover="' not in html_section
+    assert '&lt;script&gt;' in html_section
+    assert '&quot;' in html_section
 
 
 def test_index_invalid_priority_emits_warning_and_is_dropped(tmp_path):
@@ -1080,3 +1084,11 @@ def test_index_invalid_priority_single_warning(tmp_path):
         f"Expected exactly 1 STATE_INVALID_PRIORITY warning, "
         f"got {len(priority_warnings)}: {priority_warnings}"
     )
+
+
+def test_kanban_sort_key_recent_first():
+    """More recently updated entries sort before older ones (inverted timestamp)."""
+    from meminit.core.use_cases.index_repository import _kanban_sort_key
+    newer = {"priority": "P2", "unblocks": [], "updated": "2026-04-20T12:00:00Z", "document_id": "A-001"}
+    older = {"priority": "P2", "unblocks": [], "updated": "2026-04-19T12:00:00Z", "document_id": "A-002"}
+    assert _kanban_sort_key(newer) < _kanban_sort_key(older)

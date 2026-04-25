@@ -469,7 +469,7 @@ def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
     updated_str = entry.get("updated", "")
     try:
         updated_dt = datetime.fromisoformat(updated_str)
-        updated_ts = updated_dt.astimezone(timezone.utc).timestamp()
+        updated_ts = -updated_dt.astimezone(timezone.utc).timestamp()
     except (ValueError, TypeError):
         updated_ts = 0.0
     doc_id = entry.get("document_id", "")
@@ -634,11 +634,11 @@ def _kanban_html_card(
             rel_val = ""
     else:
         rel_val = ""
-    title_escaped = sanitize_html(str(entry.get("title", "")) if entry.get("title") is not None else "")
+    title_escaped = sanitize_html(str(entry.get("_raw_title", entry.get("title", ""))))
     status_raw = entry.get("status", "Draft")
     status_slug = _safe_css_slug(status_raw, default="draft")
     status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
-    notes_escaped = sanitize_html(str(entry.get("notes"))) if entry.get("notes") else None
+    notes_escaped = sanitize_html(str(entry.get("_raw_notes", entry.get("notes")))) if (entry.get("notes") or entry.get("_raw_notes")) else None
     lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
     if rel_val:
         lines.append(

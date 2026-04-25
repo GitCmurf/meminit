@@ -195,6 +195,24 @@ def test_list_states_includes_summary(tmp_path):
     assert result.summary["returned"] == 1
 
 
+def test_list_states_summary_excludes_skipped_entries(tmp_path):
+    """ready/blocked counts must exclude entries in skip_doc_ids (invalid priority)."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
+    state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
+
+    result = use_case.list_states()
+    returned_ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-001" in returned_ids
+    assert "MEMINIT-ADR-002" not in returned_ids
+    assert result.summary["ready"] == 1
+    assert result.summary["blocked"] == 0
+
+
 def test_list_states_ready_filter(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
@@ -293,7 +311,6 @@ def test_next_state_skips_invalid_priority_in_state_file(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
-    import yaml
     raw = yaml.safe_load(state_file.read_text())
     raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
     state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
@@ -315,7 +332,6 @@ def test_next_state_warns_invalid_priority_on_non_ready_entry(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="In Progress")
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
-    import yaml
     raw = yaml.safe_load(state_file.read_text())
     raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
     state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
@@ -336,7 +352,6 @@ def test_next_state_valid_entry_selected_despite_other_having_bad_priority(tmp_p
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
     use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
-    import yaml
     raw = yaml.safe_load(state_file.read_text())
     raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
     state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))

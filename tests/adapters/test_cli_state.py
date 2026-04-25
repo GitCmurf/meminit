@@ -137,6 +137,20 @@ def test_cli_state_set_priority(repo_with_docs):
     assert data["data"]["entry"]["priority"] == "P0"
 
 
+def test_cli_state_set_text_shows_planning_fields(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--priority", "P0", "--assignee", "agent:codex",
+        "--next-action", "Review PR",
+        "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "Priority: P0" in result.output
+    assert "Assignee: agent:codex" in result.output
+    assert "Next Action: Review PR" in result.output
+
+
 def test_cli_state_set_invalid_priority(repo_with_docs):
     runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, [

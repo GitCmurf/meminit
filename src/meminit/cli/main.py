@@ -3290,13 +3290,21 @@ def _render_state_set_text(result, format, output):
                 output,
             )
         else:
-            _write_output(
+            lines = (
                 f"# Meminit State Set\n\n"
                 f"- Document ID: `{result.document_id}`\n"
                 f"- Impl State: {result.entry.get('impl_state', '')}\n"
-                f"- Updated By: {result.entry.get('updated_by', '')}\n",
-                output,
+                f"- Updated By: {result.entry.get('updated_by', '')}\n"
             )
+            if result.entry.get("priority"):
+                lines += f"- Priority: {result.entry.get('priority')}\n"
+            if result.entry.get("assignee"):
+                lines += f"- Assignee: {result.entry.get('assignee')}\n"
+            if result.entry.get("next_action"):
+                lines += f"- Next Action: {result.entry.get('next_action')}\n"
+            if result.entry.get("notes"):
+                lines += f"- Notes: {result.entry.get('notes')}\n"
+            _write_output(lines, output)
         return
 
     with maybe_capture(output, format):
@@ -3310,6 +3318,12 @@ def _render_state_set_text(result, format, output):
             )
             get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
             get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
+            if result.entry.get("priority"):
+                get_console().print(f"Priority: {result.entry.get('priority')}")
+            if result.entry.get("assignee"):
+                get_console().print(f"Assignee: {result.entry.get('assignee')}")
+            if result.entry.get("next_action"):
+                get_console().print(f"Next Action: {result.entry.get('next_action')}")
             if result.entry.get("notes"):
                 get_console().print(f"Notes: {result.entry.get('notes')}")
 

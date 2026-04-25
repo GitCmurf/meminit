@@ -777,8 +777,8 @@ def test_non_string_next_action_surfaces_violation(tmp_path):
 
 
 def test_depends_on_non_string_items_surfaces_violation(tmp_path):
-    state = _make_state_with_entry(tmp_path, depends_on=["VALID-001", 42])
-    assert state.entries["TEST-ADR-001"].depends_on == ("VALID-001",)
+    state = _make_state_with_entry(tmp_path, depends_on=["VALID-ADR-001", 42])
+    assert state.entries["TEST-ADR-001"].depends_on == ("VALID-ADR-001",)
     messages = " ".join(v.message for v in state.schema_violations)
     assert "depends_on" in messages
 

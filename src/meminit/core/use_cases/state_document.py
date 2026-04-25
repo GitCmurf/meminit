@@ -447,15 +447,7 @@ class StateDocumentUseCase:
             )
 
         if existing and _entry_is_idempotent(existing, entry):
-            result_warnings: List[Dict[str, Any]] = []
-            state_file_rel = get_state_file_rel_path(self._root_dir)
-            for issue in validation_issues:
-                if issue.severity == "warning":
-                    result_warnings.append(
-                        _build_state_warning(
-                            code=issue.code, message=issue.message, path=state_file_rel,
-                        )
-                    )
+            result_warnings = _build_result_warnings(validation_issues, self._root_dir)
             return StateResult(
                 document_id=document_id,
                 action="set",
@@ -466,15 +458,7 @@ class StateDocumentUseCase:
         state.set_entry(entry)
         save_project_state(self._root_dir, state)
 
-        result_warnings: List[Dict[str, Any]] = []
-        state_file_rel = get_state_file_rel_path(self._root_dir)
-        for issue in validation_issues:
-            if issue.severity == "warning":
-                result_warnings.append(
-                    _build_state_warning(
-                        code=issue.code, message=issue.message, path=state_file_rel,
-                    )
-                )
+        result_warnings = _build_result_warnings(validation_issues, self._root_dir)
 
         return StateResult(
             document_id=document_id,
@@ -734,13 +718,13 @@ def _build_entries_with_derived(
         entry = state.entries[doc_id]
         d = derived[doc_id]
 
+        if skip_doc_ids and doc_id in skip_doc_ids:
+            continue
+
         if d.ready:
             ready_count += 1
         if d.open_blockers:
             blocked_count += 1
-
-        if skip_doc_ids and doc_id in skip_doc_ids:
-            continue
         if ready is not None and d.ready != ready:
             continue
         if blocked is not None and bool(d.open_blockers) != blocked:
@@ -858,6 +842,18 @@ def _build_filter_dict(
     if priority_at_least is not None:
         f["priority_at_least"] = priority_at_least
     return f
+
+
+def _build_result_warnings(
+    validation_issues: list,
+    root_dir: Path,
+) -> List[Dict[str, Any]]:
+    state_file_rel = get_state_file_rel_path(root_dir)
+    return [
+        _build_state_warning(code=issue.code, message=issue.message, path=state_file_rel)
+        for issue in validation_issues
+        if issue.severity == "warning"
+    ]
 
 
 def _build_state_warning(
