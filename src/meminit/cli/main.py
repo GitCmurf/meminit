@@ -331,6 +331,18 @@ def _md_escape(value: object) -> str:
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
 
+_MD_INLINE_SPECIAL = str.maketrans({
+    "\\": "\\\\", "*": "\\*", "_": "\\_", "[": "\\[", "]": "\\]",
+    "`": "\\`", "|": "\\|", "<": "&lt;", ">": "&gt;",
+    "&": "&amp;", "\n": " ",
+})
+
+
+def _md_inline(value: object) -> str:
+    text = "" if value is None else str(value)
+    return text.translate(_MD_INLINE_SPECIAL)
+
+
 def _md_table(headers: list[str], rows: list[list[object]]) -> str:
     head = "| " + " | ".join(_md_escape(h) for h in headers) + " |"
     sep = "| " + " | ".join(["---"] * len(headers)) + " |"
@@ -423,18 +435,57 @@ def validate_initialized(
     config_file = root_path / "docops.config.yaml"
 
     if config_file.is_file() and not config_file.is_symlink():
-        return
-
-    msg = (
-        "Repository not initialized: missing valid docops.config.yaml. "
-        "Run 'meminit init' first."
-    )
-    details = {
-        "hint": "meminit init",
-        "root": str(root_path),
-        "missing_file": "docops.config.yaml",
-        "required": "regular file (not directory/symlink)",
-    }
+        import yaml as _yaml
+        try:
+            raw = _yaml.safe_load(config_file.read_text(encoding="utf-8"))
+            if isinstance(raw, dict) and "docops_version" in raw:
+                return
+            msg = (
+                "Repository config is malformed: docops.config.yaml is missing "
+                "required fields (e.g., docops_version). Run 'meminit init' to repair."
+            )
+            details = {
+                "reason": "missing_version",
+                "hint": "meminit init",
+                "root": str(root_path),
+                "file": "docops.config.yaml",
+                "required": "valid YAML with docops_version",
+            }
+        except (_yaml.YAMLError, OSError) as exc:
+            msg = (
+                f"Repository config is malformed: docops.config.yaml could not be "
+                f"parsed ({exc}). Run 'meminit init' to repair."
+            )
+            details = {
+                "reason": "unparseable",
+                "hint": "meminit init",
+                "root": str(root_path),
+                "file": "docops.config.yaml",
+                "error": str(exc),
+            }
+    elif config_file.exists():
+        msg = (
+            "Repository not initialized: docops.config.yaml exists but is not a "
+            "regular file (e.g., directory or symlink). Run 'meminit init' to repair."
+        )
+        details = {
+            "reason": "not_regular_file",
+            "hint": "meminit init",
+            "root": str(root_path),
+            "file": "docops.config.yaml",
+            "required": "regular file (not directory/symlink)",
+        }
+    else:
+        msg = (
+            "Repository not initialized: missing docops.config.yaml. "
+            "Run 'meminit init' first."
+        )
+        details = {
+            "reason": "missing",
+            "hint": "meminit init",
+            "root": str(root_path),
+            "missing_file": "docops.config.yaml",
+        }
 
     if format == "json":
         _write_output(
@@ -3125,6 +3176,158 @@ def state():
     pass
 
 
+def _validate_mutation_exclusivity(
+    replace, add, remove, clear, field_name
+):
+    from meminit.core.use_cases.state_document import _assert_single_mutation_mode
+
+    try:
+        _assert_single_mutation_mode(field_name, replace, add, remove, clear)
+    except MeminitError as exc:
+        flag_names = {
+            "depends_on": ("--depends-on", "--add-depends-on/--remove-depends-on", "--clear-depends-on"),
+            "blocked_by": ("--blocked-by", "--add-blocked-by/--remove-blocked-by", "--clear-blocked-by"),
+        }
+        active = [flag_names[field_name][i] for i, m in enumerate(
+            [bool(replace), bool(add or remove), bool(clear)]
+        ) if m]
+        raise MeminitError(
+            ErrorCode.STATE_MIXED_MUTATION_MODE,
+            f"Conflicting mutation modes for {field_name}: "
+            f"{' and '.join(active)} are mutually exclusive. "
+            f"Use exactly one mode per field family.",
+            details={"field": field_name, "conflicting_flags": active},
+        ) from exc
+
+
+def _state_set_validate_args(
+    impl_state, notes, clear, priority,
+    depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+    blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+    assignee, next_action,
+):
+    has_planning_flags = any([
+        priority, depends_on, add_depends_on, remove_depends_on,
+        clear_depends_on, blocked_by, add_blocked_by, remove_blocked_by,
+        clear_blocked_by, assignee is not None, next_action is not None,
+    ])
+    if not clear and not impl_state and not notes and not has_planning_flags:
+        raise MeminitError(
+            ErrorCode.STATE_NO_MUTATION_PROVIDED,
+            "Must provide --impl-state, --notes, --clear, or a planning field flag.",
+        )
+    if clear and (impl_state or notes or has_planning_flags):
+        raise MeminitError(
+            ErrorCode.STATE_CLEAR_MUTATION_CONFLICT,
+            "--clear is mutually exclusive with all other mutation flags.",
+            details={"clear": True},
+        )
+    _validate_mutation_exclusivity(
+        depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+        "depends_on",
+    )
+    _validate_mutation_exclusivity(
+        blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+        "blocked_by",
+    )
+
+
+def _state_set_execute(
+    root_path, document_id, impl_state, notes, actor, clear, priority,
+    depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+    blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+    assignee, next_action,
+):
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    use_case = StateDocumentUseCase(str(root_path))
+    return use_case.set_state(
+        document_id,
+        impl_state=impl_state,
+        notes=notes,
+        actor=actor,
+        clear=clear,
+        priority=priority,
+        depends_on=list(depends_on) or None,
+        add_depends_on=list(add_depends_on) or None,
+        remove_depends_on=list(remove_depends_on) or None,
+        clear_depends_on=clear_depends_on,
+        blocked_by=list(blocked_by) or None,
+        add_blocked_by=list(add_blocked_by) or None,
+        remove_blocked_by=list(remove_blocked_by) or None,
+        clear_blocked_by=clear_blocked_by,
+        assignee=assignee,
+        next_action=next_action,
+    )
+
+
+def _render_state_set_json(
+    result, root_path, include_timestamp, run_id, correlation_id, output,
+):
+    data: dict = {"action": result.action, "entry": result.entry}
+    _write_output(
+        format_envelope(
+            command="state set",
+            root=str(root_path),
+            success=True,
+            data=data,
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_set_text(result, format, output):
+    if format == "md":
+        if result.action == "clear":
+            _write_output(
+                f"# Meminit State Set\n\n"
+                f"- Document ID: `{result.document_id}`\n"
+                f"- Action: Cleared\n",
+                output,
+            )
+        else:
+            lines = (
+                f"# Meminit State Set\n\n"
+                f"- Document ID: `{result.document_id}`\n"
+                f"- Impl State: {result.entry.get('impl_state', '')}\n"
+                f"- Updated By: {result.entry.get('updated_by', '')}\n"
+            )
+            if result.entry.get("priority"):
+                lines += f"- Priority: {result.entry.get('priority')}\n"
+            if result.entry.get("assignee"):
+                lines += f"- Assignee: {result.entry.get('assignee')}\n"
+            if result.entry.get("next_action"):
+                lines += f"- Next Action: {result.entry.get('next_action')}\n"
+            if result.entry.get("notes"):
+                lines += f"- Notes: {result.entry.get('notes')}\n"
+            _write_output(lines, output)
+        return
+
+    with maybe_capture(output, format):
+        if result.action == "clear":
+            get_console().print(
+                f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
+            )
+        else:
+            get_console().print(
+                f"[bold green]Updated state for {result.document_id}[/bold green]"
+            )
+            get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
+            get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
+            if result.entry.get("priority"):
+                get_console().print(f"Priority: {result.entry.get('priority')}")
+            if result.entry.get("assignee"):
+                get_console().print(f"Assignee: {result.entry.get('assignee')}")
+            if result.entry.get("next_action"):
+                get_console().print(f"Next Action: {result.entry.get('next_action')}")
+            if result.entry.get("notes"):
+                get_console().print(f"Notes: {result.entry.get('notes')}")
+
+
 @state.command("set")
 @click.argument("document_id")
 @agent_repo_options()
@@ -3134,6 +3337,17 @@ def state():
 @click.option(
     "--clear", "-c", is_flag=True, help="Clear the tracking state for this document."
 )
+@click.option("--priority", help="Set priority (P0, P1, P2, P3).")
+@click.option("--depends-on", multiple=True, help="Replace depends_on list (repeatable).")
+@click.option("--add-depends-on", multiple=True, help="Add to depends_on (repeatable).")
+@click.option("--remove-depends-on", multiple=True, help="Remove from depends_on.")
+@click.option("--clear-depends-on", is_flag=True, help="Clear depends_on list.")
+@click.option("--blocked-by", multiple=True, help="Replace blocked_by list (repeatable).")
+@click.option("--add-blocked-by", multiple=True, help="Add to blocked_by (repeatable).")
+@click.option("--remove-blocked-by", multiple=True, help="Remove from blocked_by.")
+@click.option("--clear-blocked-by", is_flag=True, help="Clear blocked_by list.")
+@click.option("--assignee", help="Set assignee (empty string to clear).")
+@click.option("--next-action", help="Set next action (empty string to clear).")
 def state_set(
     document_id,
     root,
@@ -3145,10 +3359,19 @@ def state_set(
     notes,
     actor,
     clear,
+    priority,
+    depends_on,
+    add_depends_on,
+    remove_depends_on,
+    clear_depends_on,
+    blocked_by,
+    add_blocked_by,
+    remove_blocked_by,
+    clear_blocked_by,
+    assignee,
+    next_action,
 ):
     """Set, update, or clear a document's implementation state."""
-    from meminit.core.use_cases.state_document import StateDocumentUseCase
-
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
@@ -3156,82 +3379,33 @@ def state_set(
         "state set", format, output, include_timestamp, run_id, root_path,
         correlation_id=correlation_id,
     ):
-        validate_root_path(
-            root_path,
-            format=format,
-            command="state set",
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            output=output,
-            correlation_id=correlation_id,
-        )
-        validate_initialized(
-            root_path,
-            format=format,
-            command="state set",
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            output=output,
-            correlation_id=correlation_id,
-        )
+        validate_root_path(root_path, format=format, command="state set",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id)
+        validate_initialized(root_path, format=format, command="state set",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id)
 
-        if not clear and not impl_state and not notes:
-            raise MeminitError(
-                ErrorCode.E_INVALID_FILTER_VALUE,
-                "Must provide --impl-state, --notes, or --clear.",
-            )
-
-        use_case = StateDocumentUseCase(str(root_path))
-        result = use_case.set_state(
-            document_id, impl_state=impl_state, notes=notes, actor=actor, clear=clear
+        _state_set_validate_args(
+            impl_state, notes, clear, priority,
+            depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+            blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+            assignee, next_action,
+        )
+        result = _state_set_execute(
+            root_path, document_id, impl_state, notes, actor, clear, priority,
+            depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+            blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+            assignee, next_action,
         )
 
         if format == "json":
-            _write_output(
-                format_envelope(
-                    command="state set",
-                    root=str(root_path),
-                    success=True,
-                    data={"action": result.action, "entry": result.entry},
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                ),
-                output,
+            _render_state_set_json(
+                result, root_path, include_timestamp, run_id,
+                correlation_id, output,
             )
             return
-
-        if format == "md":
-            if result.action == "clear":
-                _write_output(
-                    f"# Meminit State Set\n\n"
-                    f"- Document ID: `{result.document_id}`\n"
-                    f"- Action: Cleared\n",
-                    output,
-                )
-            else:
-                _write_output(
-                    f"# Meminit State Set\n\n"
-                    f"- Document ID: `{result.document_id}`\n"
-                    f"- Impl State: {result.entry.get('impl_state', '')}\n"
-                    f"- Updated By: {result.entry.get('updated_by', '')}\n",
-                    output,
-                )
-            return
-
-        with maybe_capture(output, format):
-            if result.action == "clear":
-                get_console().print(
-                    f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
-                )
-            else:
-                get_console().print(
-                    f"[bold green]Updated state for {result.document_id}[/bold green]"
-                )
-                get_console().print(f"Impl State: {result.entry.get('impl_state')}")
-                get_console().print(f"Updated By: {result.entry.get('updated_by')}")
-                if result.entry.get("notes"):
-                    get_console().print(f"Notes: {result.entry.get('notes')}")
+        _render_state_set_text(result, format, output)
 
 
 @state.command("get")
@@ -3305,12 +3479,182 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
                 get_console().print(f"Notes: {result.entry.get('notes')}")
 
 
+def _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
+    if ready and no_ready:
+        raise MeminitError(
+            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            message="Cannot specify both --ready and --no-ready.",
+            details={"conflicting_flags": ["--ready", "--no-ready"]},
+        )
+    if blocked and no_blocked:
+        raise MeminitError(
+            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            message="Cannot specify both --blocked and --no-blocked.",
+            details={"conflicting_flags": ["--blocked", "--no-blocked"]},
+        )
+    if ready and blocked:
+        raise MeminitError(
+            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            message="Cannot specify both --ready and --blocked (an entry cannot be both ready and blocked).",
+            details={"conflicting_flags": ["--ready", "--blocked"]},
+        )
+    ready_filter = True if ready else (False if no_ready else None)
+    blocked_filter = True if blocked else (False if no_blocked else None)
+    assignee_list = list(assignee) if assignee else None
+    priority_list = list(priority) if priority else None
+    impl_state_list = list(impl_state) if impl_state else None
+    return ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list
+
+
+def _state_list_execute(root_path, format, include_timestamp, run_id, output, correlation_id,
+                        ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list):
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+    from meminit.core.services.repo_config import load_repo_layout
+    from meminit.core.services.project_state import ImplState
+    from meminit.core.services.error_codes import MeminitError
+
+    validate_root_path(
+        root_path,
+        format=format,
+        command="state list",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+        correlation_id=correlation_id,
+    )
+    validate_initialized(
+        root_path,
+        format=format,
+        command="state list",
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        output=output,
+        correlation_id=correlation_id,
+    )
+    use_case = StateDocumentUseCase(str(root_path))
+    result = use_case.list_states(
+        ready=ready_filter,
+        blocked=blocked_filter,
+        assignee=assignee_list,
+        priority=priority_list,
+        impl_state=impl_state_list,
+    )
+    try:
+        layout = load_repo_layout(root_path)
+        valid_impl_states_set = set()
+        valid_doc_statuses_set = set()
+        for ns in layout.namespaces:
+            valid_impl_states_set.update(ns.valid_impl_states)
+            valid_doc_statuses_set.update(ns.valid_doc_statuses)
+        valid_impl_states = sorted(list(valid_impl_states_set))
+        valid_doc_statuses = sorted(list(valid_doc_statuses_set))
+    except (MeminitError, ValueError, FileNotFoundError):
+        valid_impl_states = ImplState.canonical_values()
+        valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
+    return result, valid_impl_states, valid_doc_statuses
+
+
+def _render_state_list_json(result, valid_impl_states, valid_doc_statuses, root_path,
+                            include_timestamp, run_id, correlation_id, output):
+    json_data = {
+        "entries": result.entries,
+        "valid_impl_states": valid_impl_states,
+        "valid_doc_statuses": valid_doc_statuses,
+    }
+    if result.summary:
+        json_data["summary"] = result.summary
+    if result.advice:
+        json_data["advice"] = result.advice
+    _write_output(
+        format_envelope(
+            command="state list",
+            root=str(root_path),
+            success=True,
+            data=json_data,
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
+    if format == "md":
+        lines = ["# Meminit State List\n"]
+        lines.append(
+            f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  "
+        )
+        lines.append(
+            f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n"
+        )
+        if not result.entries:
+            lines.append("_No entries found._\n")
+        else:
+            rows = [
+                [
+                    e.get("document_id", ""),
+                    e.get("impl_state", ""),
+                    e.get("priority", ""),
+                    "Yes" if e.get("ready") else "No",
+                    e.get("assignee", ""),
+                    str(e.get("updated", ""))[:10],
+                ]
+                for e in result.entries
+            ]
+            lines.append(
+                _md_table(
+                    ["Document ID", "Impl State", "Priority", "Ready", "Assignee", "Updated Date"],
+                    rows,
+                )
+            )
+            lines.append("")
+        _write_output("\n".join(lines), output)
+        return
+    with maybe_capture(output, format):
+        get_console().print(
+            f"[bold]Valid Implementation States:[/bold] {', '.join(valid_impl_states)}"
+        )
+        get_console().print(
+            f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n"
+        )
+        if not result.entries:
+            get_console().print(
+                "[yellow]No entries found in project-state.yaml[/yellow]"
+            )
+            return
+        table = Table(title="Project State Entries")
+        table.add_column("Document ID", style="cyan")
+        table.add_column("Impl State", style="green")
+        table.add_column("Priority")
+        table.add_column("Ready")
+        table.add_column("Assignee")
+        table.add_column("Updated Date")
+        for e in result.entries:
+            table.add_row(
+                e.get("document_id", ""),
+                e.get("impl_state", ""),
+                e.get("priority", ""),
+                "Yes" if e.get("ready") else "No",
+                e.get("assignee", ""),
+                str(e.get("updated", ""))[:10],
+            )
+        get_console().print(table)
+
+
 @state.command("list")
 @agent_repo_options()
-def state_list(root, format, output, include_timestamp, correlation_id):
-    """List all entries in project-state.yaml."""
-    from meminit.core.use_cases.state_document import StateDocumentUseCase
-
+@click.option("--ready", is_flag=True, default=False, help="Show only ready entries.")
+@click.option("--no-ready", is_flag=True, default=False, help="Show only non-ready entries.")
+@click.option("--blocked", is_flag=True, default=False, help="Show only blocked entries.")
+@click.option("--no-blocked", is_flag=True, default=False, help="Show only non-blocked entries.")
+@click.option("--assignee", multiple=True, help="Filter by assignee (repeatable).")
+@click.option("--priority", multiple=True, help="Filter by priority (repeatable, e.g., P0 P1).")
+@click.option("--impl-state", "impl_state", multiple=True, help="Filter by impl_state (repeatable).")
+def state_list(root, format, output, include_timestamp, correlation_id,
+               ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
+    """List entries in project-state.yaml with optional filters."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
@@ -3318,120 +3662,215 @@ def state_list(root, format, output, include_timestamp, correlation_id):
         "state list", format, output, include_timestamp, run_id, root_path,
         correlation_id=correlation_id,
     ):
-        validate_root_path(
-            root_path,
-            format=format,
-            command="state list",
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            output=output,
-            correlation_id=correlation_id,
-        )
-        validate_initialized(
-            root_path,
-            format=format,
-            command="state list",
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            output=output,
-            correlation_id=correlation_id,
+        ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list = (
+            _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state)
         )
 
-        use_case = StateDocumentUseCase(str(root_path))
-        result = use_case.list_states()
-
-        from meminit.core.services.repo_config import load_repo_layout
-        from meminit.core.services.project_state import ImplState
-        from meminit.core.services.error_codes import MeminitError
-
-        try:
-            layout = load_repo_layout(root_path)
-            valid_impl_states_set = set()
-            valid_doc_statuses_set = set()
-            for ns in layout.namespaces:
-                valid_impl_states_set.update(ns.valid_impl_states)
-                valid_doc_statuses_set.update(ns.valid_doc_statuses)
-            valid_impl_states = sorted(list(valid_impl_states_set))
-            valid_doc_statuses = sorted(list(valid_doc_statuses_set))
-        except (MeminitError, ValueError, FileNotFoundError):
-            valid_impl_states = ImplState.canonical_values()
-            valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
+        result, valid_impl_states, valid_doc_statuses = _state_list_execute(
+            root_path, format, include_timestamp, run_id, output, correlation_id,
+            ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list,
+        )
 
         if format == "json":
-            _write_output(
-                format_envelope(
-                    command="state list",
-                    root=str(root_path),
-                    success=True,
-                    data={
-                        "entries": result.entries,
-                        "valid_impl_states": valid_impl_states,
-                        "valid_doc_statuses": valid_doc_statuses,
-                    },
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                ),
-                output,
+            _render_state_list_json(
+                result, valid_impl_states, valid_doc_statuses, root_path,
+                include_timestamp, run_id, correlation_id, output,
             )
             return
 
-        if format == "md":
-            lines = ["# Meminit State List\n"]
-            lines.append(
-                f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  "
+        _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output)
+
+
+def _state_next_execute(root_path, assignee, priority_at_least):
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    use_case = StateDocumentUseCase(str(root_path))
+    return use_case.next_state(assignee=assignee, priority_at_least=priority_at_least)
+
+
+def _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output):
+    _write_output(
+        format_envelope(
+            command="state next",
+            root=str(root_path),
+            success=True,
+            data={
+                "entry": result.entry,
+                "selection": result.selection,
+                "reason": result.reason,
+            },
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_next_text(result, fmt, output):
+    if fmt == "md":
+        lines = ["# Meminit State Next\n"]
+        if result.entry:
+            lines.append(f"- **Document ID**: `{result.entry.get('document_id')}`")
+            lines.append(f"- **Impl State**: {_md_inline(result.entry.get('impl_state'))}")
+            if result.entry.get("priority"):
+                lines.append(f"- **Priority**: {_md_inline(result.entry.get('priority'))}")
+            if result.entry.get("assignee"):
+                lines.append(f"- **Assignee**: {_md_inline(result.entry.get('assignee'))}")
+            if result.entry.get("next_action"):
+                lines.append(f"- **Next Action**: {_md_inline(result.entry.get('next_action'))}")
+            lines.append(f"- **Candidates Considered**: {result.selection.get('candidates_considered', 0)}")
+        else:
+            lines.append(f"_No ready items: {result.reason}_")
+        _write_output("\n".join(lines) + "\n", output)
+        return
+    with maybe_capture(output, fmt):
+        if result.entry:
+            get_console().print(
+                f"[bold green]Next: {result.entry.get('document_id')}[/bold green]"
             )
-            lines.append(
-                f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n"
+            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
+            if result.entry.get("priority"):
+                get_console().print(f"Priority: {result.entry.get('priority')}")
+            if result.entry.get("assignee"):
+                get_console().print(f"Assignee: {result.entry.get('assignee')}")
+            if result.entry.get("next_action"):
+                get_console().print(f"Next Action: {result.entry.get('next_action')}")
+            get_console().print(
+                f"Candidates considered: {result.selection.get('candidates_considered', 0)}"
             )
-            if not result.entries:
-                lines.append("_No entries found._\n")
-            else:
-                rows = [
-                    [
-                        e.get("document_id", ""),
-                        e.get("impl_state", ""),
-                        e.get("updated_by", ""),
-                        str(e.get("updated", ""))[:10],
-                    ]
-                    for e in result.entries
-                ]
-                lines.append(
-                    _md_table(
-                        ["Document ID", "Impl State", "Updated By", "Updated Date"],
-                        rows,
-                    )
-                )
+        else:
+            get_console().print(
+                f"[yellow]No ready items: {result.reason}[/yellow]"
+            )
+
+
+def _state_blockers_execute(root_path, assignee):
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
+
+    use_case = StateDocumentUseCase(str(root_path))
+    return use_case.blockers_state(assignee=assignee)
+
+
+def _render_state_blockers_json(result, root_path, include_timestamp, run_id, correlation_id, output):
+    _write_output(
+        format_envelope(
+            command="state blockers",
+            root=str(root_path),
+            success=True,
+            data={
+                "blocked": result.blocked,
+                "summary": result.summary,
+            },
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_blockers_text(result, fmt, output):
+    if fmt == "md":
+        lines = ["# Meminit State Blockers\n"]
+        if not result.blocked:
+            lines.append("_No blocked entries._\n")
+        else:
+            for b in result.blocked:
+                lines.append(f"## {b['document_id']}")
+                lines.append(f"- **Impl State**: {_md_inline(b.get('impl_state', ''))}")
+                if b.get("priority"):
+                    lines.append(f"- **Priority**: {_md_inline(b['priority'])}")
+                if b.get("assignee"):
+                    lines.append(f"- **Assignee**: {_md_inline(b['assignee'])}")
+                lines.append("- **Open Blockers**:")
+                for ob in b.get("open_blockers", []):
+                    known = "known" if ob.get("known") else "unknown"
+                    lines.append(f"  - `{ob['id']}` ({ob.get('impl_state', 'N/A')}, {known})")
                 lines.append("")
-            _write_output("\n".join(lines), output)
-            return
-
-        with maybe_capture(output, format):
-            get_console().print(
-                f"[bold]Valid Implementation States:[/bold] {', '.join(valid_impl_states)}"
-            )
-            get_console().print(
-                f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n"
-            )
-            if not result.entries:
-                get_console().print(
-                    "[yellow]No entries found in project-state.yaml[/yellow]"
-                )
-                return
-
-            table = Table(title="Project State Entries")
+        lines.append(f"**Summary**: {result.summary.get('total_entries', 0)} entries, "
+                     f"{result.summary.get('blocked', 0)} blocked, "
+                     f"{result.summary.get('ready', 0)} ready")
+        _write_output("\n".join(lines) + "\n", output)
+        return
+    with maybe_capture(output, fmt):
+        if not result.blocked:
+            get_console().print("[green]No blocked entries.[/green]")
+        else:
+            table = Table(title="Blocked Entries")
             table.add_column("Document ID", style="cyan")
-            table.add_column("Impl State", style="green")
-            table.add_column("Updated By")
-            table.add_column("Updated Date")
-            for e in result.entries:
-                table.add_row(
-                    e.get("document_id", ""),
-                    e.get("impl_state", ""),
-                    e.get("updated_by", ""),
-                    str(e.get("updated", ""))[:10],
-                )
+            table.add_column("Impl State")
+            table.add_column("Open Blockers", style="red")
+            for b in result.blocked:
+                blocker_ids = ", ".join(ob["id"] for ob in b.get("open_blockers", []))
+                table.add_row(b["document_id"], b.get("impl_state", ""), blocker_ids)
             get_console().print(table)
+        get_console().print(
+            f"Summary: {result.summary.get('ready', 0)} ready, "
+            f"{result.summary.get('blocked', 0)} blocked, "
+            f"{result.summary.get('total_entries', 0)} total"
+        )
+
+
+@state.command("next")
+@agent_repo_options()
+@click.option("--assignee", help="Restrict candidates to a specific assignee.")
+@click.option("--priority-at-least", help="Restrict to priorities at or above threshold (P0-P3).")
+def state_next(root, format, output, include_timestamp, correlation_id, assignee, priority_at_least):
+    """Return the deterministically-selected next work item."""
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "state next", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
+    ):
+        validate_root_path(
+            root_path, format=format, command="state next",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id,
+        )
+        validate_initialized(
+            root_path, format=format, command="state next",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id,
+        )
+        result = _state_next_execute(root_path, assignee, priority_at_least)
+        if format == "json":
+            _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output)
+            return
+        _render_state_next_text(result, format, output)
+
+
+@state.command("blockers")
+@agent_repo_options()
+@click.option("--assignee", help="Restrict to a specific assignee.")
+def state_blockers(root, format, output, include_timestamp, correlation_id, assignee):
+    """List blocked work items and their open blockers."""
+    run_id = get_current_run_id()
+    root_path = Path(root).resolve()
+
+    with command_output_handler(
+        "state blockers", format, output, include_timestamp, run_id, root_path,
+        correlation_id=correlation_id,
+    ):
+        validate_root_path(
+            root_path, format=format, command="state blockers",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id,
+        )
+        validate_initialized(
+            root_path, format=format, command="state blockers",
+            include_timestamp=include_timestamp, run_id=run_id,
+            output=output, correlation_id=correlation_id,
+        )
+        result = _state_blockers_execute(root_path, assignee)
+        if format == "json":
+            _render_state_blockers_json(result, root_path, include_timestamp, run_id, correlation_id, output)
+            return
+        _render_state_blockers_text(result, format, output)
 
 
 _DRIFT_ERROR_CODE = {

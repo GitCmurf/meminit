@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.4"
-last_updated: 2026-04-18
+version: "0.5"
+last_updated: 2026-04-21
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -19,13 +19,18 @@ keywords:
   - session
   - skills
   - protocol
+  - state
+  - queue
   - docops
 related_ids:
   - MEMINIT-STRAT-001
   - MEMINIT-PLAN-003
   - MEMINIT-PRD-003
   - MEMINIT-SPEC-004
+  - MEMINIT-SPEC-008
   - MEMINIT-RUNBOOK-006
+  - MEMINIT-PRD-007
+  - MEMINIT-PLAN-013
   - ORG-GOV-001
   - MEMINIT-GOV-003
 ---
@@ -37,8 +42,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
-> **Last Updated:** 2026-04-18
+> **Version:** 0.5
+> **Last Updated:** 2026-04-21
 > **Type:** PRD
 > **Area:** AGENT
 
@@ -390,6 +395,17 @@ The following Phase 3 items are now implemented:
 - Contract-matrix tests auto-include `protocol check` and `protocol sync` via capabilities registry
 - 25 fixture-driven parametrized tests covering scenarios F01-F15
 
+## 8.7 Phase 4 Implementation Status
+
+The following Phase 4 items are now implemented:
+
+- `meminit state next --format json` and `meminit state blockers --format json` — deterministic queue query surfaces
+- `meminit state list --format json` — enriched entries now always include `ready`, `open_blockers`, and `unblocks`
+- `project-state.yaml` v2 schema with canonical UTC timestamps for deterministic ordering
+- `STATE_*` error codes and `meminit explain` remediation for state validation and dependency failures
+- `meminit capabilities --format json` lists the queue commands as JSON-capable repo-aware surfaces
+- Queue commands fail fast on missing/malformed repo config and malformed `project-state.yaml`
+
 ---
 
 ## 9. Acceptance Criteria (Ship-Ready Definition)
@@ -405,6 +421,8 @@ This PRD is considered implemented when:
    (directly or via `meminit explain`).
 5. Protocol file integration guidance exists and is referenced from
    [MEMINIT-RUNBOOK-006](../60-runbooks/runbook-006-codex-skills-setup.md).
+6. The repo-local work queue surface exists (`state next`, `state blockers`,
+   enriched `state list`) and is documented for agent use.
 
 ---
 
@@ -424,8 +442,10 @@ This PRD is considered implemented when:
 | Document ID                                                             | Title                          | Relationship                                                               |
 | ----------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
 | [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)              | Agent Interface v1             | Baseline envelope + CLI contract; v2 is explicitly out-of-scope follow-on. |
-| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)       | Agent Output Contract          | Normative schema/spec for v1 outputs; v2 likely extends or supersedes.     |
+| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)       | Agent Output Contract          | Normative schema/spec for v1 outputs; historical baseline for the v3 contract. |
+| [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)    | Agent Output Contract v2       | Normative schema/spec for v3 outputs; now includes state queue payloads.   |
 | [MEMINIT-RUNBOOK-006](../60-runbooks/runbook-006-codex-skills-setup.md) | Codex Skills Setup for Meminit | Protocol-surface guidance and maintenance practices.                       |
+| [MEMINIT-PRD-007](../10-prd/prd-007-project-state-dashboard.md)         | Project State Dashboard        | Queue/dashboard surface that consumes the state payload contract.          |
 | [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md) | Project Meminit Vision         | Strategic design center and constraints.                                   |
 | [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)       | Security Practices             | Governs safe output and repo privacy constraints.                          |
 
@@ -439,3 +459,4 @@ This PRD is considered implemented when:
 | 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry. |
 | 0.3     | 2026-04-15 | GitCmurf | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped |
 | 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |
+| 0.5     | 2026-04-21 | Codex | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |

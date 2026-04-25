@@ -200,7 +200,7 @@
       "if": {
         "properties": {
           "command": {
-            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "protocol check", "protocol sync", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list"]
+            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "protocol check", "protocol sync", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list", "state next", "state blockers"]
           }
         },
         "required": ["command"]
@@ -268,6 +268,12 @@
         },
         "details": {
           "type": "object"
+        },
+        "document_id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
         }
       },
       "additionalProperties": true

@@ -59,6 +59,17 @@ class ErrorCode(str, Enum):
     E_STATE_YAML_MALFORMED = "E_STATE_YAML_MALFORMED"
     E_STATE_SCHEMA_VIOLATION = "E_STATE_SCHEMA_VIOLATION"
     E_INVALID_FILTER_VALUE = "E_INVALID_FILTER_VALUE"
+    STATE_INVALID_PRIORITY = "STATE_INVALID_PRIORITY"
+    STATE_INVALID_DEPENDENCY_ID = "STATE_INVALID_DEPENDENCY_ID"
+    STATE_SELF_DEPENDENCY = "STATE_SELF_DEPENDENCY"
+    STATE_UNDEFINED_DEPENDENCY = "STATE_UNDEFINED_DEPENDENCY"
+    STATE_DEPENDENCY_CYCLE = "STATE_DEPENDENCY_CYCLE"
+    STATE_DEPENDENCY_STATUS_CONFLICT = "STATE_DEPENDENCY_STATUS_CONFLICT"
+    STATE_FIELD_TOO_LONG = "STATE_FIELD_TOO_LONG"
+    STATE_FIELD_INVALID_FORMAT = "STATE_FIELD_INVALID_FORMAT"
+    STATE_MIXED_MUTATION_MODE = "STATE_MIXED_MUTATION_MODE"
+    STATE_CLEAR_MUTATION_CONFLICT = "STATE_CLEAR_MUTATION_CONFLICT"
+    STATE_NO_MUTATION_PROVIDED = "STATE_NO_MUTATION_PROVIDED"
 
     # Agent interface error codes
     UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR_CODE"
@@ -531,6 +542,163 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
             resolution_type="manual",
             automatable=False,
             relevant_commands=["state list", "state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_INVALID_PRIORITY.value: ErrorExplanation(
+        code=ErrorCode.STATE_INVALID_PRIORITY.value,
+        category="state",
+        summary=(
+            "An invalid priority value was encountered. "
+            "Dual semantics: fatal when writing (mutation rejected), "
+            "warning when reading (entry skipped)."
+        ),
+        cause=(
+            "The priority value is not one of P0, P1, P2, or P3. "
+            "When emitted by `state set`, the mutation is rejected (fatal). "
+            "When emitted by `state next`, `state list`, or `index`, "
+            "the entry is skipped or the priority is dropped (warning)."
+        ),
+        remediation=RemediationInfo(
+            action=(
+                "Correct the priority to one of: P0 (highest), P1, "
+                "P2 (default), or P3. If the value was set via hand-edited "
+                "project-state.yaml, edit the file directly. If via "
+                "`state set --priority`, retry with a valid value."
+            ),
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set", "state next", "state list", "index"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_INVALID_DEPENDENCY_ID.value: ErrorExplanation(
+        code=ErrorCode.STATE_INVALID_DEPENDENCY_ID.value,
+        category="state",
+        summary="A dependency ID does not match the document ID pattern.",
+        cause="An entry in depends_on or blocked_by is not a valid PREFIX-TYPE-NNN identifier.",
+        remediation=RemediationInfo(
+            action="Correct the dependency ID to match the document ID pattern.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_SELF_DEPENDENCY.value: ErrorExplanation(
+        code=ErrorCode.STATE_SELF_DEPENDENCY.value,
+        category="state",
+        summary="An entry references itself in depends_on or blocked_by.",
+        cause="A document's dependency list contains its own document_id.",
+        remediation=RemediationInfo(
+            action="Remove the self-referencing dependency from depends_on or blocked_by.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_UNDEFINED_DEPENDENCY.value: ErrorExplanation(
+        code=ErrorCode.STATE_UNDEFINED_DEPENDENCY.value,
+        category="state",
+        summary="A dependency target is not present in the index.",
+        cause="A depends_on or blocked_by entry does not resolve to a known document in the repository index.",
+        remediation=RemediationInfo(
+            action="Verify the dependency ID is correct, or create the target document first.",
+            resolution_type="auto_fixable",
+            automatable=True,
+            relevant_commands=["state set", "state list"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_DEPENDENCY_CYCLE.value: ErrorExplanation(
+        code=ErrorCode.STATE_DEPENDENCY_CYCLE.value,
+        category="state",
+        summary="A dependency cycle was detected in the state graph.",
+        cause="Following depends_on and blocked_by edges from an entry produces a loop.",
+        remediation=RemediationInfo(
+            action="Break the cycle by removing one of the dependency edges.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_DEPENDENCY_STATUS_CONFLICT.value: ErrorExplanation(
+        code=ErrorCode.STATE_DEPENDENCY_STATUS_CONFLICT.value,
+        category="state",
+        summary="A Done entry depends on a non-Done target.",
+        cause="An entry marked Done has a depends_on or blocked_by reference to an entry that is not Done.",
+        remediation=RemediationInfo(
+            action="Review the dependency: either update the target to Done or remove the stale dependency.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state list"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_FIELD_TOO_LONG.value: ErrorExplanation(
+        code=ErrorCode.STATE_FIELD_TOO_LONG.value,
+        category="state",
+        summary="A planning field exceeds its maximum allowed length.",
+        cause="The assignee field exceeds 120 characters or the next_action field exceeds the notes length limit.",
+        remediation=RemediationInfo(
+            action="Shorten the field value to within the allowed limit.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_MIXED_MUTATION_MODE.value: ErrorExplanation(
+        code=ErrorCode.STATE_MIXED_MUTATION_MODE.value,
+        category="state",
+        summary="Conflicting mutation modes for a planning field.",
+        cause="More than one mutation mode (replace, add/remove, clear) was specified for the same field family (depends_on or blocked_by).",
+        remediation=RemediationInfo(
+            action="Use exactly one mutation mode per field family: --depends-on (replace), --add-depends-on/--remove-depends-on (incremental), or --clear-depends-on.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_CLEAR_MUTATION_CONFLICT.value: ErrorExplanation(
+        code=ErrorCode.STATE_CLEAR_MUTATION_CONFLICT.value,
+        category="state",
+        summary="--clear is mutually exclusive with all other mutation flags.",
+        cause="The --clear flag removes the entire entry, so combining it with --impl-state, --notes, or planning-field flags is contradictory.",
+        remediation=RemediationInfo(
+            action="Use --clear alone to remove an entry, or omit --clear and set specific fields.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_FIELD_INVALID_FORMAT.value: ErrorExplanation(
+        code=ErrorCode.STATE_FIELD_INVALID_FORMAT.value,
+        category="state",
+        summary="A planning field has an invalid format.",
+        cause="A planning field value contains characters or patterns that are not permitted (e.g., embedded newlines in next_action).",
+        remediation=RemediationInfo(
+            action="Remove the invalid characters from the field value.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
+        ),
+        spec_reference="MEMINIT-SPEC-006",
+    ),
+    ErrorCode.STATE_NO_MUTATION_PROVIDED.value: ErrorExplanation(
+        code=ErrorCode.STATE_NO_MUTATION_PROVIDED.value,
+        category="state",
+        summary="No mutation flag was provided to state set.",
+        cause="state set requires at least one mutation flag (--impl-state, --notes, --clear, or a planning field flag).",
+        remediation=RemediationInfo(
+            action="Provide at least one mutation flag when calling state set.",
+            resolution_type="manual",
+            automatable=False,
+            relevant_commands=["state set"],
         ),
         spec_reference="MEMINIT-SPEC-006",
     ),

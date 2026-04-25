@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import frontmatter
 
@@ -32,6 +32,8 @@ from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
     ImplState,
     ProjectState,
+    VALID_PRIORITIES,
+    get_state_file_rel_path,
     load_project_state,
     validate_project_state,
 )
@@ -46,6 +48,8 @@ from meminit.core.services.sanitization import (
 )
 from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services import graph
+
+_SENTINEL_NONE = object()
 
 
 def _json_default(obj: Any) -> str:
@@ -398,6 +402,8 @@ def _generate_catalog(
         "Type",
         "Doc Status",
         "Impl State",
+        "Priority",
+        "Ready",
         "Last Active",
         "Owner",
     ]
@@ -417,15 +423,26 @@ def _generate_catalog(
             recency: Optional[datetime] = entry.get("_recency")
             last_active = recency.strftime("%Y-%m-%d") if recency else ""
 
-            # Fields like title, owner are already HTML escaped during scan.
-            # Others like document_id, type, status, impl_state MUST be escaped here
-            # because they are rendered directly in the Markdown table (which can render HTML).
+            priority = entry.get("priority", "")
+            if not priority:
+                priority = "\u2014"
+
+            ready_val = entry.get("ready")
+            if ready_val is True:
+                ready_display = "\u2705"
+            elif ready_val is False and entry.get("open_blockers"):
+                ready_display = "\u23f3"
+            else:
+                ready_display = "\u2014"
+
             row = [
                 escape_markdown_table(sanitize_html(str(entry.get("document_id", "")))),
                 escape_markdown_table(entry.get("title", "")),
                 escape_markdown_table(sanitize_html(str(entry.get("type", "")))),
                 escape_markdown_table(sanitize_html(str(entry.get("status", "")))),
                 escape_markdown_table(sanitize_html(str(entry.get("impl_state", "")))),
+                priority,
+                ready_display,
                 last_active,
                 escape_markdown_table(entry.get("owner", "")),
             ]
@@ -444,6 +461,32 @@ def _generate_catalog(
 _KANBAN_COLUMNS = ["Not Started", "In Progress", "Blocked", "QA Required", "Done"]
 
 
+def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
+    from meminit.core.services.state_derived import PRIORITY_RANK
+    priority = entry.get("priority", "P2") or "P2"
+    priority_rank = PRIORITY_RANK.get(priority, PRIORITY_RANK["P2"])
+    unblocks_count = -len(entry.get("unblocks", []))
+    updated_str = entry.get("updated", "")
+    try:
+        updated_dt = datetime.fromisoformat(updated_str)
+        updated_ts = updated_dt.astimezone(timezone.utc).timestamp()
+    except (ValueError, TypeError):
+        updated_ts = 0.0
+    doc_id = entry.get("document_id", "")
+    return (priority_rank, unblocks_count, updated_ts, doc_id)
+
+
+def _kanban_badge_prefix(entry: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    priority = entry.get("priority")
+    if priority:
+        parts.append(f"[{priority}]")
+    open_blockers = entry.get("open_blockers", [])
+    if open_blockers:
+        parts.append("[blocked]")
+    return "".join(parts) + " " if parts else ""
+
+
 def _generate_kanban(
     entries: List[Dict[str, Any]],
     generated_at: str,
@@ -451,31 +494,35 @@ def _generate_kanban(
     root_dir: Path,
     index_dir: Path,
 ) -> str:
-    """Generate kanban.md content (FR-4).
+    """Generate kanban.md content (FR-4)."""
+    lines = _kanban_header(project_name, generated_at)
+    columns, ordered_columns = _kanban_bucket_columns(entries)
+    lines.extend(_kanban_fallback_section(columns, ordered_columns))
+    lines.extend(_kanban_html_board(columns, ordered_columns, root_dir, index_dir))
+    return "\n".join(lines)
 
-    Structure:
-    1. Pure Markdown fallback (wrapped in div.kanban-fallback, hidden by CSS)
-    2. Enhanced HTML kanban board
-    """
+
+def _kanban_header(project_name: str, generated_at: str) -> List[str]:
     lines: List[str] = []
     lines.append("<!-- MEMINIT_GENERATED: kanban -->")
     lines.append("")
     lines.append(f"# {project_name} Project Status Board")
     lines.append("")
-    # Link the stylesheet for HTML renderers (MkDocs, local browsers).
     lines.append('<link rel="stylesheet" href="kanban.css">')
     lines.append("")
     lines.append(
         '> Use `meminit state set <ID> [--impl-state "<state>"] [--notes "<text>"]` to update items.'
     )
-    lines.append(
-        "> Use `meminit state --help` for available commands."
-    )
+    lines.append("> Use `meminit state --help` for available commands.")
     lines.append("")
     lines.append(f"_Auto-generated by `meminit index`. Last built: {generated_at}._")
     lines.append("")
+    return lines
 
-    # Bucket entries by impl_state. Preserve custom states as-is.
+
+def _kanban_bucket_columns(
+    entries: List[Dict[str, Any]],
+) -> Tuple[Dict[str, List[Dict[str, Any]]], List[str]]:
     columns: Dict[str, List[Dict[str, Any]]] = {col: [] for col in _KANBAN_COLUMNS}
     for entry in entries:
         impl = entry.get("impl_state", "")
@@ -488,111 +535,140 @@ def _generate_kanban(
         if col not in columns:
             columns[col] = []
         columns[col].append(entry)
+    for col_name in columns:
+        columns[col_name].sort(key=_kanban_sort_key)
     ordered_columns = _KANBAN_COLUMNS + sorted(
         [c for c in columns.keys() if c not in _KANBAN_COLUMNS]
     )
+    return columns, ordered_columns
 
-    # --- Pure Markdown fallback ---
+
+def _kanban_fallback_section(
+    columns: Dict[str, List[Dict[str, Any]]],
+    ordered_columns: List[str],
+) -> List[str]:
+    lines: List[str] = []
     lines.append('<div class="kanban-fallback">')
     lines.append("")
     for col_name in ordered_columns:
         col_entries = columns.get(col_name, [])
-        col_name_md = sanitize_html(str(col_name))
-        lines.append(f"## {col_name_md}")
+        lines.append(f"## {sanitize_html(str(col_name))}")
         lines.append("")
         if not col_entries:
             lines.append("_No items._")
             lines.append("")
         else:
             for entry in col_entries:
-                doc_id = sanitize_field(
-                    entry.get("document_id", ""), max_length=None, html_escape=True
-                )
-                doc_id = doc_id or ""
-                title = sanitize_field(
-                    entry.get("_raw_title", entry.get("title", "")),
-                    max_length=None,
-                    html_escape=True,
-                )
-                status = sanitize_field(
-                    entry.get("status", ""), max_length=None, html_escape=True
-                )
-                notes_raw = entry.get("_raw_notes", entry.get("notes"))
-
-                lines.append(f"- **{doc_id}**: {title} ({status})")
-                if notes_raw:
-                    notes_sanitized = sanitize_field(
-                        notes_raw, max_length=500, html_escape=True
-                    )
-                    if notes_sanitized:
-                        lines.append(f"  - {notes_sanitized}")
-            lines.append("")
+                lines.extend(_kanban_fallback_card(entry))
     lines.append("</div>")
     lines.append("")
+    return lines
 
-    # --- Enhanced HTML kanban board (modern) ---
+
+def _kanban_fallback_card(entry: Dict[str, Any]) -> List[str]:
+    lines: List[str] = []
+    doc_id = sanitize_field(
+        entry.get("document_id", ""), max_length=None, html_escape=True
+    ) or ""
+    title = sanitize_field(
+        entry.get("_raw_title", entry.get("title", "")),
+        max_length=None,
+        html_escape=True,
+    )
+    status = sanitize_field(
+        entry.get("status", ""), max_length=None, html_escape=True
+    )
+    notes_raw = entry.get("_raw_notes", entry.get("notes"))
+    badges = _kanban_badge_prefix(entry)
+    lines.append(f"- **{doc_id}**: {badges}{title} ({status})")
+    if notes_raw:
+        notes_sanitized = sanitize_field(notes_raw, max_length=500, html_escape=True)
+        if notes_sanitized:
+            lines.append(f"  - {notes_sanitized}")
+    return lines
+
+
+def _kanban_html_board(
+    columns: Dict[str, List[Dict[str, Any]]],
+    ordered_columns: List[str],
+    root_dir: Path,
+    index_dir: Path,
+) -> List[str]:
+    lines: List[str] = []
     lines.append(
         '<div class="kanban-board" role="region" aria-label="Project Kanban Board">'
     )
     lines.append("")
-
     for col_name in ordered_columns:
         col_entries = columns.get(col_name, [])
         col_class = _safe_css_slug(str(col_name), default="not-started")
         col_name_escaped = sanitize_html(str(col_name))
-
         lines.append(
             f'<section class="kanban-column kanban-{col_class}" aria-label="{col_name_escaped}">'
         )
         lines.append(
             f'<h3>{col_name_escaped} <span class="kanban-count">{len(col_entries)}</span></h3>'
         )
-
         for entry in col_entries:
-            doc_id = sanitize_html(entry.get("document_id", ""))
-
-            doc_path_raw = entry.get("path", "")
-            if doc_path_raw:
-                try:
-                    target_abs = root_dir / doc_path_raw
-                    rel_val = os.path.relpath(target_abs, index_dir).replace("\\", "/")
-                except (ValueError, OSError):
-                    rel_val = ""
-            else:
-                rel_val = ""
-
-            title_escaped = entry.get("title", "")
-            status_raw = entry.get("status", "Draft")
-            status_slug = _safe_css_slug(status_raw, default="draft")
-            status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
-            notes_sanitized = entry.get("notes")
-
-            lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
-            if rel_val:
-                lines.append(
-                    f'<strong class="card-id"><a href="{sanitize_html(rel_val)}">{doc_id}</a></strong>'
-                )
-            else:
-                lines.append(f'<strong class="card-id">{doc_id}</strong>')
-            lines.append(
-                f'<span class="card-title kanban-truncate" title="{title_escaped}">{title_escaped}</span>'
-            )
-            lines.append(
-                f'<span class="card-status badge-{status_slug}">{status_escaped}</span>'
-            )
-            if notes_sanitized:
-                lines.append(
-                    f'<p class="card-notes kanban-truncate-lines" title="{notes_sanitized}">{notes_sanitized}</p>'
-                )
-            lines.append("</article>")
-
+            lines.extend(_kanban_html_card(entry, root_dir, index_dir))
         lines.append("</section>")
         lines.append("")
-
     lines.append("</div>")
     lines.append("")
+    return lines
 
-    return "\n".join(lines)
+
+def _kanban_html_card(
+    entry: Dict[str, Any],
+    root_dir: Path,
+    index_dir: Path,
+) -> List[str]:
+    lines: List[str] = []
+    doc_id = sanitize_html(entry.get("document_id", ""))
+    doc_path_raw = entry.get("path", "")
+    if doc_path_raw:
+        try:
+            target_abs = root_dir / doc_path_raw
+            rel_val = os.path.relpath(target_abs, index_dir).replace("\\", "/")
+        except (ValueError, OSError):
+            rel_val = ""
+    else:
+        rel_val = ""
+    title_escaped = sanitize_html(str(entry.get("_raw_title", entry.get("title", ""))))
+    status_raw = entry.get("status", "Draft")
+    status_slug = _safe_css_slug(status_raw, default="draft")
+    status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
+    notes_escaped = sanitize_html(str(entry.get("_raw_notes", entry.get("notes")))) if (entry.get("notes") or entry.get("_raw_notes")) else None
+    lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
+    if rel_val:
+        lines.append(
+            f'<strong class="card-id"><a href="{sanitize_html(rel_val)}">{doc_id}</a></strong>'
+        )
+    else:
+        lines.append(f'<strong class="card-id">{doc_id}</strong>')
+    lines.append(
+        f'<span class="card-title kanban-truncate" title="{title_escaped}">{title_escaped}</span>'
+    )
+    lines.append(
+        f'<span class="card-status badge-{status_slug}">{status_escaped}</span>'
+    )
+    priority_val = entry.get("priority")
+    if priority_val:
+        priority_slug = _safe_css_slug(str(priority_val), default="unknown")
+        lines.append(
+            f'<span class="card-priority badge-priority-{priority_slug}">{sanitize_html(priority_val)}</span>'
+        )
+    open_blockers = entry.get("open_blockers", [])
+    if open_blockers:
+        lines.append(
+            f'<span class="card-blocked badge-blocked">{len(open_blockers)} blocked</span>'
+        )
+    if notes_escaped:
+        lines.append(
+            f'<p class="card-notes kanban-truncate-lines" title="{notes_escaped}">{notes_escaped}</p>'
+        )
+    lines.append("</article>")
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -812,8 +888,6 @@ class IndexRepositoryUseCase:
         try:
             project_state = load_project_state(self._root_dir)
         except MeminitError as exc:
-            from meminit.core.services.project_state import get_state_file_rel_path
-
             project_state = None
             warnings_list.append(
                 {
@@ -821,7 +895,6 @@ class IndexRepositoryUseCase:
                     "message": exc.message,
                     "severity": Severity.ERROR.value,
                     "path": get_state_file_rel_path(self._root_dir),
-                    "line": 0,
                 }
             )
 
@@ -829,13 +902,27 @@ class IndexRepositoryUseCase:
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
+        single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
+        _ns_cache: Dict[int, Optional[Any]] = {}
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
             for path in ns.docs_dir.rglob("*.md"):
-                owner = self._layout.namespace_for_path(path)
-                if owner is None or owner.namespace.lower() != ns.namespace.lower():
-                    continue
+                if single_ns is not None:
+                    owner = single_ns
+                else:
+                    parent_key = hash(path.parent)
+                    owner = _ns_cache.get(parent_key)
+                    if owner is _SENTINEL_NONE:
+                        continue
+                    if owner is None:
+                        owner = self._layout.namespace_for_path(path)
+                        if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                            _ns_cache[parent_key] = _SENTINEL_NONE
+                            continue
+                        _ns_cache[parent_key] = owner
+                    elif owner.namespace.lower() != ns.namespace.lower():
+                        continue
                 if ns.is_excluded(path):
                     continue
                 try:
@@ -905,6 +992,21 @@ class IndexRepositoryUseCase:
                                 entry["notes"] = sanitized_notes
                                 entry["_raw_notes"] = state_entry.notes
 
+                        if state_entry.priority is not None:
+                            # Intentionally dropped: validate_project_state (called
+                            # upstream) emits STATE_INVALID_PRIORITY for invalid
+                            # values; we silently omit them from the index entry.
+                            if state_entry.priority in VALID_PRIORITIES:
+                                entry["priority"] = state_entry.priority
+                        if state_entry.depends_on:
+                            entry["depends_on"] = list(state_entry.depends_on)
+                        if state_entry.blocked_by:
+                            entry["blocked_by"] = list(state_entry.blocked_by)
+                        if state_entry.assignee is not None:
+                            entry["assignee"] = state_entry.assignee
+                        if state_entry.next_action is not None:
+                            entry["next_action"] = state_entry.next_action
+
                         state_updated = state_entry.updated
 
                 # Capture body for reference edge extraction (stripped before JSON output).
@@ -959,16 +1061,37 @@ class IndexRepositoryUseCase:
                 project_state, known_doc_ids, self._root_dir, self._valid_impl_states
             )
             for issue in validation_issues:
-                # Do not raise MeminitError here! Allow it to be passed through as severity="error".
-                warnings_list.append(
-                    {
-                        "code": issue.rule,
-                        "message": issue.message,
-                        "severity": issue.severity.value,
-                        "path": issue.file,
-                        "line": issue.line,
-                    }
-                )
+                w: Dict[str, Any] = {
+                    "code": issue.rule,
+                    "message": issue.message,
+                    "severity": issue.severity.value,
+                    "path": issue.file,
+                }
+                if issue.line:
+                    w["line"] = issue.line
+                warnings_list.append(w)
+
+        # Compute derived fields (ready, open_blockers, unblocks) from state.
+        # Spec (PLAN-013 §3.4.1): ready, open_blockers, unblocks are always emitted.
+        if project_state and project_state.entries:
+            from meminit.core.services.state_derived import compute_derived_fields
+            derived = compute_derived_fields(project_state, known_doc_ids)
+            for entry in entries:
+                doc_id = entry.get("document_id")
+                if doc_id in derived:
+                    d = derived[doc_id]
+                    entry["ready"] = d.ready
+                    entry["open_blockers"] = list(d.open_blockers)
+                    entry["unblocks"] = list(d.unblocks)
+                else:
+                    entry["ready"] = True
+                    entry["open_blockers"] = []
+                    entry["unblocks"] = []
+        else:
+            for entry in entries:
+                entry["ready"] = True
+                entry["open_blockers"] = []
+                entry["unblocks"] = []
 
         # Apply filters.
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
@@ -1004,7 +1127,7 @@ class IndexRepositoryUseCase:
             advice=canonical_advice,
         )
         index_path.write_text(
-            json.dumps(payload, indent=2, default=_json_default) + "\n",
+            json.dumps(payload, indent=2, default=_json_default, sort_keys=True) + "\n",
             encoding="utf-8",
         )
 

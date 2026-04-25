@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-013
 type: PLAN
 title: Phase 4 Detailed Implementation Plan
 status: Draft
-version: '0.3'
-last_updated: '2026-04-18'
+version: '0.9'
+last_updated: '2026-04-23'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -22,13 +22,15 @@ related_ids:
 - MEMINIT-PRD-005
 - MEMINIT-PRD-007
 - MEMINIT-SPEC-006
+- MEMINIT-SPEC-008
+- MEMINIT-RUNBOOK-006
 ---
 
 > **Document ID:** MEMINIT-PLAN-013
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-18
+> **Version:** 0.9
+> **Last Updated:** 2026-04-23
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue layer.
@@ -93,11 +95,21 @@ Determinism requirement:
 
 - Every query surface introduced by this phase must produce byte-identical
   output for identical inputs: sorted entry arrays, stable tie-breaking in
-  the `next` selector, no wall-clock timestamps in hashed payloads, and no
-  reliance on filesystem mtime.
+  the `next` selector, canonical UTC normalization for stored timestamps,
+  no wall-clock timestamps in hashed payloads, and no reliance on
+  filesystem mtime.
 - Determinism is what makes the work queue safe for agent repair loops: a
   second `state next` call with no intervening mutation must return the
   same result.
+
+Repository initialization boundary:
+
+- All `meminit state*` query and mutation commands require an initialized
+  repository config. They MUST fail fast with `CONFIG_MISSING` when
+  `docops.config.yaml` is missing, malformed, or not a regular file instead
+  of guessing defaults.
+- Missing `project-state.yaml` is not an error by itself. In that case the
+  query commands return the documented empty-state payloads.
 
 Non-goal framing:
 
@@ -106,6 +118,17 @@ Non-goal framing:
 - Phase 4 does not replace external issue trackers. It defines a
   repo-local queue that agents can consult without round-tripping through
   a tracker API.
+
+Quality bar:
+
+- Phase 4 must land as small, reviewable slices that each carry code,
+  docs, and tests together.
+- The default development loop is test-first: write the regression,
+  implement the minimal fix, and then run the relevant unit, contract,
+  and doc-validation checks before merge.
+- Every slice must pass the targeted unit suite, `meminit check` on all
+  touched governed docs, and the contract matrix before it can be
+  considered done.
 
 ## 1. Purpose
 
@@ -155,6 +178,9 @@ rather than inventing a parallel pattern:
   capabilities registry (`register_capability` in
   `src/meminit/cli/shared_flags.py`) rather than introducing
   command-local contract logic
+- resolve repo metadata through the standard repo-config loader for
+  initialized repos; do not guess `project_name`/`repo_prefix` from
+  filesystem names or malformed config files
 - reuse the existing `ProjectState`, `ProjectStateEntry`, and
   `load_project_state` / `save_project_state` infrastructure in
   `src/meminit/core/services/project_state.py`; extend these rather than
@@ -179,6 +205,9 @@ Security:
 - `state set` must reject inputs that violate the sanitization bounds
   already enforced on `notes` (see `sanitization.MAX_NOTES_LENGTH`) and
   apply the same bounds to `next_action`.
+- State commands must use canonical UTC timestamps for comparison and
+  serialization. `updated` should be normalized on load/save so the
+  `state next` tie-break rule does not depend on local timezone offsets.
 
 ### 2.2 Governed Document Outputs
 
@@ -191,9 +220,9 @@ MEMINIT-PLAN-008 Section 7:
 | Update | PRD | `MEMINIT-PRD-005` | Add `state next`, `state blockers`, and the enriched `state list` filter set to the Agent Interface v2 command inventory |
 | Update | PRD | `MEMINIT-PRD-007` | Document how the richer state surfaces in the project-state dashboard, catalog, and kanban views |
 | Update | SPEC | `MEMINIT-SPEC-006` | Register the new `STATE_*` error codes and their normative `explain` semantics |
-| Update | SPEC | `MEMINIT-SPEC-008` (or equivalent agent-output-contract spec) | Extend the repo-aware command enum in `agent-output.schema.v3.json` to include `state next` and `state blockers` |
+| Update | SPEC | `MEMINIT-SPEC-008` | Extend the repo-aware command enum in `agent-output.schema.v3.json` to include `state next` and `state blockers` |
 | New | FDD | Agent Work Queue Queries | Define the v2 state schema, the readiness and selection algorithms, JSON payload shapes, and integration with the index graph |
-| Update | RUNBOOK | Agent Integration and Upgrade Workflow (or a new work-queue runbook) | Document the upgrade from v1 state, operator recovery paths, and how agents should loop on the queue |
+| Update | RUNBOOK | `MEMINIT-RUNBOOK-006` | Document the upgrade from v1 state, operator recovery paths, and how agents should loop on the queue |
 | Conditional update | PLAN | `MEMINIT-PLAN-003` | Only if Phase 4 sequencing or completion criteria move materially during delivery |
 
 Every delivery slice in this phase must satisfy the repository's
@@ -239,6 +268,9 @@ Rules:
   automatically mapped to `2.0` in memory with default values for the new
   fields. The on-disk file is not silently rewritten; the caller receives
   the v2 shape.
+- `updated` timestamps are normalized to UTC on load and persisted in
+  canonical UTC form so comparison and serialization remain stable across
+  time zones.
 - The next mutation through `state set` persists the v2 shape, including
   the `state_schema_version: "2.0"` header. This makes the migration
   "write-triggered" rather than global, which matches existing conventions
@@ -270,9 +302,9 @@ The following fields are computed on read and never persisted:
 
 | Field           | Type     | Meaning                                                                                                                    |
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `ready`         | boolean  | `true` iff `impl_state` is `Not Started`, `depends_on` and `blocked_by` are empty or resolve to entries whose `impl_state` is `Done`. |
-| `open_blockers` | string[] | Subset of `depends_on ∪ blocked_by` whose targets are not `Done`. Sorted lexicographically. Used by `state blockers`.      |
-| `unblocks`      | string[] | Document IDs whose `depends_on` or `blocked_by` lists reference this entry. Sorted lexicographically.                      |
+| `ready`         | boolean  | `true` iff `impl_state` is `Not Started`, `depends_on` and `blocked_by` are empty or resolve to entries whose `impl_state` is `Done`. Always emitted. |
+| `open_blockers` | string[] | Subset of `depends_on ∪ blocked_by` whose targets are not `Done`. Sorted lexicographically. Always emitted as an array, possibly empty. |
+| `unblocks`      | string[] | Document IDs whose `depends_on` or `blocked_by` lists reference this entry. Sorted lexicographically. Always emitted as an array, possibly empty. |
 
 Derivation rules are deterministic and purely a function of the stored
 state plus the Phase 2 index. No wall-clock, filesystem mtime, or
@@ -303,11 +335,15 @@ the readiness semantics.
 3. Add a `DerivedStateView` helper (new module or co-located) that takes
    a `ProjectState` plus the index graph and produces `ready`,
    `open_blockers`, and `unblocks` for each entry.
-4. Update `save_project_state` to emit `state_schema_version` and to
+4. Add a strict repo-config and state-path resolution helper for state
+   commands so the queue layer fails fast on missing or malformed repo
+   configuration instead of guessing defaults or falling back to the
+   default docs path.
+5. Update `save_project_state` to emit `state_schema_version` and to
    serialize the new fields only when they deviate from their default.
-5. Update `load_project_state` to accept both legacy and v2 files and
+6. Update `load_project_state` to accept both legacy and v2 files and
    normalize to v2 in memory.
-6. Document the v2 schema in the new FDD (§2.2) before any mutation or
+7. Document the v2 schema in the new FDD (§2.2) before any mutation or
    query code lands.
 
 Acceptance criteria:
@@ -360,6 +396,10 @@ Mutation rules:
   alphabetical `document_id` sort on save already guarantees this.
 - Setting any planning field on a v1 file triggers the write-time
   migration to v2 (see §3.1.1).
+- For each planning field family (`depends_on`, `blocked_by`), exactly
+  one mutation mode is permitted per invocation: replace, additive, or
+  clear/remove. Mixed modes on the same field must be rejected rather
+  than inferred by flag order.
 
 #### 3.2.2 Validation rules
 
@@ -367,15 +407,25 @@ Validation runs at mutation time and at read time. Fatal violations
 return a non-zero exit code; non-fatal advisories are emitted through
 `warnings[]` and `advice[]`.
 
+Planning-field codes (`STATE_INVALID_PRIORITY`, `STATE_FIELD_TOO_LONG`,
+`STATE_INVALID_DEPENDENCY_ID`, `STATE_SELF_DEPENDENCY`) use **dual
+severity**: fatal when writing (mutation rejected by `state set`);
+warning when reading (emitted through `warnings[]` by `state list`,
+`state next`, `state blockers`, and `index` — command succeeds with
+exit code 0). This is consistent with SPEC-006 and the
+`ERROR_EXPLANATIONS` entries for these codes.
+
 | Rule                                        | Code                            | Severity | Description                                                                                                                      |
 | ------------------------------------------- | ------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Unknown priority value                      | `STATE_INVALID_PRIORITY`        | fatal    | `priority` is not one of `P0..P3`.                                                                                               |
+| Unknown priority value                      | `STATE_INVALID_PRIORITY`        | dual     | `priority` is not one of `P0..P3`. Fatal on write; warning on read.                                                              |
 | Malformed dependency ID                     | `STATE_INVALID_DEPENDENCY_ID`   | fatal    | An entry in `depends_on` or `blocked_by` does not match `<PREFIX>-<TYPE>-<NNN>` shape.                                           |
 | Self-dependency                             | `STATE_SELF_DEPENDENCY`         | fatal    | An entry references its own `document_id` in `depends_on` or `blocked_by`.                                                       |
 | Dangling dependency target                  | `STATE_UNDEFINED_DEPENDENCY`    | warning  | A dependency target is not present in the index `nodes` array. The entry is still written; the warning is attached to the run. |
 | Dependency cycle                            | `STATE_DEPENDENCY_CYCLE`        | fatal    | Following `depends_on ∪ blocked_by` edges from any entry produces a cycle.                                                       |
 | Dependency with mismatched status           | `STATE_DEPENDENCY_STATUS_CONFLICT` | advice | Entry A is `Done` but lists B in `depends_on`/`blocked_by` where B is not `Done`. Advisory only; emitted through `advice[]`.   |
-| `assignee` or `next_action` exceeds bounds  | `STATE_FIELD_TOO_LONG`          | fatal    | Length exceeds 120 characters for `assignee` or `MAX_NOTES_LENGTH` for `next_action`.                                            |
+| `assignee` or `next_action` exceeds bounds  | `STATE_FIELD_TOO_LONG`          | dual     | Length exceeds 120 for `assignee` or `MAX_NOTES_LENGTH` for `next_action`. Fatal on write; warning on read.                      |
+| Mixed mutation modes                        | `STATE_MIXED_MUTATION_MODE`     | fatal    | More than one mutation mode (replace/add-remove/clear) specified for the same field family.                                      |
+| Invalid filter value                        | `E_INVALID_FILTER_VALUE`        | fatal    | An invalid value was supplied for `--impl-state`, `--priority`, or `--priority-at-least` filter flags.                            |
 
 Cycle detection uses the same iterative-with-visited-set pattern used by
 `GRAPH_SUPERSESSION_CYCLE` in Phase 2 (see MEMINIT-PLAN-011 §3.3.2). It
@@ -386,6 +436,10 @@ All `STATE_*` codes are added to `ErrorCode` in
 `ERROR_EXPLANATIONS` entry so `meminit explain STATE_<CODE>` returns
 actionable guidance. Fatal codes map to `EX_DATAERR` via
 `exit_code_for_error` in `src/meminit/core/services/exit_codes.py`.
+Malformed state YAML / schema violations that prevent parsing still
+raise the existing `E_STATE_YAML_MALFORMED` and
+`E_STATE_SCHEMA_VIOLATION` codes; query commands do not guess their way
+through those cases.
 
 #### 3.2.3 Migration posture
 
@@ -413,12 +467,15 @@ actionable guidance. Fatal codes map to `EX_DATAERR` via
 4. Implement validation as a pure function
    `validate_planning_fields(entry, known_ids, all_entries) -> Violations`
    so it can be reused by mutation, read, and query paths.
-5. Update the existing state unit tests in
+5. Normalize `updated` to UTC at load/save boundaries and compare
+   parsed datetimes in the selection path so ordering is stable across
+   time zones.
+6. Update the existing state unit tests in
    `tests/core/services/test_project_state.py` to cover: (a) v1→v2
    round-trip, (b) default omission on write, (c) each validation rule
    with one passing and one failing fixture, (d) deterministic sort of
    `depends_on` and `blocked_by`.
-6. Extend the contract-matrix test so `state set` with the new flags
+7. Extend the contract-matrix test so `state set` with the new flags
    emits a schema-valid v3 envelope.
 
 Acceptance criteria:
@@ -459,10 +516,14 @@ Three additions:
 
 All three commands use `agent_repo_options()` (thus inherit `--root`,
 `--format`, `--output`, `--include-timestamp`, `--correlation-id`,
-`--log-silence`) and never write to the filesystem. Exit code is
-`EX_SUCCESS` (0) for all query outcomes, including an empty queue. A
-missing state file is reported through `data` (not as an error) so
+`--log-silence`) and never write to the filesystem. They require an
+initialized repository config and fail fast with `CONFIG_MISSING` when
+`docops.config.yaml` is missing or malformed. Missing
+`project-state.yaml` is reported through `data` (not as an error) so
 agents can distinguish "file missing" from "file present but empty".
+Malformed YAML or schema violations in `project-state.yaml` remain
+fatal and use the existing `E_STATE_*` codes rather than being guessed
+through.
 
 Additional flags per command:
 
@@ -478,7 +539,9 @@ Additional flags per command:
 | `state list`         | `--impl-state <value>` (repeatable)   | Filter by `impl_state` (union). Already partially present; this workstream finalises the set.                 |
 
 Mutually exclusive flag pairs (e.g. `--ready` with `--no-ready`) are
-rejected with an `E_INVALID_FILTER_VALUE` usage error.
+rejected with an `E_INVALID_FILTER_VALUE` usage error. `--ready` and
+`--blocked` are also mutually exclusive with each other, because a
+single entry cannot satisfy both predicates simultaneously.
 
 #### 3.3.2 Readiness algorithm
 
@@ -512,8 +575,9 @@ well-defined winner.
    currently-blocked entries wins. `unblocks` is the derived field from
    §3.1.3.
 3. **`updated` ascending.** The entry with the oldest `updated`
-   timestamp wins (stalest first). Timestamps are compared as ISO-8601
-   strings, which are already total-ordered by the existing serializer.
+   timestamp wins (stalest first). Timestamps are compared after
+   normalizing to UTC datetime values, and the serializer persists
+   canonical UTC values to keep ordering stable across time zones.
 4. **`document_id` ascending.** Final lexicographic tie-breaker.
 
 Rule (2) is a pure function of the stored `depends_on` and `blocked_by`
@@ -623,18 +687,22 @@ Each ships a complete `ERROR_EXPLANATIONS` entry.
    `src/meminit/cli/main.py`, wired through `command_output_handler`.
 2. Extend the existing `state list` Click command with the new filter
    flags. Reject conflicting flag pairs with
-   `E_INVALID_FILTER_VALUE`.
-3. Implement the readiness, next-selection, and blockers algorithms as
+   `E_INVALID_FILTER_VALUE`, including contradictory ready/blocked
+   combinations.
+3. Add a shared repo-initialization guard to the query commands so they
+   fail fast on missing or malformed repo config instead of guessing
+   defaults.
+4. Implement the readiness, next-selection, and blockers algorithms as
    pure functions on `DerivedStateView`. Keep each function under the
    40-line soft limit.
-4. Register `state next` and `state blockers` with
+5. Register `state next` and `state blockers` with
    `register_capability(needs_root=True, agent_facing=True)` in
    `src/meminit/cli/shared_flags.py`. Update the contract-matrix test
    to cover the new commands.
-5. Add both commands to the repo-aware enum in
+6. Add both commands to the repo-aware enum in
    `src/meminit/core/assets/agent-output.schema.v3.json` and its
    docs-tree copy at `docs/20-specs/agent-output.schema.v3.json`.
-6. Add the `STATE_*` codes (those not already added in Workstream B)
+7. Add the `STATE_*` codes (those not already added in Workstream B)
    to `ErrorCode`, `ERROR_EXPLANATIONS`, and the exit-code mapping.
 
 Acceptance criteria:
@@ -680,9 +748,9 @@ Phase 4 adds the new planning fields and the `ready` derived flag:
 | `blocked_by`     | project-state  | Same rule.                                                                                  |
 | `assignee`       | project-state  | Omitted when unset.                                                                         |
 | `next_action`    | project-state  | Omitted when unset.                                                                         |
-| `ready`          | derived        | Boolean. Always emitted when the entry has any planning field set or is `Not Started`.       |
-| `open_blockers`  | derived        | Sorted list. Omitted when empty.                                                            |
-| `unblocks`       | derived        | Sorted list. Omitted when empty.                                                            |
+| `ready`          | derived        | Boolean. Always emitted.                                                                    |
+| `open_blockers`  | derived        | Sorted list. Always emitted as an array, possibly empty.                                     |
+| `unblocks`       | derived        | Sorted list. Always emitted as an array, possibly empty.                                     |
 
 Determinism rules:
 
@@ -761,16 +829,28 @@ Acceptance criteria:
 
 Problem:
 
-- Without an enumerated fixture set, readiness and selection
+- Without an enumerated fixture strategy, readiness and selection
   regressions can ship unnoticed, especially for the ordering and
   cycle-detection branches.
 
+Fixture strategy:
+
+- Use deterministic, code-generated fixture builders in the test tree
+  rather than large checked-in synthetic repos.
+- Keep the scenario definitions compact and self-documenting; a short
+  note per scenario is enough to explain what behavior it covers.
+- Prefer the same render and normalization paths as production code so
+  fixture output matches the actual runtime contract.
+- Only reach for checked-in file trees when a scenario genuinely needs
+  byte-level preservation of a specific file layout.
+
 #### 3.5.1 Required fixture scenarios
 
-Each fixture is a self-contained repo state under
-`tests/fixtures/state/<scenario-id>/`. Every scenario exercises at
-least `state list` (summary shape) and, where relevant, `state next`,
-`state blockers`, and `meminit index` (for Workstream D integration).
+Each fixture is a self-contained repo state materialized by the fixture
+builder under `tests/fixtures/state/` (or the equivalent workstream
+test module). Every scenario exercises at least `state list` (summary
+shape) and, where relevant, `state next`, `state blockers`, and
+`meminit index` (for Workstream D integration).
 
 | ID  | Scenario                                                                                          | Expected outcome                                                                                              |
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -799,7 +879,7 @@ least `state list` (summary shape) and, where relevant, `state next`,
 
 1. Add a fixture loader helper under
    `tests/integration/test_state_queries.py` that materialises
-   scenarios into `tmp_path` from the fixture directory.
+   scenarios into `tmp_path` from the fixture builder.
 2. Parametrize `test_state_next_selection` over Q02–Q16 and assert:
    `data.entry.document_id`, `data.reason`, `data.selection.rule`, and
    exit code.
@@ -820,8 +900,8 @@ least `state list` (summary shape) and, where relevant, `state next`,
 
 Acceptance criteria:
 
-1. All 20 fixture scenarios are checked into the repo with a short
-   README note on what each demonstrates.
+1. All 20 fixture scenarios are defined in deterministic builders and
+   documented with short scenario notes on what each demonstrates.
 2. Every `STATE_*` error code introduced by this phase is exercised
    by at least one fixture.
 3. The contract-matrix includes `state next` and `state blockers`
@@ -846,9 +926,8 @@ Implementation tasks:
 3. Update MEMINIT-PRD-007 per §3.4.2–§3.4.3.
 4. Update MEMINIT-SPEC-006 with the new `STATE_*` codes and the
    normative `explain` semantics.
-5. Extend the agent-output contract spec (or create one if the scope
-   is clean enough) so the repo-aware command enum covers `state next`
-   and `state blockers`. Mirror the change in both
+5. Extend `MEMINIT-SPEC-008` so the repo-aware command enum covers
+   `state next` and `state blockers`. Mirror the change in both
    `src/meminit/core/assets/agent-output.schema.v3.json` and the
    docs-tree copy.
 6. Create or extend the "Agent Integration and Upgrade Workflow"
@@ -863,6 +942,8 @@ Implementation tasks:
    commands and the work-queue loop pattern.
 8. Update planning docs if the phase boundary shifts materially during
    delivery.
+9. Use the fixture builder approach by default; add checked-in file
+   trees only for scenarios that require byte-level path preservation.
 
 Acceptance criteria:
 
@@ -902,16 +983,18 @@ To preserve the repository's atomic-unit rule and keep reviewable
 scope small, Phase 4 should land as small PRs:
 
 1. **Schema + v1→v2 read path** — `state_schema_version`, extended
-   `ProjectStateEntry`, `DerivedStateView`, v1 acceptance on read,
-   unit tests for round-trip and defaults. FDD scaffold.
+   `ProjectStateEntry`, canonical UTC timestamp handling,
+   `DerivedStateView`, v1 acceptance on read, unit tests for round-trip
+   and defaults. FDD scaffold.
 2. **`state set` extensions + `STATE_*` codes** — new flags,
    validation (`STATE_INVALID_PRIORITY`, `STATE_INVALID_DEPENDENCY_ID`,
    `STATE_SELF_DEPENDENCY`, `STATE_DEPENDENCY_CYCLE`,
    `STATE_FIELD_TOO_LONG`), explain entries, exit-code mapping,
    contract-matrix pass for `state set`.
 3. **`state next` + `state blockers`** — new commands, readiness and
-   selection algorithms, JSON payload schemas, capability registry
-   and envelope enum updates, determinism tests (Q02–Q16).
+   selection algorithms, JSON payload schemas, capability registry and
+   envelope enum updates, repo-init guard, determinism tests
+   (Q02–Q16).
 4. **`state list` filter extensions + advisory code** — `--ready`,
    `--blocked`, `--assignee`, `--priority`, plus
    `STATE_DEPENDENCY_STATUS_CONFLICT` advisory and Q17.
@@ -937,13 +1020,16 @@ Phase 4 can be considered complete when all of the following are true:
    with a `STATE_*` code (Workstream B).
 4. `meminit state next` implements the readiness filter and
    selection algorithm in §3.3.2–§3.3.3, returns the payload shape in
-   §3.3.5, and is byte-stable across runs (Workstream C).
+   §3.3.5, and is byte-stable across runs with canonical UTC timestamp
+   ordering (Workstream C).
 5. `meminit state blockers` returns the payload shape in §3.3.5 with
    sorted entries and one-level-deep blocker resolution (Workstream C).
 6. `meminit state list` accepts the filter flags in §3.3.1 and
    surfaces `ready`, `open_blockers`, and `unblocks` on every entry
    (Workstream C).
-7. The seven `STATE_*` error codes in §3.2.2 and §3.3.6 are registered
+ 7. The nine `STATE_*`/`E_STATE_*` error codes (seven `STATE_*` plus
+    `E_STATE_YAML_MALFORMED` and `E_STATE_SCHEMA_VIOLATION`) in §3.2.2 and §3.3.6
+    are registered
    in `ErrorCode`, have complete `ERROR_EXPLANATIONS` entries
    reachable via `meminit explain`, and map to the correct exit
    codes (Workstreams B and C).
@@ -962,9 +1048,12 @@ Phase 4 can be considered complete when all of the following are true:
 12. The governed document outputs listed in §2.2 are complete and
     aligned with the shipped behavior, including the bundled
     `meminit-docops` skill reference (Workstream F).
-13. The external testbed validates the work-queue loop end-to-end:
-    `state next` → work → `state set` → `state next` returns a
-    different or empty entry.
+13. The queue cycle `state next → work → state set → state next` is verified
+    deterministically by the Q01–Q20 fixture matrix (specifically Q08 and Q09)
+    and by the `state next` example in MEMINIT-RUNBOOK-006 §3.
+14. `meminit state*` commands fail fast with `CONFIG_MISSING` on
+    missing or malformed repo config and do not guess defaults, while a
+    missing `project-state.yaml` remains a documented empty-state case.
 
 ## 6. Version History
 
@@ -973,3 +1062,9 @@ Phase 4 can be considered complete when all of the following are true:
 | 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
 | 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 4 workstreams, sequencing, and exit criteria |
 | 0.3 | 2026-04-18 | Augment Agent | Rewrote against MEMINIT-PLAN-011 and MEMINIT-PLAN-012 quality bar: concrete v2 state schema with `state_schema_version`, five planning fields and three derived fields; explicit `state set` mutation surface with additive/remove/clear flag families; deterministic readiness and next-selection algorithms with total ordering; `STATE_*` error-code registry and exit-code mapping; JSON payload shapes for `state next`, `state blockers`, and extended `state list`; index, catalog, and kanban alignment rules; 20-scenario fixture matrix with explicit determinism tests; engineering constraints section anchoring the work to existing modules; governed-document outputs table for closeout; PR slicing guidance; and concrete exit criteria tied to specific files, classes, and commands |
+| 0.4 | 2026-04-21 | Codex | Tightened Phase 4 for implementation safety and deliverability: explicit repo-initialization boundary for all state commands, canonical UTC handling for `updated` timestamps, mutually exclusive state mutation/filter modes, fatal handling for malformed state YAML/schema violations, always-emitted derived readiness fields, and clearer PR slicing and exit criteria for the queue workflow. |
+| 0.5 | 2026-04-21 | Codex | Aligned the handoff with the shipped contract docs: added explicit TDD/QA gates, normalized the fixture strategy to deterministic builders, and pinned queue work references to MEMINIT-SPEC-008 and MEMINIT-RUNBOOK-006. |
+| 0.6 | 2026-04-21 | Codex | Final wording pass: removed ambiguous contract/runbook alternatives and aligned the plan with the single canonical queue contract and runbook targets. |
+| 0.7 | 2026-04-22 | Codex | Phase 4 gap remediation (round 1): BV-1 mixed-mode rejection, BV-2 warning envelope correctness, BV-3 fixture matrix Q01–Q20, AR-1 decomposition, AR-2 byte-stability, AR-3 kanban decomposition, GG-1–GG-4 docs closeout. *(test-count claim removed in v0.8)* |
+| 0.8 | 2026-04-23 | Codex | Second audit remediation: BV-C XSS gate in kanban priority rendering, BV-A metadata drift corrected, BV-B exit criterion #13 scope correction (Q01–Q20 + RUNBOOK-006 §3), GG-A warning-code consolidation, GG-C stale test count removed. |
+| 0.9 | 2026-04-23 | Codex | Third audit remediation: AR-new-2 double-emission dedup, AR-new-3 P2 index fidelity, GG-new-1 SPEC-008 advice shape, GG-new-2 line:0 omission, AR-new-1 decomposition, GG-new-3 error-code registry correction, AR-new-4 errata marker. |
