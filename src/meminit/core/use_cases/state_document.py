@@ -432,18 +432,24 @@ class StateDocumentUseCase:
         )
         fatal_issues = [i for i in validation_issues if i.severity == "fatal"]
         if fatal_issues:
+            summary = "; ".join(i.message for i in fatal_issues)
+            details = [{"code": i.code, "message": i.message} for i in fatal_issues]
             raise MeminitError(
                 code=ErrorCode(fatal_issues[0].code),
-                message=fatal_issues[0].message,
+                message=f"({len(fatal_issues)} violation(s)): {summary}",
+                details={"violations": details},
             )
 
         temp_state = ProjectState(entries=dict(state.entries))
         temp_state.set_entry(entry)
         cycle_issues = check_dependency_cycle(temp_state.entries)
         if cycle_issues:
+            summary = "; ".join(i.message for i in cycle_issues)
+            details = [{"code": i.code, "message": i.message} for i in cycle_issues]
             raise MeminitError(
                 code=ErrorCode.STATE_DEPENDENCY_CYCLE,
-                message=cycle_issues[0].message,
+                message=f"({len(cycle_issues)} cycle(s)): {summary}",
+                details={"violations": details},
             )
 
         if existing and _entry_is_idempotent(existing, entry):
@@ -567,7 +573,7 @@ class StateDocumentUseCase:
                 action="next",
                 entry=None,
                 reason="state_missing",
-                selection={"rule": None, "candidates_considered": 0, "filter": {}},
+                selection={"rule": "priority > unblocks > updated > document_id", "candidates_considered": 0, "filter": {}},
             )
 
         if priority_at_least is not None and priority_at_least not in VALID_PRIORITIES:
@@ -613,6 +619,7 @@ class StateDocumentUseCase:
             )
 
         known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
+        fs_known = _get_known_ids(self._root_dir)
         derived = compute_derived_fields(state, known_ids)
 
         blocked_list: List[Dict[str, Any]] = []
@@ -632,7 +639,7 @@ class StateDocumentUseCase:
                 blocker_details.append({
                     "id": blocker_id,
                     "impl_state": blocker_entry.impl_state if blocker_entry else None,
-                    "known": blocker_id in known_ids,
+                    "known": blocker_id in fs_known,
                 })
             blocked_list.append({
                 "document_id": doc_id,

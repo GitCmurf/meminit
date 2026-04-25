@@ -656,6 +656,7 @@ def test_cli_state_blockers_md_escapes_assignee_html(repo_with_docs):
     ])
     assert result.exit_code == 0
     assert "<img" not in result.output
+    assert "&lt;img" in result.output
 
 
 def test_cli_state_next_md_escapes_backslash(repo_with_docs):

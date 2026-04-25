@@ -459,12 +459,12 @@ def _generate_catalog(
 # ---------------------------------------------------------------------------
 
 _KANBAN_COLUMNS = ["Not Started", "In Progress", "Blocked", "QA Required", "Done"]
-_PRIORITY_RANK = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 
 
 def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
+    from meminit.core.services.state_derived import PRIORITY_RANK
     priority = entry.get("priority", "P2") or "P2"
-    priority_rank = _PRIORITY_RANK.get(priority, 2)
+    priority_rank = PRIORITY_RANK.get(priority, PRIORITY_RANK["P2"])
     unblocks_count = -len(entry.get("unblocks", []))
     updated_str = entry.get("updated", "")
     try:

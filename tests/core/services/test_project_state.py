@@ -341,7 +341,7 @@ def test_validate_valid_priority_no_warning(tmp_path):
     state = ProjectState()
     for p in ("P0", "P1", "P2", "P3"):
         state.set_entry(ProjectStateEntry(
-            document_id=f"MEMINIT-PRD-{p[1]}",
+            document_id=f"MEMINIT-PRD-00{p[1]}",
             impl_state="Not Started",
             updated=datetime.now(timezone.utc),
             updated_by="test",
@@ -350,7 +350,7 @@ def test_validate_valid_priority_no_warning(tmp_path):
 
     issues = validate_project_state(
         state,
-        known_doc_ids={"MEMINIT-PRD-0", "MEMINIT-PRD-1", "MEMINIT-PRD-2", "MEMINIT-PRD-3"},
+        known_doc_ids={"MEMINIT-PRD-000", "MEMINIT-PRD-001", "MEMINIT-PRD-002", "MEMINIT-PRD-003"},
         root_dir=tmp_path,
     )
     codes = [v.rule for v in issues]

@@ -123,6 +123,19 @@ def test_set_next_action_newline_raises_invalid_format(tmp_path):
     assert exc_info.value.code == ErrorCode.STATE_FIELD_INVALID_FORMAT
 
 
+def test_set_aggregates_multiple_fatal_violations(tmp_path):
+    """Multiple planning-field fatals are aggregated, not just the first."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.set_state(
+            "MEMINIT-ADR-001", impl_state="Not Started",
+            depends_on=["MEMINIT-ADR-001", "!!!invalid-id"],
+        )
+    assert "2 violation(s)" in exc_info.value.message
+    assert exc_info.value.details is not None
+    assert len(exc_info.value.details["violations"]) == 2
+
+
 def test_get_document_state(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Done")
@@ -304,6 +317,15 @@ def test_actor_resolution_env_var(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     result = use_case.set_state("MEMINIT-ADR-001", impl_state="Done")
     assert result.entry["updated_by"] == "ci-bot"
+
+
+def test_next_state_missing_file_returns_string_rule(tmp_path):
+    """selection.rule must be a string even when state file is absent."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.next_state()
+    assert result.reason == "state_missing"
+    assert isinstance(result.selection["rule"], str)
+    assert ">" in result.selection["rule"]
 
 
 def test_next_state_skips_invalid_priority_in_state_file(tmp_path):
@@ -574,3 +596,18 @@ def test_list_states_warns_on_unknown_doc_id_in_state(tmp_path):
     assert result.warnings is not None
     codes = [w["code"] for w in result.warnings]
     assert "W_STATE_UNKNOWN_DOC_ID" in codes
+
+
+def test_blockers_state_known_reflects_filesystem_only(tmp_path):
+    """blocker_details['known'] must reflect filesystem existence, not state entries."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                       add_depends_on=["MEMINIT-ADR-999"])
+    use_case.set_state("MEMINIT-ADR-999", impl_state="Not Started")
+
+    result = use_case.blockers_state()
+    assert result.blocked
+    blocker = result.blocked[0]
+    stale_blocker = [b for b in blocker["open_blockers"] if b["id"] == "MEMINIT-ADR-999"]
+    assert stale_blocker
+    assert stale_blocker[0]["known"] is False
