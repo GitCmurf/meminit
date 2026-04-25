@@ -469,7 +469,7 @@ def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
     updated_str = entry.get("updated", "")
     try:
         updated_dt = datetime.fromisoformat(updated_str)
-        updated_ts = -updated_dt.astimezone(timezone.utc).timestamp()
+        updated_ts = updated_dt.astimezone(timezone.utc).timestamp()
     except (ValueError, TypeError):
         updated_ts = 0.0
     doc_id = entry.get("document_id", "")

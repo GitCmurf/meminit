@@ -167,15 +167,17 @@ def _collect_read_validation_warnings(
     if state is None or not state.entries:
         return [], set()
     from meminit.core.services.project_state import validate_project_state
+    from meminit.core.services.state_derived import (
+        check_dependency_cycle,
+        validate_planning_fields,
+    )
 
     known_ids = _get_known_ids(root_dir)
     issues = validate_project_state(state, known_ids, root_dir)
-    if not issues:
-        return [], set()
     state_path = get_state_file_rel_path(root_dir)
     warnings: List[Dict[str, Any]] = []
     skip_doc_ids: Set[str] = set()
-    found_invalid_priority = False
+
     for v in issues:
         w: Dict[str, Any] = {
             "code": v.rule,
@@ -185,12 +187,37 @@ def _collect_read_validation_warnings(
         if v.line:
             w["line"] = v.line
         warnings.append(w)
-        if v.rule == ErrorCode.STATE_INVALID_PRIORITY.value:
-            found_invalid_priority = True
-    if found_invalid_priority:
-        for doc_id, entry in state.entries.items():
-            if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
-                skip_doc_ids.add(doc_id)
+
+    for doc_id, entry in state.entries.items():
+        if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
+            skip_doc_ids.add(doc_id)
+
+    for doc_id, entry in state.entries.items():
+        if doc_id in skip_doc_ids:
+            continue
+        planning_issues = validate_planning_fields(entry, known_ids, state.entries)
+        for pi in planning_issues:
+            if pi.severity != "fatal":
+                continue
+            if pi.code == "STATE_INVALID_PRIORITY":
+                continue
+            warnings.append({
+                "code": pi.code,
+                "message": pi.message,
+                "path": state_path,
+            })
+            skip_doc_ids.add(doc_id)
+
+    cycle_issues = check_dependency_cycle(state.entries)
+    for ci in cycle_issues:
+        warnings.append({
+            "code": ci.code,
+            "message": ci.message,
+            "path": state_path,
+        })
+
+    if not warnings:
+        return [], set()
     return warnings, skip_doc_ids
 
 
@@ -878,7 +905,7 @@ def _entry_is_idempotent(
     return (
         existing.impl_state == new.impl_state
         and existing.notes == new.notes
-        and existing.priority == new.priority
+        and (existing.priority or DEFAULT_PRIORITY) == (new.priority or DEFAULT_PRIORITY)
         and existing.depends_on == new.depends_on
         and existing.blocked_by == new.blocked_by
         and existing.assignee == new.assignee

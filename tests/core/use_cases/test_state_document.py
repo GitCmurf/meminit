@@ -41,6 +41,19 @@ def test_set_existing_document_updates_fields(tmp_path):
     assert result3.entry["notes"] == "V2"
 
 
+def test_set_default_priority_is_idempotent(tmp_path):
+    """Setting P2 (the default) on an entry with no stored priority should be a no-op."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    r1 = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    mtime1 = state_file.stat().st_mtime
+
+    r2 = use_case.set_state("MEMINIT-ADR-001", priority="P2")
+    assert r2.action == "set"
+    mtime2 = state_file.stat().st_mtime
+    assert mtime2 == mtime1
+
+
 def test_set_canonicalizes_impl_state(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     result = use_case.set_state("MEMINIT-ADR-001", impl_state="qa required")
@@ -611,3 +624,49 @@ def test_blockers_state_known_reflects_filesystem_only(tmp_path):
     stale_blocker = [b for b in blocker["open_blockers"] if b["id"] == "MEMINIT-ADR-999"]
     assert stale_blocker
     assert stale_blocker[0]["known"] is False
+
+
+def _write_state_with_self_dependency(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
+
+
+def test_list_states_warns_on_self_dependency(tmp_path):
+    """Self-dependency in state produces a warning on read."""
+    _write_state_with_self_dependency(tmp_path)
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.list_states()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_SELF_DEPENDENCY" in codes
+
+
+def test_next_state_warns_on_self_dependency(tmp_path):
+    """Self-dependency in state produces a warning from state next."""
+    _write_state_with_self_dependency(tmp_path)
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.next_state()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_SELF_DEPENDENCY" in codes
+
+
+def test_blockers_state_warns_on_dependency_cycle(tmp_path):
+    """Dependency cycle in state produces a warning from state blockers."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                       add_depends_on=["MEMINIT-ADR-002"])
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
+
+    result = use_case.blockers_state()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_DEPENDENCY_CYCLE" in codes

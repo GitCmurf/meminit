@@ -1086,9 +1086,9 @@ def test_index_invalid_priority_single_warning(tmp_path):
     )
 
 
-def test_kanban_sort_key_recent_first():
-    """More recently updated entries sort before older ones (inverted timestamp)."""
+def test_kanban_sort_key_oldest_first():
+    """Older entries sort before newer ones (matches state next queue contract)."""
     from meminit.core.use_cases.index_repository import _kanban_sort_key
     newer = {"priority": "P2", "unblocks": [], "updated": "2026-04-20T12:00:00Z", "document_id": "A-001"}
     older = {"priority": "P2", "unblocks": [], "updated": "2026-04-19T12:00:00Z", "document_id": "A-002"}
-    assert _kanban_sort_key(newer) < _kanban_sort_key(older)
+    assert _kanban_sort_key(older) < _kanban_sort_key(newer)
