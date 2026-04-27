@@ -21,7 +21,8 @@ def repo_with_docs(tmp_path):
     
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n"
-        "document_types:\n  ADR: {directory: docs/adr}\n"
+        "namespaces:\n  default:\n    docs_root: docs\n    prefix: TEST\n"
+        "    type_directories:\n      ADR: adr\n"
     )
     
     adr_dir = tmp_path / "docs" / "adr"
@@ -44,8 +45,8 @@ def test_cli_state_set_notes_only(repo_with_docs):
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["success"] is True
-    assert data["data"]["entry"]["impl_state"] == "In Progress"
-    assert data["data"]["entry"]["notes"] == "Updated notes"
+    assert data["data"]["impl_state"] == "In Progress"
+    assert data["data"]["notes"] == "Updated notes"
 
 def test_cli_index_filtering_does_not_persist(repo_with_docs):
     """P1 Regression: Filtered index run should not overwrite the canonical index file with a subset."""
@@ -134,7 +135,7 @@ def test_cli_state_set_priority(repo_with_docs):
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["success"] is True
-    assert data["data"]["entry"]["priority"] == "P0"
+    assert data["data"]["priority"] == "P0"
 
 
 def test_cli_state_set_text_shows_planning_fields(repo_with_docs):
@@ -169,8 +170,8 @@ def test_cli_state_set_assignee_and_next_action(repo_with_docs):
     ])
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
-    assert data["data"]["entry"]["assignee"] == "agent:codex"
-    assert data["data"]["entry"]["next_action"] == "Implement schema"
+    assert data["data"]["assignee"] == "agent:codex"
+    assert data["data"]["next_action"] == "Implement schema"
 
 
 def test_cli_state_next_empty_queue(repo_with_docs):
@@ -245,8 +246,8 @@ def test_cli_state_set_depends_on_additive(repo_with_docs):
     ])
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
-    assert "TEST-ADR-002" in data["data"]["entry"]["depends_on"]
-    assert "TEST-ADR-003" in data["data"]["entry"]["depends_on"]
+    assert "TEST-ADR-002" in data["data"]["depends_on"]
+    assert "TEST-ADR-003" in data["data"]["depends_on"]
 
 
 def test_cli_state_next_rejects_invalid_priority_at_least(repo_with_docs):
@@ -672,6 +673,82 @@ def test_cli_state_next_md_escapes_backslash(repo_with_docs):
     assert "\\\\ text" in result.output
 
 
+def test_cli_state_list_md_escapes_warning_message(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs, priority="P*bold*")
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "\\*bold\\*" in result.output
+    assert "P*bold*" not in result.output.replace("\\*", "")
+
+
+def test_cli_state_next_md_escapes_warning_message(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs, priority="P*bold*")
+    result = runner.invoke(cli, [
+        "state", "next", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "\\*bold\\*" in result.output
+    assert "P*bold*" not in result.output.replace("\\*", "")
+
+
+def test_cli_state_blockers_md_escapes_warning_message(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs, priority="P*bold*")
+    result = runner.invoke(cli, [
+        "state", "blockers", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "\\*bold\\*" in result.output
+    assert "P*bold*" not in result.output.replace("\\*", "")
+
+
+def test_cli_state_blockers_md_escapes_document_id_heading(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "blockers", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    heading_line = [l for l in result.output.splitlines() if l.startswith("## ") and "Blocked" not in l and "Warnings" not in l]
+    assert any("TEST-ADR-001" in l for l in heading_line)
+
+
+def test_cli_state_blockers_md_escapes_impl_state_in_blocker_detail(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "In Progress",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "blockers", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    blocker_lines = [l for l in result.output.splitlines() if "TEST-ADR-002" in l and "unknown" in l]
+    assert len(blocker_lines) >= 1
+
+
 # ---------------------------------------------------------------------------
 # Read-path validation: warnings in JSON envelope (PR-U)
 # ---------------------------------------------------------------------------
@@ -719,3 +796,166 @@ def test_cli_state_blockers_json_includes_validation_warnings(repo_with_docs):
     assert "warnings" in data
     codes = [w["code"] for w in data["warnings"]]
     assert "STATE_INVALID_PRIORITY" in codes
+
+
+def test_cli_state_list_md_includes_validation_warnings(repo_with_docs):
+    """Human-readable md output surfaces validation warnings."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs)
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "STATE\\_INVALID\\_PRIORITY" in result.output
+    assert "## Warnings" in result.output
+
+
+def test_cli_state_blockers_md_includes_validation_warnings(repo_with_docs):
+    """Human-readable md blockers output surfaces validation warnings."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs)
+    result = runner.invoke(cli, [
+        "state", "blockers", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "STATE\\_INVALID\\_PRIORITY" in result.output
+    assert "## Warnings" in result.output
+
+
+def test_cli_state_set_md_escapes_assignee(repo_with_docs):
+    """User-controlled fields in state set md output are escaped."""
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--assignee", "**bold**",
+        "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "\\*\\*bold\\*\\*" in result.output
+
+
+def test_cli_state_list_tolerates_broken_repo_layout(repo_with_docs):
+    """state list succeeds with canonical fallback vocabularies when layout fails."""
+    from unittest import mock
+
+    runner = runner_no_mixed_stderr()
+    with mock.patch(
+        "meminit.core.services.repo_config.load_repo_layout",
+        side_effect=ValueError("broken config"),
+    ):
+        result = runner.invoke(cli, [
+            "state", "list", "--root", str(repo_with_docs), "--format", "json",
+        ])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    assert "Not Started" in data["data"]["valid_impl_states"]
+
+
+def test_cli_state_set_clears_notes_with_empty_string(repo_with_docs):
+    """--notes '' clears an existing notes field."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--notes", "some notes",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--notes", "",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    assert data["data"]["notes"] == ""
+
+
+def test_cli_state_set_md_renders_warnings(repo_with_docs):
+    """state set --format md surfaces warnings (e.g. undefined dependency)."""
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-999",
+        "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "## Warnings" in result.output
+    assert "STATE_UNDEFINED_DEPENDENCY" in result.output or "STATE\\_UNDEFINED\\_DEPENDENCY" in result.output
+
+
+def test_cli_state_set_console_renders_warnings(repo_with_docs):
+    """state set default (console) format surfaces warnings."""
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-999",
+        "--root", str(repo_with_docs),
+    ])
+    assert result.exit_code == 0
+    assert "Warning" in result.output
+    assert "STATE_UNDEFINED_DEPENDENCY" in result.output
+
+
+def test_cli_state_list_md_renders_advisories(repo_with_docs):
+    """state list --format md surfaces advisories (e.g. status conflict)."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Done",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-002", "--impl-state", "In Progress",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "## Advisories" in result.output
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in result.output or "STATE\\_DEPENDENCY\\_STATUS\\_CONFLICT" in result.output
+
+
+def test_cli_state_list_console_renders_advisories(repo_with_docs):
+    """state list default (console) format surfaces advisories."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Done",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-002", "--impl-state", "In Progress",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs),
+    ])
+    assert result.exit_code == 0
+    assert "Advisory" in result.output
+
+
+def test_cli_state_rejects_config_without_namespaces(tmp_path):
+    """Config with docops_version but no namespaces is rejected by state commands."""
+    gov_dir = tmp_path / "docs" / "00-governance"
+    gov_dir.mkdir(parents=True)
+    (gov_dir / "metadata.schema.json").write_text("{}")
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(tmp_path), "--format", "json",
+    ])
+    assert result.exit_code != 0
+    assert "missing_namespaces" in result.output or "namespaces" in result.output

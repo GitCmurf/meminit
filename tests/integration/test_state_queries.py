@@ -128,10 +128,26 @@ def _invoke_state_list(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
 
 # --- Fixture builder: returns (tmp_path with repo, expected) ---
 
+def _write_state_legacy(tmp_path: Path, documents: Dict[str, Dict[str, Any]]) -> Path:
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_path = state_dir / "project-state.yaml"
+    payload = {"documents": documents}
+    state_path.write_text(
+        yaml.dump(payload, default_flow_style=False, allow_unicode=True, sort_keys=True),
+        encoding="utf-8",
+    )
+    return state_path
+
+
 def _setup_q01(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+    _write_state_legacy(tmp_path, {
+        "FIX-ADR-001": {
+            "impl_state": "Not Started",
+            "updated_by": "test",
+            "updated": "2026-01-01T00:00:00+00:00",
+        },
     })
     return {"id": "Q01", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
@@ -622,3 +638,24 @@ def test_index_p2_round_trips_and_none_is_absent(tmp_path):
     nodes = {n["document_id"]: n for n in data["data"]["nodes"]}
     assert nodes["FIX-ADR-001"].get("priority") == "P2", "Explicit P2 must round-trip"
     assert "priority" not in nodes["FIX-ADR-002"], "No-priority entry must not have priority key"
+
+
+def test_q01_legacy_v1_no_migration_warning(tmp_path):
+    """Q01: Legacy v1 state file (no schema_version key) reads succeed without schema/migration warnings."""
+    _write_config(tmp_path)
+    _write_state_legacy(tmp_path, {
+        "FIX-ADR-001": {
+            "impl_state": "Not Started",
+            "updated_by": "test",
+            "updated": "2026-01-01T00:00:00+00:00",
+        },
+    })
+    data = _invoke_state_next(tmp_path)
+    assert data["success"] is True
+    assert data["data"]["entry"] is not None
+    assert data["data"]["entry"]["document_id"] == "FIX-ADR-001"
+    migration_codes = [
+        w["code"] for w in (data.get("warnings") or [])
+        if "SCHEMA" in w.get("code", "") or "MIGRATION" in w.get("code", "")
+    ]
+    assert migration_codes == [], f"Legacy v1 should not emit schema/migration warnings: {migration_codes}"

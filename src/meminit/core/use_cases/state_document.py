@@ -23,6 +23,7 @@ from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.path_utils import load_index_documents
 from meminit.core.services.project_state import (
     DEFAULT_PRIORITY,
+    STATE_SCHEMA_VERSION,
     VALID_PRIORITIES,
     ImplState,
     ProjectState,
@@ -172,8 +173,19 @@ def _collect_read_validation_warnings(
         validate_planning_fields,
     )
 
-    known_ids = _get_known_ids(root_dir)
-    issues = validate_project_state(state, known_ids, root_dir)
+    fs_known = _get_known_ids(root_dir)
+
+    from meminit.core.services.repo_config import load_repo_layout
+    try:
+        layout = load_repo_layout(root_dir)
+        valid_impl_states: Optional[List[str]] = []
+        for ns in layout.namespaces:
+            valid_impl_states.extend(ns.valid_impl_states)
+    except Exception:
+        valid_impl_states = None
+
+    issues = validate_project_state(state, fs_known, root_dir, valid_impl_states=valid_impl_states)
+    all_known = fs_known | set(state.entries.keys())
     state_path = get_state_file_rel_path(root_dir)
     warnings: List[Dict[str, Any]] = []
     skip_doc_ids: Set[str] = set()
@@ -192,21 +204,18 @@ def _collect_read_validation_warnings(
         if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
             skip_doc_ids.add(doc_id)
 
+    _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
+
     for doc_id, entry in state.entries.items():
-        if doc_id in skip_doc_ids:
-            continue
-        planning_issues = validate_planning_fields(entry, known_ids, state.entries)
+        planning_issues = validate_planning_fields(entry, all_known, state.entries)
         for pi in planning_issues:
-            if pi.severity != "fatal":
-                continue
-            if pi.code == "STATE_INVALID_PRIORITY":
+            if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                 continue
             warnings.append({
                 "code": pi.code,
                 "message": pi.message,
                 "path": state_path,
             })
-            skip_doc_ids.add(doc_id)
 
     cycle_issues = check_dependency_cycle(state.entries)
     for ci in cycle_issues:
@@ -217,7 +226,7 @@ def _collect_read_validation_warnings(
         })
 
     if not warnings:
-        return [], set()
+        return [], skip_doc_ids
     return warnings, skip_doc_ids
 
 
@@ -455,7 +464,7 @@ class StateDocumentUseCase:
         state: ProjectState,
     ) -> StateResult:
         validation_issues = validate_planning_fields(
-            entry, _get_known_ids(self._root_dir), state.entries
+            entry, _get_known_ids(self._root_dir) | set(state.entries.keys()), state.entries
         )
         fatal_issues = [i for i in validation_issues if i.severity == "fatal"]
         if fatal_issues:
@@ -480,6 +489,8 @@ class StateDocumentUseCase:
             )
 
         if existing and _entry_is_idempotent(existing, entry):
+            if state.schema_version != STATE_SCHEMA_VERSION:
+                save_project_state(self._root_dir, state)
             result_warnings = _build_result_warnings(validation_issues, self._root_dir)
             return StateResult(
                 document_id=document_id,
@@ -535,6 +546,49 @@ class StateDocumentUseCase:
         impl_state: Optional[List[str]] = None,
     ) -> StateResult:
         """List entries in project-state.yaml with optional filters and derived fields."""
+        if priority is not None:
+            invalid = [p for p in priority if p not in VALID_PRIORITIES]
+            if invalid:
+                raise MeminitError(
+                    code=ErrorCode.E_INVALID_FILTER_VALUE,
+                    message=(
+                        f"Priority filter value(s) {invalid!r} not valid. "
+                        f"Must be one of: {', '.join(VALID_PRIORITIES)}."
+                    ),
+                    details={"value": invalid, "valid_values": list(VALID_PRIORITIES)},
+                )
+
+        if impl_state is not None:
+            from meminit.core.services.repo_config import load_repo_layout
+
+            canonical_values = ImplState.canonical_values()
+            canonical_lower = {v.lower() for v in canonical_values}
+            try:
+                layout = load_repo_layout(self._root_dir)
+                seen_custom: Dict[str, str] = {}
+                for ns in layout.namespaces:
+                    for state_name in ns.valid_impl_states:
+                        lower = state_name.lower()
+                        if lower not in canonical_lower:
+                            seen_custom.setdefault(lower, state_name)
+                extra_states = list(seen_custom.values())
+            except Exception:
+                extra_states = []
+            all_valid_lower = canonical_lower | {s.lower() for s in extra_states}
+            invalid_impl = [
+                v for v in impl_state if _normalize_impl_state_value(v) not in all_valid_lower
+            ]
+            if invalid_impl:
+                all_valid_display = canonical_values + extra_states
+                raise MeminitError(
+                    code=ErrorCode.E_INVALID_FILTER_VALUE,
+                    message=(
+                        f"Impl-state filter value(s) {invalid_impl!r} not valid. "
+                        f"Must be one of: {', '.join(all_valid_display)}."
+                    ),
+                    details={"value": invalid_impl, "valid_values": all_valid_display},
+                )
+
         state = load_project_state(self._root_dir)
         self._validate_state(state)
 
@@ -548,18 +602,6 @@ class StateDocumentUseCase:
 
         known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
         derived = compute_derived_fields(state, known_ids)
-
-        if priority is not None:
-            invalid = [p for p in priority if p not in VALID_PRIORITIES]
-            if invalid:
-                raise MeminitError(
-                    code=ErrorCode.E_INVALID_FILTER_VALUE,
-                    message=(
-                        f"Priority filter value(s) {invalid!r} not valid. "
-                        f"Must be one of: {', '.join(VALID_PRIORITIES)}."
-                    ),
-                    details={"value": invalid, "valid_values": list(VALID_PRIORITIES)},
-                )
 
         entries_list, ready_count, blocked_count = _build_entries_with_derived(
             state, derived, ready, blocked, assignee, priority, impl_state,
@@ -579,7 +621,7 @@ class StateDocumentUseCase:
             document_id="*",
             action="list",
             entries=entries_list,
-            summary=_compute_list_summary(state, entries_list, ready_count, blocked_count),
+            summary=_compute_list_summary(state, entries_list, ready_count, blocked_count, skip_doc_ids),
             advice=advisory if advisory else None,
             warnings=validation_warnings if validation_warnings else None,
         )
@@ -591,6 +633,16 @@ class StateDocumentUseCase:
         priority_at_least: Optional[str] = None,
     ) -> StateResult:
         """Return the deterministically-selected next work item."""
+        if priority_at_least is not None and priority_at_least not in VALID_PRIORITIES:
+            raise MeminitError(
+                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                message=(
+                    f"Priority filter '{priority_at_least}' is not valid. "
+                    f"Must be one of: {', '.join(VALID_PRIORITIES)}."
+                ),
+                details={"value": priority_at_least, "valid_values": list(VALID_PRIORITIES)},
+            )
+
         state = load_project_state(self._root_dir)
         self._validate_state(state)
 
@@ -600,17 +652,7 @@ class StateDocumentUseCase:
                 action="next",
                 entry=None,
                 reason="state_missing",
-                selection={"rule": "priority > unblocks > updated > document_id", "candidates_considered": 0, "filter": {}},
-            )
-
-        if priority_at_least is not None and priority_at_least not in VALID_PRIORITIES:
-            raise MeminitError(
-                code=ErrorCode.E_INVALID_FILTER_VALUE,
-                message=(
-                    f"Priority filter '{priority_at_least}' is not valid. "
-                    f"Must be one of: {', '.join(VALID_PRIORITIES)}."
-                ),
-                details={"value": priority_at_least, "valid_values": list(VALID_PRIORITIES)},
+                selection={"rule": "priority > unblocks > updated > document_id", "candidates_considered": 0, "filter": _build_filter_dict(assignee, priority_at_least)},
             )
 
         known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
@@ -666,7 +708,7 @@ class StateDocumentUseCase:
                 blocker_details.append({
                     "id": blocker_id,
                     "impl_state": blocker_entry.impl_state if blocker_entry else None,
-                    "known": blocker_id in fs_known,
+                    "known": blocker_id in known_ids,
                 })
             blocked_list.append({
                 "document_id": doc_id,
@@ -676,13 +718,21 @@ class StateDocumentUseCase:
                 "open_blockers": blocker_details,
             })
 
-        ready_count = sum(1 for d in derived.values() if d.ready)
+        non_skip_ids = [d for d in state.entries if d not in skip_doc_ids]
+        if assignee is not None:
+            non_skip_ids = [
+                d for d in non_skip_ids
+                if (state.entries[d].assignee or "") == assignee
+            ]
+        ready_count = sum(
+            1 for doc_id in non_skip_ids if derived[doc_id].ready
+        )
         return StateResult(
             document_id="*",
             action="blockers",
             blocked=blocked_list,
             summary={
-                "total_entries": len(state.entries),
+                "total_entries": len(non_skip_ids),
                 "blocked": len(blocked_list),
                 "ready": ready_count,
             },
@@ -780,9 +830,11 @@ def _compute_list_summary(
     entries_list: List[Dict[str, Any]],
     ready_count: int,
     blocked_count: int,
+    skip_doc_ids: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
+    total = len(state.entries) - len(skip_doc_ids or set())
     return {
-        "total": len(state.entries),
+        "total": total,
         "returned": len(entries_list),
         "ready": ready_count,
         "blocked": blocked_count,
@@ -904,6 +956,7 @@ def _entry_is_idempotent(
 ) -> bool:
     return (
         existing.impl_state == new.impl_state
+        and existing.updated_by == new.updated_by
         and existing.notes == new.notes
         and (existing.priority or DEFAULT_PRIORITY) == (new.priority or DEFAULT_PRIORITY)
         and existing.depends_on == new.depends_on
@@ -928,10 +981,8 @@ def _entry_to_dict(
         result["notes"] = entry.notes
     if entry.priority is not None and entry.priority != DEFAULT_PRIORITY:
         result["priority"] = entry.priority
-    if entry.depends_on:
-        result["depends_on"] = list(entry.depends_on)
-    if entry.blocked_by:
-        result["blocked_by"] = list(entry.blocked_by)
+    result["depends_on"] = list(entry.depends_on)
+    result["blocked_by"] = list(entry.blocked_by)
     if entry.assignee is not None:
         result["assignee"] = entry.assignee
     if entry.next_action is not None:

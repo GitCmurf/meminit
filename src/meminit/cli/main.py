@@ -438,7 +438,44 @@ def validate_initialized(
         import yaml as _yaml
         try:
             raw = _yaml.safe_load(config_file.read_text(encoding="utf-8"))
-            if isinstance(raw, dict) and "docops_version" in raw:
+            if isinstance(raw, dict) and raw.get("docops_version") is not None:
+                if command and command.startswith("state "):
+                    ns = raw.get("namespaces")
+                    if not (isinstance(ns, dict) and ns):
+                        msg = (
+                            "Repository config is malformed: docops.config.yaml is missing "
+                            "required field 'namespaces'. Run 'meminit init' to repair."
+                        )
+                        details = {
+                            "reason": "missing_namespaces",
+                            "hint": "meminit init",
+                            "root": str(root_path),
+                            "file": "docops.config.yaml",
+                            "required": "valid YAML with docops_version and namespaces",
+                        }
+                        if format == "json":
+                            _write_output(
+                                format_error_envelope(
+                                    command=command,
+                                    root=str(root_path),
+                                    error_code=ErrorCode.CONFIG_MISSING,
+                                    message=msg,
+                                    details=details,
+                                    include_timestamp=include_timestamp,
+                                    run_id=run_id or get_current_run_id(),
+                                    correlation_id=correlation_id,
+                                ),
+                                output=output,
+                            )
+                        elif format == "md":
+                            _write_output(
+                                f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
+                                output=output,
+                            )
+                        else:
+                            with maybe_capture(output, format):
+                                get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
+                        raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
                 return
             msg = (
                 "Repository config is malformed: docops.config.yaml is missing "
@@ -3211,7 +3248,7 @@ def _state_set_validate_args(
         clear_depends_on, blocked_by, add_blocked_by, remove_blocked_by,
         clear_blocked_by, assignee is not None, next_action is not None,
     ])
-    if not clear and not impl_state and not notes and not has_planning_flags:
+    if not clear and not impl_state and notes is None and not has_planning_flags:
         raise MeminitError(
             ErrorCode.STATE_NO_MUTATION_PROVIDED,
             "Must provide --impl-state, --notes, --clear, or a planning field flag.",
@@ -3264,7 +3301,9 @@ def _state_set_execute(
 def _render_state_set_json(
     result, root_path, include_timestamp, run_id, correlation_id, output,
 ):
-    data: dict = {"action": result.action, "entry": result.entry}
+    data: dict = {"action": result.action}
+    if result.entry:
+        data.update(result.entry)
     _write_output(
         format_envelope(
             command="state set",
@@ -3283,28 +3322,31 @@ def _render_state_set_json(
 def _render_state_set_text(result, format, output):
     if format == "md":
         if result.action == "clear":
-            _write_output(
+            lines = (
                 f"# Meminit State Set\n\n"
                 f"- Document ID: `{result.document_id}`\n"
-                f"- Action: Cleared\n",
-                output,
+                f"- Action: Cleared\n"
             )
         else:
             lines = (
                 f"# Meminit State Set\n\n"
                 f"- Document ID: `{result.document_id}`\n"
-                f"- Impl State: {result.entry.get('impl_state', '')}\n"
-                f"- Updated By: {result.entry.get('updated_by', '')}\n"
+                f"- Impl State: {_md_inline(result.entry.get('impl_state', ''))}\n"
+                f"- Updated By: {_md_inline(result.entry.get('updated_by', ''))}\n"
             )
             if result.entry.get("priority"):
-                lines += f"- Priority: {result.entry.get('priority')}\n"
+                lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
             if result.entry.get("assignee"):
-                lines += f"- Assignee: {result.entry.get('assignee')}\n"
+                lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
             if result.entry.get("next_action"):
-                lines += f"- Next Action: {result.entry.get('next_action')}\n"
+                lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
             if result.entry.get("notes"):
-                lines += f"- Notes: {result.entry.get('notes')}\n"
-            _write_output(lines, output)
+                lines += f"- Notes: {_md_inline(result.entry.get('notes'))}\n"
+        if result.warnings:
+            lines += "\n## Warnings\n"
+            for w in result.warnings:
+                lines += f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}\n"
+        _write_output(lines, output)
         return
 
     with maybe_capture(output, format):
@@ -3326,6 +3368,7 @@ def _render_state_set_text(result, format, output):
                 get_console().print(f"Next Action: {result.entry.get('next_action')}")
             if result.entry.get("notes"):
                 get_console().print(f"Notes: {result.entry.get('notes')}")
+        _render_warnings_text(result.warnings, format, output)
 
 
 @state.command("set")
@@ -3580,6 +3623,23 @@ def _render_state_list_json(result, valid_impl_states, valid_doc_statuses, root_
     )
 
 
+def _render_warnings_text(warnings, fmt, output):
+    if not warnings:
+        return
+    if fmt == "md":
+        lines = ["\n## Warnings\n"]
+        for w in warnings:
+            lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+        lines.append("")
+        _write_output("\n".join(lines), output)
+        return
+    with maybe_capture(output, fmt):
+        for w in warnings:
+            get_console().print(
+                f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
+            )
+
+
 def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
     if format == "md":
         lines = ["# Meminit State List\n"]
@@ -3610,6 +3670,16 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
                 )
             )
             lines.append("")
+        if result.warnings:
+            lines.append("## Warnings\n")
+            for w in result.warnings:
+                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+            lines.append("")
+        if result.advice:
+            lines.append("## Advisories\n")
+            for a in result.advice:
+                lines.append(f"- **{_md_inline(a.get('code', 'UNKNOWN'))}**: {_md_inline(a.get('message', ''))}")
+            lines.append("")
         _write_output("\n".join(lines), output)
         return
     with maybe_capture(output, format):
@@ -3623,6 +3693,7 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
             get_console().print(
                 "[yellow]No entries found in project-state.yaml[/yellow]"
             )
+            _render_warnings_text(result.warnings, format, output)
             return
         table = Table(title="Project State Entries")
         table.add_column("Document ID", style="cyan")
@@ -3641,6 +3712,12 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
                 str(e.get("updated", ""))[:10],
             )
         get_console().print(table)
+        _render_warnings_text(result.warnings, format, output)
+        if result.advice:
+            for a in result.advice:
+                get_console().print(
+                    f"[cyan]Advisory ({a.get('code', 'UNKNOWN')}): {a.get('message', '')}[/cyan]"
+                )
 
 
 @state.command("list")
@@ -3723,6 +3800,11 @@ def _render_state_next_text(result, fmt, output):
             lines.append(f"- **Candidates Considered**: {result.selection.get('candidates_considered', 0)}")
         else:
             lines.append(f"_No ready items: {result.reason}_")
+        if result.warnings:
+            lines.append("\n## Warnings\n")
+            for w in result.warnings:
+                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+            lines.append("")
         _write_output("\n".join(lines) + "\n", output)
         return
     with maybe_capture(output, fmt):
@@ -3744,6 +3826,7 @@ def _render_state_next_text(result, fmt, output):
             get_console().print(
                 f"[yellow]No ready items: {result.reason}[/yellow]"
             )
+        _render_warnings_text(result.warnings, fmt, output)
 
 
 def _state_blockers_execute(root_path, assignee):
@@ -3779,7 +3862,7 @@ def _render_state_blockers_text(result, fmt, output):
             lines.append("_No blocked entries._\n")
         else:
             for b in result.blocked:
-                lines.append(f"## {b['document_id']}")
+                lines.append(f"## {_md_inline(b['document_id'])}")
                 lines.append(f"- **Impl State**: {_md_inline(b.get('impl_state', ''))}")
                 if b.get("priority"):
                     lines.append(f"- **Priority**: {_md_inline(b['priority'])}")
@@ -3788,11 +3871,16 @@ def _render_state_blockers_text(result, fmt, output):
                 lines.append("- **Open Blockers**:")
                 for ob in b.get("open_blockers", []):
                     known = "known" if ob.get("known") else "unknown"
-                    lines.append(f"  - `{ob['id']}` ({ob.get('impl_state', 'N/A')}, {known})")
+                    lines.append(f"  - `{ob['id']}` ({_md_inline(ob.get('impl_state', 'N/A'))}, {known})")
                 lines.append("")
         lines.append(f"**Summary**: {result.summary.get('total_entries', 0)} entries, "
                      f"{result.summary.get('blocked', 0)} blocked, "
                      f"{result.summary.get('ready', 0)} ready")
+        if result.warnings:
+            lines.append("\n## Warnings\n")
+            for w in result.warnings:
+                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+            lines.append("")
         _write_output("\n".join(lines) + "\n", output)
         return
     with maybe_capture(output, fmt):
@@ -3812,6 +3900,7 @@ def _render_state_blockers_text(result, fmt, output):
             f"{result.summary.get('blocked', 0)} blocked, "
             f"{result.summary.get('total_entries', 0)} total"
         )
+        _render_warnings_text(result.warnings, fmt, output)
 
 
 @state.command("next")

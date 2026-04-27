@@ -146,7 +146,7 @@ def _parse_planning_fields(
             state_file_rel,
             f"Field 'priority' for '{doc_id}' must be a string, got {type(priority).__name__}.",
         ))
-        priority = None
+        priority = str(priority)
 
     raw_depends = fields.get("depends_on")
     depends_on: Tuple[str, ...] = ()
@@ -162,7 +162,7 @@ def _parse_planning_fields(
                 state_file_rel,
                 f"Field 'depends_on' for '{doc_id}' contains non-string items: {dropped}.",
             ))
-        depends_on = tuple(sorted(str(d) for d in raw_depends if isinstance(d, str)))
+        depends_on = tuple(sorted(set(str(d) for d in raw_depends if isinstance(d, str))))
 
     raw_blocked = fields.get("blocked_by")
     blocked_by: Tuple[str, ...] = ()
@@ -178,7 +178,7 @@ def _parse_planning_fields(
                 state_file_rel,
                 f"Field 'blocked_by' for '{doc_id}' contains non-string items: {dropped}.",
             ))
-        blocked_by = tuple(sorted(str(b) for b in raw_blocked if isinstance(b, str)))
+        blocked_by = tuple(sorted(set(str(b) for b in raw_blocked if isinstance(b, str))))
 
     assignee = fields.get("assignee")
     if assignee is not None and not isinstance(assignee, str):

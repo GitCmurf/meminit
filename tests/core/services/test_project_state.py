@@ -610,6 +610,77 @@ def test_save_depends_on_sorted(tmp_path):
     ]
 
 
+def test_load_deduplicates_depends_on(tmp_path):
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "state_schema_version: '2.0'\n"
+        "documents:\n"
+        "  MEMINIT-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-01-01T00:00:00+00:00'\n"
+        "    updated_by: test\n"
+        "    depends_on:\n"
+        "      - MEMINIT-PRD-009\n"
+        "      - MEMINIT-ADR-042\n"
+        "      - MEMINIT-PRD-009\n"
+        "      - MEMINIT-ADR-042\n",
+        encoding="utf-8",
+    )
+    state = load_project_state(tmp_path)
+    entry = state.get("MEMINIT-ADR-001")
+    assert entry is not None
+    assert entry.depends_on == ("MEMINIT-ADR-042", "MEMINIT-PRD-009")
+
+
+def test_load_deduplicates_blocked_by(tmp_path):
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "state_schema_version: '2.0'\n"
+        "documents:\n"
+        "  MEMINIT-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-01-01T00:00:00+00:00'\n"
+        "    updated_by: test\n"
+        "    blocked_by:\n"
+        "      - MEMINIT-ADR-002\n"
+        "      - MEMINIT-ADR-003\n"
+        "      - MEMINIT-ADR-002\n",
+        encoding="utf-8",
+    )
+    state = load_project_state(tmp_path)
+    entry = state.get("MEMINIT-ADR-001")
+    assert entry is not None
+    assert entry.blocked_by == ("MEMINIT-ADR-002", "MEMINIT-ADR-003")
+
+
+def test_deduplicate_roundtrip_no_duplicates(tmp_path):
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "state_schema_version: '2.0'\n"
+        "documents:\n"
+        "  MEMINIT-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-01-01T00:00:00+00:00'\n"
+        "    updated_by: test\n"
+        "    depends_on:\n"
+        "      - MEMINIT-PRD-009\n"
+        "      - MEMINIT-PRD-009\n"
+        "    blocked_by:\n"
+        "      - MEMINIT-ADR-002\n"
+        "      - MEMINIT-ADR-002\n",
+        encoding="utf-8",
+    )
+    state = load_project_state(tmp_path)
+    path = save_project_state(tmp_path, state)
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    doc = raw["documents"]["MEMINIT-ADR-001"]
+    assert doc["depends_on"] == ["MEMINIT-PRD-009"]
+    assert doc["blocked_by"] == ["MEMINIT-ADR-002"]
+
+
 def test_v2_roundtrip_preserves_planning_fields(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
@@ -754,7 +825,7 @@ def _write_state_raw(tmp_path: Path, documents: dict) -> Path:
 
 def test_non_string_priority_surfaces_violation(tmp_path):
     state = _make_state_with_entry(tmp_path, priority=123)
-    assert state.entries["TEST-ADR-001"].priority is None
+    assert state.entries["TEST-ADR-001"].priority == "123"
     codes = [v.rule for v in state.schema_violations]
     assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
     messages = " ".join(v.message for v in state.schema_violations)

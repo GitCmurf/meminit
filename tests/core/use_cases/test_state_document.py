@@ -54,6 +54,42 @@ def test_set_default_priority_is_idempotent(tmp_path):
     assert mtime2 == mtime1
 
 
+def test_set_different_actor_is_not_idempotent(tmp_path):
+    """Re-running state set with a different --actor must update updated_by."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", actor="user-a")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    mtime1 = state_file.stat().st_mtime
+
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", actor="user-b")
+    assert result.entry["updated_by"] == "user-b"
+    import yaml as _yaml
+    raw = _yaml.safe_load(state_file.read_text())
+    assert raw["documents"]["MEMINIT-ADR-001"]["updated_by"] == "user-b"
+
+
+def test_idempotent_set_migrates_legacy_v1(tmp_path):
+    """Legacy v1 file is rewritten with state_schema_version 2.0 even on no-op set."""
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "documents:\n"
+        "  MEMINIT-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-01-01T00:00:00+00:00'\n"
+        "    updated_by: test\n",
+        encoding="utf-8",
+    )
+    state_file = state_dir / "project-state.yaml"
+    assert "state_schema_version" not in state_file.read_text()
+
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    assert result.action == "set"
+    raw = yaml.safe_load(state_file.read_text())
+    assert raw["state_schema_version"] == "2.0"
+
+
 def test_set_canonicalizes_impl_state(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     result = use_case.set_state("MEMINIT-ADR-001", impl_state="qa required")
@@ -611,19 +647,33 @@ def test_list_states_warns_on_unknown_doc_id_in_state(tmp_path):
     assert "W_STATE_UNKNOWN_DOC_ID" in codes
 
 
-def test_blockers_state_known_reflects_filesystem_only(tmp_path):
-    """blocker_details['known'] must reflect filesystem existence, not state entries."""
+def test_blockers_state_known_reflects_state_and_filesystem(tmp_path):
+    """blocker_details['known'] is true when target exists in state or on disk."""
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
-                       add_depends_on=["MEMINIT-ADR-999"])
-    use_case.set_state("MEMINIT-ADR-999", impl_state="Not Started")
+                       add_depends_on=["MEMINIT-ADR-002"])
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
 
     result = use_case.blockers_state()
     assert result.blocked
     blocker = result.blocked[0]
-    stale_blocker = [b for b in blocker["open_blockers"] if b["id"] == "MEMINIT-ADR-999"]
-    assert stale_blocker
-    assert stale_blocker[0]["known"] is False
+    state_only = [b for b in blocker["open_blockers"] if b["id"] == "MEMINIT-ADR-002"]
+    assert state_only
+    assert state_only[0]["known"] is True
+
+
+def test_blockers_state_known_false_for_truly_unknown(tmp_path):
+    """blocker_details['known'] is false when target exists neither in state nor on disk."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                       add_depends_on=["MEMINIT-ADR-999"])
+
+    result = use_case.blockers_state()
+    assert result.blocked
+    blocker = result.blocked[0]
+    unknown = [b for b in blocker["open_blockers"] if b["id"] == "MEMINIT-ADR-999"]
+    assert unknown
+    assert unknown[0]["known"] is False
 
 
 def _write_state_with_self_dependency(tmp_path):
@@ -636,13 +686,15 @@ def _write_state_with_self_dependency(tmp_path):
 
 
 def test_list_states_warns_on_self_dependency(tmp_path):
-    """Self-dependency in state produces a warning on read."""
+    """Self-dependency in state produces a warning but entry remains visible."""
     _write_state_with_self_dependency(tmp_path)
     use_case = StateDocumentUseCase(str(tmp_path))
     result = use_case.list_states()
     assert result.warnings is not None
     codes = [w["code"] for w in result.warnings]
     assert "STATE_SELF_DEPENDENCY" in codes
+    ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-001" in ids
 
 
 def test_next_state_warns_on_self_dependency(tmp_path):
@@ -670,3 +722,263 @@ def test_blockers_state_warns_on_dependency_cycle(tmp_path):
     assert result.warnings is not None
     codes = [w["code"] for w in result.warnings]
     assert "STATE_DEPENDENCY_CYCLE" in codes
+
+
+def test_list_states_warns_on_undefined_dependency(tmp_path):
+    """Dangling dependency produces a warning but entry remains visible."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                       add_depends_on=["MEMINIT-ADR-999"])
+    result = use_case.list_states()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_UNDEFINED_DEPENDENCY" in codes
+    ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-001" in ids
+
+
+def test_list_states_preserves_per_document_invalid_priority_warnings(tmp_path):
+    """Multiple docs with STATE_INVALID_PRIORITY each produce their own warning."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
+    raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
+    state_file.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True))
+
+    result = use_case.list_states()
+    assert result.warnings is not None
+    pip_warnings = [w for w in result.warnings if w["code"] == "STATE_INVALID_PRIORITY"]
+    assert len(pip_warnings) >= 2, f"Expected >= 2 STATE_INVALID_PRIORITY warnings, got {len(pip_warnings)}"
+    messages = " ".join(w["message"] for w in pip_warnings)
+    assert "MEMINIT-ADR-001" in messages
+    assert "MEMINIT-ADR-002" in messages
+
+
+def test_list_states_invalid_impl_state_raises(tmp_path):
+    """Invalid impl_state filter value raises E_INVALID_FILTER_VALUE."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.list_states(impl_state=["NonExistent"])
+    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+
+
+def test_list_states_valid_impl_state_filter_succeeds(tmp_path):
+    """Valid impl_state filter value returns matching entries."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Done")
+
+    result = use_case.list_states(impl_state=["Done"])
+    ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-002" in ids
+    assert "MEMINIT-ADR-001" not in ids
+
+
+def test_blockers_state_summary_excludes_skipped_entries(tmp_path):
+    """ready_count and total_entries exclude entries with invalid priority."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state(
+        "MEMINIT-ADR-001", impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-002"],
+    )
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.blockers_state()
+    assert result.summary["total_entries"] == 1
+    assert result.summary["ready"] == 0
+
+
+def test_list_states_no_undefined_warning_for_state_only_dep(tmp_path):
+    """Dependency on an entry in project-state but not in docs index is not undefined."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started",
+                       add_depends_on=["MEMINIT-ADR-002"])
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+
+    result = use_case.list_states()
+    if result.warnings:
+        codes = [w["code"] for w in result.warnings]
+        assert "STATE_UNDEFINED_DEPENDENCY" not in codes
+
+
+def test_list_states_secondary_warnings_for_invalid_priority_entry(tmp_path):
+    """Entry with invalid priority still surfaces self-dependency warning."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
+    raw["documents"]["MEMINIT-ADR-001"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.list_states()
+    assert result.warnings is not None
+    codes = [w["code"] for w in result.warnings]
+    assert "STATE_INVALID_PRIORITY" in codes
+    assert "STATE_SELF_DEPENDENCY" in codes
+
+
+def test_blockers_summary_respects_assignee_filter(tmp_path):
+    """Summary counts reflect only the filtered assignee's entries."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state(
+        "MEMINIT-ADR-001", impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-002"],
+        assignee="agent:codex",
+    )
+    use_case.set_state(
+        "MEMINIT-ADR-002", impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-003"],
+        assignee="human:alice",
+    )
+    use_case.set_state("MEMINIT-ADR-003", impl_state="Done")
+
+    result = use_case.blockers_state(assignee="agent:codex")
+    assert result.summary["total_entries"] == 1
+    assert len(result.blocked) == 1
+    assert result.blocked[0]["document_id"] == "MEMINIT-ADR-001"
+
+
+def test_entry_to_dict_always_includes_dependency_arrays(tmp_path):
+    """depends_on and blocked_by are always present as arrays, even when empty."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    entry = result.entry
+    assert "depends_on" in entry
+    assert "blocked_by" in entry
+    assert entry["depends_on"] == []
+    assert entry["blocked_by"] == []
+
+
+def test_list_states_no_warning_for_custom_impl_state_from_config(tmp_path):
+    """Custom impl_state from docops.config.yaml does not produce W_STATE_UNKNOWN_IMPL_STATE."""
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: MEMINIT\n"
+        "docs_root: docs\n"
+        "valid_impl_states:\n"
+        "  - Not Started\n"
+        "  - In Progress\n"
+        "  - Blocked\n"
+        "  - QA Required\n"
+        "  - Done\n"
+        "  - On Hold\n",
+        encoding="utf-8",
+    )
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="On Hold")
+    result = use_case.list_states()
+    if result.warnings:
+        codes = [w["code"] for w in result.warnings]
+        assert "W_STATE_UNKNOWN_IMPL_STATE" not in codes
+
+
+def test_set_state_no_warning_for_state_local_dependency(tmp_path):
+    """set_state does not warn about dependency on another state-only entry."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+    result = use_case.set_state(
+        "MEMINIT-ADR-001", impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-002"],
+    )
+    assert result.warnings is None or all(
+        w["code"] != "STATE_UNDEFINED_DEPENDENCY" for w in (result.warnings or [])
+    )
+
+
+def test_list_states_invalid_priority_raises_without_state_file(tmp_path):
+    """Invalid priority filter raises even when no state file exists."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.list_states(priority=["P9"])
+    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+
+
+def test_list_states_invalid_impl_state_raises_without_state_file(tmp_path):
+    """Invalid impl_state filter raises even when no state file exists."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.list_states(impl_state=["Bogus"])
+    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+
+
+def test_next_state_invalid_priority_raises_without_state_file(tmp_path):
+    """Invalid priority_at_least filter raises even when no state file exists."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.next_state(priority_at_least="P9")
+    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+
+
+def test_list_states_skips_invalid_priority_even_with_no_other_warnings(tmp_path):
+    """Invalid-priority entries are excluded even when no other warnings exist."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.list_states()
+    ids = [e["document_id"] for e in result.entries]
+    assert "MEMINIT-ADR-001" not in ids
+
+
+def test_next_state_preserves_filter_on_missing_state(tmp_path):
+    """selection.filter echoes query parameters even when no state file exists."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.next_state(assignee="agent:codex", priority_at_least="P1")
+    assert result.selection["filter"]["assignee"] == "agent:codex"
+    assert result.selection["filter"]["priority_at_least"] == "P1"
+
+
+def test_list_states_summary_total_excludes_skipped(tmp_path):
+    """summary.total excludes invalid-priority entries."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.list_states()
+    assert result.summary["total"] == 1
+
+
+def test_list_states_no_duplicate_field_too_long_warnings(tmp_path):
+    """STATE_FIELD_TOO_LONG appears once, not duplicated from both validators."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["assignee"] = "x" * 500
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.list_states()
+    if result.warnings:
+        too_long = [w for w in result.warnings if w["code"] == "STATE_FIELD_TOO_LONG"]
+        assert len(too_long) == 1

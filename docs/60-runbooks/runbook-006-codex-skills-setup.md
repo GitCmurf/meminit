@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2026-04-22
+last_updated: 2026-04-27
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
-version: "0.3"
+version: "0.4"
 ---
 
 # Runbook: Codex Skills Setup for Meminit
@@ -126,6 +126,48 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 2. **Expect exactly one JSON object on STDOUT**.
 3. **Handle errors structuredly** via the `error` object in the envelope.
 4. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+
+## Bounded Codex Review-Remediation Loop
+
+For a local proof-of-concept review loop, use the repository script:
+
+```bash
+python scripts/codex_review_remediation_loop.py --base main --max-iterations 2
+```
+
+The loop uses Codex-native review rather than a third-party reviewer:
+
+1. Run `codex review --base main` with a status-line instruction.
+2. Stop if the review emits `REVIEW_STATUS: clear`.
+3. Otherwise run `codex exec` in `workspace-write` sandbox mode to remediate
+   the actionable findings.
+4. Optionally run each `--check` command after the remediation pass.
+5. Repeat until the review is clear or `--max-iterations` remediation passes
+   have completed.
+6. Run one final review by default so the operator can see whether the capped
+   loop ended cleanly.
+
+Useful proof-of-concept command with explicit verification:
+
+```bash
+python scripts/codex_review_remediation_loop.py \
+  --base main \
+  --max-iterations 2 \
+  --check "./.venv/bin/pytest -q"
+```
+
+Safety notes:
+
+- `--max-iterations` is a remediation-pass cap. With the default final review,
+  `--max-iterations 2` may run three reviews: initial review, second-cycle
+  review, and a final status review after the second remediation.
+- Transcripts are written under `tmp/codex-review-remediation-loop/` by
+  default, which is ignored by git.
+- The script prompts the review agent to emit `REVIEW_STATUS: clear` or
+  `REVIEW_STATUS: findings`. If the status line is missing and the output is
+  ambiguous, the loop treats the review as not clear.
+- Use separate git worktrees for simultaneous loop experiments. Multiple local
+  Codex processes writing to the same checkout can race on the working tree.
 
 ## Protocol Asset Governance
 

@@ -1092,3 +1092,116 @@ def test_kanban_sort_key_oldest_first():
     newer = {"priority": "P2", "unblocks": [], "updated": "2026-04-20T12:00:00Z", "document_id": "A-001"}
     older = {"priority": "P2", "unblocks": [], "updated": "2026-04-19T12:00:00Z", "document_id": "A-002"}
     assert _kanban_sort_key(older) < _kanban_sort_key(newer)
+
+
+def test_index_warns_on_undefined_dependency(tmp_path):
+    """Dangling dependency in state produces STATE_UNDEFINED_DEPENDENCY warning."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "depends_on": ["EXAMPLE-ADR-999"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "STATE_UNDEFINED_DEPENDENCY" in codes
+
+
+def test_index_preserves_fatal_severity_for_self_dependency(tmp_path):
+    """Self-dependency in state produces a fatal-severity warning in index artifact."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "depends_on": ["EXAMPLE-ADR-001"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    self_dep = [
+        w for w in payload.get("warnings", []) if w["code"] == "STATE_SELF_DEPENDENCY"
+    ]
+    assert len(self_dep) == 1
+    assert self_dep[0]["severity"] == "fatal"
+
+
+def test_index_emits_status_conflict_advisory(tmp_path):
+    """Done entry depending on non-Done entry produces STATE_DEPENDENCY_STATUS_CONFLICT."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Done",
+                "depends_on": ["EXAMPLE-ADR-002"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
+            "EXAMPLE-ADR-002": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    conflicts = [
+        w for w in payload.get("warnings", [])
+        if w["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
+    ]
+    assert len(conflicts) == 1
+    assert conflicts[0]["severity"] == "advisory"
+
+
+def test_index_no_duplicate_field_too_long_warnings(tmp_path):
+    """STATE_FIELD_TOO_LONG appears once, not duplicated from both validators."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "assignee": "x" * 500,
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    field_too_long = [
+        w for w in payload.get("warnings", [])
+        if w["code"] == "STATE_FIELD_TOO_LONG"
+    ]
+    assert len(field_too_long) == 1

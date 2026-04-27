@@ -1071,6 +1071,43 @@ class IndexRepositoryUseCase:
                     w["line"] = issue.line
                 warnings_list.append(w)
 
+            from meminit.core.services.state_derived import (
+                check_dependency_cycle,
+                check_status_conflicts,
+                validate_planning_fields,
+            )
+            state_path = get_state_file_rel_path(self._root_dir)
+            _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
+            for doc_id, ps_entry in project_state.entries.items():
+                planning_issues = validate_planning_fields(
+                    ps_entry, known_doc_ids, project_state.entries,
+                )
+                for pi in planning_issues:
+                    if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
+                        continue
+                    warnings_list.append({
+                        "code": pi.code,
+                        "message": pi.message,
+                        "severity": pi.severity,
+                        "path": state_path,
+                    })
+            cycle_issues = check_dependency_cycle(project_state.entries)
+            for ci in cycle_issues:
+                warnings_list.append({
+                    "code": ci.code,
+                    "message": ci.message,
+                    "severity": ci.severity,
+                    "path": state_path,
+                })
+
+            for si in check_status_conflicts(project_state.entries):
+                warnings_list.append({
+                    "code": si.code,
+                    "message": si.message,
+                    "severity": si.severity,
+                    "path": state_path,
+                })
+
         # Compute derived fields (ready, open_blockers, unblocks) from state.
         # Spec (PLAN-013 §3.4.1): ready, open_blockers, unblocks are always emitted.
         if project_state and project_state.entries:
