@@ -161,11 +161,22 @@ Safety notes:
 - `--max-iterations` is a remediation-pass cap. With the default final review,
   `--max-iterations 2` may run three reviews: initial review, second-cycle
   review, and a final status review after the second remediation.
+- A failing `--check` is fed into the next remediation pass while iteration
+  budget remains. If the final allowed pass still leaves a failing check, the
+  loop reports `pending_check_failures: true` and does not report clear.
 - Transcripts are written under `tmp/codex-review-remediation-loop/` by
   default, which is ignored by git.
 - The script prompts the review agent to emit `REVIEW_STATUS: clear` or
   `REVIEW_STATUS: findings`. If the status line is missing and the output is
   ambiguous, the loop treats the review as not clear.
+- Review and remediation prompts are sent via stdin (`-`) so large prompts do
+  not become shell arguments.
+- Remediation output defaults to `--color never` for stable transcripts and
+  writes each final remediation message to
+  `remediation-<N>-last-message.txt` under the artifact directory.
+- `--exec-json` is available when a machine-readable Codex event stream is
+  useful, but it is not the default because JSONL is noisier for operator
+  review than the normal transcript.
 - Use separate git worktrees for simultaneous loop experiments. Multiple local
   Codex processes writing to the same checkout can race on the working tree.
 
