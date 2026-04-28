@@ -117,6 +117,21 @@ def test_set_canonicalizes_custom_impl_state_from_config(tmp_path):
     assert result.entry["impl_state"] == "On Hold"
 
 
+def test_set_canonicalizes_custom_impl_state_after_stripping_input(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: MEMINIT\n"
+        "docs_root: docs\n"
+        "valid_impl_states:\n"
+        "  - Not Started\n"
+        "  - Done\n"
+        "  - On Hold\n",
+        encoding="utf-8",
+    )
+    use_case = StateDocumentUseCase(str(tmp_path))
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state=" on hold ")
+    assert result.entry["impl_state"] == "On Hold"
+
+
 def test_set_accepts_namespace_custom_impl_state_from_layout(tmp_path):
     layout = SimpleNamespace(
         namespaces=[
@@ -509,6 +524,7 @@ class TestMixedMutationModeRejection:
             ("depends_on", {"depends_on": ["MEMINIT-ADR-001"], "clear_depends_on": True}),
             ("depends_on", {"add_depends_on": ["MEMINIT-ADR-002"], "clear_depends_on": True}),
             ("depends_on", {"remove_depends_on": ["MEMINIT-ADR-002"], "clear_depends_on": True}),
+            ("depends_on", {"depends_on": [], "clear_depends_on": True}),
             (
                 "depends_on",
                 {
@@ -528,6 +544,7 @@ class TestMixedMutationModeRejection:
             ("blocked_by", {"blocked_by": ["MEMINIT-ADR-001"], "clear_blocked_by": True}),
             ("blocked_by", {"add_blocked_by": ["MEMINIT-ADR-002"], "clear_blocked_by": True}),
             ("blocked_by", {"remove_blocked_by": ["MEMINIT-ADR-002"], "clear_blocked_by": True}),
+            ("blocked_by", {"blocked_by": [], "clear_blocked_by": True}),
             (
                 "blocked_by",
                 {

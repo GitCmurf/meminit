@@ -251,6 +251,7 @@ def _state_excluding_entries(
 def _resolve_impl_state(root_dir: Path, impl_state: str) -> str:
     from meminit.core.services.repo_config import load_repo_layout
 
+    impl_state = impl_state.strip()
     resolved = ImplState.from_string(impl_state)
     canonical_values = ImplState.canonical_values()
     canonical_lower = {v.lower() for v in canonical_values}
@@ -276,7 +277,6 @@ def _resolve_impl_state(root_dir: Path, impl_state: str) -> str:
         )
     if resolved is not None:
         return resolved.value
-    impl_state = impl_state.strip()
     custom_canonical = custom_canonical_map.get(impl_state.lower())
     return custom_canonical if custom_canonical else impl_state
 
@@ -856,7 +856,7 @@ def _assert_single_mutation_mode(
     remove: Any,
     clear: bool,
 ) -> None:
-    modes = [bool(replace), bool(add or remove), bool(clear)]
+    modes = [replace is not None, bool(add or remove), bool(clear)]
     if sum(modes) <= 1:
         return
     raise MeminitError(
