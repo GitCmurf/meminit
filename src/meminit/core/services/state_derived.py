@@ -12,7 +12,7 @@ No wall-clock time, filesystem mtime, or randomness is consulted.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from meminit.core.services.project_state import (
     DEFAULT_PRIORITY,
@@ -43,6 +43,7 @@ class ValidationIssue:
     severity: str
     document_id: str
     message: str
+    field: Optional[str] = None
 
 
 def _is_dep_resolved(dep_id: str, state: ProjectState) -> bool:
@@ -155,12 +156,15 @@ def validate_planning_fields(
     doc_id = entry.document_id
 
     if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
-        issues.append(ValidationIssue(
-            code="STATE_INVALID_PRIORITY",
-            severity="fatal",
-            document_id=doc_id,
-            message=f"Priority '{entry.priority}' is not valid. Must be one of: {', '.join(VALID_PRIORITIES)}.",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_INVALID_PRIORITY",
+                severity="fatal",
+                document_id=doc_id,
+                message=f"Priority '{entry.priority}' is not valid. Must be one of: {', '.join(VALID_PRIORITIES)}.",
+                field="priority",
+            )
+        )
 
     for dep_id in entry.depends_on:
         _validate_single_dep(dep_id, doc_id, known_ids, issues, "depends_on")
@@ -170,28 +174,37 @@ def validate_planning_fields(
 
     has_self = doc_id in entry.depends_on or doc_id in entry.blocked_by
     if has_self:
-        issues.append(ValidationIssue(
-            code="STATE_SELF_DEPENDENCY",
-            severity="fatal",
-            document_id=doc_id,
-            message=f"Entry '{doc_id}' references itself in depends_on or blocked_by.",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_SELF_DEPENDENCY",
+                severity="fatal",
+                document_id=doc_id,
+                message=f"Entry '{doc_id}' references itself in depends_on or blocked_by.",
+                field="dependencies",
+            )
+        )
 
     if entry.assignee is not None and len(entry.assignee) > MAX_ASSIGNEE_LENGTH:
-        issues.append(ValidationIssue(
-            code="STATE_FIELD_TOO_LONG",
-            severity="fatal",
-            document_id=doc_id,
-            message=f"assignee exceeds {MAX_ASSIGNEE_LENGTH} characters ({len(entry.assignee)} chars).",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_FIELD_TOO_LONG",
+                severity="fatal",
+                document_id=doc_id,
+                message=f"assignee exceeds {MAX_ASSIGNEE_LENGTH} characters ({len(entry.assignee)} chars).",
+                field="assignee",
+            )
+        )
 
     if entry.next_action is not None and len(entry.next_action) > MAX_NOTES_LENGTH:
-        issues.append(ValidationIssue(
-            code="STATE_FIELD_TOO_LONG",
-            severity="fatal",
-            document_id=doc_id,
-            message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(entry.next_action)} chars).",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_FIELD_TOO_LONG",
+                severity="fatal",
+                document_id=doc_id,
+                message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(entry.next_action)} chars).",
+                field="next_action",
+            )
+        )
 
     return issues
 
@@ -205,19 +218,25 @@ def _validate_single_dep(
 ) -> None:
     """Validate a single dependency ID for format and existence."""
     if not DOCUMENT_ID_PATTERN.match(dep_id):
-        issues.append(ValidationIssue(
-            code="STATE_INVALID_DEPENDENCY_ID",
-            severity="fatal",
-            document_id=doc_id,
-            message=f"Dependency '{dep_id}' in {field_name} does not match document ID pattern (PREFIX-TYPE-NNN).",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_INVALID_DEPENDENCY_ID",
+                severity="fatal",
+                document_id=doc_id,
+                message=f"Dependency '{dep_id}' in {field_name} does not match document ID pattern (PREFIX-TYPE-NNN).",
+                field=field_name,
+            )
+        )
     elif dep_id not in known_ids:
-        issues.append(ValidationIssue(
-            code="STATE_UNDEFINED_DEPENDENCY",
-            severity="warning",
-            document_id=doc_id,
-            message=f"Dependency '{dep_id}' in {field_name} is not present in the index.",
-        ))
+        issues.append(
+            ValidationIssue(
+                code="STATE_UNDEFINED_DEPENDENCY",
+                severity="warning",
+                document_id=doc_id,
+                message=f"Dependency '{dep_id}' in {field_name} is not present in the index.",
+                field=field_name,
+            )
+        )
 
 
 def check_dependency_cycle(
@@ -267,12 +286,15 @@ def check_dependency_cycle(
                     if rotated not in seen_cycles:
                         seen_cycles.append(rotated)
                         cycle_path = list(rotated) + [rotated[0]]
-                        issues.append(ValidationIssue(
-                            code="STATE_DEPENDENCY_CYCLE",
-                            severity="fatal",
-                            document_id=rotated[0],
-                            message=f"Dependency cycle detected: {' -> '.join(cycle_path)}",
-                        ))
+                        issues.append(
+                            ValidationIssue(
+                                code="STATE_DEPENDENCY_CYCLE",
+                                severity="fatal",
+                                document_id=rotated[0],
+                                message=f"Dependency cycle detected: {' -> '.join(cycle_path)}",
+                                field="dependencies",
+                            )
+                        )
                 continue
 
             if neighbor in adj:
@@ -295,15 +317,18 @@ def check_status_conflicts(
         for dep_id in sorted(all_deps):
             dep_entry = all_entries.get(dep_id)
             if dep_entry is not None and _normalize_impl(dep_entry.impl_state) != "done":
-                issues.append(ValidationIssue(
-                    code="STATE_DEPENDENCY_STATUS_CONFLICT",
-                    severity="advisory",
-                    document_id=doc_id,
-                    message=(
-                        f"Entry '{doc_id}' is Done but depends on '{dep_id}' "
-                        f"which is '{dep_entry.impl_state}'."
-                    ),
-                ))
+                issues.append(
+                    ValidationIssue(
+                        code="STATE_DEPENDENCY_STATUS_CONFLICT",
+                        severity="advisory",
+                        document_id=doc_id,
+                        message=(
+                            f"Entry '{doc_id}' is Done but depends on '{dep_id}' "
+                            f"which is '{dep_entry.impl_state}'."
+                        ),
+                        field="dependencies",
+                    )
+                )
     return issues
 
 
@@ -315,10 +340,7 @@ def _canonical_cycle_key(cycle_nodes: Tuple[str, ...]) -> Tuple[str, ...]:
     """
     if not cycle_nodes:
         return cycle_nodes
-    rotations = [
-        cycle_nodes[i:] + cycle_nodes[:i]
-        for i in range(len(cycle_nodes))
-    ]
+    rotations = [cycle_nodes[i:] + cycle_nodes[:i] for i in range(len(cycle_nodes))]
     return min(rotations)
 
 

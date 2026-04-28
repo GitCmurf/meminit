@@ -175,6 +175,7 @@ def _collect_read_validation_warnings(
     fs_known = _get_known_ids(root_dir)
 
     from meminit.core.services.repo_config import load_repo_layout
+
     try:
         layout = load_repo_layout(root_dir)
         valid_impl_states: Optional[List[str]] = []
@@ -209,19 +210,23 @@ def _collect_read_validation_warnings(
         for pi in planning_issues:
             if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                 continue
-            warnings.append({
-                "code": pi.code,
-                "message": pi.message,
-                "path": state_path,
-            })
+            warnings.append(
+                {
+                    "code": pi.code,
+                    "message": pi.message,
+                    "path": state_path,
+                }
+            )
 
     cycle_issues = check_dependency_cycle(state.entries)
     for ci in cycle_issues:
-        warnings.append({
-            "code": ci.code,
-            "message": ci.message,
-            "path": state_path,
-        })
+        warnings.append(
+            {
+                "code": ci.code,
+                "message": ci.message,
+                "path": state_path,
+            }
+        )
 
     if not warnings:
         return [], skip_doc_ids
@@ -236,9 +241,7 @@ def _state_excluding_entries(
         return state
     return ProjectState(
         entries={
-            doc_id: entry
-            for doc_id, entry in state.entries.items()
-            if doc_id not in skip_doc_ids
+            doc_id: entry for doc_id, entry in state.entries.items() if doc_id not in skip_doc_ids
         },
         schema_violations=state.schema_violations,
         schema_version=state.schema_version,
@@ -265,9 +268,7 @@ def _resolve_impl_state(root_dir: Path, impl_state: str) -> str:
     all_valid = canonical_values + extra_states
     custom_canonical_map = {s.lower(): s for s in extra_states}
 
-    if resolved is None and impl_state.lower() not in [
-        v.lower() for v in all_valid
-    ]:
+    if resolved is None and impl_state.lower() not in [v.lower() for v in all_valid]:
         raise MeminitError(
             code=ErrorCode.E_INVALID_FILTER_VALUE,
             message=f"Unknown impl_state: '{impl_state}'",
@@ -284,33 +285,27 @@ def _resolve_final_priority(
     priority: Optional[str],
     existing: Optional[ProjectStateEntry],
 ) -> Optional[str]:
-    final = priority if priority is not None else (
-        existing.priority if existing else None
-    )
-    if final is not None and final not in VALID_PRIORITIES:
+    if priority is not None and priority not in VALID_PRIORITIES:
         raise MeminitError(
             code=ErrorCode.STATE_INVALID_PRIORITY,
-            message=f"Priority '{final}' is not valid. Must be one of: {', '.join(VALID_PRIORITIES)}.",
-            details={"value": final, "valid_values": list(VALID_PRIORITIES)},
+            message=f"Priority '{priority}' is not valid. Must be one of: {', '.join(VALID_PRIORITIES)}.",
+            details={"value": priority, "valid_values": list(VALID_PRIORITIES)},
         )
-    return final
+    return priority if priority is not None else (existing.priority if existing else None)
 
 
 def _resolve_assignee(
     assignee: Optional[str],
     existing: Optional[ProjectStateEntry],
 ) -> Optional[str]:
-    final = assignee if assignee is not None else (
-        existing.assignee if existing else None
-    )
     if assignee == "":
         return None
-    if final is not None and len(final) > MAX_ASSIGNEE_LENGTH:
+    if assignee is not None and len(assignee) > MAX_ASSIGNEE_LENGTH:
         raise MeminitError(
             code=ErrorCode.STATE_FIELD_TOO_LONG,
-            message=f"assignee exceeds {MAX_ASSIGNEE_LENGTH} characters ({len(final)} chars).",
+            message=f"assignee exceeds {MAX_ASSIGNEE_LENGTH} characters ({len(assignee)} chars).",
         )
-    return final
+    return assignee if assignee is not None else (existing.assignee if existing else None)
 
 
 def _resolve_next_action(
@@ -319,22 +314,56 @@ def _resolve_next_action(
 ) -> Optional[str]:
     from meminit.core.services.sanitization import MAX_NOTES_LENGTH
 
-    final = next_action if next_action is not None else (
-        existing.next_action if existing else None
-    )
     if next_action == "":
         return None
-    if final is not None and "\n" in final:
+    if next_action is not None and "\n" in next_action:
         raise MeminitError(
             code=ErrorCode.STATE_FIELD_INVALID_FORMAT,
             message="next_action must not contain embedded newlines.",
         )
-    if final is not None and len(final) > MAX_NOTES_LENGTH:
+    if next_action is not None and len(next_action) > MAX_NOTES_LENGTH:
         raise MeminitError(
             code=ErrorCode.STATE_FIELD_TOO_LONG,
-            message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(final)} chars).",
+            message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(next_action)} chars).",
         )
-    return final
+    return next_action if next_action is not None else (existing.next_action if existing else None)
+
+
+def _changed_planning_fields(
+    *,
+    priority: Optional[str],
+    depends_on: Optional[List[str]],
+    add_depends_on: Optional[List[str]],
+    remove_depends_on: Optional[List[str]],
+    clear_depends_on: bool,
+    blocked_by: Optional[List[str]],
+    add_blocked_by: Optional[List[str]],
+    remove_blocked_by: Optional[List[str]],
+    clear_blocked_by: bool,
+    assignee: Optional[str],
+    next_action: Optional[str],
+) -> Set[str]:
+    fields: Set[str] = set()
+    if priority is not None:
+        fields.add("priority")
+    if depends_on is not None or add_depends_on or remove_depends_on or clear_depends_on:
+        fields.add("depends_on")
+    if blocked_by is not None or add_blocked_by or remove_blocked_by or clear_blocked_by:
+        fields.add("blocked_by")
+    if assignee is not None:
+        fields.add("assignee")
+    if next_action is not None:
+        fields.add("next_action")
+    return fields
+
+
+def _issue_applies_to_changed_field(issue: Any, changed_fields: Set[str]) -> bool:
+    field = getattr(issue, "field", None)
+    if field is None:
+        return True
+    if field == "dependencies":
+        return bool({"depends_on", "blocked_by"} & changed_fields)
+    return field in changed_fields
 
 
 def _resolve_actor_for_set(actor: Optional[str], root_dir: Path) -> str:
@@ -372,8 +401,7 @@ class StateDocumentUseCase:
         raise MeminitError(
             code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
             message=(
-                f"Invalid project-state.yaml schema "
-                f"({len(violations)} violation(s)): {summary}"
+                f"Invalid project-state.yaml schema " f"({len(violations)} violation(s)): {summary}"
             ),
             details={"violations": details},
         )
@@ -407,12 +435,23 @@ class StateDocumentUseCase:
             state = ProjectState()
 
         if clear:
-            has_other = any([
-                impl_state is not None, notes is not None, priority is not None,
-                depends_on is not None, add_depends_on is not None, remove_depends_on is not None, clear_depends_on,
-                blocked_by is not None, add_blocked_by is not None, remove_blocked_by is not None, clear_blocked_by,
-                assignee is not None, next_action is not None,
-            ])
+            has_other = any(
+                [
+                    impl_state is not None,
+                    notes is not None,
+                    priority is not None,
+                    depends_on is not None,
+                    add_depends_on is not None,
+                    remove_depends_on is not None,
+                    clear_depends_on,
+                    blocked_by is not None,
+                    add_blocked_by is not None,
+                    remove_blocked_by is not None,
+                    clear_blocked_by,
+                    assignee is not None,
+                    next_action is not None,
+                ]
+            )
             if has_other:
                 raise MeminitError(
                     ErrorCode.STATE_CLEAR_MUTATION_CONFLICT,
@@ -431,30 +470,49 @@ class StateDocumentUseCase:
             impl_state = _resolve_impl_state(self._root_dir, impl_state)
 
         existing = state.get(document_id)
+        changed_planning_fields = _changed_planning_fields(
+            priority=priority,
+            depends_on=depends_on,
+            add_depends_on=add_depends_on,
+            remove_depends_on=remove_depends_on,
+            clear_depends_on=clear_depends_on,
+            blocked_by=blocked_by,
+            add_blocked_by=add_blocked_by,
+            remove_blocked_by=remove_blocked_by,
+            clear_blocked_by=clear_blocked_by,
+            assignee=assignee,
+            next_action=next_action,
+        )
         final_priority = _resolve_final_priority(priority, existing)
         final_depends_on = _apply_list_mutation(
             existing.depends_on if existing else (),
-            replace=depends_on, add=add_depends_on,
-            remove=remove_depends_on, clear=clear_depends_on,
+            replace=depends_on,
+            add=add_depends_on,
+            remove=remove_depends_on,
+            clear=clear_depends_on,
             field_name="depends_on",
         )
         final_blocked_by = _apply_list_mutation(
             existing.blocked_by if existing else (),
-            replace=blocked_by, add=add_blocked_by,
-            remove=remove_blocked_by, clear=clear_blocked_by,
+            replace=blocked_by,
+            add=add_blocked_by,
+            remove=remove_blocked_by,
+            clear=clear_blocked_by,
             field_name="blocked_by",
         )
         final_assignee = _resolve_assignee(assignee, existing)
         final_next_action = _resolve_next_action(next_action, existing)
         final_impl_state = impl_state or (
-            (ImplState.from_string(existing.impl_state).value
-             if ImplState.from_string(existing.impl_state)
-             else existing.impl_state)
-            if existing else "Not Started"
+            (
+                ImplState.from_string(existing.impl_state).value
+                if ImplState.from_string(existing.impl_state)
+                else existing.impl_state
+            )
+            if existing
+            else "Not Started"
         )
         final_notes = (
-            truncate_notes(notes) if notes is not None
-            else (existing.notes if existing else None)
+            truncate_notes(notes) if notes is not None else (existing.notes if existing else None)
         )
         resolved_actor = _resolve_actor_for_set(actor, self._root_dir)
         entry = ProjectStateEntry(
@@ -469,7 +527,13 @@ class StateDocumentUseCase:
             assignee=final_assignee,
             next_action=final_next_action,
         )
-        return self._validate_and_persist(document_id, entry, existing, state)
+        return self._validate_and_persist(
+            document_id,
+            entry,
+            existing,
+            state,
+            changed_planning_fields,
+        )
 
     def _validate_and_persist(
         self,
@@ -477,9 +541,15 @@ class StateDocumentUseCase:
         entry: ProjectStateEntry,
         existing: Optional[ProjectStateEntry],
         state: ProjectState,
+        changed_planning_fields: Set[str],
     ) -> StateResult:
         validation_issues = validate_planning_fields(entry, _get_known_ids(self._root_dir))
-        fatal_issues = [i for i in validation_issues if i.severity == "fatal"]
+        fatal_issues = [
+            i
+            for i in validation_issues
+            if i.severity == "fatal"
+            and (existing is None or _issue_applies_to_changed_field(i, changed_planning_fields))
+        ]
         if fatal_issues:
             summary = "; ".join(i.message for i in fatal_issues)
             details = [{"code": i.code, "message": i.message} for i in fatal_issues]
@@ -621,6 +691,7 @@ class StateDocumentUseCase:
             )
 
         from meminit.core.services.state_derived import check_status_conflicts
+
         advisory = _build_status_advisory(state, check_status_conflicts, self._root_dir)
 
         validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
@@ -629,7 +700,13 @@ class StateDocumentUseCase:
         derived = compute_derived_fields(derivation_state, known_ids)
 
         entries_list, ready_count, blocked_count = _build_entries_with_derived(
-            state, derived, ready, blocked, assignee, priority, impl_state,
+            state,
+            derived,
+            ready,
+            blocked,
+            assignee,
+            priority,
+            impl_state,
             skip_doc_ids=skip_doc_ids,
         )
 
@@ -637,7 +714,9 @@ class StateDocumentUseCase:
             document_id="*",
             action="list",
             entries=entries_list,
-            summary=_compute_list_summary(state, entries_list, ready_count, blocked_count, skip_doc_ids),
+            summary=_compute_list_summary(
+                state, entries_list, ready_count, blocked_count, skip_doc_ids
+            ),
             advice=advisory if advisory else None,
             warnings=validation_warnings if validation_warnings else None,
         )
@@ -668,7 +747,11 @@ class StateDocumentUseCase:
                 action="next",
                 entry=None,
                 reason="state_missing",
-                selection={"rule": "priority > unblocks > updated > document_id", "candidates_considered": 0, "filter": _build_filter_dict(assignee, priority_at_least)},
+                selection={
+                    "rule": "priority > unblocks > updated > document_id",
+                    "candidates_considered": 0,
+                    "filter": _build_filter_dict(assignee, priority_at_least),
+                },
             )
 
         from meminit.core.services.state_derived import PRIORITY_RANK
@@ -679,11 +762,19 @@ class StateDocumentUseCase:
         derived = compute_derived_fields(derivation_state, known_ids)
 
         candidates = _select_next_candidate(
-            state, derived, PRIORITY_RANK, assignee, priority_at_least, skip_doc_ids,
+            state,
+            derived,
+            PRIORITY_RANK,
+            assignee,
+            priority_at_least,
+            skip_doc_ids,
         )
 
         return _build_next_result(
-            candidates, validation_warnings, assignee, priority_at_least,
+            candidates,
+            validation_warnings,
+            assignee,
+            priority_at_least,
         )
 
     def blockers_state(
@@ -722,28 +813,29 @@ class StateDocumentUseCase:
             blocker_details = []
             for blocker_id in d.open_blockers:
                 blocker_entry = derivation_state.get(blocker_id)
-                blocker_details.append({
-                    "id": blocker_id,
-                    "impl_state": blocker_entry.impl_state if blocker_entry else None,
-                    "known": blocker_entry is not None or blocker_id in fs_known,
-                })
-            blocked_list.append({
-                "document_id": doc_id,
-                "impl_state": entry.impl_state,
-                "priority": entry.priority,
-                "assignee": entry.assignee,
-                "open_blockers": blocker_details,
-            })
+                blocker_details.append(
+                    {
+                        "id": blocker_id,
+                        "impl_state": blocker_entry.impl_state if blocker_entry else None,
+                        "known": blocker_entry is not None or blocker_id in fs_known,
+                    }
+                )
+            blocked_list.append(
+                {
+                    "document_id": doc_id,
+                    "impl_state": entry.impl_state,
+                    "priority": entry.priority,
+                    "assignee": entry.assignee,
+                    "open_blockers": blocker_details,
+                }
+            )
 
         non_skip_ids = [d for d in state.entries if d not in skip_doc_ids]
         if assignee is not None:
             non_skip_ids = [
-                d for d in non_skip_ids
-                if (state.entries[d].assignee or "") == assignee
+                d for d in non_skip_ids if (state.entries[d].assignee or "") == assignee
             ]
-        ready_count = sum(
-            1 for doc_id in non_skip_ids if derived[doc_id].ready
-        )
+        ready_count = sum(1 for doc_id in non_skip_ids if derived[doc_id].ready)
         return StateResult(
             document_id="*",
             action="blockers",
@@ -834,7 +926,10 @@ def _build_entries_with_derived(
             continue
         if priority_set is not None and (entry.priority or DEFAULT_PRIORITY) not in priority_set:
             continue
-        if impl_state_set is not None and _normalize_impl_state_value(entry.impl_state) not in impl_state_set:
+        if (
+            impl_state_set is not None
+            and _normalize_impl_state_value(entry.impl_state) not in impl_state_set
+        ):
             continue
 
         entries_list.append(_entry_to_dict(entry, d))
@@ -867,12 +962,14 @@ def _build_status_advisory(
     state_file_rel = get_state_file_rel_path(root_dir)
     advisory: List[Dict[str, Any]] = []
     for issue in status_conflicts:
-        advisory.append({
-            "code": issue.code,
-            "document_id": issue.document_id,
-            "path": state_file_rel,
-            "message": issue.message,
-        })
+        advisory.append(
+            {
+                "code": issue.code,
+                "document_id": issue.document_id,
+                "path": state_file_rel,
+                "message": issue.message,
+            }
+        )
     return advisory
 
 
