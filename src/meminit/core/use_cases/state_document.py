@@ -610,6 +610,14 @@ class StateDocumentUseCase:
                 message="project-state.yaml does not exist.",
             )
 
+        validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
+
+        if document_id in skip_doc_ids:
+            raise MeminitError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"No state entry for document '{document_id}'.",
+            )
+
         entry = state.get(document_id)
         if entry is None:
             raise MeminitError(
@@ -617,13 +625,15 @@ class StateDocumentUseCase:
                 message=f"No state entry for document '{document_id}'.",
             )
 
-        known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
-        derived = compute_derived_fields(state, known_ids)
+        derivation_state = _state_excluding_entries(state, skip_doc_ids)
+        known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
+        derived = compute_derived_fields(derivation_state, known_ids)
 
         return StateResult(
             document_id=document_id,
             action="get",
             entry=_entry_to_dict(entry, derived[document_id]),
+            warnings=validation_warnings if validation_warnings else None,
         )
 
     def list_states(

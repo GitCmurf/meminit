@@ -1338,3 +1338,68 @@ def test_list_states_no_duplicate_field_too_long_warnings(tmp_path):
     assert result.warnings is not None
     too_long = [w for w in result.warnings if w["code"] == "STATE_FIELD_TOO_LONG"]
     assert len(too_long) == 1
+
+
+def test_get_state_excludes_invalid_priority(tmp_path):
+    """get_state raises FILE_NOT_FOUND for documents with invalid priority."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.get_state("MEMINIT-ADR-001")
+    assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+    assert "MEMINIT-ADR-001" in exc_info.value.message
+
+
+def test_get_state_includes_validation_warnings(tmp_path):
+    """get_state includes validation warnings for valid documents."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", add_depends_on=["MEMINIT-ADR-002"])
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+
+    # Introduce a dependency cycle (ADR-002 depends on ADR-001)
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.get_state("MEMINIT-ADR-001")
+    assert result.warnings is not None
+    assert any(w["code"] == "STATE_DEPENDENCY_CYCLE" for w in result.warnings)
+
+
+def test_get_state_consistent_with_list_states(tmp_path):
+    """Entries excluded from list_states due to invalid priority also raise errors in get_state."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started", priority="P2")
+
+    # Corrupt priority for ADR-002
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    # Verify list_states excludes ADR-002
+    list_result = use_case.list_states()
+    list_ids = [e["document_id"] for e in list_result.entries]
+    assert "MEMINIT-ADR-002" not in list_ids
+
+    # Verify get_state raises error for ADR-002
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.get_state("MEMINIT-ADR-002")
+    assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+
+    # Verify get_state works for valid ADR-001
+    get_result = use_case.get_state("MEMINIT-ADR-001")
+    assert get_result.document_id == "MEMINIT-ADR-001"
