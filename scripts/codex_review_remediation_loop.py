@@ -342,6 +342,9 @@ def strip_finding_priority(finding: str) -> tuple[str, str]:
 def codex_config_args(config: LoopConfig) -> list[str]:
     args: list[str] = []
     if config.reasoning_effort:
+        # Codex parses -c values as TOML; the quotes are part of the TOML string
+        # syntax, not shell quoting. subprocess.run() intentionally receives one
+        # argv item such as model_reasoning_effort="low".
         args.extend(["-c", f'model_reasoning_effort="{config.reasoning_effort}"'])
     return args
 
