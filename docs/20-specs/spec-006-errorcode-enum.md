@@ -59,7 +59,7 @@ Categories:
 | Shared     | Codes that may be raised by multiple commands.                      |
 | New-only   | Codes specific to `meminit new`.                                    |
 | Check-only | Codes specific to `meminit check`.                                  |
- | State-only | Codes specific to `meminit state`, `meminit index --filter`, and the Phase 4 queue commands (`state next`, `state blockers`). |
+| State-only | Codes specific to `meminit state`, `meminit index --filter`, and the Phase 4 queue commands (`state next`, `state blockers`). |
 | Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
 | Graph      | Codes for graph integrity violations during `meminit index` build.  |
 | Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`). |

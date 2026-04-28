@@ -439,43 +439,6 @@ def validate_initialized(
         try:
             raw = _yaml.safe_load(config_file.read_text(encoding="utf-8"))
             if isinstance(raw, dict) and raw.get("docops_version") is not None:
-                if command and command.startswith("state "):
-                    ns = raw.get("namespaces")
-                    if not (isinstance(ns, dict) and ns):
-                        msg = (
-                            "Repository config is malformed: docops.config.yaml is missing "
-                            "required field 'namespaces'. Run 'meminit init' to repair."
-                        )
-                        details = {
-                            "reason": "missing_namespaces",
-                            "hint": "meminit init",
-                            "root": str(root_path),
-                            "file": "docops.config.yaml",
-                            "required": "valid YAML with docops_version and namespaces",
-                        }
-                        if format == "json":
-                            _write_output(
-                                format_error_envelope(
-                                    command=command,
-                                    root=str(root_path),
-                                    error_code=ErrorCode.CONFIG_MISSING,
-                                    message=msg,
-                                    details=details,
-                                    include_timestamp=include_timestamp,
-                                    run_id=run_id or get_current_run_id(),
-                                    correlation_id=correlation_id,
-                                ),
-                                output=output,
-                            )
-                        elif format == "md":
-                            _write_output(
-                                f"# Meminit Error\n\n- Code: CONFIG_MISSING\n- Message: {msg}\n",
-                                output=output,
-                            )
-                        else:
-                            with maybe_capture(output, format):
-                                get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
-                        raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
                 return
             msg = (
                 "Repository config is malformed: docops.config.yaml is missing "
@@ -3301,7 +3264,7 @@ def _state_set_execute(
 def _render_state_set_json(
     result, root_path, include_timestamp, run_id, correlation_id, output,
 ):
-    data: dict = {"action": result.action}
+    data: dict = {"action": result.action, "document_id": result.document_id}
     if result.entry:
         data.update(result.entry)
     _write_output(
@@ -3658,7 +3621,7 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
                     e.get("impl_state", ""),
                     e.get("priority", ""),
                     "Yes" if e.get("ready") else "No",
-                    e.get("assignee", ""),
+                    _md_inline(e.get("assignee", "")),
                     str(e.get("updated", ""))[:10],
                 ]
                 for e in result.entries

@@ -605,8 +605,8 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         cause="A depends_on or blocked_by entry does not resolve to a known document in the repository index.",
         remediation=RemediationInfo(
             action="Verify the dependency ID is correct, or create the target document first.",
-            resolution_type="auto_fixable",
-            automatable=True,
+            resolution_type="manual",
+            automatable=False,
             relevant_commands=["state set", "state list"],
         ),
         spec_reference="MEMINIT-SPEC-006",

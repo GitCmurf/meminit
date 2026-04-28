@@ -11,8 +11,8 @@ No wall-clock time, filesystem mtime, or randomness is consulted.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Set, Tuple
 
 from meminit.core.services.project_state import (
     DEFAULT_PRIORITY,
@@ -45,7 +45,7 @@ class ValidationIssue:
     message: str
 
 
-def _is_dep_resolved(dep_id: str, state: ProjectState, known_ids: Set[str]) -> bool:
+def _is_dep_resolved(dep_id: str, state: ProjectState) -> bool:
     """Check whether a single dependency is resolved (target is Done)."""
     target = state.get(dep_id)
     if target is None:
@@ -60,16 +60,15 @@ def _normalize_impl(value: str) -> str:
 def _is_ready(
     entry: ProjectStateEntry,
     state: ProjectState,
-    known_ids: Set[str],
 ) -> bool:
     """An entry is ready iff impl_state is Not Started and all deps/blockers resolve to Done."""
     if _normalize_impl(entry.impl_state) != "not started":
         return False
     for dep_id in entry.depends_on:
-        if not _is_dep_resolved(dep_id, state, known_ids):
+        if not _is_dep_resolved(dep_id, state):
             return False
     for dep_id in entry.blocked_by:
-        if not _is_dep_resolved(dep_id, state, known_ids):
+        if not _is_dep_resolved(dep_id, state):
             return False
     return True
 
@@ -77,57 +76,72 @@ def _is_ready(
 def _open_blockers_for(
     entry: ProjectStateEntry,
     state: ProjectState,
-    known_ids: Set[str],
 ) -> Tuple[str, ...]:
     """Return sorted IDs from depends_on ∪ blocked_by that are not Done."""
     all_deps = set(entry.depends_on) | set(entry.blocked_by)
     open_ids: List[str] = []
     for dep_id in sorted(all_deps):
-        if not _is_dep_resolved(dep_id, state, known_ids):
+        if not _is_dep_resolved(dep_id, state):
             open_ids.append(dep_id)
     return tuple(open_ids)
 
 
 def _unblocks_for(
-    entry: ProjectStateEntry,
-    state: ProjectState,
+    doc_id: str,
+    incoming_references: Dict[str, List[str]],
 ) -> Tuple[str, ...]:
-    """Return sorted IDs whose depends_on or blocked_by lists reference this entry."""
-    doc_id = entry.document_id
-    result: List[str] = []
+    """Return sorted IDs whose depends_on or blocked_by lists reference this ID."""
+    return tuple(incoming_references.get(doc_id, ()))
+
+
+def _build_incoming_references(state: ProjectState) -> Dict[str, List[str]]:
+    """Build a deterministic reverse-reference map from state dependency lists."""
+    incoming: Dict[str, List[str]] = {}
     for other_id in sorted(state.entries.keys()):
-        if other_id == doc_id:
-            continue
         other = state.entries[other_id]
-        if doc_id in other.depends_on or doc_id in other.blocked_by:
-            result.append(other_id)
-    return tuple(result)
+        for dep_id in sorted(set(other.depends_on) | set(other.blocked_by)):
+            if dep_id == other_id:
+                continue
+            incoming.setdefault(dep_id, []).append(other_id)
+    return incoming
 
 
 def compute_derived_fields(
     state: ProjectState,
     known_ids: Set[str],
 ) -> Dict[str, DerivedEntry]:
-    """Compute derived fields for every entry in *state*.
+    """Compute derived fields for every known state/index document ID.
 
-    Returns a dict keyed by document_id.  Deterministic: same inputs always
-    produce equal outputs.
+    ``state`` contains the tracked mutable state entries. ``known_ids`` is the
+    governed document universe from the index. The returned map includes both
+    state-backed entries and index-only IDs so reverse relationships such as
+    ``unblocks`` remain visible for governed documents that have no explicit
+    ``project-state.yaml`` entry.
     """
     result: Dict[str, DerivedEntry] = {}
-    for doc_id, entry in state.entries.items():
-        result[doc_id] = DerivedEntry(
-            document_id=doc_id,
-            ready=_is_ready(entry, state, known_ids),
-            open_blockers=_open_blockers_for(entry, state, known_ids),
-            unblocks=_unblocks_for(entry, state),
-        )
+    incoming_references = _build_incoming_references(state)
+    for doc_id in sorted(set(known_ids) | set(state.entries.keys())):
+        entry = state.entries.get(doc_id)
+        if entry is None:
+            result[doc_id] = DerivedEntry(
+                document_id=doc_id,
+                ready=True,
+                open_blockers=(),
+                unblocks=_unblocks_for(doc_id, incoming_references),
+            )
+        else:
+            result[doc_id] = DerivedEntry(
+                document_id=doc_id,
+                ready=_is_ready(entry, state),
+                open_blockers=_open_blockers_for(entry, state),
+                unblocks=_unblocks_for(doc_id, incoming_references),
+            )
     return result
 
 
 def validate_planning_fields(
     entry: ProjectStateEntry,
     known_ids: Set[str],
-    all_entries: Dict[str, ProjectStateEntry],
 ) -> List[ValidationIssue]:
     """Validate planning fields for a single entry.
 
@@ -292,7 +306,13 @@ def check_status_conflicts(
 
 
 def _canonical_cycle_key(cycle_nodes: Tuple[str, ...]) -> Tuple[str, ...]:
-    """Return the lexicographically smallest rotation of a cycle."""
+    """Return the lexicographically smallest rotation of a cycle.
+
+    Empty input is returned unchanged so defensive callers get a
+    deterministic value instead of a ``min()`` failure.
+    """
+    if not cycle_nodes:
+        return cycle_nodes
     rotations = [
         cycle_nodes[i:] + cycle_nodes[:i]
         for i in range(len(cycle_nodes))

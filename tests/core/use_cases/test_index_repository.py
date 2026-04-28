@@ -195,7 +195,7 @@ def test_index_derived_fields_always_emitted_without_state(tmp_path):
 
 
 def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
-    """Document with state (blocked) and document without state both get derived fields."""
+    """Index-only governed documents preserve incoming unblocks from tracked entries."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     _setup_doc(tmp_path, "EXAMPLE-ADR-002")
     _setup_state_file(tmp_path, {
@@ -204,12 +204,7 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
             "updated": "2026-04-20T10:00:00+00:00",
             "updated_by": "test",
             "depends_on": ["EXAMPLE-ADR-002"],
-        },
-        "EXAMPLE-ADR-002": {
-            "impl_state": "Not Started",
-            "updated": "2026-04-20T10:00:00+00:00",
-            "updated_by": "test",
-        },
+        }
     })
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -1114,6 +1109,39 @@ def test_index_warns_on_undefined_dependency(tmp_path):
 
     codes = [w["code"] for w in report.warnings]
     assert "STATE_UNDEFINED_DEPENDENCY" in codes
+
+
+def test_index_includes_docs_from_nested_namespace(tmp_path):
+    """Nested namespace documents are indexed after an outer namespace scan sees them."""
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: NestedNamespaces
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: MEMINIT
+    docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+""".lstrip(),
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "MEMINIT-ADR-001", subdir="45-adr")
+    _setup_doc(
+        tmp_path,
+        "ORG-GOV-001",
+        doc_type="GOV",
+        title="Org Governance",
+        subdir="00-governance/org",
+        filename="org-gov-001.md",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    ids = {doc["document_id"] for doc in report.documents}
+    assert ids == {"MEMINIT-ADR-001", "ORG-GOV-001"}
 
 
 def test_index_preserves_fatal_severity_for_self_dependency(tmp_path):

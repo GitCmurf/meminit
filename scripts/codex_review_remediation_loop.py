@@ -16,16 +16,8 @@ from typing import Callable, Sequence
 
 
 STATUS_RE = re.compile(r"^\s*REVIEW_STATUS:\s*(clear|findings)\s*$", re.IGNORECASE | re.MULTILINE)
-
-DEFAULT_REVIEW_PROMPT = """Review the current repository changes against the base branch.
-Focus on correctness, security, behavior regressions, architecture quality, and missing tests.
-Return actionable findings only.
-End with exactly one status line:
-REVIEW_STATUS: clear
-or:
-REVIEW_STATUS: findings
-Use REVIEW_STATUS: clear only when there are no actionable findings to remediate.
-"""
+CODEX_FINDING_RE = re.compile(r"^\s*-\s*\[P[0-3]\]\s+", re.MULTILINE)
+CODEX_FINDING_LINE_RE = re.compile(r"^\s*-\s*(\[P[0-3]\]\s+.+)$")
 
 DEFAULT_REMEDIATION_PROMPT = """You are running a bounded review-remediation loop.
 
@@ -67,10 +59,20 @@ class LoopConfig:
     output_last_message: bool = True
     dry_run: bool = False
     final_review: bool = True
+    max_remediation_input_chars: int = 200_000
+    terminal_excerpt_chars: int = 4_000
+    progress: bool = True
     check_commands: tuple[str, ...] = field(default_factory=tuple)
 
 
 Runner = Callable[[Sequence[str], Path, str | None], CommandResult]
+
+
+def progress_log(config: LoopConfig, message: str) -> None:
+    if not config.progress:
+        return
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(f"[{timestamp}] {message}", file=sys.stderr, flush=True)
 
 
 def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None) -> CommandResult:
@@ -91,11 +93,47 @@ def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None
 
 
 def detect_review_status(output: str) -> str:
-    """Return clear/findings/unknown from the explicit REVIEW_STATUS line."""
+    """Return clear/findings/unknown for Codex review output."""
     match = STATUS_RE.search(output)
     if match:
         return match.group(1).lower()
+
+    if CODEX_FINDING_RE.search(output):
+        return "findings"
+
+    normalized = output.lower()
+    finding_markers = (
+        "review comment:",
+        "review comments:",
+        "full review comments:",
+    )
+    if any(marker in normalized for marker in finding_markers):
+        return "findings"
+
+    normalized_lines = [line.strip().lower() for line in output.splitlines()]
+    clear_lines = {
+        "no findings.",
+        "no findings",
+        "no issues found.",
+        "no issues found",
+        "no actionable findings.",
+        "no actionable findings",
+    }
+    if any(line in clear_lines for line in normalized_lines):
+        return "clear"
     return "unknown"
+
+
+def extract_finding_summaries(output: str, limit: int = 5) -> list[str]:
+    summaries: list[str] = []
+    for line in actionable_review_output(output).splitlines():
+        match = CODEX_FINDING_LINE_RE.match(line)
+        if not match:
+            continue
+        summaries.append(match.group(1).strip())
+        if len(summaries) >= limit:
+            break
+    return summaries
 
 
 def build_review_command(config: LoopConfig) -> list[str]:
@@ -103,7 +141,6 @@ def build_review_command(config: LoopConfig) -> list[str]:
     if config.model:
         command.extend(["--model", config.model])
     command.extend(["review", "--base", config.base])
-    command.append("-")
     return command
 
 
@@ -130,15 +167,41 @@ def write_artifact(path: Path, content: str) -> None:
 
 def run_codex_review(config: LoopConfig, runner: Runner, label: str) -> tuple[str, CommandResult]:
     command = build_review_command(config)
+    progress_log(config, f"review {label}: start ({shlex.join(command)})")
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN\nREVIEW_STATUS: findings\n")
     else:
-        result = runner(command, config.cwd, DEFAULT_REVIEW_PROMPT)
+        result = runner(command, config.cwd, None)
     combined = _combined_output(result)
     write_artifact(config.artifact_dir / f"{label}.txt", combined)
-    if result.returncode != 0:
+    if review_failed_to_run(result):
+        progress_log(config, f"review {label}: failed (exit {result.returncode})")
         raise RuntimeError(f"codex review failed for {label}; see {config.artifact_dir / f'{label}.txt'}")
-    return detect_review_status(combined), result
+    status = detect_review_status(combined)
+    progress_log(config, f"review {label}: {status}")
+    for finding in extract_finding_summaries(combined):
+        progress_log(config, f"review {label}: {finding}")
+    return status, result
+
+
+def review_failed_to_run(result: CommandResult) -> bool:
+    """Distinguish review invocation failures from review findings."""
+    if result.returncode == 0:
+        return False
+    if result.returncode < 0:
+        return True
+    if result.returncode >= 2:
+        return True
+
+    stderr = result.stderr.lower()
+    fatal_markers = (
+        "error:",
+        "fatal error",
+        "failed to create session",
+        "thread/start failed",
+        "for more information, try '--help'",
+    )
+    return any(marker in stderr for marker in fatal_markers)
 
 
 def run_remediation(
@@ -153,17 +216,20 @@ def run_remediation(
         else None
     )
     command = build_remediation_command(config, last_message_path)
-    prompt = f"{DEFAULT_REMEDIATION_PROMPT}\n{review_output}"
+    prompt = f"{DEFAULT_REMEDIATION_PROMPT}\n{trim_for_prompt(review_output, config.max_remediation_input_chars)}"
+    progress_log(config, f"remediation {iteration}: start ({shlex.join(command)})")
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN remediation skipped\n")
     else:
         result = runner(command, config.cwd, prompt)
     write_artifact(config.artifact_dir / f"remediation-{iteration}.txt", _combined_output(result))
     if result.returncode != 0:
+        progress_log(config, f"remediation {iteration}: failed (exit {result.returncode})")
         raise RuntimeError(
             f"codex exec remediation failed for iteration {iteration}; "
             f"see {config.artifact_dir / f'remediation-{iteration}.txt'}"
         )
+    progress_log(config, f"remediation {iteration}: complete")
     return result
 
 
@@ -171,6 +237,7 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
     results: list[CommandResult] = []
     for index, check in enumerate(config.check_commands, start=1):
         command = shlex.split(check)
+        progress_log(config, f"check {iteration}.{index}: start ({check})")
         if config.dry_run:
             result = CommandResult(command, 0, stdout=f"DRY_RUN check skipped: {check}\n")
         else:
@@ -180,6 +247,10 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
             config.artifact_dir / f"check-{iteration}-{index}.txt",
             _combined_output(result),
         )
+        if result.returncode == 0:
+            progress_log(config, f"check {iteration}.{index}: passed")
+        else:
+            progress_log(config, f"check {iteration}.{index}: failed (exit {result.returncode})")
     return results
 
 
@@ -191,6 +262,68 @@ def _format_check_failures(check_results: list[CommandResult]) -> str:
     for r in failures:
         parts.append(f"\n$ {shlex.join(r.args)}\n{_combined_output(r)}")
     return "\n".join(parts)
+
+
+def actionable_review_output(output: str) -> str:
+    """Keep the review's actionable comments, not the verbose tool transcript."""
+    review_text = output.split("\n[stderr]\n", 1)[0].strip()
+    if not review_text:
+        review_text = output.strip()
+    return review_text
+
+
+def trim_for_prompt(text: str, max_chars: int) -> str:
+    if max_chars < 1:
+        raise ValueError("max prompt characters must be positive")
+    if len(text) <= max_chars:
+        return text
+    omitted = len(text) - max_chars
+    marker = f"\n\n[... omitted {omitted} characters to stay under prompt limit ...]\n\n"
+    if len(marker) >= max_chars:
+        return marker[:max_chars]
+    keep_total = max_chars - len(marker)
+    keep_head = keep_total // 2
+    keep_tail = keep_total - keep_head
+    return (
+        text[:keep_head]
+        + marker
+        + text[-keep_tail:]
+    )
+
+
+def excerpt_for_terminal(text: str, max_chars: int) -> str:
+    text = text.strip()
+    if not text:
+        return ""
+    return trim_for_prompt(text, max_chars)
+
+
+def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
+    artifact_dir = config.artifact_dir
+    files = sorted(path for path in artifact_dir.glob("*") if path.is_file())
+    summary["artifact_paths"] = {
+        "artifact_dir": str(artifact_dir),
+        "summary": str(artifact_dir / "summary.json"),
+        "reviews": [str(path) for path in files if path.name.startswith("review-")],
+        "remediations": [
+            str(path)
+            for path in files
+            if path.name.startswith("remediation-") and "last-message" not in path.name
+        ],
+        "last_messages": [
+            str(path)
+            for path in files
+            if path.name.startswith("remediation-") and "last-message" in path.name
+        ],
+        "checks": [str(path) for path in files if path.name.startswith("check-")],
+    }
+
+
+def latest_file(artifact_dir: Path, prefix: str, suffix: str = ".txt") -> str | None:
+    files = sorted(
+        path for path in artifact_dir.glob(f"{prefix}*{suffix}") if path.is_file()
+    )
+    return str(files[-1]) if files else None
 
 
 def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, object]:
@@ -212,12 +345,16 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
     pending_check_failures = ""
     for iteration in range(1, config.max_iterations + 1):
         status, review = run_codex_review(config, runner, f"review-{iteration}")
-        last_review_output = _combined_output(review)
+        last_review_output = actionable_review_output(_combined_output(review))
         iterations.append({"iteration": iteration, "review_status": status})
 
-        if status == "clear":
+        if status == "clear" and not pending_check_failures:
             summary["final_status"] = "clear"
             summary["stopped_reason"] = "review_clear"
+            summary["latest_review_excerpt"] = excerpt_for_terminal(
+                last_review_output,
+                config.terminal_excerpt_chars,
+            )
             write_summary(config, summary)
             return summary
 
@@ -225,14 +362,27 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
         if pending_check_failures:
             remediation_input = pending_check_failures + "\n\n" + remediation_input
 
-        run_remediation(config, runner, iteration, remediation_input)
+        try:
+            run_remediation(config, runner, iteration, remediation_input)
+        except Exception as exc:
+            summary["final_status"] = "error"
+            summary["stopped_reason"] = "remediation_failed"
+            summary["error"] = str(exc)
+            iterations[-1]["remediation_failed"] = True
+            write_summary(config, summary)
+            raise
 
         check_results = run_checks(config, runner, iteration)
         pending_check_failures = _format_check_failures(check_results)
         iterations[-1]["check_failures"] = sum(1 for result in check_results if result.returncode != 0)
 
     if config.final_review:
-        status, _ = run_codex_review(config, runner, "review-final")
+        status, final_review = run_codex_review(config, runner, "review-final")
+        final_review_output = actionable_review_output(_combined_output(final_review))
+        summary["latest_review_excerpt"] = excerpt_for_terminal(
+            final_review_output,
+            config.terminal_excerpt_chars,
+        )
         if pending_check_failures:
             summary["final_status"] = "findings"
             summary["pending_check_failures"] = True
@@ -251,6 +401,7 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
 
 
 def write_summary(config: LoopConfig, summary: dict[str, object]) -> None:
+    add_artifact_paths(summary, config)
     write_artifact(config.artifact_dir / "summary.json", json.dumps(summary, indent=2, sort_keys=True))
 
 
@@ -261,6 +412,56 @@ def _combined_output(result: CommandResult) -> str:
     if result.stderr:
         parts.append("\n[stderr]\n" + result.stderr.rstrip())
     return "\n".join(parts).strip() + "\n"
+
+
+def format_terminal_summary(summary: dict[str, object]) -> str:
+    artifact_dir = str(summary.get("artifact_dir") or "")
+    status = str(summary.get("final_status") or "unknown")
+    reason = str(summary.get("stopped_reason") or "unknown")
+    lines = [
+        f"Review-remediation loop: {status} ({reason})",
+        f"Artifacts: {artifact_dir}",
+    ]
+
+    iterations = summary.get("iterations")
+    if isinstance(iterations, list) and iterations:
+        lines.append("Iterations:")
+        for item in iterations:
+            if not isinstance(item, dict):
+                continue
+            iteration = item.get("iteration")
+            review_status = item.get("review_status", "unknown")
+            check_failures = item.get("check_failures")
+            check_text = "checks not run" if check_failures is None else f"check failures: {check_failures}"
+            failed = " remediation failed" if item.get("remediation_failed") else ""
+            lines.append(f"  {iteration}: review={review_status}, {check_text}{failed}")
+
+    artifact_paths = summary.get("artifact_paths")
+    if isinstance(artifact_paths, dict):
+        reviews = artifact_paths.get("reviews")
+        last_messages = artifact_paths.get("last_messages")
+        checks = artifact_paths.get("checks")
+        if isinstance(reviews, list) and reviews:
+            lines.append(f"Latest review: {reviews[-1]}")
+        if isinstance(last_messages, list) and last_messages:
+            lines.append(f"Latest remediation summary: {last_messages[-1]}")
+        if isinstance(checks, list) and checks:
+            lines.append(f"Latest check outputs: {', '.join(str(path) for path in checks[-2:])}")
+        summary_path = artifact_paths.get("summary")
+        if summary_path:
+            lines.append(f"JSON summary: {summary_path}")
+
+    excerpt = str(summary.get("latest_review_excerpt") or "").strip()
+    if excerpt:
+        lines.append("")
+        lines.append("Latest actionable review output:")
+        lines.append(excerpt)
+
+    if summary.get("error"):
+        lines.append("")
+        lines.append(f"Error: {summary['error']}")
+
+    return "\n".join(lines)
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -320,6 +521,29 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="Do not run the final review after the last remediation pass.",
     )
+    parser.add_argument(
+        "--max-remediation-input-chars",
+        type=int,
+        default=200_000,
+        help="Maximum review/check text characters passed into each remediation prompt.",
+    )
+    parser.add_argument(
+        "--terminal-excerpt-chars",
+        type=int,
+        default=4_000,
+        help="Maximum latest-review characters shown in terminal text summaries.",
+    )
+    parser.add_argument(
+        "--summary-format",
+        choices=("text", "json", "both"),
+        default="text",
+        help="Summary format printed to stdout. Full JSON is always written to summary.json.",
+    )
+    parser.add_argument(
+        "--quiet-progress",
+        action="store_true",
+        help="Suppress timestamped progress logs on stderr.",
+    )
     return parser.parse_args(argv)
 
 
@@ -345,6 +569,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         output_last_message=not args.no_output_last_message,
         dry_run=args.dry_run,
         final_review=not args.skip_final_review,
+        max_remediation_input_chars=args.max_remediation_input_chars,
+        terminal_excerpt_chars=args.terminal_excerpt_chars,
+        progress=not args.quiet_progress,
         check_commands=tuple(args.check),
     )
 
@@ -354,7 +581,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    if args.summary_format in {"text", "both"}:
+        print(format_terminal_summary(summary))
+    if args.summary_format in {"json", "both"}:
+        if args.summary_format == "both":
+            print()
+        print(json.dumps(summary, indent=2, sort_keys=True))
     if args.dry_run:
         return 0
     return 0 if summary.get("final_status") == "clear" else 2

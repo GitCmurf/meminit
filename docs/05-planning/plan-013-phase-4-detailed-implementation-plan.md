@@ -465,7 +465,7 @@ through those cases.
 3. Add the seven `STATE_*` error codes to `ErrorCode` and
    `ERROR_EXPLANATIONS`. Map the fatal ones in `exit_code_for_error`.
 4. Implement validation as a pure function
-   `validate_planning_fields(entry, known_ids, all_entries) -> Violations`
+   `validate_planning_fields(entry, known_ids) -> Violations`
    so it can be reused by mutation, read, and query paths.
 5. Normalize `updated` to UTC at load/save boundaries and compare
    parsed datetimes in the selection path so ordering is stable across
@@ -674,7 +674,7 @@ New agent-facing error codes and their `explain` remediation targets:
 | `STATE_INVALID_PRIORITY`          | `state set`, `state next` filter | `manual`          |
 | `STATE_INVALID_DEPENDENCY_ID`     | `state set`                      | `manual`          |
 | `STATE_SELF_DEPENDENCY`           | `state set`                      | `manual`          |
-| `STATE_UNDEFINED_DEPENDENCY`      | `state set`, query commands      | `auto_fixable`    |
+| `STATE_UNDEFINED_DEPENDENCY`      | `state set`, query commands      | `manual`          |
 | `STATE_DEPENDENCY_CYCLE`          | `state set`, `state list`        | `manual`          |
 | `STATE_DEPENDENCY_STATUS_CONFLICT` | query commands                  | advisory          |
 | `STATE_FIELD_TOO_LONG`            | `state set`                      | `manual`          |
@@ -1027,12 +1027,12 @@ Phase 4 can be considered complete when all of the following are true:
 6. `meminit state list` accepts the filter flags in §3.3.1 and
    surfaces `ready`, `open_blockers`, and `unblocks` on every entry
    (Workstream C).
- 7. The nine `STATE_*`/`E_STATE_*` error codes (seven `STATE_*` plus
-    `E_STATE_YAML_MALFORMED` and `E_STATE_SCHEMA_VIOLATION`) in §3.2.2 and §3.3.6
-    are registered
-   in `ErrorCode`, have complete `ERROR_EXPLANATIONS` entries
-   reachable via `meminit explain`, and map to the correct exit
-   codes (Workstreams B and C).
+7. The full state/queue error-code set is registered in
+   `ErrorCode`: the eleven `STATE_*` values currently implemented,
+   `E_STATE_YAML_MALFORMED`, `E_STATE_SCHEMA_VIOLATION`, and
+   `E_INVALID_FILTER_VALUE` where used by §3.3.6. Each has a complete
+   `ERROR_EXPLANATIONS` entry reachable via `meminit explain` and maps
+   to the correct exit code (Workstreams B and C).
 8. `meminit capabilities` lists `state next` and `state blockers`
    with `supports_json: true` and `supports_correlation_id: true`, and
    both pass the contract-matrix envelope validator with

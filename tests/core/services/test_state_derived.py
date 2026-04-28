@@ -113,6 +113,15 @@ class TestComputeDerivedFields:
         derived = compute_derived_fields(state, {"A", "B", "C"})
         assert derived["A"].unblocks == ("B", "C")
 
+    def test_unblocks_reverse_lookup_for_index_only_known_id(self):
+        state = _state(
+            _entry("A", "Not Started", depends_on=("B",)),
+        )
+        derived = compute_derived_fields(state, {"A", "B"})
+        assert derived["B"].ready is True
+        assert derived["B"].open_blockers == ()
+        assert derived["B"].unblocks == ("A",)
+
     def test_determinism(self):
         state = _state(
             _entry("A", "Not Started", depends_on=("B",)),
@@ -143,42 +152,42 @@ class TestComputeDerivedFields:
 class TestValidatePlanningFields:
     def test_valid_entry_no_issues(self):
         entry = _entry(priority="P1", depends_on=("OTHER-ADR-001",))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001", "OTHER-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001", "OTHER-ADR-001"})
         assert [i for i in issues if i.severity == "fatal"] == []
 
     def test_invalid_priority(self):
         entry = _entry(priority="P9")
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_INVALID_PRIORITY" and i.severity == "fatal" for i in issues)
 
     def test_invalid_dependency_id_format(self):
         entry = _entry(depends_on=("not-a-valid-id",))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_INVALID_DEPENDENCY_ID" for i in issues)
 
     def test_undefined_dependency_warning(self):
         entry = _entry(depends_on=("MISSING-ADR-001",))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_UNDEFINED_DEPENDENCY" and i.severity == "warning" for i in issues)
 
     def test_self_dependency(self):
         entry = _entry(depends_on=("TEST-ADR-001",))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_SELF_DEPENDENCY" for i in issues)
 
     def test_assignee_too_long(self):
         entry = _entry(assignee="x" * (MAX_ASSIGNEE_LENGTH + 1))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_FIELD_TOO_LONG" and "assignee" in i.message for i in issues)
 
     def test_next_action_too_long(self):
         entry = _entry(next_action="y" * (MAX_NOTES_LENGTH + 1))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_FIELD_TOO_LONG" and "next_action" in i.message for i in issues)
 
     def test_blocked_by_same_validations(self):
         entry = _entry(blocked_by=("not-valid",))
-        issues = validate_planning_fields(entry, {"TEST-ADR-001"}, {})
+        issues = validate_planning_fields(entry, {"TEST-ADR-001"})
         assert any(i.code == "STATE_INVALID_DEPENDENCY_ID" for i in issues)
 
 
@@ -245,8 +254,10 @@ class TestCheckStatusConflicts:
             "B": _entry("B", "In Progress"),
         }
         issues = check_status_conflicts(entries)
-        assert any(i.code == "STATE_DEPENDENCY_STATUS_CONFLICT" for i in issues)
-        assert issues[0].severity == "advisory"
+        issue = next(
+            i for i in issues if i.code == "STATE_DEPENDENCY_STATUS_CONFLICT"
+        )
+        assert issue.severity == "advisory"
 
     def test_not_done_no_conflict(self):
         entries = {

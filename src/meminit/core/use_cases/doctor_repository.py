@@ -213,13 +213,12 @@ class DoctorRepositoryUseCase:
             validate_planning_fields,
         )
 
-        all_known = known_doc_ids | set(project_state.entries.keys())
         state_file_rel = get_state_file_rel_path(self._root_dir)
 
         _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
 
         for doc_id, entry in project_state.entries.items():
-            for pi in validate_planning_fields(entry, all_known, project_state.entries):
+            for pi in validate_planning_fields(entry, known_doc_ids):
                 if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                     continue
                 severity = Severity.ERROR if pi.severity == "fatal" else Severity.WARNING

@@ -4,7 +4,7 @@ type: PRD
 title: Project State Dashboard
 status: Draft
 version: "0.7"
-last_updated: 2026-04-22
+last_updated: 2026-04-23
 owner: GitCmurf
 docops_version: "2.0"
 area: CLI
@@ -948,4 +948,4 @@ This PRD is considered implemented when:
 | 0.4     | 2026-03-05 | GitCmurf | Round 3: date→datetime for sub-day sort resolution, merge conflict mitigation (alphabetical key ordering), promote `meminit state` CLI to FR-9 with auto `updated`/`updated_by`, nullable JSON schema fields, filtered catalog header, explicit advisory transitions (no gating), manual-only task→PRD rollups, `W_STATE_UNSORTED_KEYS` code. Integrate user's OQ decisions. |
 | 0.5     | 2026-03-05 | GitCmurf | Round 4: fix `<details>` regression in FDD scope, add CSS-based duplicate-content hiding for kanban fallback, extend SPEC-008 amendment to include `meminit state` payload profile, clarify timestamp display policy (date in Markdown, full datetime in JSON), split section 9 into resolved decisions and remaining open questions, renumber sections.                     |
 | 0.6     | 2026-03-07 | Codex    | Update FR-9 to reflect that `meminit state set` supports optional `--impl-state` when `--notes` or `--clear` are provided.                                                                                                                                                                                                                                                   |
-| 0.7     | 2026-04-21 | Codex    | Added Phase 4 queue surfaces (`state next`, `state blockers`), enriched merged state payload fields, and deterministic queue-selection acceptance criteria. |
+| 0.7     | 2026-04-23 | Codex    | Added Phase 4 queue surfaces (`state next`, `state blockers`), enriched merged state payload fields, and deterministic queue-selection acceptance criteria. |

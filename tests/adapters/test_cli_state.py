@@ -32,6 +32,35 @@ def repo_with_docs(tmp_path):
     
     return tmp_path
 
+def test_cli_state_list_accepts_templates_v2_list_namespaces(tmp_path):
+    """State commands accept the normal Templates v2 list-form namespaces config."""
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("{}")
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Test\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "schema_path: docs/00-governance/metadata.schema.json\n"
+        "namespaces:\n"
+        "  - name: default\n"
+        "    repo_prefix: TEST\n"
+        "    docs_root: docs\n"
+        "document_types:\n"
+        "  ADR:\n"
+        "    directory: adr\n"
+        "    description: Architecture Decision Record\n",
+        encoding="utf-8",
+    )
+
+    result = runner_no_mixed_stderr().invoke(
+        cli, ["state", "list", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    assert data["data"]["entries"] == []
+
 def test_cli_state_set_notes_only(repo_with_docs):
     """P2 Regression: Allow state set --notes without --impl-state."""
     runner = runner_no_mixed_stderr()
@@ -111,6 +140,9 @@ def test_cli_state_get_json(repo_with_docs):
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["success"] is True
     assert data["data"]["impl_state"] == "Blocked"
+    assert data["data"]["ready"] is False
+    assert data["data"]["open_blockers"] == []
+    assert data["data"]["unblocks"] == []
 
 def test_cli_state_clear_json(repo_with_docs):
     runner = runner_no_mixed_stderr()
@@ -120,6 +152,7 @@ def test_cli_state_clear_json(repo_with_docs):
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["data"]["action"] == "clear"
+    assert data["data"]["document_id"] == "TEST-ADR-001"
     
     list_result = runner.invoke(cli, ["state", "list", "--root", str(repo_with_docs), "--format", "json"])
     list_data = json.loads(list_result.output.strip().splitlines()[-1])
@@ -609,6 +642,7 @@ def test_cli_state_set_clear_alone_succeeds(repo_with_docs):
     assert result.exit_code == 0
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["data"]["action"] == "clear"
+    assert data["data"]["document_id"] == "TEST-ADR-001"
 
 
 # ---------------------------------------------------------------------------
@@ -654,6 +688,21 @@ def test_cli_state_blockers_md_escapes_assignee_html(repo_with_docs):
     ])
     result = runner.invoke(cli, [
         "state", "blockers", "--root", str(repo_with_docs), "--format", "md",
+    ])
+    assert result.exit_code == 0
+    assert "<img" not in result.output
+    assert "&lt;img" in result.output
+
+
+def test_cli_state_list_md_escapes_assignee_html(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--assignee", "<img src=x onerror=alert(1)>",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "md",
     ])
     assert result.exit_code == 0
     assert "<img" not in result.output
@@ -944,18 +993,26 @@ def test_cli_state_list_console_renders_advisories(repo_with_docs):
     assert "Advisory" in result.output
 
 
-def test_cli_state_rejects_config_without_namespaces(tmp_path):
-    """Config with docops_version but no namespaces is rejected by state commands."""
+def test_cli_state_list_accepts_initialized_top_level_templates_v2_config(tmp_path):
+    """State commands accept the top-level Templates v2 config written by init."""
     gov_dir = tmp_path / "docs" / "00-governance"
     gov_dir.mkdir(parents=True)
     (gov_dir / "metadata.schema.json").write_text("{}")
     (tmp_path / "docops.config.yaml").write_text(
-        "project_name: Test\ndocops_version: '2.0'\n",
+        "project_name: Test\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "document_types:\n"
+        "  ADR:\n"
+        "    directory: adr\n"
+        "    description: Architecture Decision Record\n",
         encoding="utf-8",
     )
     runner = runner_no_mixed_stderr()
     result = runner.invoke(cli, [
         "state", "list", "--root", str(tmp_path), "--format", "json",
     ])
-    assert result.exit_code != 0
-    assert "missing_namespaces" in result.output or "namespaces" in result.output
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    assert data["data"]["entries"] == []

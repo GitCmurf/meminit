@@ -34,7 +34,7 @@ related_ids:
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
-# SPEC: Agent Output Contract (Templates v2)
+# SPEC: Agent Output Contract (Templates v2 → v3)
 
 ## 1. Purpose
 
@@ -90,14 +90,14 @@ For `command: check`, additional required fields include counters (see [MEMINIT-
 
 Current v2 scope includes `check`, `new`, and `state` commands.
 
-| Command             | Required `data` fields                                                                                   | Type     |
-| ------------------- | -------------------------------------------------------------------------------------------------------- | -------- |
-| `check`             | See SPEC-004 counters                                                                                    | integers |
-| `new`               | `data.document_id`, `data.path`, `data.type`, `data.title`                                               | strings  |
-| `state set/get`     | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                                 | strings  |
-| `state list`        | `data.entries`                                                                                           | array    |
-| `state next`        | `data.entry`, `data.selection`, `data.reason`                                                            | object   |
-| `state blockers`    | `data.blocked`, `data.summary`                                                                           | object   |
+| Command             | Required `data` fields                                                                                   | Payload Type |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | ------------ |
+| `check`             | See SPEC-004 counters                                                                                    | Object with integer counters |
+| `new`               | `data.document_id`, `data.path`, `data.type`, `data.title`                                               | Object with string fields |
+| `state set/get`     | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                                 | Object with string fields |
+| `state list`        | `data.entries`                                                                                           | Object containing an array |
+| `state next`        | `data.entry`, `data.selection`, `data.reason`                                                            | Object containing `entry` object or `null`, selection object, and nullable reason |
+| `state blockers`    | `data.blocked`, `data.summary`                                                                           | Object containing blocked-entry array and summary object |
 
 ### 5.1 `new` Command Payload (Templates v2)
 

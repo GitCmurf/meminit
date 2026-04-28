@@ -40,6 +40,10 @@ schema_path: docs/00-governance/metadata.schema.json
 document_types:
   ADR:
     directory: 45-adr
+namespaces:
+  default:
+    docs_root: docs
+    repo_prefix: TEST
 """,
         encoding="utf-8",
     )

@@ -49,8 +49,6 @@ from meminit.core.services.sanitization import (
 from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services import graph
 
-_SENTINEL_NONE = object()
-
 
 def _json_default(obj: Any) -> str:
     """JSON serializer for date/datetime objects from frontmatter."""
@@ -903,7 +901,7 @@ class IndexRepositoryUseCase:
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
         single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        _ns_cache: Dict[int, Optional[Any]] = {}
+        _ns_cache: Dict[Path, Optional[Any]] = {}
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -911,17 +909,13 @@ class IndexRepositoryUseCase:
                 if single_ns is not None:
                     owner = single_ns
                 else:
-                    parent_key = hash(path.parent)
-                    owner = _ns_cache.get(parent_key)
-                    if owner is _SENTINEL_NONE:
-                        continue
-                    if owner is None:
+                    parent_key = path.parent
+                    if parent_key in _ns_cache:
+                        owner = _ns_cache[parent_key]
+                    else:
                         owner = self._layout.namespace_for_path(path)
-                        if owner is None or owner.namespace.lower() != ns.namespace.lower():
-                            _ns_cache[parent_key] = _SENTINEL_NONE
-                            continue
                         _ns_cache[parent_key] = owner
-                    elif owner.namespace.lower() != ns.namespace.lower():
+                    if owner is None or owner.namespace.lower() != ns.namespace.lower():
                         continue
                 if ns.is_excluded(path):
                     continue
@@ -1080,7 +1074,7 @@ class IndexRepositoryUseCase:
             _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
             for doc_id, ps_entry in project_state.entries.items():
                 planning_issues = validate_planning_fields(
-                    ps_entry, known_doc_ids, project_state.entries,
+                    ps_entry, known_doc_ids,
                 )
                 for pi in planning_issues:
                     if pi.code in _COVERED_BY_ENTRY_VALIDATORS:

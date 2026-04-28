@@ -2,7 +2,7 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2026-04-27
+last_updated: 2026-04-28
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
@@ -137,8 +137,11 @@ python scripts/codex_review_remediation_loop.py --base main --max-iterations 2
 
 The loop uses Codex-native review rather than a third-party reviewer:
 
-1. Run `codex review --base main` with a status-line instruction.
-2. Stop if the review emits `REVIEW_STATUS: clear`.
+1. Run `codex review --base main`.
+2. Stop if the review emits a recognized clear result. Codex review findings
+   are detected from built-in `- [P1]`/`- [P2]`/`- [P3]` comment markers.
+   The script also understands `REVIEW_STATUS: clear` for synthetic tests or
+   future Codex builds that allow custom review prompts with `--base`.
 3. Otherwise run `codex exec` in `workspace-write` sandbox mode to remediate
    the actionable findings.
 4. Optionally run each `--check` command after the remediation pass.
@@ -164,16 +167,33 @@ Safety notes:
 - A failing `--check` is fed into the next remediation pass while iteration
   budget remains. If the final allowed pass still leaves a failing check, the
   loop reports `pending_check_failures: true` and does not report clear.
+  This remains true even if the next `codex review` output reports clear.
 - Transcripts are written under `tmp/codex-review-remediation-loop/` by
   default, which is ignored by git.
-- The script prompts the review agent to emit `REVIEW_STATUS: clear` or
-  `REVIEW_STATUS: findings`. If the status line is missing and the output is
-  ambiguous, the loop treats the review as not clear.
-- Review and remediation prompts are sent via stdin (`-`) so large prompts do
-  not become shell arguments.
+- This Codex CLI build rejects `codex review --base <branch> -`, so the review
+  step does not pass a custom prompt. If the output is ambiguous, the loop
+  treats the review as not clear.
+- Remediation prompts are sent via stdin (`-`) so large prompts do not become
+  shell arguments.
+- Only the actionable review text is passed to the remediation agent. Verbose
+  Codex review transcripts and tool logs are kept in artifact files but are not
+  replayed into the next prompt.
+- Remediation prompt input is capped by `--max-remediation-input-chars`
+  (default `200000`) to avoid nested Codex input-limit failures.
 - Remediation output defaults to `--color never` for stable transcripts and
   writes each final remediation message to
   `remediation-<N>-last-message.txt` under the artifact directory.
+- `summary.json` includes direct artifact paths for reviews, remediation
+  transcripts, final messages, and check outputs. If a remediation subprocess
+  fails, the loop writes a failure summary before exiting non-zero.
+- The terminal output defaults to a concise text summary with iteration status,
+  latest artifact paths, and the latest actionable review excerpt. Use
+  `--summary-format json` for the previous JSON stdout shape, or
+  `--summary-format both` when both are useful.
+- During the loop, timestamped progress logs are written to stderr when each
+  review, remediation, or check starts and finishes. Review progress includes
+  the detected review status and up to five one-line `[P#]` finding summaries.
+  Use `--quiet-progress` to suppress live progress logs.
 - `--exec-json` is available when a machine-readable Codex event stream is
   useful, but it is not the default because JSONL is noisier for operator
   review than the normal transcript.

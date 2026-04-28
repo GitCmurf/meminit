@@ -36,7 +36,6 @@ from meminit.core.services.project_state import (
 from meminit.core.services.sanitization import MAX_ASSIGNEE_LENGTH, truncate_notes, validate_actor
 from meminit.core.services.state_derived import (
     DerivedEntry,
-    ValidationIssue,
     check_dependency_cycle,
     compute_derived_fields,
     next_selection_key,
@@ -185,7 +184,6 @@ def _collect_read_validation_warnings(
         valid_impl_states = None
 
     issues = validate_project_state(state, fs_known, root_dir, valid_impl_states=valid_impl_states)
-    all_known = fs_known | set(state.entries.keys())
     state_path = get_state_file_rel_path(root_dir)
     warnings: List[Dict[str, Any]] = []
     skip_doc_ids: Set[str] = set()
@@ -207,7 +205,7 @@ def _collect_read_validation_warnings(
     _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
 
     for doc_id, entry in state.entries.items():
-        planning_issues = validate_planning_fields(entry, all_known, state.entries)
+        planning_issues = validate_planning_fields(entry, fs_known)
         for pi in planning_issues:
             if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                 continue
@@ -228,6 +226,23 @@ def _collect_read_validation_warnings(
     if not warnings:
         return [], skip_doc_ids
     return warnings, skip_doc_ids
+
+
+def _state_excluding_entries(
+    state: ProjectState,
+    skip_doc_ids: Set[str],
+) -> ProjectState:
+    if not skip_doc_ids:
+        return state
+    return ProjectState(
+        entries={
+            doc_id: entry
+            for doc_id, entry in state.entries.items()
+            if doc_id not in skip_doc_ids
+        },
+        schema_violations=state.schema_violations,
+        schema_version=state.schema_version,
+    )
 
 
 def _resolve_impl_state(root_dir: Path, impl_state: str) -> str:
@@ -463,15 +478,17 @@ class StateDocumentUseCase:
         existing: Optional[ProjectStateEntry],
         state: ProjectState,
     ) -> StateResult:
-        validation_issues = validate_planning_fields(
-            entry, _get_known_ids(self._root_dir) | set(state.entries.keys()), state.entries
-        )
+        validation_issues = validate_planning_fields(entry, _get_known_ids(self._root_dir))
         fatal_issues = [i for i in validation_issues if i.severity == "fatal"]
         if fatal_issues:
             summary = "; ".join(i.message for i in fatal_issues)
             details = [{"code": i.code, "message": i.message} for i in fatal_issues]
+            try:
+                error_code = ErrorCode(fatal_issues[0].code)
+            except ValueError:
+                error_code = ErrorCode.E_STATE_SCHEMA_VIOLATION
             raise MeminitError(
-                code=ErrorCode(fatal_issues[0].code),
+                code=error_code,
                 message=f"({len(fatal_issues)} violation(s)): {summary}",
                 details={"violations": details},
             )
@@ -530,10 +547,13 @@ class StateDocumentUseCase:
                 message=f"No state entry for document '{document_id}'.",
             )
 
+        known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
+        derived = compute_derived_fields(state, known_ids)
+
         return StateResult(
             document_id=document_id,
             action="get",
-            entry=_entry_to_dict(entry),
+            entry=_entry_to_dict(entry, derived[document_id]),
         )
 
     def list_states(
@@ -655,15 +675,15 @@ class StateDocumentUseCase:
                 selection={"rule": "priority > unblocks > updated > document_id", "candidates_considered": 0, "filter": _build_filter_dict(assignee, priority_at_least)},
             )
 
-        known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
-        derived = compute_derived_fields(state, known_ids)
-
         from meminit.core.services.state_derived import PRIORITY_RANK
 
-        validation_warnings, _ = _collect_read_validation_warnings(state, self._root_dir)
+        validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
+        derivation_state = _state_excluding_entries(state, skip_doc_ids)
+        known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
+        derived = compute_derived_fields(derivation_state, known_ids)
 
         candidates = _select_next_candidate(
-            state, derived, PRIORITY_RANK, assignee, priority_at_least,
+            state, derived, PRIORITY_RANK, assignee, priority_at_least, skip_doc_ids,
         )
 
         return _build_next_result(
@@ -687,28 +707,29 @@ class StateDocumentUseCase:
                 summary={"total_entries": 0, "blocked": 0, "ready": 0},
             )
 
-        known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
         fs_known = _get_known_ids(self._root_dir)
-        derived = compute_derived_fields(state, known_ids)
+        validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
+        derivation_state = _state_excluding_entries(state, skip_doc_ids)
+        known_ids = fs_known | set(derivation_state.entries.keys())
+        derived = compute_derived_fields(derivation_state, known_ids)
 
         blocked_list: List[Dict[str, Any]] = []
-        validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
         for doc_id in sorted(state.entries.keys()):
+            if skip_doc_ids and doc_id in skip_doc_ids:
+                continue
             entry = state.entries[doc_id]
             d = derived[doc_id]
             if not d.open_blockers:
-                continue
-            if skip_doc_ids and doc_id in skip_doc_ids:
                 continue
             if assignee is not None and (entry.assignee or "") != assignee:
                 continue
             blocker_details = []
             for blocker_id in d.open_blockers:
-                blocker_entry = state.get(blocker_id)
+                blocker_entry = derivation_state.get(blocker_id)
                 blocker_details.append({
                     "id": blocker_id,
                     "impl_state": blocker_entry.impl_state if blocker_entry else None,
-                    "known": blocker_id in known_ids,
+                    "known": blocker_entry is not None or blocker_id in fs_known,
                 })
             blocked_list.append({
                 "document_id": doc_id,
@@ -865,9 +886,12 @@ def _select_next_candidate(
     priority_rank: Dict[str, int],
     assignee: Optional[str],
     priority_at_least: Optional[str],
+    skip_doc_ids: Optional[Set[str]] = None,
 ) -> List[Tuple[ProjectStateEntry, DerivedEntry]]:
     candidates: List[Tuple[ProjectStateEntry, DerivedEntry]] = []
     for doc_id, entry in state.entries.items():
+        if skip_doc_ids and doc_id in skip_doc_ids:
+            continue
         d = derived[doc_id]
         if not d.ready:
             continue
