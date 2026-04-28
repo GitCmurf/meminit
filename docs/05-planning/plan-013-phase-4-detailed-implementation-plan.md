@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-013
 type: PLAN
 title: Phase 4 Detailed Implementation Plan
 status: Draft
-version: '0.9'
-last_updated: '2026-04-23'
+version: '0.10'
+last_updated: '2026-04-28'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -29,8 +29,8 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-013
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.9
-> **Last Updated:** 2026-04-23
+> **Version:** 0.10
+> **Last Updated:** 2026-04-28
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue layer.
@@ -564,6 +564,12 @@ In-progress entries (`impl_state == "In Progress"`) are not "ready"
 for selection — they are already picked up. They appear in
 `state list` but never in `state next`.
 
+Governed documents that are present in the index but absent from
+`project-state.yaml` are emitted with derived fields for index/catalog
+parity, including reverse `unblocks` relationships, but they are **not**
+ready. The explicit `impl_state == "Not Started"` state entry remains a
+required part of the readiness predicate.
+
 #### 3.3.3 Next-selection algorithm
 
 `state next` returns the ready entry that wins the following ordered
@@ -1068,3 +1074,4 @@ Phase 4 can be considered complete when all of the following are true:
 | 0.7 | 2026-04-22 | Codex | Phase 4 gap remediation (round 1): BV-1 mixed-mode rejection, BV-2 warning envelope correctness, BV-3 fixture matrix Q01–Q20, AR-1 decomposition, AR-2 byte-stability, AR-3 kanban decomposition, GG-1–GG-4 docs closeout. *(test-count claim removed in v0.8)* |
 | 0.8 | 2026-04-23 | Codex | Second audit remediation: BV-C XSS gate in kanban priority rendering, BV-A metadata drift corrected, BV-B exit criterion #13 scope correction (Q01–Q20 + RUNBOOK-006 §3), GG-A warning-code consolidation, GG-C stale test count removed. |
 | 0.9 | 2026-04-23 | Codex | Third audit remediation: AR-new-2 double-emission dedup, AR-new-3 P2 index fidelity, GG-new-1 SPEC-008 advice shape, GG-new-2 line:0 omission, AR-new-1 decomposition, GG-new-3 error-code registry correction, AR-new-4 errata marker. |
+| 0.10 | 2026-04-28 | Codex | Clarified that index-only governed documents receive derived fields but are not ready without an explicit `Not Started` project-state entry. |

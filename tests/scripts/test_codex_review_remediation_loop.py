@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -26,6 +27,10 @@ def test_detect_review_status_treats_ambiguous_output_as_unknown():
 def test_detect_review_status_accepts_exact_clear_review_lines():
     assert MODULE.detect_review_status("No findings.\n") == "clear"
     assert MODULE.detect_review_status("summary\nNo actionable findings\n") == "clear"
+    assert (
+        MODULE.detect_review_status("I did not find any discrete, actionable bugs in the diff.")
+        == "clear"
+    )
 
 
 def test_detect_review_status_recognizes_codex_review_findings():
@@ -53,6 +58,41 @@ def test_extract_finding_summaries_limits_codex_findings():
     ]
 
 
+def test_extract_finding_blocks_includes_short_detail():
+    output = """Full review comments:
+
+- [P1] First bug — src/a.py:1
+  The first detail line.
+  The second detail line.
+  The third detail line.
+- [P2] Second bug — src/b.py:2
+  Another detail.
+"""
+    assert MODULE.extract_finding_blocks(output, limit=2, detail_lines=2) == [
+        [
+            "[P1] First bug — src/a.py:1",
+            "The first detail line.",
+            "The second detail line.",
+        ],
+        ["[P2] Second bug — src/b.py:2", "Another detail."],
+    ]
+
+
+def test_extract_review_summary_uses_leading_review_prose():
+    output = """The loop can omit the only review transcript path in a failure summary.
+
+Full review comments:
+
+- [P2] Prefix iteration review artifact labels — scripts/loop.py:1
+  Detail.
+"""
+
+    assert (
+        MODULE.extract_review_summary(output)
+        == "The loop can omit the only review transcript path in a failure summary."
+    )
+
+
 def test_review_model_is_top_level_codex_option(tmp_path):
     config = MODULE.LoopConfig(
         base="main",
@@ -67,6 +107,39 @@ def test_review_model_is_top_level_codex_option(tmp_path):
 
     assert command[:5] == ["codex", "--model", "gpt-test", "review", "--base"]
     assert command == ["codex", "--model", "gpt-test", "review", "--base", "main"]
+
+
+def test_model_overrides_and_reasoning_effort_are_passed_to_codex(tmp_path):
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+        model="gpt-5.4-mini",
+        review_model="gpt-5.5",
+        remediation_model="gpt-5.4-mini",
+        reasoning_effort="low",
+    )
+
+    review_command = MODULE.build_review_command(config)
+    remediation_command = MODULE.build_remediation_command(config)
+
+    assert review_command[:5] == [
+        "codex",
+        "-c",
+        'model_reasoning_effort="low"',
+        "--model",
+        "gpt-5.5",
+    ]
+    assert remediation_command[:5] == [
+        "codex",
+        "exec",
+        "-c",
+        'model_reasoning_effort="low"',
+        "--full-auto",
+    ]
+    assert remediation_command[remediation_command.index("--model") + 1] == "gpt-5.4-mini"
 
 
 def test_remediation_command_uses_deterministic_output_options(tmp_path):
@@ -121,6 +194,91 @@ def test_loop_stops_after_review_reports_clear(tmp_path):
     assert (tmp_path / "artifacts" / "summary.json").exists()
 
 
+def test_loop_can_start_from_initial_review_file(tmp_path):
+    calls = []
+    initial_review = tmp_path / "previous-review-final.txt"
+    initial_review.write_text(
+        "Full review comments:\n\n- [P2] Carry this forward — src/state.py:1\n",
+        encoding="utf-8",
+    )
+    review_outputs = iter(["No findings.\n"])
+
+    def runner(args, cwd, input_text=None):
+        calls.append((list(args), input_text))
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
+        return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+        initial_review_file=initial_review,
+    )
+
+    summary = MODULE.run_loop(config, runner)
+
+    assert [call[0][1] for call in calls] == ["exec", "review"]
+    assert calls[0][1] is not None and "Carry this forward" in calls[0][1]
+    assert summary["iterations"][0]["review_source"] == str(initial_review)
+    assert (tmp_path / "artifacts" / "review-initial.txt").exists()
+
+
+def test_resolve_initial_review_file_latest(tmp_path):
+    older = tmp_path / "20260428T000000Z"
+    newer = tmp_path / "20260428T010000Z"
+    older.mkdir()
+    newer.mkdir()
+    older_review = older / "review-final.txt"
+    newer_review = newer / "review-final.txt"
+    older_review.write_text("old", encoding="utf-8")
+    newer_review.write_text("new", encoding="utf-8")
+
+    assert MODULE.resolve_initial_review_file("latest", tmp_path) == newer_review
+
+
+def test_main_resolves_latest_initial_review_from_custom_artifact_dir(tmp_path, monkeypatch):
+    custom_root = tmp_path / "custom-artifacts"
+    custom_run = custom_root / "20260428T010000Z"
+    default_run = tmp_path / "tmp" / "codex-review-remediation-loop" / "20260428T020000Z"
+    custom_run.mkdir(parents=True)
+    default_run.mkdir(parents=True)
+    custom_review = custom_run / "review-final.txt"
+    default_review = default_run / "review-final.txt"
+    custom_review.write_text("custom", encoding="utf-8")
+    default_review.write_text("default", encoding="utf-8")
+    captured_configs = []
+
+    def fake_run_loop(config):
+        captured_configs.append(config)
+        return {
+            "artifact_dir": str(config.artifact_dir),
+            "final_status": "clear",
+            "stopped_reason": "review_clear",
+            "iterations": [],
+        }
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(MODULE, "run_loop", fake_run_loop)
+
+    exit_code = MODULE.main(
+        [
+            "--initial-review-file",
+            "latest",
+            "--artifact-dir",
+            str(custom_root),
+            "--quiet-progress",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured_configs[0].artifact_dir == custom_root
+    assert captured_configs[0].initial_review_file == custom_review
+    assert captured_configs[0].initial_review_file != default_review
+
+
 def test_loop_caps_remediation_passes_and_runs_final_review(tmp_path):
     calls = []
 
@@ -144,6 +302,14 @@ def test_loop_caps_remediation_passes_and_runs_final_review(tmp_path):
     assert summary["stopped_reason"] == "max_iterations_reached"
     assert [call[0][1] for call in calls] == ["review", "exec", "review", "exec", "review"]
     assert len(summary["iterations"]) == 2
+    assert (tmp_path / "artifacts" / "review-1.txt").exists()
+    assert (tmp_path / "artifacts" / "review-2.txt").exists()
+    assert not (tmp_path / "artifacts" / "1.txt").exists()
+    assert summary["artifact_paths"]["reviews"] == [
+        str(tmp_path / "artifacts" / "review-1.txt"),
+        str(tmp_path / "artifacts" / "review-2.txt"),
+        str(tmp_path / "artifacts" / "review-final.txt"),
+    ]
 
 
 def test_loop_continues_after_check_failure_and_feeds_output_into_next_pass(tmp_path):
@@ -418,6 +584,7 @@ def test_terminal_summary_surfaces_latest_findings_and_paths():
 
     assert "Review-remediation loop: findings (max_iterations_reached)" in text
     assert "Latest review: tmp/run/review-final.txt" in text
+    assert "Continue from latest review: --initial-review-file tmp/run/review-final.txt" in text
     assert "Latest remediation summary: tmp/run/remediation-2-last-message.txt" in text
     assert "- [P2] Fix summary counts" in text
 
@@ -425,7 +592,9 @@ def test_terminal_summary_surfaces_latest_findings_and_paths():
 def test_progress_logs_review_and_finding_summaries(tmp_path, capsys):
     review_outputs = iter(
         [
-            "Full review comments:\n\n- [P2] Fix queue parity — src/state.py:1\n",
+            "The query surfaces disagree.\n\n"
+            "Full review comments:\n\n"
+            "- [P2] Fix queue parity — src/state.py:1\n",
             "No findings.\n",
         ]
     )
@@ -446,11 +615,73 @@ def test_progress_logs_review_and_finding_summaries(tmp_path, capsys):
     MODULE.run_loop(config, runner)
     captured = capsys.readouterr()
 
-    assert "review review-1: start" in captured.err
-    assert "review review-1: findings" in captured.err
-    assert "[P2] Fix queue parity" in captured.err
-    assert "remediation 1: start" in captured.err
-    assert "remediation 1: complete" in captured.err
+    assert re.search(r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|start: codex review --base main", captured.err)
+    assert re.search(r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|issue: The query surfaces disagree\.", captured.err)
+    assert "findings-summary" not in captured.err
+    assert "|rev|1   |[P2]   Fix queue parity" in captured.err
+    assert "|rem|1   |done" in captured.err
+
+
+def test_compact_progress_wraps_to_terminal_width(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(MODULE, "terminal_columns", lambda default=120: 70)
+    review_outputs = iter(
+        [
+            "This review summary is long enough to wrap onto another aligned line.\n\n"
+            "Full review comments:\n\n"
+            "- [P2] Fix queue parity — src/state.py:1\n"
+            "  This detail is also long enough to wrap under the same text column.\n",
+            "No findings.\n",
+        ]
+    )
+
+    def runner(args, cwd, input_text=None):
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
+        return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+    )
+
+    MODULE.run_loop(config, runner)
+    captured = capsys.readouterr()
+
+    assert re.search(r"\n\s{25}onto another aligned line\.", captured.err)
+    assert re.search(r"\n\s{25}the same text column\.", captured.err)
+
+
+def test_progress_logs_finding_detail_lines(tmp_path, capsys):
+    review_outputs = iter(
+        [
+            "Full review comments:\n\n"
+            "- [P2] Fix queue parity — src/state.py:1\n"
+            "  This is the important detail.\n",
+            "No findings.\n",
+        ]
+    )
+
+    def runner(args, cwd, input_text=None):
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
+        return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+    )
+
+    MODULE.run_loop(config, runner)
+    captured = capsys.readouterr()
+
+    assert "This is the important detail." in captured.err
+    assert re.search(r"\n\s{25}This is the important detail\.", captured.err)
 
 
 def test_quiet_progress_suppresses_progress_logs(tmp_path, capsys):
@@ -499,3 +730,5 @@ def test_loop_writes_failure_summary_when_remediation_fails(tmp_path):
     assert '"final_status": "error"' in summary
     assert '"stopped_reason": "remediation_failed"' in summary
     assert '"artifact_paths"' in summary
+    assert "review-1.txt" in summary
+    assert '"1.txt"' not in summary

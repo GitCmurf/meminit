@@ -4,7 +4,7 @@ type: SPEC
 title: ErrorCode Enum Specification
 status: Draft
 version: "0.5"
-last_updated: 2026-04-21
+last_updated: 2026-04-28
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -73,7 +73,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `DUPLICATE_ID`             | Shared     | A document_id already exists in the index or namespace.         |
 | `INVALID_ID_FORMAT`        | Shared     | The requested `--id` value is malformed or mismatched.         |
 | `INVALID_FLAG_COMBINATION` | Shared     | Mutually exclusive or invalid CLI flags were provided.          |
-| `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing or the repo is not initialized. |
+| `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing, unreadable, malformed, or the repo is not initialized. |
 | `PATH_ESCAPE`              | Shared     | A path argument resolves outside the repo root or docs root.    |
 | `UNKNOWN_TYPE`             | New-only   | The requested document type is not in the type directory map.   |
 | `UNKNOWN_NAMESPACE`        | New-only   | The requested namespace is not configured.                      |
@@ -99,7 +99,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `E_STATE_YAML_MALFORMED`   | State-only | The project-state.yaml file is not valid YAML.                 |
 | `E_STATE_SCHEMA_VIOLATION` | State-only | The project-state.yaml file violates the expected schema.       |
 | `E_INVALID_FILTER_VALUE`   | State-only | An invalid filter value was provided to a state or index query. |
-| `STATE_INVALID_PRIORITY`   | State-only | `priority` is not one of `P0..P3`. **Dual severity**: fatal when an invalid priority is being written (mutation rejected by `state set`); warning when an invalid priority is already stored and the entry is being selected or listed (entry skipped by `state next`, `state list`, or `index`). |
+| `STATE_INVALID_PRIORITY`   | State-only | `priority` is not one of `P0..P3`. **Dual severity**: fatal when an invalid priority is being written (mutation rejected by `state set`); warning when an invalid priority is already stored and the entry is being selected, listed, or indexed (entry skipped by `state next`, `state list`, and index readiness derivation). |
 | `STATE_INVALID_DEPENDENCY_ID` | State-only | A dependency reference does not match `<PREFIX>-<TYPE>-<NNN>`. |
 | `STATE_SELF_DEPENDENCY`    | State-only | An entry references its own `document_id` in a dependency list. |
 | `STATE_UNDEFINED_DEPENDENCY` | State-only | A dependency target is not present in the current index graph. |

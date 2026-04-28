@@ -524,6 +524,29 @@ def test_load_legacy_v1_maps_to_v2_defaults(tmp_path):
     assert entry.notes == "Legacy entry"
 
 
+def test_load_explicit_unknown_schema_version_surfaces_violation(tmp_path):
+    _write_state_file(
+        tmp_path,
+        "state_schema_version: '3.0'\n"
+        "documents:\n"
+        "  MEMINIT-ADR-010:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-02-15T10:00:00Z'\n"
+        "    updated_by: GitCmurf\n",
+    )
+
+    state = load_project_state(tmp_path)
+
+    assert state is not None
+    assert state.schema_version == "3.0"
+    codes = [v.rule for v in state.schema_violations]
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
+    messages = " ".join(v.message for v in state.schema_violations)
+    assert "state_schema_version" in messages
+    assert "'2.0'" in messages
+    assert "'3.0'" in messages
+
+
 def test_save_emits_schema_version_header(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
@@ -804,6 +827,23 @@ class TestProjectStateSchemaV2:
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(raw, schema)
 
+    def test_v2_state_notes_over_500_chars_fails_schema(self, tmp_path, schema):
+        import jsonschema
+        state_dir = tmp_path / "docs" / "01-indices"
+        state_dir.mkdir(parents=True)
+        (state_dir / "project-state.yaml").write_text(
+            "state_schema_version: '2.0'\n"
+            "documents:\n"
+            "  TEST-ADR-001:\n"
+            "    impl_state: Not Started\n"
+            "    updated: '2026-04-21T10:00:00+00:00'\n"
+            "    updated_by: test\n"
+            f"    notes: '{'x' * 501}'\n"
+        )
+        raw = yaml.safe_load((state_dir / "project-state.yaml").read_text())
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(raw, schema)
+
 
 # ---------------------------------------------------------------------------
 # Malformed planning fields surface as schema violations (Issue 1)
@@ -852,6 +892,17 @@ def test_depends_on_non_string_items_surfaces_violation(tmp_path):
     assert state.entries["TEST-ADR-001"].depends_on == ("VALID-ADR-001",)
     messages = " ".join(v.message for v in state.schema_violations)
     assert "depends_on" in messages
+
+
+def test_unknown_entry_field_surfaces_schema_violation(tmp_path):
+    state = _make_state_with_entry(tmp_path, assigneee="agent:codex")
+
+    assert "TEST-ADR-001" in state.entries
+    codes = [v.rule for v in state.schema_violations]
+    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
+    messages = " ".join(v.message for v in state.schema_violations)
+    assert "unknown field" in messages
+    assert "assigneee" in messages
 
 
 def _make_state_with_entry(tmp_path: Path, **planning_overrides) -> ProjectState:

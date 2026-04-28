@@ -116,7 +116,9 @@ def compute_derived_fields(
     governed document universe from the index. The returned map includes both
     state-backed entries and index-only IDs so reverse relationships such as
     ``unblocks`` remain visible for governed documents that have no explicit
-    ``project-state.yaml`` entry.
+    ``project-state.yaml`` entry. Index-only IDs are never ready because the
+    readiness predicate requires an explicit state entry with ``impl_state`` of
+    ``Not Started``.
     """
     result: Dict[str, DerivedEntry] = {}
     incoming_references = _build_incoming_references(state)
@@ -125,7 +127,7 @@ def compute_derived_fields(
         if entry is None:
             result[doc_id] = DerivedEntry(
                 document_id=doc_id,
-                ready=True,
+                ready=False,
                 open_blockers=(),
                 unblocks=_unblocks_for(doc_id, incoming_references),
             )

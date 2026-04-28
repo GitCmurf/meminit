@@ -2356,6 +2356,23 @@ def test_config_missing_when_docops_version_is_null(tmp_path):
     assert data["error"]["code"] == "CONFIG_MISSING"
 
 
+def test_config_missing_when_config_is_invalid_utf8(tmp_path):
+    """F9.1: invalid UTF-8 config bytes are reported as malformed config."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docops.config.yaml").write_bytes(b"\xff\xfe\xfa")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["check", "--root", str(tmp_path), "--format", "json"]
+    )
+
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+    assert data["error"]["details"]["reason"] == "unparseable"
+    assert data["error"]["details"]["file"] == "docops.config.yaml"
+
+
 def test_adr_new_requires_initialized_repo(tmp_path):
     (tmp_path / "docs").mkdir()
 

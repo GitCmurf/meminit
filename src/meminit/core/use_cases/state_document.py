@@ -620,22 +620,18 @@ class StateDocumentUseCase:
                 summary={"total": 0, "returned": 0, "ready": 0, "blocked": 0},
             )
 
-        known_ids = _get_known_ids(self._root_dir) | set(state.entries.keys())
-        derived = compute_derived_fields(state, known_ids)
-
-        entries_list, ready_count, blocked_count = _build_entries_with_derived(
-            state, derived, ready, blocked, assignee, priority, impl_state,
-        )
-
         from meminit.core.services.state_derived import check_status_conflicts
         advisory = _build_status_advisory(state, check_status_conflicts, self._root_dir)
 
         validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
-        if skip_doc_ids:
-            entries_list, ready_count, blocked_count = _build_entries_with_derived(
-                state, derived, ready, blocked, assignee, priority, impl_state,
-                skip_doc_ids=skip_doc_ids,
-            )
+        derivation_state = _state_excluding_entries(state, skip_doc_ids)
+        known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
+        derived = compute_derived_fields(derivation_state, known_ids)
+
+        entries_list, ready_count, blocked_count = _build_entries_with_derived(
+            state, derived, ready, blocked, assignee, priority, impl_state,
+            skip_doc_ids=skip_doc_ids,
+        )
 
         return StateResult(
             document_id="*",
@@ -820,11 +816,11 @@ def _build_entries_with_derived(
     ready_count = 0
     blocked_count = 0
     for doc_id in sorted(state.entries.keys()):
-        entry = state.entries[doc_id]
-        d = derived[doc_id]
-
         if skip_doc_ids and doc_id in skip_doc_ids:
             continue
+
+        entry = state.entries[doc_id]
+        d = derived[doc_id]
 
         if d.ready:
             ready_count += 1

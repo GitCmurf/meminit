@@ -181,7 +181,7 @@ def test_index_without_project_state(tmp_path):
 
 
 def test_index_derived_fields_always_emitted_without_state(tmp_path):
-    """Documents without state entries still get ready/open_blockers/unblocks."""
+    """Documents without state entries still get derived fields, but are not ready."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -189,7 +189,7 @@ def test_index_derived_fields_always_emitted_without_state(tmp_path):
 
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
     doc = payload["data"]["nodes"][0]
-    assert doc["ready"] is True
+    assert doc["ready"] is False
     assert doc["open_blockers"] == []
     assert doc["unblocks"] == []
 
@@ -216,7 +216,7 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
     assert nodes["EXAMPLE-ADR-001"]["ready"] is False
     assert "EXAMPLE-ADR-002" in nodes["EXAMPLE-ADR-001"]["open_blockers"]
 
-    assert nodes["EXAMPLE-ADR-002"]["ready"] is True
+    assert nodes["EXAMPLE-ADR-002"]["ready"] is False
     assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
     assert nodes["EXAMPLE-ADR-002"]["unblocks"] == ["EXAMPLE-ADR-001"]
 
@@ -1081,6 +1081,45 @@ def test_index_invalid_priority_single_warning(tmp_path):
     )
 
 
+def test_index_excludes_invalid_priority_entries_before_deriving_readiness(tmp_path):
+    """Readiness derivation must match state query handling for corrupted entries."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "priority": "P2",
+                "depends_on": ["EXAMPLE-ADR-002"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            },
+            "EXAMPLE-ADR-002": {
+                "impl_state": "Done",
+                "priority": "P9",
+                "updated": "2026-03-05T09:00:00Z",
+                "updated_by": "GitCmurf",
+            },
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    nodes = {node["document_id"]: node for node in payload["data"]["nodes"]}
+
+    assert nodes["EXAMPLE-ADR-001"]["ready"] is False
+    assert nodes["EXAMPLE-ADR-001"]["open_blockers"] == ["EXAMPLE-ADR-002"]
+    assert nodes["EXAMPLE-ADR-002"]["impl_state"] == "Done"
+    assert nodes["EXAMPLE-ADR-002"]["ready"] is False
+    assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
+    assert nodes["EXAMPLE-ADR-002"]["unblocks"] == ["EXAMPLE-ADR-001"]
+    warning_codes = [w["code"] for w in payload.get("warnings", [])]
+    assert "STATE_INVALID_PRIORITY" in warning_codes
+
+
 def test_kanban_sort_key_oldest_first():
     """Older entries sort before newer ones (matches state next queue contract)."""
     from meminit.core.use_cases.index_repository import _kanban_sort_key
@@ -1144,15 +1183,15 @@ namespaces:
     assert ids == {"MEMINIT-ADR-001", "ORG-GOV-001"}
 
 
-def test_index_preserves_fatal_severity_for_self_dependency(tmp_path):
-    """Self-dependency in state produces a fatal-severity warning in index artifact."""
+def test_index_downgrades_planning_fatals_to_read_warnings(tmp_path):
+    """Mutation-fatal planning issues are warning severity in index artifacts."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     _setup_state_file(
         tmp_path,
         {
             "EXAMPLE-ADR-001": {
                 "impl_state": "Not Started",
-                "depends_on": ["EXAMPLE-ADR-001"],
+                "depends_on": ["EXAMPLE-ADR-001", "not-a-doc-id"],
                 "updated": "2026-03-05T10:00:00Z",
                 "updated_by": "test",
             }
@@ -1165,15 +1204,19 @@ def test_index_preserves_fatal_severity_for_self_dependency(tmp_path):
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
-    self_dep = [
-        w for w in payload.get("warnings", []) if w["code"] == "STATE_SELF_DEPENDENCY"
+    planning_warnings = [
+        w for w in payload.get("warnings", [])
+        if w["code"] in {"STATE_SELF_DEPENDENCY", "STATE_INVALID_DEPENDENCY_ID"}
     ]
-    assert len(self_dep) == 1
-    assert self_dep[0]["severity"] == "fatal"
+    assert {w["code"] for w in planning_warnings} == {
+        "STATE_SELF_DEPENDENCY",
+        "STATE_INVALID_DEPENDENCY_ID",
+    }
+    assert {w["severity"] for w in planning_warnings} == {"warning"}
 
 
 def test_index_emits_status_conflict_advisory(tmp_path):
-    """Done entry depending on non-Done entry produces STATE_DEPENDENCY_STATUS_CONFLICT."""
+    """Done entry depending on non-Done entry emits advice, not warnings."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     _setup_doc(tmp_path, "EXAMPLE-ADR-002")
     _setup_state_file(
@@ -1194,17 +1237,23 @@ def test_index_emits_status_conflict_advisory(tmp_path):
     )
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
-    use_case.execute()
+    report = use_case.execute()
 
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
     conflicts = [
-        w for w in payload.get("warnings", [])
-        if w["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
+        a for a in payload.get("advice", [])
+        if a["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
     ]
     assert len(conflicts) == 1
     assert conflicts[0]["severity"] == "advisory"
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" not in {
+        w["code"] for w in payload.get("warnings", [])
+    }
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in {
+        a["code"] for a in report.advice
+    }
 
 
 def test_index_no_duplicate_field_too_long_warnings(tmp_path):

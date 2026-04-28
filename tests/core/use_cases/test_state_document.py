@@ -580,6 +580,28 @@ def test_validate_state_no_violations_passes(tmp_path):
     use_case._validate_state(ProjectState())
 
 
+def test_list_states_rejects_explicit_unknown_schema_version(tmp_path):
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "state_schema_version: '3.0'\n"
+        "documents:\n"
+        "  MEMINIT-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-02-15T10:00:00Z'\n"
+        "    updated_by: GitCmurf\n",
+        encoding="utf-8",
+    )
+
+    use_case = StateDocumentUseCase(str(tmp_path))
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.list_states()
+
+    assert exc_info.value.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert "state_schema_version" in exc_info.value.message
+
+
 # ---------------------------------------------------------------------------
 # Read-path validation: shared validator wired into all query surfaces (PR-U)
 # ---------------------------------------------------------------------------
@@ -888,6 +910,38 @@ def test_blockers_state_recomputes_after_skipping_invalid_priority_targets(tmp_p
     ]
 
 
+def test_list_states_recomputes_after_skipping_invalid_priority_targets(tmp_path):
+    """A skipped invalid-priority dependency target must not make dependents ready."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state(
+        "MEMINIT-ADR-001",
+        impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-002"],
+    )
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Done")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["priority"] = "P9"
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.list_states()
+
+    assert result.warnings is not None
+    assert "STATE_INVALID_PRIORITY" in [w["code"] for w in result.warnings]
+    assert result.summary["total"] == 1
+    assert result.summary["blocked"] == 1
+    assert result.summary["ready"] == 0
+    assert len(result.entries) == 1
+    entry = result.entries[0]
+    assert entry["document_id"] == "MEMINIT-ADR-001"
+    assert entry["ready"] is False
+    assert entry["open_blockers"] == ["MEMINIT-ADR-002"]
+    assert entry["unblocks"] == []
+
+
 def test_list_states_warns_for_state_only_dependency_target(tmp_path):
     """State-only dependency targets remain dangling when absent from the index."""
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
@@ -1100,6 +1154,6 @@ def test_list_states_no_duplicate_field_too_long_warnings(tmp_path):
     )
 
     result = use_case.list_states()
-    if result.warnings:
-        too_long = [w for w in result.warnings if w["code"] == "STATE_FIELD_TOO_LONG"]
-        assert len(too_long) == 1
+    assert result.warnings is not None
+    too_long = [w for w in result.warnings if w["code"] == "STATE_FIELD_TOO_LONG"]
+    assert len(too_long) == 1

@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
+import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +20,17 @@ from typing import Callable, Sequence
 STATUS_RE = re.compile(r"^\s*REVIEW_STATUS:\s*(clear|findings)\s*$", re.IGNORECASE | re.MULTILINE)
 CODEX_FINDING_RE = re.compile(r"^\s*-\s*\[P[0-3]\]\s+", re.MULTILINE)
 CODEX_FINDING_LINE_RE = re.compile(r"^\s*-\s*(\[P[0-3]\]\s+.+)$")
+REVIEW_COMMENTS_HEADING_RE = re.compile(
+    r"^\s*(full\s+)?review comments?:\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+PROGRESS_PHASE_CODES = {
+    "check": "chk",
+    "remediate": "rem",
+    "review": "rev",
+}
+COMPACT_PROGRESS_DETAIL_INDENT = 7
+DEFAULT_TERMINAL_COLUMNS = 120
 
 DEFAULT_REMEDIATION_PROMPT = """You are running a bounded review-remediation loop.
 
@@ -52,6 +65,9 @@ class LoopConfig:
     cwd: Path
     artifact_dir: Path
     model: str | None = None
+    review_model: str | None = None
+    remediation_model: str | None = None
+    reasoning_effort: str | None = None
     exec_sandbox: str = "workspace-write"
     exec_color: str = "never"
     full_auto: bool = True
@@ -62,6 +78,8 @@ class LoopConfig:
     max_remediation_input_chars: int = 200_000
     terminal_excerpt_chars: int = 4_000
     progress: bool = True
+    progress_style: str = "compact"
+    initial_review_file: Path | None = None
     check_commands: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -73,6 +91,96 @@ def progress_log(config: LoopConfig, message: str) -> None:
         return
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"[{timestamp}] {message}", file=sys.stderr, flush=True)
+
+
+def compact_progress_label(label: str) -> str:
+    if label in {"initial", "review-initial"}:
+        return "init"
+    if label in {"final", "review-final"}:
+        return "fin"
+    if label.startswith("review-"):
+        return label.removeprefix("review-")
+    return label
+
+
+def compact_progress_prefix(phase: str, label: str) -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    phase_code = PROGRESS_PHASE_CODES.get(phase, phase[:3])
+    return f"{timestamp}|{phase_code:<3}|{compact_progress_label(label):<4}|"
+
+
+def terminal_columns(default: int = DEFAULT_TERMINAL_COLUMNS) -> int:
+    try:
+        if sys.stderr.isatty():
+            return os.get_terminal_size(sys.stderr.fileno()).columns
+    except OSError:
+        pass
+    return default
+
+
+def wrap_progress_text(
+    prefix: str,
+    text: str,
+    *,
+    head: str = "",
+    continuation_indent: int | None = None,
+) -> list[str]:
+    indent = len(head) if continuation_indent is None else continuation_indent
+    first_width = max(20, terminal_columns() - len(prefix) - len(head))
+    next_width = max(20, terminal_columns() - len(prefix) - indent)
+    wrapped = textwrap.wrap(
+        text,
+        width=first_width,
+        subsequent_indent="",
+        break_long_words=False,
+        break_on_hyphens=False,
+    ) or [""]
+    lines = [f"{prefix}{head}{wrapped[0]}"]
+    for line in wrapped[1:]:
+        for continuation in textwrap.wrap(
+            line,
+            width=next_width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [line]:
+            lines.append(f"{' ' * len(prefix)}{' ' * indent}{continuation}")
+    return lines
+
+
+def print_compact_progress(phase: str, label: str, text: str, *, head: str = "") -> None:
+    prefix = compact_progress_prefix(phase, label)
+    for line in wrap_progress_text(prefix, text, head=head):
+        print(line, file=sys.stderr, flush=True)
+
+
+def progress_event(config: LoopConfig, phase: str, label: str, status: str, detail: str = "") -> None:
+    if not config.progress:
+        return
+    if config.progress_style == "verbose":
+        suffix = f": {detail}" if detail else ""
+        progress_log(config, f"{phase} {label}: {status}{suffix}")
+        return
+    if detail:
+        print_compact_progress(phase, label, detail, head=f"{status}: ")
+    else:
+        print_compact_progress(phase, label, status)
+
+
+def progress_continuation(config: LoopConfig, phase: str, label: str, text: str, indent: int = 2) -> None:
+    if not config.progress:
+        return
+    if config.progress_style == "verbose":
+        progress_log(config, f"{phase} {label}: {' ' * indent}{text}")
+        return
+    prefix = compact_progress_prefix(phase, label)
+    width = max(20, terminal_columns() - len(prefix) - indent)
+    for line in textwrap.wrap(
+        text,
+        width=width,
+        break_long_words=False,
+        break_on_hyphens=False,
+    ) or [""]:
+        print(f"{' ' * len(prefix)}{' ' * indent}{line}", file=sys.stderr, flush=True)
 
 
 def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None) -> CommandResult:
@@ -121,6 +229,14 @@ def detect_review_status(output: str) -> str:
     }
     if any(line in clear_lines for line in normalized_lines):
         return "clear"
+    clear_phrases = (
+        "did not find any discrete, actionable bugs",
+        "did not find any actionable bugs",
+        "no discrete, actionable bugs",
+        "no actionable bugs",
+    )
+    if any(phrase in normalized for phrase in clear_phrases):
+        return "clear"
     return "unknown"
 
 
@@ -136,24 +252,122 @@ def extract_finding_summaries(output: str, limit: int = 5) -> list[str]:
     return summaries
 
 
+def extract_finding_blocks(output: str, limit: int = 5, detail_lines: int = 2) -> list[list[str]]:
+    blocks: list[list[str]] = []
+    current: list[str] | None = None
+    current_details = 0
+
+    for raw_line in actionable_review_output(output).splitlines():
+        match = CODEX_FINDING_LINE_RE.match(raw_line)
+        if match:
+            if current:
+                blocks.append(current)
+                if len(blocks) >= limit:
+                    return blocks
+            current = [match.group(1).strip()]
+            current_details = 0
+            continue
+
+        if current is None or current_details >= detail_lines:
+            continue
+
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        current.append(stripped)
+        current_details += 1
+
+    if current and len(blocks) < limit:
+        blocks.append(current)
+    return blocks
+
+
+def extract_review_summary(output: str) -> str:
+    """Return the review's leading prose summary, excluding finding bullets."""
+    text = actionable_review_output(output).strip()
+    if not text:
+        return ""
+    text = REVIEW_COMMENTS_HEADING_RE.split(text, maxsplit=1)[0].strip()
+    paragraphs = [
+        " ".join(line.strip() for line in paragraph.splitlines() if line.strip())
+        for paragraph in re.split(r"\n\s*\n", text)
+    ]
+    for paragraph in paragraphs:
+        if paragraph and not CODEX_FINDING_LINE_RE.match(paragraph):
+            return paragraph
+    return ""
+
+
+def log_review_findings(config: LoopConfig, label: str, output: str) -> bool:
+    blocks = extract_finding_blocks(output)
+    if not blocks:
+        return False
+    summary = extract_review_summary(output)
+    if summary:
+        if compact_progress_label(label) == "init":
+            progress_continuation(config, "review", label, summary, indent=COMPACT_PROGRESS_DETAIL_INDENT)
+        else:
+            print_progress_message(config, "review", label, summary, head="issue: ")
+    else:
+        progress_event(config, "review", label, f"findings-summary ({len(blocks)})")
+    for block in blocks:
+        print_progress_message(
+            config,
+            "review",
+            label,
+            strip_finding_priority(block[0])[1],
+            head=f"{strip_finding_priority(block[0])[0]:<7}",
+        )
+        for detail in block[1:]:
+            progress_continuation(config, "review", label, detail, indent=COMPACT_PROGRESS_DETAIL_INDENT)
+    return True
+
+
+def print_progress_message(config: LoopConfig, phase: str, label: str, text: str, *, head: str = "") -> None:
+    if not config.progress:
+        return
+    if config.progress_style == "verbose":
+        progress_log(config, f"{phase} {label}: {head}{text}")
+        return
+    print_compact_progress(phase, label, text, head=head)
+
+
+def strip_finding_priority(finding: str) -> tuple[str, str]:
+    match = re.match(r"^(\[P[0-3]\])\s+(.+)$", finding)
+    if not match:
+        return "", finding
+    return match.group(1), match.group(2)
+
+
+def codex_config_args(config: LoopConfig) -> list[str]:
+    args: list[str] = []
+    if config.reasoning_effort:
+        args.extend(["-c", f'model_reasoning_effort="{config.reasoning_effort}"'])
+    return args
+
+
 def build_review_command(config: LoopConfig) -> list[str]:
     command = [config.codex_bin]
-    if config.model:
-        command.extend(["--model", config.model])
+    command.extend(codex_config_args(config))
+    model = config.review_model or config.model
+    if model:
+        command.extend(["--model", model])
     command.extend(["review", "--base", config.base])
     return command
 
 
 def build_remediation_command(config: LoopConfig, output_last_message: Path | None = None) -> list[str]:
     command = [config.codex_bin, "exec"]
+    command.extend(codex_config_args(config))
     if config.full_auto:
         command.append("--full-auto")
     command.extend(["--sandbox", config.exec_sandbox])
     command.extend(["--color", config.exec_color])
     if config.exec_json:
         command.append("--json")
-    if config.model:
-        command.extend(["--model", config.model])
+    model = config.remediation_model or config.model
+    if model:
+        command.extend(["--model", model])
     if output_last_message:
         command.extend(["--output-last-message", str(output_last_message)])
     command.append("-")
@@ -165,22 +379,30 @@ def write_artifact(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def run_codex_review(config: LoopConfig, runner: Runner, label: str) -> tuple[str, CommandResult]:
+def run_codex_review(
+    config: LoopConfig,
+    runner: Runner,
+    artifact_label: str,
+    display_label: str | None = None,
+) -> tuple[str, CommandResult]:
+    display_label = display_label or artifact_label
     command = build_review_command(config)
-    progress_log(config, f"review {label}: start ({shlex.join(command)})")
+    progress_event(config, "review", display_label, "start", shlex.join(command))
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN\nREVIEW_STATUS: findings\n")
     else:
         result = runner(command, config.cwd, None)
     combined = _combined_output(result)
-    write_artifact(config.artifact_dir / f"{label}.txt", combined)
+    artifact_path = config.artifact_dir / f"{artifact_label}.txt"
+    write_artifact(artifact_path, combined)
     if review_failed_to_run(result):
-        progress_log(config, f"review {label}: failed (exit {result.returncode})")
-        raise RuntimeError(f"codex review failed for {label}; see {config.artifact_dir / f'{label}.txt'}")
+        progress_event(config, "review", display_label, "failed", f"exit {result.returncode}")
+        raise RuntimeError(f"codex review failed for {artifact_label}; see {artifact_path}")
     status = detect_review_status(combined)
-    progress_log(config, f"review {label}: {status}")
-    for finding in extract_finding_summaries(combined):
-        progress_log(config, f"review {label}: {finding}")
+    if status != "findings":
+        progress_event(config, "review", display_label, status)
+    elif not log_review_findings(config, display_label, combined):
+        progress_event(config, "review", display_label, status)
     return status, result
 
 
@@ -217,19 +439,19 @@ def run_remediation(
     )
     command = build_remediation_command(config, last_message_path)
     prompt = f"{DEFAULT_REMEDIATION_PROMPT}\n{trim_for_prompt(review_output, config.max_remediation_input_chars)}"
-    progress_log(config, f"remediation {iteration}: start ({shlex.join(command)})")
+    progress_event(config, "remediate", str(iteration), "start", shlex.join(command))
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN remediation skipped\n")
     else:
         result = runner(command, config.cwd, prompt)
     write_artifact(config.artifact_dir / f"remediation-{iteration}.txt", _combined_output(result))
     if result.returncode != 0:
-        progress_log(config, f"remediation {iteration}: failed (exit {result.returncode})")
+        progress_event(config, "remediate", str(iteration), "failed", f"exit {result.returncode}")
         raise RuntimeError(
             f"codex exec remediation failed for iteration {iteration}; "
             f"see {config.artifact_dir / f'remediation-{iteration}.txt'}"
         )
-    progress_log(config, f"remediation {iteration}: complete")
+    progress_event(config, "remediate", str(iteration), "done")
     return result
 
 
@@ -237,7 +459,7 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
     results: list[CommandResult] = []
     for index, check in enumerate(config.check_commands, start=1):
         command = shlex.split(check)
-        progress_log(config, f"check {iteration}.{index}: start ({check})")
+        progress_event(config, "check", f"{iteration}.{index}", "start", check)
         if config.dry_run:
             result = CommandResult(command, 0, stdout=f"DRY_RUN check skipped: {check}\n")
         else:
@@ -248,9 +470,9 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
             _combined_output(result),
         )
         if result.returncode == 0:
-            progress_log(config, f"check {iteration}.{index}: passed")
+            progress_event(config, "check", f"{iteration}.{index}", "passed")
         else:
-            progress_log(config, f"check {iteration}.{index}: failed (exit {result.returncode})")
+            progress_event(config, "check", f"{iteration}.{index}", "failed", f"exit {result.returncode}")
     return results
 
 
@@ -300,7 +522,10 @@ def excerpt_for_terminal(text: str, max_chars: int) -> str:
 
 def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
     artifact_dir = config.artifact_dir
-    files = sorted(path for path in artifact_dir.glob("*") if path.is_file())
+    files = sorted(
+        (path for path in artifact_dir.glob("*") if path.is_file()),
+        key=artifact_sort_key,
+    )
     summary["artifact_paths"] = {
         "artifact_dir": str(artifact_dir),
         "summary": str(artifact_dir / "summary.json"),
@@ -319,11 +544,38 @@ def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
     }
 
 
-def latest_file(artifact_dir: Path, prefix: str, suffix: str = ".txt") -> str | None:
-    files = sorted(
-        path for path in artifact_dir.glob(f"{prefix}*{suffix}") if path.is_file()
+def artifact_sort_key(path: Path) -> tuple[str, int, str]:
+    name = path.name
+    match = re.search(r"-(\d+)(?:-|\.txt$)", name)
+    if match:
+        return (name.split("-", 1)[0], int(match.group(1)), name)
+    if "initial" in name:
+        return (name.split("-", 1)[0], 0, name)
+    if "final" in name:
+        return (name.split("-", 1)[0], 1_000_000, name)
+    return (name.split("-", 1)[0], 999_999, name)
+
+
+def resolve_initial_review_file(value: str | None, search_root: Path) -> Path | None:
+    if value is None:
+        return None
+    if value != "latest":
+        return Path(value)
+
+    candidates = sorted(
+        (
+            path
+            for path in (
+                search_root / "review-final.txt",
+                *search_root.glob("*/review-final.txt"),
+            )
+            if path.is_file()
+        ),
+        key=lambda path: (path.stat().st_mtime, path.parent.name),
     )
-    return str(files[-1]) if files else None
+    if not candidates:
+        raise FileNotFoundError(f"no review-final.txt found under {search_root}")
+    return candidates[-1]
 
 
 def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, object]:
@@ -338,15 +590,43 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
         "artifact_dir": str(config.artifact_dir),
         "iterations": iterations,
         "final_status": "unknown",
+        "initial_review_file": str(config.initial_review_file) if config.initial_review_file else None,
         "pending_check_failures": False,
         "stopped_reason": None,
     }
 
     pending_check_failures = ""
+    initial_review_output = ""
+    if config.initial_review_file:
+        initial_review_output = actionable_review_output(
+            config.initial_review_file.read_text(encoding="utf-8")
+        )
+        write_artifact(config.artifact_dir / "review-initial.txt", initial_review_output + "\n")
+        progress_event(config, "review", "initial", "loaded", str(config.initial_review_file))
+        log_review_findings(config, "initial", initial_review_output)
+
     for iteration in range(1, config.max_iterations + 1):
-        status, review = run_codex_review(config, runner, f"review-{iteration}")
-        last_review_output = actionable_review_output(_combined_output(review))
-        iterations.append({"iteration": iteration, "review_status": status})
+        if iteration == 1 and initial_review_output:
+            status = detect_review_status(initial_review_output)
+            if status == "unknown":
+                status = "findings"
+            last_review_output = initial_review_output
+            iterations.append(
+                {
+                    "iteration": iteration,
+                    "review_status": status,
+                    "review_source": str(config.initial_review_file),
+                }
+            )
+        else:
+            status, review = run_codex_review(
+                config,
+                runner,
+                f"review-{iteration}",
+                display_label=str(iteration),
+            )
+            last_review_output = actionable_review_output(_combined_output(review))
+            iterations.append({"iteration": iteration, "review_status": status})
 
         if status == "clear" and not pending_check_failures:
             summary["final_status"] = "clear"
@@ -377,7 +657,12 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
         iterations[-1]["check_failures"] = sum(1 for result in check_results if result.returncode != 0)
 
     if config.final_review:
-        status, final_review = run_codex_review(config, runner, "review-final")
+        status, final_review = run_codex_review(
+            config,
+            runner,
+            "review-final",
+            display_label="final",
+        )
         final_review_output = actionable_review_output(_combined_output(final_review))
         summary["latest_review_excerpt"] = excerpt_for_terminal(
             final_review_output,
@@ -443,6 +728,8 @@ def format_terminal_summary(summary: dict[str, object]) -> str:
         checks = artifact_paths.get("checks")
         if isinstance(reviews, list) and reviews:
             lines.append(f"Latest review: {reviews[-1]}")
+            if status == "findings":
+                lines.append(f"Continue from latest review: --initial-review-file {reviews[-1]}")
         if isinstance(last_messages, list) and last_messages:
             lines.append(f"Latest remediation summary: {last_messages[-1]}")
         if isinstance(checks, list) and checks:
@@ -476,7 +763,19 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Maximum remediation passes before stopping. Default: 2.",
     )
     parser.add_argument("--codex-bin", default="codex", help="Codex executable path/name.")
-    parser.add_argument("--model", default=None, help="Optional model passed to codex.")
+    parser.add_argument("--model", default=None, help="Optional model passed to both Codex review and remediation.")
+    parser.add_argument("--review-model", default=None, help="Optional model override for codex review only.")
+    parser.add_argument(
+        "--remediation-model",
+        default=None,
+        help="Optional model override for codex exec remediation only.",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=("minimal", "low", "medium", "high"),
+        default=None,
+        help="Optional Codex model_reasoning_effort override for review and remediation.",
+    )
     parser.add_argument(
         "--exec-sandbox",
         default="workspace-write",
@@ -544,6 +843,18 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="Suppress timestamped progress logs on stderr.",
     )
+    parser.add_argument(
+        "--progress-style",
+        choices=("compact", "verbose"),
+        default="compact",
+        help="Progress log style. Compact is easier to scan in terminals.",
+    )
+    parser.add_argument(
+        "--initial-review-file",
+        type=str,
+        default=None,
+        help="Start by remediating a previous review artifact. Use 'latest' for newest review-final.txt.",
+    )
     return parser.parse_args(argv)
 
 
@@ -555,6 +866,15 @@ def default_artifact_dir() -> Path:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     artifact_dir = Path(args.artifact_dir) if args.artifact_dir else default_artifact_dir()
+    search_root = artifact_dir if args.artifact_dir else artifact_dir.parent
+    try:
+        initial_review_file = resolve_initial_review_file(args.initial_review_file, search_root)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    if initial_review_file is not None and not initial_review_file.is_file():
+        print(f"ERROR: initial review file not found: {initial_review_file}", file=sys.stderr)
+        return 1
     config = LoopConfig(
         base=args.base,
         max_iterations=args.max_iterations,
@@ -562,6 +882,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         cwd=Path.cwd(),
         artifact_dir=artifact_dir,
         model=args.model,
+        review_model=args.review_model,
+        remediation_model=args.remediation_model,
+        reasoning_effort=args.reasoning_effort,
         exec_sandbox=args.exec_sandbox,
         exec_color=args.exec_color,
         full_auto=not args.no_full_auto,
@@ -572,6 +895,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_remediation_input_chars=args.max_remediation_input_chars,
         terminal_excerpt_chars=args.terminal_excerpt_chars,
         progress=not args.quiet_progress,
+        progress_style=args.progress_style,
+        initial_review_file=initial_review_file,
         check_commands=tuple(args.check),
     )
 

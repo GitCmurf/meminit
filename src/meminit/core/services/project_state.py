@@ -36,6 +36,17 @@ STATE_SCHEMA_VERSION_LEGACY = "1.0"
 VALID_PRIORITIES: Tuple[str, ...] = ("P0", "P1", "P2", "P3")
 DEFAULT_PRIORITY = "P2"
 DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
+PROJECT_STATE_ENTRY_FIELDS = frozenset({
+    "impl_state",
+    "updated",
+    "updated_by",
+    "notes",
+    "priority",
+    "depends_on",
+    "blocked_by",
+    "assignee",
+    "next_action",
+})
 
 
 def get_state_file_rel_path(root_dir: Path) -> str:
@@ -140,6 +151,16 @@ def _parse_planning_fields(
 ) -> Tuple[dict, List[Violation]]:
     violations: List[Violation] = []
 
+    unknown_fields = sorted(
+        str(key) for key in fields.keys() - PROJECT_STATE_ENTRY_FIELDS
+    )
+    if unknown_fields:
+        fields_csv = ", ".join(unknown_fields)
+        violations.append(_schema_violation(
+            state_file_rel,
+            f"Entry for '{doc_id}' contains unknown field(s): {fields_csv}.",
+        ))
+
     priority = fields.get("priority")
     if priority is not None and not isinstance(priority, str):
         violations.append(_schema_violation(
@@ -217,7 +238,20 @@ def _validate_top_level_structure(
             ]
         )
 
-    schema_version = str(raw.get("state_schema_version", STATE_SCHEMA_VERSION_LEGACY))
+    schema_violations: List[Violation] = []
+    if "state_schema_version" in raw:
+        schema_version_raw = raw["state_schema_version"]
+        if schema_version_raw != STATE_SCHEMA_VERSION:
+            schema_violations.append(_schema_violation(
+                state_file_rel,
+                (
+                    "Field 'state_schema_version' must be exactly "
+                    f"'{STATE_SCHEMA_VERSION}', got {schema_version_raw!r}."
+                ),
+            ))
+        schema_version = str(schema_version_raw)
+    else:
+        schema_version = STATE_SCHEMA_VERSION_LEGACY
 
     if "documents" not in raw:
         if raw:
@@ -236,9 +270,14 @@ def _validate_top_level_structure(
     documents = raw.get("documents")
     if not isinstance(documents, dict):
         return None, None, ProjectState(
-            schema_violations=[
-                _schema_violation(state_file_rel, "Field 'documents' must be a mapping.")
-            ]
+            schema_violations=schema_violations
+            + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")]
+        )
+
+    if schema_violations:
+        return schema_version, documents, ProjectState(
+            schema_violations=schema_violations,
+            schema_version=schema_version,
         )
 
     return schema_version, documents, None

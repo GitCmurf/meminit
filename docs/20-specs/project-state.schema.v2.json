@@ -37,6 +37,7 @@
         },
         "notes": {
           "type": "string",
+          "maxLength": 500,
           "description": "Free-text notes (max 500 chars)."
         },
         "priority": {

@@ -118,7 +118,7 @@ class TestComputeDerivedFields:
             _entry("A", "Not Started", depends_on=("B",)),
         )
         derived = compute_derived_fields(state, {"A", "B"})
-        assert derived["B"].ready is True
+        assert derived["B"].ready is False
         assert derived["B"].open_blockers == ()
         assert derived["B"].unblocks == ("A",)
 

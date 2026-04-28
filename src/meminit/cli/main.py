@@ -451,7 +451,7 @@ def validate_initialized(
                 "file": "docops.config.yaml",
                 "required": "valid YAML with docops_version",
             }
-        except (_yaml.YAMLError, OSError) as exc:
+        except (_yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
             msg = (
                 f"Repository config is malformed: docops.config.yaml could not be "
                 f"parsed ({exc}). Run 'meminit init' to repair."
@@ -3569,8 +3569,6 @@ def _render_state_list_json(result, valid_impl_states, valid_doc_statuses, root_
     }
     if result.summary:
         json_data["summary"] = result.summary
-    if result.advice:
-        json_data["advice"] = result.advice
     _write_output(
         format_envelope(
             command="state list",
@@ -3578,6 +3576,7 @@ def _render_state_list_json(result, valid_impl_states, valid_doc_statuses, root_
             success=True,
             data=json_data,
             warnings=result.warnings,
+            advice=result.advice,
             include_timestamp=include_timestamp,
             run_id=run_id,
             correlation_id=correlation_id,
@@ -3596,11 +3595,10 @@ def _render_warnings_text(warnings, fmt, output):
         lines.append("")
         _write_output("\n".join(lines), output)
         return
-    with maybe_capture(output, fmt):
-        for w in warnings:
-            get_console().print(
-                f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
-            )
+    for w in warnings:
+        get_console().print(
+            f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
+        )
 
 
 def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):

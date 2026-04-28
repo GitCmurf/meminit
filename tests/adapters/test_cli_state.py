@@ -880,6 +880,64 @@ def test_cli_state_blockers_md_includes_validation_warnings(repo_with_docs):
     assert "## Warnings" in result.output
 
 
+def test_cli_state_list_output_file_orders_text_before_warnings(repo_with_docs, tmp_path):
+    """state list --output keeps warnings after the main text artifact."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs)
+    output_file = tmp_path / "state-list.txt"
+
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--output", str(output_file),
+    ])
+
+    assert result.exit_code == 0
+    artifact = output_file.read_text(encoding="utf-8")
+    assert artifact.index("No entries found") < artifact.index("Warning (STATE_INVALID_PRIORITY)")
+
+
+def test_cli_state_next_output_file_orders_text_before_warnings(repo_with_docs, tmp_path):
+    """state next --output keeps warnings after the main text artifact."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs)
+    output_file = tmp_path / "state-next.txt"
+
+    result = runner.invoke(cli, [
+        "state", "next", "--root", str(repo_with_docs), "--output", str(output_file),
+    ])
+
+    assert result.exit_code == 0
+    artifact = output_file.read_text(encoding="utf-8")
+    assert artifact.index("No ready items") < artifact.index("Warning (STATE_INVALID_PRIORITY)")
+
+
+def test_cli_state_blockers_output_file_orders_text_before_warnings(repo_with_docs, tmp_path):
+    """state blockers --output keeps warnings after the main text artifact."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    _corrupt_priority_in_state(repo_with_docs)
+    output_file = tmp_path / "state-blockers.txt"
+
+    result = runner.invoke(cli, [
+        "state", "blockers", "--root", str(repo_with_docs), "--output", str(output_file),
+    ])
+
+    assert result.exit_code == 0
+    artifact = output_file.read_text(encoding="utf-8")
+    assert artifact.index("Summary:") < artifact.index("Warning (STATE_INVALID_PRIORITY)")
+
+
 def test_cli_state_set_md_escapes_assignee(repo_with_docs):
     """User-controlled fields in state set md output are escaped."""
     runner = runner_no_mixed_stderr()
@@ -952,6 +1010,28 @@ def test_cli_state_set_console_renders_warnings(repo_with_docs):
     assert result.exit_code == 0
     assert "Warning" in result.output
     assert "STATE_UNDEFINED_DEPENDENCY" in result.output
+
+
+def test_cli_state_list_json_puts_advisories_in_envelope(repo_with_docs):
+    """state list --format json exposes advisories at the envelope level."""
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Done",
+        "--add-depends-on", "TEST-ADR-002",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-002", "--impl-state", "In Progress",
+        "--root", str(repo_with_docs), "--format", "json",
+    ])
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "json",
+    ])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    advice_codes = [a["code"] for a in data["advice"]]
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in advice_codes
+    assert "advice" not in data["data"]
 
 
 def test_cli_state_list_md_renders_advisories(repo_with_docs):

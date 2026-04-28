@@ -25,7 +25,7 @@ def create_doc_worker(root_dir, title, results_queue):
     except Exception as e:
         results_queue.put({"success": False, "error": str(e)})
 
-def test_id_allocation_contention_multi_process(tmp_path):
+def test_id_allocation_contention_multi_process(tmp_path, monkeypatch):
     """P5.2: Multi-process contention test for ID allocation.
     Ensures that multiple concurrent processes creating documents of the same type
     do not receive duplicate IDs.
@@ -42,6 +42,7 @@ def test_id_allocation_contention_multi_process(tmp_path):
     
     # 2. Launch multiple workers
     num_workers = 10
+    monkeypatch.setenv("MEMINIT_LOCK_TIMEOUT_MS", "10000")
     results_queue = multiprocessing.Queue()
     processes = []
     

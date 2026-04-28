@@ -132,7 +132,7 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 For a local proof-of-concept review loop, use the repository script:
 
 ```bash
-python scripts/codex_review_remediation_loop.py --base main --max-iterations 2
+./.venv/bin/python scripts/codex_review_remediation_loop.py --base main --max-iterations 2
 ```
 
 The loop uses Codex-native review rather than a third-party reviewer:
@@ -153,10 +153,12 @@ The loop uses Codex-native review rather than a third-party reviewer:
 Useful proof-of-concept command with explicit verification:
 
 ```bash
-python scripts/codex_review_remediation_loop.py \
+./.venv/bin/python scripts/codex_review_remediation_loop.py \
   --base main \
   --max-iterations 2 \
-  --check "./.venv/bin/pytest -q"
+  --initial-review-file latest \
+  --check "./.venv/bin/pytest -q" \
+  --check "./.venv/bin/meminit check docs/60-runbooks/runbook-006-codex-skills-setup.md --format json"
 ```
 
 Safety notes:
@@ -169,7 +171,9 @@ Safety notes:
   loop reports `pending_check_failures: true` and does not report clear.
   This remains true even if the next `codex review` output reports clear.
 - Transcripts are written under `tmp/codex-review-remediation-loop/` by
-  default, which is ignored by git.
+  default, which is ignored by git. Iteration review transcripts are named
+  `review-<N>.txt` and the capped final review is named `review-final.txt`, so
+  failure summaries can surface the latest actionable review artifact.
 - This Codex CLI build rejects `codex review --base <branch> -`, so the review
   step does not pass a custom prompt. If the output is ambiguous, the loop
   treats the review as not clear.
@@ -190,10 +194,31 @@ Safety notes:
   latest artifact paths, and the latest actionable review excerpt. Use
   `--summary-format json` for the previous JSON stdout shape, or
   `--summary-format both` when both are useful.
-- During the loop, timestamped progress logs are written to stderr when each
-  review, remediation, or check starts and finishes. Review progress includes
-  the detected review status and up to five one-line `[P#]` finding summaries.
-  Use `--quiet-progress` to suppress live progress logs.
+- During the loop, compact progress logs are written to stderr when each
+  review, remediation, or check starts and finishes. The compact format is
+  `HH:MM:SS|rev|1   |event`, with phase codes `rev`, `rem`, and `chk`,
+  four-character labels (`init`, `fin`, iteration numbers, or check IDs), and
+  the remaining text reserved for commands, review summary prose, or finding
+  details. Compact progress wraps to the current terminal width when stderr is
+  attached to a TTY, with a 120-column fallback for redirected or captured
+  output. Continuation lines align under the event text instead of repeating
+  the timestamp and phase columns. Review progress prints the review's leading
+  prose summary and up to five `[P#]` finding blocks (title plus the first
+  detail lines). Use `--progress-style verbose` for the older timestamped
+  sentence format, or `--quiet-progress` to suppress live progress logs.
+- A capped loop ends with a final review. If that review reports findings, a
+  later invocation should pass the final review artifact back in with
+  `--initial-review-file <artifact-dir>/review-final.txt`; this prevents
+  non-deterministic future reviews from losing the previous run's final
+  findings. Use `--initial-review-file latest` to load the newest
+  `tmp/codex-review-remediation-loop/*/review-final.txt` automatically, or the
+  newest `<custom-artifact-dir>/*/review-final.txt` when `--artifact-dir` is
+  supplied.
+- Model selection can be tuned with `--model <MODEL>` for both review and
+  remediation, or `--review-model <MODEL>` / `--remediation-model <MODEL>` for
+  phase-specific overrides. Reasoning effort can be tuned with
+  `--reasoning-effort minimal|low|medium|high`, which maps to Codex
+  `model_reasoning_effort`.
 - `--exec-json` is available when a machine-readable Codex event stream is
   useful, but it is not the default because JSONL is noisier for operator
   review than the normal transcript.

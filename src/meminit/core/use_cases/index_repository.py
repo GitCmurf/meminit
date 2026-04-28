@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
 
@@ -75,6 +75,36 @@ def _normalize_related_ids(value: Any) -> Optional[List[str]]:
     if isinstance(value, (list, tuple)):
         return [v.strip() for v in value if isinstance(v, str) and v.strip()]
     return None
+
+
+def _invalid_priority_doc_ids(state: ProjectState) -> Set[str]:
+    """Return state entries that read-query surfaces reject as corrupted."""
+    return {
+        doc_id
+        for doc_id, entry in state.entries.items()
+        if entry.priority is not None and entry.priority not in VALID_PRIORITIES
+    }
+
+
+def _state_excluding_invalid_priority_entries(state: ProjectState) -> ProjectState:
+    """Return a derivation view that omits entries rejected by read queries."""
+    skip_doc_ids = _invalid_priority_doc_ids(state)
+    if not skip_doc_ids:
+        return state
+    return ProjectState(
+        entries={
+            doc_id: entry
+            for doc_id, entry in state.entries.items()
+            if doc_id not in skip_doc_ids
+        },
+        schema_violations=state.schema_violations,
+        schema_version=state.schema_version,
+    )
+
+
+def _read_warning_severity(severity: str) -> str:
+    """Project mutation fatals are warnings on successful read/index paths."""
+    return "warning" if severity == "fatal" else severity
 
 
 def _remove_stale_artifacts(
@@ -1082,7 +1112,7 @@ class IndexRepositoryUseCase:
                     warnings_list.append({
                         "code": pi.code,
                         "message": pi.message,
-                        "severity": pi.severity,
+                        "severity": _read_warning_severity(pi.severity),
                         "path": state_path,
                     })
             cycle_issues = check_dependency_cycle(project_state.entries)
@@ -1095,7 +1125,7 @@ class IndexRepositoryUseCase:
                 })
 
             for si in check_status_conflicts(project_state.entries):
-                warnings_list.append({
+                graph_advice.append({
                     "code": si.code,
                     "message": si.message,
                     "severity": si.severity,
@@ -1106,21 +1136,23 @@ class IndexRepositoryUseCase:
         # Spec (PLAN-013 §3.4.1): ready, open_blockers, unblocks are always emitted.
         if project_state and project_state.entries:
             from meminit.core.services.state_derived import compute_derived_fields
-            derived = compute_derived_fields(project_state, known_doc_ids)
+            derivation_state = _state_excluding_invalid_priority_entries(project_state)
+            invalid_priority_doc_ids = _invalid_priority_doc_ids(project_state)
+            derived = compute_derived_fields(derivation_state, known_doc_ids)
             for entry in entries:
                 doc_id = entry.get("document_id")
                 if doc_id in derived:
                     d = derived[doc_id]
-                    entry["ready"] = d.ready
+                    entry["ready"] = False if doc_id in invalid_priority_doc_ids else d.ready
                     entry["open_blockers"] = list(d.open_blockers)
                     entry["unblocks"] = list(d.unblocks)
                 else:
-                    entry["ready"] = True
+                    entry["ready"] = False
                     entry["open_blockers"] = []
                     entry["unblocks"] = []
         else:
             for entry in entries:
-                entry["ready"] = True
+                entry["ready"] = False
                 entry["open_blockers"] = []
                 entry["unblocks"] = []
 

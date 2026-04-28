@@ -437,9 +437,10 @@ def test_state_advisory_q17(tmp_path: Path):
     data = _invoke_state_list(tmp_path)
 
     assert data["success"] is True
-    advice = data["data"].get("advice", []) or []
+    advice = data["advice"]
     advice_codes = [a["code"] for a in advice]
     assert "STATE_DEPENDENCY_STATUS_CONFLICT" in advice_codes
+    assert "advice" not in data["data"]
     for a in advice:
         assert "code" in a, f"Advice item missing 'code': {a}"
         assert "message" in a, f"Advice item missing 'message': {a}"
