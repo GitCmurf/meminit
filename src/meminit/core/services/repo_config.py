@@ -27,6 +27,7 @@ from meminit.core.services.observability import log_debug
 
 # Constants
 DEFAULT_DOCS_ROOT = "docs"
+DEFAULT_CATALOG_NAME = "catalogue.md"
 DEFAULT_TYPE_DIRECTORIES = {
     "GOV": "00-governance",
     "PLAN": "05-planning",
@@ -400,7 +401,7 @@ def _build_namespace_config(
             if normalized:
                 templates[key] = normalized
 
-    catalog_name = str(defaults.get("catalog_name", "catalog.md"))
+    catalog_name = str(defaults.get("catalog_name", DEFAULT_CATALOG_NAME))
 
     # Parse excluded_files (exact file paths, e.g., project-state.yaml).
     excluded_files: list[str] = []
@@ -515,7 +516,7 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
     catalog_name = (
         str(catalog_name_raw).strip()
         if isinstance(catalog_name_raw, str) and str(catalog_name_raw).strip()
-        else "catalog.md"
+        else DEFAULT_CATALOG_NAME
     )
 
     defaults: Dict[str, Any] = dict(data)

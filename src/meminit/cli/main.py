@@ -1544,7 +1544,7 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
     "--output-catalog",
     is_flag=True,
     default=False,
-    help="Generate catalog.md (table view).",
+    help="Generate catalogue.md (table view, configurable with --catalog-name or catalog_name).",
 )
 @click.option(
     "--output-kanban",
@@ -1555,7 +1555,10 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
 @click.option(
     "--catalog-name",
     default=None,
-    help="Filename for the generated catalog view (if omitted, uses config or defaults to catalog.md).",
+    help=(
+        "Filename for the generated catalog view "
+        "(if omitted, uses config or defaults to catalogue.md)."
+    ),
 )
 def index(
     root,

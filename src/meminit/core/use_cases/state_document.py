@@ -613,9 +613,15 @@ class StateDocumentUseCase:
         validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
 
         if document_id in skip_doc_ids:
+            entry = state.get(document_id)
+            priority_value = entry.priority if entry else "unknown"
             raise MeminitError(
-                code=ErrorCode.FILE_NOT_FOUND,
-                message=f"No state entry for document '{document_id}'.",
+                code=ErrorCode.STATE_INVALID_PRIORITY,
+                message=(
+                    f"State entry for document '{document_id}' exists but has invalid priority "
+                    f"'{priority_value}' and is excluded from all read surfaces. "
+                    f"Fix or remove the priority field (valid values: {', '.join(VALID_PRIORITIES)})."
+                ),
             )
 
         entry = state.get(document_id)

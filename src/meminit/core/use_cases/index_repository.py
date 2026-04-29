@@ -2,7 +2,7 @@
 
 Enhancements:
 - Merge ``project-state.yaml`` into per-document records (additive only).
-- Generate ``catalog.md`` — table view with composite grouping and activity-recency sort.
+- Generate ``catalogue.md`` — table view with composite grouping and activity-recency sort.
 - Generate ``kanban.md`` — pure Markdown fallback + HTML kanban board (with CSS hiding).
 - Generate ``kanban.css`` — companion stylesheet.
 - Filter by ``--status`` and ``--impl-state``.
@@ -37,7 +37,7 @@ from meminit.core.services.project_state import (
     load_project_state,
     validate_project_state,
 )
-from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.repo_config import DEFAULT_CATALOG_NAME, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.sanitization import (
     MAX_NOTES_LENGTH,
@@ -879,7 +879,7 @@ class IndexRepositoryUseCase:
         self._root_dir = self._layout.root_dir
         self._output_catalog = output_catalog
         self._catalog_name = catalog_name or getattr(
-            self._layout, "catalog_name", "catalog.md"
+            self._layout, "catalog_name", DEFAULT_CATALOG_NAME
         )
         self._output_kanban = output_kanban
 

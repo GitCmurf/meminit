@@ -1341,7 +1341,7 @@ def test_list_states_no_duplicate_field_too_long_warnings(tmp_path):
 
 
 def test_get_state_excludes_invalid_priority(tmp_path):
-    """get_state raises FILE_NOT_FOUND for documents with invalid priority."""
+    """get_state raises STATE_INVALID_PRIORITY for documents with invalid priority."""
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
@@ -1353,8 +1353,10 @@ def test_get_state_excludes_invalid_priority(tmp_path):
 
     with pytest.raises(MeminitError) as exc_info:
         use_case.get_state("MEMINIT-ADR-001")
-    assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_PRIORITY
     assert "MEMINIT-ADR-001" in exc_info.value.message
+    assert "invalid priority" in exc_info.value.message.lower()
+    assert "P9" in exc_info.value.message
 
 
 def test_get_state_includes_validation_warnings(tmp_path):
@@ -1377,7 +1379,7 @@ def test_get_state_includes_validation_warnings(tmp_path):
 
 
 def test_get_state_consistent_with_list_states(tmp_path):
-    """Entries excluded from list_states due to invalid priority also raise errors in get_state."""
+    """Entries excluded from list_states due to invalid priority also raise STATE_INVALID_PRIORITY in get_state."""
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", priority="P1")
     use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started", priority="P2")
@@ -1395,10 +1397,10 @@ def test_get_state_consistent_with_list_states(tmp_path):
     list_ids = [e["document_id"] for e in list_result.entries]
     assert "MEMINIT-ADR-002" not in list_ids
 
-    # Verify get_state raises error for ADR-002
+    # Verify get_state raises STATE_INVALID_PRIORITY for ADR-002
     with pytest.raises(MeminitError) as exc_info:
         use_case.get_state("MEMINIT-ADR-002")
-    assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_PRIORITY
 
     # Verify get_state works for valid ADR-001
     get_result = use_case.get_state("MEMINIT-ADR-001")
