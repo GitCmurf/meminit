@@ -915,3 +915,23 @@ def _make_state_with_entry(tmp_path: Path, **planning_overrides) -> ProjectState
         }
     })
     return load_project_state(tmp_path)
+
+
+def test_load_unquoted_float_schema_version(tmp_path):
+    """Verify that unquoted float-like version (2.0) does not cause a violation."""
+    _write_state_file(
+        tmp_path,
+        "state_schema_version: 2.0\n"
+        "documents:\n"
+        "  TEST-ADR-001:\n"
+        "    impl_state: Not Started\n"
+        "    updated: '2026-01-01T00:00:00+00:00'\n"
+        "    updated_by: test\n",
+    )
+
+    state = load_project_state(tmp_path)
+
+    assert state is not None
+    assert state.schema_version == "2.0"
+    # This should be empty once fixed, but will have a violation now
+    assert len(state.schema_violations) == 0

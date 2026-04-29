@@ -241,7 +241,7 @@ def _validate_top_level_structure(
     schema_violations: List[Violation] = []
     if "state_schema_version" in raw:
         schema_version_raw = raw["state_schema_version"]
-        if schema_version_raw != STATE_SCHEMA_VERSION:
+        if str(schema_version_raw) != STATE_SCHEMA_VERSION:
             schema_violations.append(_schema_violation(
                 state_file_rel,
                 (

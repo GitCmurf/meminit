@@ -1096,3 +1096,35 @@ def test_cli_state_list_accepts_initialized_top_level_templates_v2_config(tmp_pa
     data = json.loads(result.output.strip().splitlines()[-1])
     assert data["success"] is True
     assert data["data"]["entries"] == []
+
+
+def test_cli_state_list_summary_counts_respect_filters(repo_with_docs):
+    """Summary counts (ready, blocked) should be scoped to the active filter."""
+    runner = runner_no_mixed_stderr()
+    # Entry 1: Ready, Assignee Alice
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-001", "--impl-state", "Not Started",
+        "--assignee", "Alice", "--root", str(repo_with_docs),
+    ])
+    # Entry 2: Ready, Assignee Bob
+    runner.invoke(cli, [
+        "state", "set", "TEST-ADR-002", "--impl-state", "Not Started",
+        "--assignee", "Bob", "--root", str(repo_with_docs),
+    ])
+
+    # Unfiltered: 2 ready
+    result = runner.invoke(cli, [
+        "state", "list", "--root", str(repo_with_docs), "--format", "json",
+    ])
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["data"]["summary"]["ready"] == 2
+
+    # Filtered by Bob: 1 ready (TEST-ADR-002 only)
+    # BEFORE FIX: this returns ready=2 because counts are global
+    result = runner.invoke(cli, [
+        "state", "list", "--assignee", "Bob", "--root", str(repo_with_docs), "--format", "json",
+    ])
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert len(data["data"]["entries"]) == 1
+    assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-002"
+    assert data["data"]["summary"]["ready"] == 1

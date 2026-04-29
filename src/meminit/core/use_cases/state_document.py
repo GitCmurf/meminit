@@ -872,7 +872,7 @@ def _assert_single_mutation_mode(
     remove: Any,
     clear: bool,
 ) -> None:
-    modes = [replace is not None, bool(add or remove), bool(clear)]
+    modes = [bool(replace), bool(add or remove), bool(clear)]
     if sum(modes) <= 1:
         return
     raise MeminitError(
@@ -930,10 +930,6 @@ def _build_entries_with_derived(
         entry = state.entries[doc_id]
         d = derived[doc_id]
 
-        if d.ready:
-            ready_count += 1
-        if d.open_blockers:
-            blocked_count += 1
         if ready is not None and d.ready != ready:
             continue
         if blocked is not None and bool(d.open_blockers) != blocked:
@@ -947,6 +943,11 @@ def _build_entries_with_derived(
             and _normalize_impl_state_value(entry.impl_state) not in impl_state_set
         ):
             continue
+
+        if d.ready:
+            ready_count += 1
+        if d.open_blockers:
+            blocked_count += 1
 
         entries_list.append(_entry_to_dict(entry, d))
 
