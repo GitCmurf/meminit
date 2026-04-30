@@ -307,6 +307,34 @@ Always check `success` first, then inspect `error` vs. `violations` to determine
 
 Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-008` is the normative v3 output contract (superseding MEMINIT-SPEC-004).
 
+## Project State Queue
+
+Phase 4 adds a repo-local work queue layered on `project-state.yaml`.
+Agents should use it for deterministic task selection instead of inventing
+their own planner.
+
+### Queue commands
+
+```bash
+meminit state next --root . --format json
+meminit state blockers --root . --format json
+meminit state list --root . --format json
+```
+
+### Recommended agent loop
+
+1. Run `meminit state next --root . --format json`.
+2. If `data.reason == "queue_empty"`, stop.
+3. If `data.entry` exists, do exactly that work item.
+4. Persist the mutation with `meminit state set`.
+5. Repeat until the queue is empty.
+
+### Safety rules
+
+- Queue commands require an initialized repo config.
+- Missing `project-state.yaml` is an empty queue, not an error.
+- Malformed `project-state.yaml` is fatal and must be corrected before use.
+
 ## References (in this repo)
 
 - Brownfield migration runbook: `docs/60-runbooks/runbook-005-brownfield-repo-migration.md`

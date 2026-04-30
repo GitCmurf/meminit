@@ -207,6 +207,38 @@ class DoctorRepositoryUseCase:
                 valid_impl_states=list(valid_impl_states),
             )
         )
+
+        from meminit.core.services.state_derived import (
+            check_dependency_cycle,
+            validate_planning_fields,
+        )
+
+        state_file_rel = get_state_file_rel_path(self._root_dir)
+
+        _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
+
+        for entry in project_state.entries.values():
+            for pi in validate_planning_fields(entry, known_doc_ids):
+                if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
+                    continue
+                severity = Severity.ERROR if pi.severity == "fatal" else Severity.WARNING
+                issues.append(Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=pi.code,
+                    message=pi.message,
+                    severity=severity,
+                ))
+
+        for ci in check_dependency_cycle(project_state.entries):
+            issues.append(Violation(
+                file=state_file_rel,
+                line=0,
+                rule=ci.code,
+                message=ci.message,
+                severity=Severity.ERROR,
+            ))
+
         return issues
 
     def _validate_schema(self, schema_path: Path) -> List[Violation]:

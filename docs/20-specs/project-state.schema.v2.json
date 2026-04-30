@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "project-state.schema.v2.json",
+  "title": "Meminit Project State v2",
+  "description": "Schema for the project-state.yaml file (v2 format with planning fields).",
+  "type": "object",
+  "required": ["state_schema_version", "documents"],
+  "properties": {
+    "state_schema_version": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "documents": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/entry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["impl_state", "updated", "updated_by"],
+      "properties": {
+        "impl_state": {
+          "type": "string",
+          "description": "Implementation state (e.g., Not Started, In Progress, Blocked, QA Required, Done)."
+        },
+        "updated": {
+          "type": "string",
+          "description": "ISO 8601 datetime with timezone (UTC normalized)."
+        },
+        "updated_by": {
+          "type": "string",
+          "description": "Actor who last updated this entry."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Free-text notes (max 500 chars)."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3"],
+          "description": "Priority level. P2 is default (usually omitted on write)."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{3,10}-[A-Z]{3,10}-\\d{3}$"
+          },
+          "description": "Document IDs this entry depends on."
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{3,10}-[A-Z]{3,10}-\\d{3}$"
+          },
+          "description": "Document IDs blocking this entry."
+        },
+        "assignee": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Assignee identifier (max 120 chars)."
+        },
+        "next_action": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^[^\\n]+$",
+          "description": "Next action description (max 500 chars, no newlines)."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

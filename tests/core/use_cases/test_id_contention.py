@@ -1,6 +1,7 @@
 
 import multiprocessing
 import os
+import queue
 import time
 import pytest
 from pathlib import Path
@@ -25,7 +26,7 @@ def create_doc_worker(root_dir, title, results_queue):
     except Exception as e:
         results_queue.put({"success": False, "error": str(e)})
 
-def test_id_allocation_contention_multi_process(tmp_path):
+def test_id_allocation_contention_multi_process(tmp_path, monkeypatch):
     """P5.2: Multi-process contention test for ID allocation.
     Ensures that multiple concurrent processes creating documents of the same type
     do not receive duplicate IDs.
@@ -42,6 +43,8 @@ def test_id_allocation_contention_multi_process(tmp_path):
     
     # 2. Launch multiple workers
     num_workers = 10
+    SHORT_MS = 30000  # 30 seconds max per worker
+    monkeypatch.setenv("MEMINIT_LOCK_TIMEOUT_MS", "10000")
     results_queue = multiprocessing.Queue()
     processes = []
     
@@ -56,10 +59,19 @@ def test_id_allocation_contention_multi_process(tmp_path):
         p.start()
         
     for p in processes:
-        p.join()
+        p.join(timeout=SHORT_MS / 1000)  # Convert to seconds
+        if p.is_alive():
+            p.terminate()
+            p.join()
+            pytest.fail(f"Worker {p.pid} timed out after {SHORT_MS}ms")
         
     # 3. Collect results — expected count is fixed, so get exactly that many
-    results = [results_queue.get() for _ in range(num_workers)]
+    results = []
+    for _ in range(num_workers):
+        try:
+            results.append(results_queue.get(timeout=SHORT_MS / 1000))
+        except queue.Empty:
+            pytest.fail(f"Timed out waiting for result from worker (timeout={SHORT_MS}ms)")
         
     # 4. Verify
     assert len(results) == num_workers

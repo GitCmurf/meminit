@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-006
 type: SPEC
 title: ErrorCode Enum Specification
 status: Draft
-version: "0.4"
-last_updated: 2026-04-18
+version: "0.5"
+last_updated: 2026-04-28
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -17,6 +17,8 @@ keywords:
 related_ids:
   - MEMINIT-PRD-003
   - MEMINIT-SPEC-008
+  - MEMINIT-PRD-007
+  - MEMINIT-PLAN-013
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -24,8 +26,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-006
 > **Owner:** Product Team
 > **Status:** Draft
-> **Version:** 0.4
-> **Last Updated:** 2026-04-18
+> **Version:** 0.5
+> **Last Updated:** 2026-04-21
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -57,7 +59,7 @@ Categories:
 | Shared     | Codes that may be raised by multiple commands.                      |
 | New-only   | Codes specific to `meminit new`.                                    |
 | Check-only | Codes specific to `meminit check`.                                  |
-| State-only | Codes specific to `meminit state` and `meminit index --filter`.      |
+| State-only | Codes specific to `meminit state`, `meminit index --filter`, and the Phase 4 queue commands (`state next`, `state blockers`). |
 | Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
 | Graph      | Codes for graph integrity violations during `meminit index` build.  |
 | Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`). |
@@ -71,7 +73,7 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `DUPLICATE_ID`             | Shared     | A document_id already exists in the index or namespace.         |
 | `INVALID_ID_FORMAT`        | Shared     | The requested `--id` value is malformed or mismatched.         |
 | `INVALID_FLAG_COMBINATION` | Shared     | Mutually exclusive or invalid CLI flags were provided.          |
-| `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing or the repo is not initialized. |
+| `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing, unreadable, malformed, or the repo is not initialized. |
 | `PATH_ESCAPE`              | Shared     | A path argument resolves outside the repo root or docs root.    |
 | `UNKNOWN_TYPE`             | New-only   | The requested document type is not in the type directory map.   |
 | `UNKNOWN_NAMESPACE`        | New-only   | The requested namespace is not configured.                      |
@@ -97,6 +99,15 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `E_STATE_YAML_MALFORMED`   | State-only | The project-state.yaml file is not valid YAML.                 |
 | `E_STATE_SCHEMA_VIOLATION` | State-only | The project-state.yaml file violates the expected schema.       |
 | `E_INVALID_FILTER_VALUE`   | State-only | An invalid filter value was provided to a state or index query. |
+| `STATE_INVALID_PRIORITY`   | State-only | `priority` is not one of `P0..P3`. **Dual severity**: fatal when an invalid priority is being written (mutation rejected by `state set`); warning when an invalid priority is already stored and the entry is being selected, listed, or indexed (entry skipped by `state next`, `state list`, and index readiness derivation). |
+| `STATE_INVALID_DEPENDENCY_ID` | State-only | A dependency reference does not match `<PREFIX>-<TYPE>-<NNN>`. |
+| `STATE_SELF_DEPENDENCY`    | State-only | An entry references its own `document_id` in a dependency list. |
+| `STATE_UNDEFINED_DEPENDENCY` | State-only | A dependency target is not present in the current index graph. |
+| `STATE_DEPENDENCY_CYCLE`   | State-only | Dependencies form a cycle across `depends_on ∪ blocked_by`.    |
+| `STATE_DEPENDENCY_STATUS_CONFLICT` | State-only | A dependency is not `Done` when the entry expects it to be. |
+| `STATE_FIELD_TOO_LONG`     | State-only | `assignee` or `next_action` exceeds the allowed length.         |
+| `STATE_MIXED_MUTATION_MODE` | State-only | Conflicting mutation modes for the same field family.           |
+| `STATE_CLEAR_MUTATION_CONFLICT` | State-only | `--clear` combined with other mutation flags; mutually exclusive. |
 | `GRAPH_DUPLICATE_DOCUMENT_ID` | Graph   | Duplicate `document_id` detected across multiple files (fatal, halts index build). |
 | `GRAPH_SUPERSESSION_CYCLE` | Graph      | Supersession chain forms a cycle (fatal, halts index build).     |
 | `INVALID_ROOT_PATH`        | Agent      | The provided root path is not a valid directory.                 |
@@ -137,3 +148,4 @@ Plain English: If these are true, error codes are governed correctly.
 | 0.2 | 2026-04-15 | GitCmurf | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path |
 | 0.3 | 2026-04-17 | GitCmurf | Added INVALID_ROOT_PATH (Agent), GRAPH_DUPLICATE_DOCUMENT_ID and GRAPH_SUPERSESSION_CYCLE (Graph) for Phase 2 index graph integrity |
 | 0.4 | 2026-04-18 | GitCmurf | Added Protocol category and 5 PROTOCOL_* codes for Phase 3 protocol governance (check/sync) |
+| 0.5 | 2026-04-21 | Codex | Added Phase 4 state queue codes (`STATE_*`) and clarified state-only scope to include queue commands |

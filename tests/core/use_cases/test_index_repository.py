@@ -180,12 +180,53 @@ def test_index_without_project_state(tmp_path):
     assert "updated_by" not in doc
 
 
+def test_index_derived_fields_always_emitted_without_state(tmp_path):
+    """Documents without state entries still get derived fields, but are not ready."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    doc = payload["data"]["nodes"][0]
+    assert doc["ready"] is False
+    assert doc["open_blockers"] == []
+    assert doc["unblocks"] == []
+
+
+def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
+    """Index-only governed documents preserve incoming unblocks from tracked entries."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(tmp_path, {
+        "EXAMPLE-ADR-001": {
+            "impl_state": "Not Started",
+            "updated": "2026-04-20T10:00:00+00:00",
+            "updated_by": "test",
+            "depends_on": ["EXAMPLE-ADR-002"],
+        }
+    })
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    nodes = {n["document_id"]: n for n in payload["data"]["nodes"]}
+
+    assert nodes["EXAMPLE-ADR-001"]["ready"] is False
+    assert "EXAMPLE-ADR-002" in nodes["EXAMPLE-ADR-001"]["open_blockers"]
+
+    assert nodes["EXAMPLE-ADR-002"]["ready"] is False
+    assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
+    assert nodes["EXAMPLE-ADR-002"]["unblocks"] == ["EXAMPLE-ADR-001"]
+
+
 # ---------------------------------------------------------------------------
 # Catalog generation
 # ---------------------------------------------------------------------------
 
-def test_index_generates_catalog_md(tmp_path):
-    """catalog.md is generated with --output-catalog flag."""
+def test_index_generates_catalogue_md_by_default(tmp_path):
+    """catalogue.md is generated with --output-catalog by default."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
@@ -193,14 +234,43 @@ def test_index_generates_catalog_md(tmp_path):
 
     assert report.catalog_path is not None
     assert report.catalog_path.exists()
+    assert report.catalog_path.name == "catalogue.md"
     content = report.catalog_path.read_text(encoding="utf-8")
     assert "# Project Dashboard" in content
     assert "EXAMPLE-ADR-001" in content
     assert "First ADR" in content
 
 
+def test_index_ignores_legacy_catalog_md_artifact_when_defaulting(tmp_path):
+    """An unrelated docs/catalog.md file does not change the default output name."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
+    legacy_artifact = tmp_path / "docs" / "catalog.md"
+    legacy_artifact.parent.mkdir(parents=True, exist_ok=True)
+    legacy_artifact.write_text("# legacy catalog\n", encoding="utf-8")
+
+    report = IndexRepositoryUseCase(str(tmp_path), output_catalog=True).execute()
+
+    assert report.catalog_path is not None
+    assert report.catalog_path.name == "catalogue.md"
+    assert report.catalog_path.exists()
+    assert not (tmp_path / "docs" / "01-indices" / "catalog.md").exists()
+
+
+def test_index_catalog_name_allows_catalog_md_override(tmp_path):
+    """Users can override the default catalogue name."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
+
+    report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="catalog.md"
+    ).execute()
+
+    assert report.catalog_path is not None
+    assert report.catalog_path.name == "catalog.md"
+    assert report.catalog_path.exists()
+
+
 def test_index_catalog_not_generated_without_flag(tmp_path):
-    """catalog.md is NOT generated without the flag."""
+    """catalogue.md is NOT generated without the flag."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     use_case = IndexRepositoryUseCase(str(tmp_path))
     report = use_case.execute()
@@ -897,8 +967,9 @@ def test_index_graph_schema_version(tmp_path):
 
 
 @pytest.mark.slow
-def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
-    """Phase 2 graph build stays within the documented 500-doc timing budget."""
+def test_index_handles_500_docs_within_phase_4_budget(tmp_path):
+    """Phase 4 index build (scan + state merge + validation + derived fields)
+    stays within the 30-second budget for 500 documents."""
     for i in range(500):
         _setup_doc(tmp_path, f"EXAMPLE-ADR-{i:03d}")
 
@@ -908,4 +979,335 @@ def test_index_handles_500_docs_within_phase_2_budget(tmp_path):
     elapsed = time.perf_counter() - start
 
     assert report.document_count == 500
-    assert elapsed < 10, f"Index build exceeded Phase 2 budget: {elapsed:.2f}s"
+    assert elapsed < 30, f"Index build exceeded Phase 4 budget: {elapsed:.2f}s"
+
+
+# ---------------------------------------------------------------------------
+# BV-C: Stored-XSS via priority in kanban class attribute
+# ---------------------------------------------------------------------------
+
+def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
+    """A hand-edited priority with attribute-breaking chars must not escape
+    the HTML class attribute in kanban cards (BV-C).
+
+    The execute() gate drops invalid priorities, so a real XSS payload never
+    reaches the kanban card. We test two layers:
+    1. _safe_css_slug defence-in-depth (direct unit test).
+    2. A valid priority (P0) renders with a safe slug in the kanban output.
+    """
+    assert _safe_css_slug('P0" onclick=alert(1) x="') == "p0-onclick-alert-1-x"
+    assert '"' not in _safe_css_slug('P0" onclick=alert(1) x="')
+
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "P0",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    assert "badge-priority-p0" in kanban_content
+    assert 'onclick' not in kanban_content
+
+
+def test_index_kanban_title_notes_xss_sanitized(tmp_path):
+    """Title and notes with HTML-breaking chars are sanitized in kanban HTML cards."""
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-001",
+        title='test" onmouseover="alert(1)',
+    )
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "notes": '<script>alert("xss")</script>',
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
+    report = use_case.execute()
+    kanban_content = report.kanban_path.read_text(encoding="utf-8")
+
+    start = kanban_content.find('<div class="kanban-board"')
+    html_section = kanban_content[start:] if start >= 0 else kanban_content
+
+    assert '<script>' not in html_section
+    assert 'onmouseover="' not in html_section
+    assert '&lt;script&gt;' in html_section
+    assert '&quot;' in html_section
+
+
+def test_index_invalid_priority_emits_warning_and_is_dropped(tmp_path):
+    """Invalid priority values are dropped from the index and produce a
+    STATE_INVALID_PRIORITY warning in the envelope (BV-C execute gate)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "INVALID",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    node = payload["data"]["nodes"][0]
+    assert "priority" not in node, "Invalid priority should be dropped from index node"
+
+    warning_codes = [w["code"] for w in payload.get("warnings", [])]
+    assert "STATE_INVALID_PRIORITY" in warning_codes
+
+
+def test_index_invalid_priority_single_warning(tmp_path):
+    """Invalid priority produces exactly one STATE_INVALID_PRIORITY warning
+    in the index envelope — validate_project_state is the sole emitter (AR-new-2)."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "priority": "INVALID",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    priority_warnings = [
+        w for w in payload.get("warnings", []) if w["code"] == "STATE_INVALID_PRIORITY"
+    ]
+    assert len(priority_warnings) == 1, (
+        f"Expected exactly 1 STATE_INVALID_PRIORITY warning, "
+        f"got {len(priority_warnings)}: {priority_warnings}"
+    )
+
+
+def test_index_excludes_invalid_priority_entries_before_deriving_readiness(tmp_path):
+    """Readiness derivation must match state query handling for corrupted entries."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "priority": "P2",
+                "depends_on": ["EXAMPLE-ADR-002"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            },
+            "EXAMPLE-ADR-002": {
+                "impl_state": "Done",
+                "priority": "P9",
+                "updated": "2026-03-05T09:00:00Z",
+                "updated_by": "GitCmurf",
+            },
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    nodes = {node["document_id"]: node for node in payload["data"]["nodes"]}
+
+    assert nodes["EXAMPLE-ADR-001"]["ready"] is False
+    assert nodes["EXAMPLE-ADR-001"]["open_blockers"] == ["EXAMPLE-ADR-002"]
+    assert nodes["EXAMPLE-ADR-002"]["impl_state"] == "Done"
+    assert nodes["EXAMPLE-ADR-002"]["ready"] is False
+    assert nodes["EXAMPLE-ADR-002"]["open_blockers"] == []
+    assert nodes["EXAMPLE-ADR-002"]["unblocks"] == ["EXAMPLE-ADR-001"]
+    warning_codes = [w["code"] for w in payload.get("warnings", [])]
+    assert "STATE_INVALID_PRIORITY" in warning_codes
+
+
+def test_kanban_sort_key_oldest_first():
+    """Older entries sort before newer ones (matches state next queue contract)."""
+    from meminit.core.use_cases.index_repository import _kanban_sort_key
+    newer = {"priority": "P2", "unblocks": [], "updated": "2026-04-20T12:00:00Z", "document_id": "A-001"}
+    older = {"priority": "P2", "unblocks": [], "updated": "2026-04-19T12:00:00Z", "document_id": "A-002"}
+    assert _kanban_sort_key(older) < _kanban_sort_key(newer)
+
+
+def test_index_warns_on_undefined_dependency(tmp_path):
+    """Dangling dependency in state produces STATE_UNDEFINED_DEPENDENCY warning."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "depends_on": ["EXAMPLE-ADR-999"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    codes = [w["code"] for w in report.warnings]
+    assert "STATE_UNDEFINED_DEPENDENCY" in codes
+
+
+def test_index_includes_docs_from_nested_namespace(tmp_path):
+    """Nested namespace documents are indexed after an outer namespace scan sees them."""
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: NestedNamespaces
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: MEMINIT
+    docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+""".lstrip(),
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "MEMINIT-ADR-001", subdir="45-adr")
+    _setup_doc(
+        tmp_path,
+        "ORG-GOV-001",
+        doc_type="GOV",
+        title="Org Governance",
+        subdir="00-governance/org",
+        filename="org-gov-001.md",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    ids = {doc["document_id"] for doc in report.documents}
+    assert ids == {"MEMINIT-ADR-001", "ORG-GOV-001"}
+
+
+def test_index_downgrades_planning_fatals_to_read_warnings(tmp_path):
+    """Mutation-fatal planning issues are warning severity in index artifacts."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "depends_on": ["EXAMPLE-ADR-001", "not-a-doc-id"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    planning_warnings = [
+        w for w in payload.get("warnings", [])
+        if w["code"] in {"STATE_SELF_DEPENDENCY", "STATE_INVALID_DEPENDENCY_ID"}
+    ]
+    assert {w["code"] for w in planning_warnings} == {
+        "STATE_SELF_DEPENDENCY",
+        "STATE_INVALID_DEPENDENCY_ID",
+    }
+    assert {w["severity"] for w in planning_warnings} == {"warning"}
+
+
+def test_index_emits_status_conflict_advisory(tmp_path):
+    """Done entry depending on non-Done entry emits advice, not warnings."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Done",
+                "depends_on": ["EXAMPLE-ADR-002"],
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
+            "EXAMPLE-ADR-002": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    report = use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    conflicts = [
+        a for a in payload.get("advice", [])
+        if a["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
+    ]
+    assert len(conflicts) == 1
+    assert conflicts[0]["severity"] == "advisory"
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" not in {
+        w["code"] for w in payload.get("warnings", [])
+    }
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in {
+        a["code"] for a in report.advice
+    }
+
+
+def test_index_no_duplicate_field_too_long_warnings(tmp_path):
+    """STATE_FIELD_TOO_LONG appears once, not duplicated from both validators."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "assignee": "x" * 500,
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+
+    field_too_long = [
+        w for w in payload.get("warnings", [])
+        if w["code"] == "STATE_FIELD_TOO_LONG"
+    ]
+    assert len(field_too_long) == 1

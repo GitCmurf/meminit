@@ -59,6 +59,9 @@ include-package-data = true
 addopts = "-ra -q --cov=meminit"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.mypy]
 python_version = "3.11"

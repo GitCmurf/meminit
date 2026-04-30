@@ -91,9 +91,12 @@ def _setup_initialized_repo(tmp_path: Path) -> None:
 def _setup_state_repo(tmp_path: Path) -> None:
     """Create an initialized repo with a valid project-state.yaml."""
     _setup_initialized_repo(tmp_path)
-    (tmp_path / "project-state.yaml").write_text(
-        "entries:\n  TEST-ADR-001:\n    impl_state: Not Started\n"
-        "    updated_by: test\n    updated: '2026-04-15'\n",
+    state_dir = tmp_path / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "state_schema_version: '2.0'\n"
+        "documents:\n  TEST-ADR-001:\n    impl_state: Not Started\n"
+        "    updated_by: test\n    updated: '2026-04-15T00:00:00+00:00'\n",
         encoding="utf-8",
     )
 
@@ -112,6 +115,8 @@ def _build_args(name: str, tmp_path: Path) -> list[str]:
         "state set": ["TEST-ADR-001", "--impl-state", "not-started"],
         "state get": ["TEST-ADR-001"],
         "state list": [],
+        "state next": [],
+        "state blockers": [],
         "org install": ["--dry-run"],
         "org vendor": [],
         "org status": [],
@@ -130,7 +135,7 @@ def _build_args(name: str, tmp_path: Path) -> list[str]:
     return args
 
 
-_STATE_COMMANDS = {"state set", "state get", "state list"}
+_STATE_COMMANDS = {"state set", "state get", "state list", "state next", "state blockers"}
 
 
 def _setup_fixture(name: str, tmp_path: Path) -> None:

@@ -113,7 +113,7 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 - Use cases: `resolve_document.py`, `identify_document.py`
 - CLI: `meminit index|resolve|identify|link` in `src/meminit/cli/main.py`
 - Runtime correlation metadata remains available in CLI JSON output (`meminit index --format json`) rather than the committed index artifact.
-- Generated side views (`catalog.md`, custom catalog names, `kanban.md`,
+- Generated side views (`catalogue.md`, custom catalog names, `kanban.md`,
   `kanban.css`) are tracked operationally by Meminit-generated file markers and
   cleaned up outside the canonical index artifact.
 

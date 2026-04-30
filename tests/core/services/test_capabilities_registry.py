@@ -150,3 +150,20 @@ def test_global_flags_match_shared_options():
     extra = flag_names - expected
     assert not missing, f"Global flags missing from capabilities: {sorted(missing)}"
     assert not extra, f"Extra global flags not in shared options: {sorted(extra)}"
+
+
+def test_agent_facing_commands_support_json_and_correlation():
+    """PR-7 guardrail: every agent_facing=True capability must advertise supports_json=True and supports_correlation_id=True."""
+    use_case = CapabilitiesUseCase()
+    caps = use_case.execute()
+    violations = []
+    for cmd in caps["commands"]:
+        if cmd["agent_facing"]:
+            if not cmd["supports_json"]:
+                violations.append(f"{cmd['name']}: supports_json=False")
+            if not cmd["supports_correlation_id"]:
+                violations.append(f"{cmd['name']}: supports_correlation_id=False")
+    assert not violations, (
+        "Agent-facing commands must support JSON and correlation IDs: "
+        + "; ".join(violations)
+    )
