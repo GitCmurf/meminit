@@ -257,9 +257,10 @@ def _validate_top_level_structure(
     allowed_keys = {"state_schema_version", "documents"}
     unknown = set(raw.keys()) - allowed_keys
     if unknown:
+        unknown_str = ', '.join(str(k) for k in sorted(unknown))
         non_critical_violations.append(_schema_violation(
             state_file_rel,
-            f"Unknown top-level keys: {', '.join(sorted(unknown))}"
+            f"Unknown top-level keys: {unknown_str}"
         ))
 
     if "documents" not in raw:
@@ -270,7 +271,7 @@ def _validate_top_level_structure(
                 code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
                 message=(
                     f"project-state.yaml has no 'documents' key but contains "
-                    f"other keys: {', '.join(raw.keys())}"
+                    f"other keys: {', '.join(str(k) for k in raw.keys())}"
                 ),
                 details={"file": state_file_rel},
             )
