@@ -55,6 +55,21 @@ def test_set_default_priority_is_idempotent(tmp_path):
     assert content2 == content1
 
 
+def test_set_new_document_includes_derived_fields(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path))
+
+    result = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
+
+    assert result.entry["ready"] is True
+    assert result.entry["open_blockers"] == []
+    assert result.entry["unblocks"] == []
+
+    follow_up = use_case.get_state("MEMINIT-ADR-001")
+    assert follow_up.entry["ready"] is True
+    assert follow_up.entry["open_blockers"] == []
+    assert follow_up.entry["unblocks"] == []
+
+
 def test_set_different_actor_is_not_idempotent(tmp_path):
     """Re-running state set with a different --actor must update updated_by."""
     use_case = StateDocumentUseCase(str(tmp_path))
@@ -922,6 +937,23 @@ def _write_state_with_self_dependency(tmp_path):
     )
 
 
+def _write_state_with_unrelated_cycle(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state(
+        "MEMINIT-ADR-001",
+        impl_state="Not Started",
+        add_depends_on=["MEMINIT-ADR-002"],
+    )
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
+    use_case.set_state("MEMINIT-ADR-003", impl_state="Not Started")
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-002"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+
 def test_list_states_warns_on_self_dependency(tmp_path):
     """Self-dependency in state produces a warning but entry remains visible."""
     _write_state_with_self_dependency(tmp_path)
@@ -962,6 +994,28 @@ def test_blockers_state_warns_on_dependency_cycle(tmp_path):
     assert result.warnings is not None
     codes = [w["code"] for w in result.warnings]
     assert "STATE_DEPENDENCY_CYCLE" in codes
+
+
+def test_set_state_ignores_unrelated_dependency_cycle(tmp_path):
+    """An unrelated cycle in another connected component should not block updates."""
+    _write_state_with_unrelated_cycle(tmp_path)
+    use_case = StateDocumentUseCase(str(tmp_path))
+
+    result = use_case.set_state("MEMINIT-ADR-003", notes="repair unrelated entry")
+
+    assert result.document_id == "MEMINIT-ADR-003"
+    assert result.entry["notes"] == "repair unrelated entry"
+
+
+def test_set_state_blocks_cycle_in_touched_component(tmp_path):
+    """Mutations touching the cyclic component should still fail."""
+    _write_state_with_unrelated_cycle(tmp_path)
+    use_case = StateDocumentUseCase(str(tmp_path))
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.set_state("MEMINIT-ADR-001", notes="attempt repair")
+
+    assert exc_info.value.code == ErrorCode.STATE_DEPENDENCY_CYCLE
 
 
 def test_list_states_warns_on_undefined_dependency(tmp_path):
@@ -1376,6 +1430,26 @@ def test_get_state_includes_validation_warnings(tmp_path):
     result = use_case.get_state("MEMINIT-ADR-001")
     assert result.warnings is not None
     assert any(w["code"] == "STATE_DEPENDENCY_CYCLE" for w in result.warnings)
+
+
+def test_set_state_allows_unrelated_dependency_cycle(tmp_path):
+    """An unrelated dependency cycle must not block repairing a different component."""
+    use_case = StateDocumentUseCase(str(tmp_path))
+    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", notes="A")
+    use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started", notes="B")
+    use_case.set_state("MEMINIT-ADR-003", impl_state="Not Started", notes="C")
+
+    state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["MEMINIT-ADR-001"]["depends_on"] = ["MEMINIT-ADR-002"]
+    raw["documents"]["MEMINIT-ADR-002"]["depends_on"] = ["MEMINIT-ADR-001"]
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = use_case.set_state("MEMINIT-ADR-003", notes="updated")
+    assert result.entry["notes"] == "updated"
+    assert result.entry["document_id"] == "MEMINIT-ADR-003"
 
 
 def test_get_state_consistent_with_list_states(tmp_path):

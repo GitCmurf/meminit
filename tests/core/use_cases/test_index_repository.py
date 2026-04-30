@@ -225,8 +225,8 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
 # Catalog generation
 # ---------------------------------------------------------------------------
 
-def test_index_generates_catalog_md_by_default(tmp_path):
-    """catalog.md is generated with --output-catalog by default."""
+def test_index_generates_catalogue_md_by_default(tmp_path):
+    """catalogue.md is generated with --output-catalog by default."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
@@ -234,11 +234,26 @@ def test_index_generates_catalog_md_by_default(tmp_path):
 
     assert report.catalog_path is not None
     assert report.catalog_path.exists()
-    assert report.catalog_path.name == "catalog.md"
+    assert report.catalog_path.name == "catalogue.md"
     content = report.catalog_path.read_text(encoding="utf-8")
     assert "# Project Dashboard" in content
     assert "EXAMPLE-ADR-001" in content
     assert "First ADR" in content
+
+
+def test_index_ignores_legacy_catalog_md_artifact_when_defaulting(tmp_path):
+    """An unrelated docs/catalog.md file does not change the default output name."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
+    legacy_artifact = tmp_path / "docs" / "catalog.md"
+    legacy_artifact.parent.mkdir(parents=True, exist_ok=True)
+    legacy_artifact.write_text("# legacy catalog\n", encoding="utf-8")
+
+    report = IndexRepositoryUseCase(str(tmp_path), output_catalog=True).execute()
+
+    assert report.catalog_path is not None
+    assert report.catalog_path.name == "catalogue.md"
+    assert report.catalog_path.exists()
+    assert not (tmp_path / "docs" / "01-indices" / "catalog.md").exists()
 
 
 def test_index_catalog_name_allows_catalog_md_override(tmp_path):

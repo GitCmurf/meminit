@@ -157,6 +157,8 @@ Useful proof-of-concept command with explicit verification:
   --base main \
   --max-iterations 2 \
   --initial-review-file latest \
+  --timeout-seconds 900 \
+  --debug-status-detection \
   --check "./.venv/bin/pytest -q" \
   --check "./.venv/bin/meminit check docs/60-runbooks/runbook-006-codex-skills-setup.md --format json"
 ```
@@ -166,6 +168,11 @@ Safety notes:
 - `--max-iterations` is a remediation-pass cap. With the default final review,
   `--max-iterations 2` may run three reviews: initial review, second-cycle
   review, and a final status review after the second remediation.
+- Each `codex review`, `codex exec`, and `--check` subprocess has a timeout.
+  The default is `300` seconds per subprocess. Use
+  `--timeout-seconds <SECONDS>` for slower review models or larger diffs. Use
+  `--timeout-seconds 0` only when an operator is watching the loop and is
+  prepared to interrupt a hung subprocess manually.
 - A failing `--check` is fed into the next remediation pass while iteration
   budget remains. If the final allowed pass still leaves a failing check, the
   loop reports `pending_check_failures: true` and does not report clear.
@@ -194,6 +201,10 @@ Safety notes:
   latest artifact paths, and the latest actionable review excerpt. Use
   `--summary-format json` for the previous JSON stdout shape, or
   `--summary-format both` when both are useful.
+- Use `--debug-status-detection` when the loop appears to keep remediating
+  after the actionable review text looks clear. The flag writes
+  `*-status.json` files next to review artifacts and logs the compact reason
+  for each clear/findings/unknown classification.
 - During the loop, compact progress logs are written to stderr when each
   review, remediation, or check starts and finishes. The compact format is
   `HH:MM:SS|rev|1   |event`, with phase codes `rev`, `rem`, and `chk`,

@@ -78,6 +78,8 @@ class LoopConfig:
     final_review: bool = True
     max_remediation_input_chars: int = 200_000
     terminal_excerpt_chars: int = 4_000
+    timeout_seconds: float | None = DEFAULT_TIMEOUT_SECONDS
+    debug_status_detection: bool = False
     progress: bool = True
     progress_style: str = "compact"
     initial_review_file: Path | None = None
@@ -212,14 +214,15 @@ def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None
 
 def detect_review_status(output: str) -> str:
     """Return clear/findings/unknown for Codex review output."""
-    match = STATUS_RE.search(output)
+    actionable_output = actionable_review_output(output)
+    match = STATUS_RE.search(actionable_output)
     if match:
         return match.group(1).lower()
 
-    if CODEX_FINDING_RE.search(output):
+    if CODEX_FINDING_RE.search(actionable_output):
         return "findings"
 
-    normalized = output.lower()
+    normalized = actionable_output.lower()
     finding_markers = (
         "review comment:",
         "review comments:",
@@ -228,7 +231,7 @@ def detect_review_status(output: str) -> str:
     if any(marker in normalized for marker in finding_markers):
         return "findings"
 
-    normalized_lines = [line.strip().lower() for line in output.splitlines()]
+    normalized_lines = [line.strip().lower() for line in actionable_output.splitlines()]
     clear_lines = {
         "no findings.",
         "no findings",
@@ -248,6 +251,32 @@ def detect_review_status(output: str) -> str:
     if any(phrase in normalized for phrase in clear_phrases):
         return "clear"
     return "unknown"
+
+
+def review_status_diagnostics(output: str) -> dict[str, object]:
+    """Return compact, targeted diagnostics for review-status classification."""
+    actionable_output = actionable_review_output(output)
+    stderr_present = "\n[stderr]\n" in output
+    explicit_status = STATUS_RE.search(actionable_output)
+    finding_lines = CODEX_FINDING_RE.findall(actionable_output)
+    normalized = actionable_output.lower()
+    clear_phrase_present = any(
+        phrase in normalized
+        for phrase in (
+            "did not find any discrete, actionable bugs",
+            "did not find any actionable bugs",
+            "no discrete, actionable bugs",
+            "no actionable bugs",
+        )
+    )
+    return {
+        "status": detect_review_status(output),
+        "actionable_chars": len(actionable_output),
+        "stderr_present": stderr_present,
+        "explicit_status": explicit_status.group(1).lower() if explicit_status else None,
+        "finding_line_count": len(finding_lines),
+        "clear_phrase_present": clear_phrase_present,
+    }
 
 
 def extract_finding_summaries(output: str, limit: int = 5) -> list[str]:
@@ -404,7 +433,7 @@ def run_codex_review(
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN\nREVIEW_STATUS: findings\n")
     else:
-        result = runner(command, config.cwd, None, DEFAULT_TIMEOUT_SECONDS)
+        result = runner(command, config.cwd, None, config.timeout_seconds)
     combined = _combined_output(result)
     artifact_path = config.artifact_dir / f"{artifact_label}.txt"
     write_artifact(artifact_path, combined)
@@ -412,6 +441,24 @@ def run_codex_review(
         progress_event(config, "review", display_label, "failed", f"exit {result.returncode}")
         raise RuntimeError(f"codex review failed for {artifact_label}; see {artifact_path}")
     status = detect_review_status(combined)
+    if config.debug_status_detection:
+        diagnostics = review_status_diagnostics(combined)
+        write_artifact(
+            config.artifact_dir / f"{artifact_label}-status.json",
+            json.dumps(diagnostics, indent=2, sort_keys=True) + "\n",
+        )
+        progress_event(
+            config,
+            "review",
+            display_label,
+            "status-debug",
+            (
+                f"status={diagnostics['status']} "
+                f"findings={diagnostics['finding_line_count']} "
+                f"clear_phrase={diagnostics['clear_phrase_present']} "
+                f"stderr={diagnostics['stderr_present']}"
+            ),
+        )
     if status != "findings":
         progress_event(config, "review", display_label, status)
     elif not log_review_findings(config, display_label, combined):
@@ -456,7 +503,7 @@ def run_remediation(
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN remediation skipped\n")
     else:
-        result = runner(command, config.cwd, prompt, DEFAULT_TIMEOUT_SECONDS)
+        result = runner(command, config.cwd, prompt, config.timeout_seconds)
     write_artifact(config.artifact_dir / f"remediation-{iteration}.txt", _combined_output(result))
     if result.returncode != 0:
         progress_event(config, "remediate", str(iteration), "failed", f"exit {result.returncode}")
@@ -476,7 +523,7 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
         if config.dry_run:
             result = CommandResult(command, 0, stdout=f"DRY_RUN check skipped: {check}\n")
         else:
-            result = runner(command, config.cwd, None, DEFAULT_TIMEOUT_SECONDS)
+            result = runner(command, config.cwd, None, config.timeout_seconds)
         results.append(result)
         write_artifact(
             config.artifact_dir / f"check-{iteration}-{index}.txt",
@@ -542,7 +589,11 @@ def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
     summary["artifact_paths"] = {
         "artifact_dir": str(artifact_dir),
         "summary": str(artifact_dir / "summary.json"),
-        "reviews": [str(path) for path in files if path.name.startswith("review-")],
+        "reviews": [
+            str(path)
+            for path in files
+            if path.name.startswith("review-") and path.suffix == ".txt"
+        ],
         "remediations": [
             str(path)
             for path in files
@@ -554,6 +605,7 @@ def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
             if path.name.startswith("remediation-") and "last-message" in path.name
         ],
         "checks": [str(path) for path in files if path.name.startswith("check-")],
+        "diagnostics": [str(path) for path in files if path.name.endswith("-status.json")],
     }
 
 
@@ -846,10 +898,24 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Maximum latest-review characters shown in terminal text summaries.",
     )
     parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=(
+            "Maximum seconds for each review, remediation, or check command. "
+            "Use 0 to disable subprocess timeouts. Default: 300."
+        ),
+    )
+    parser.add_argument(
         "--summary-format",
         choices=("text", "json", "both"),
         default="text",
         help="Summary format printed to stdout. Full JSON is always written to summary.json.",
+    )
+    parser.add_argument(
+        "--debug-status-detection",
+        action="store_true",
+        help="Write per-review status-classification diagnostics next to review artifacts.",
     )
     parser.add_argument(
         "--quiet-progress",
@@ -876,13 +942,25 @@ def default_artifact_dir() -> Path:
     return Path("tmp") / "codex-review-remediation-loop" / timestamp
 
 
+def resolve_timeout_seconds(value: float) -> float | None:
+    if value < 0:
+        raise ValueError("--timeout-seconds must be 0 or greater")
+    if value == 0:
+        return None
+    return value
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     artifact_dir = Path(args.artifact_dir) if args.artifact_dir else default_artifact_dir()
     search_root = artifact_dir if args.artifact_dir else artifact_dir.parent
     try:
         initial_review_file = resolve_initial_review_file(args.initial_review_file, search_root)
+        timeout_seconds = resolve_timeout_seconds(args.timeout_seconds)
     except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     if initial_review_file is not None and not initial_review_file.is_file():
@@ -907,6 +985,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         final_review=not args.skip_final_review,
         max_remediation_input_chars=args.max_remediation_input_chars,
         terminal_excerpt_chars=args.terminal_excerpt_chars,
+        timeout_seconds=timeout_seconds,
+        debug_status_detection=args.debug_status_detection,
         progress=not args.quiet_progress,
         progress_style=args.progress_style,
         initial_review_file=initial_review_file,
@@ -915,6 +995,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         summary = run_loop(config)
+    except KeyboardInterrupt:  # pragma: no cover - signal path
+        print("Interrupted by user.", file=sys.stderr)
+        return 130
     except Exception as exc:  # pragma: no cover - command-line reporting path
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

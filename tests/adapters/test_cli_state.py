@@ -1,8 +1,11 @@
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
+import yaml
 from click.testing import CliRunner
+
 from meminit.cli.main import cli
 
 def runner_no_mixed_stderr() -> CliRunner:
@@ -143,6 +146,27 @@ def test_cli_state_get_json(repo_with_docs):
     assert data["data"]["ready"] is False
     assert data["data"]["open_blockers"] == []
     assert data["data"]["unblocks"] == []
+
+
+def test_cli_state_get_json_propagates_warnings(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(cli, ["state", "set", "TEST-ADR-001", "--impl-state", "Not Started", "--root", str(repo_with_docs)])
+    runner.invoke(cli, ["state", "set", "TEST-ADR-002", "--impl-state", "Not Started", "--root", str(repo_with_docs)])
+
+    state_file = repo_with_docs / "docs" / "01-indices" / "project-state.yaml"
+    raw = yaml.safe_load(state_file.read_text())
+    raw["documents"]["TEST-ADR-001"]["depends_on"] = ["TEST-ADR-002"]
+    raw["documents"]["TEST-ADR-002"]["depends_on"] = ["TEST-ADR-001"]
+    state_file.write_text(
+        yaml.dump(raw, default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+
+    result = runner.invoke(cli, ["state", "get", "TEST-ADR-001", "--root", str(repo_with_docs), "--format", "json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip().splitlines()[-1])
+    assert data["success"] is True
+    assert data["warnings"]
+    assert any(w["code"] == "STATE_DEPENDENCY_CYCLE" for w in data["warnings"])
 
 def test_cli_state_clear_json(repo_with_docs):
     runner = runner_no_mixed_stderr()

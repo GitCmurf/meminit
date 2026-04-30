@@ -366,6 +366,33 @@ def _issue_applies_to_changed_field(issue: Any, changed_fields: Set[str]) -> boo
     return field in changed_fields
 
 
+def _dependency_component_doc_ids(
+    all_entries: Dict[str, ProjectStateEntry],
+    seed_doc_id: str,
+) -> Set[str]:
+    """Return the connected dependency component containing ``seed_doc_id``."""
+    if seed_doc_id not in all_entries:
+        return set()
+
+    adjacency: Dict[str, Set[str]] = {doc_id: set() for doc_id in all_entries}
+    for doc_id, entry in all_entries.items():
+        neighbors = set(entry.depends_on) | set(entry.blocked_by)
+        for neighbor in neighbors:
+            if neighbor in all_entries:
+                adjacency[doc_id].add(neighbor)
+                adjacency[neighbor].add(doc_id)
+
+    component: Set[str] = set()
+    stack = [seed_doc_id]
+    while stack:
+        doc_id = stack.pop()
+        if doc_id in component:
+            continue
+        component.add(doc_id)
+        stack.extend(sorted(adjacency.get(doc_id, ())))
+    return component
+
+
 def _resolve_actor_for_set(actor: Optional[str], root_dir: Path) -> str:
     if actor:
         if not validate_actor(actor):
@@ -565,7 +592,12 @@ class StateDocumentUseCase:
 
         temp_state = ProjectState(entries=dict(state.entries))
         temp_state.set_entry(entry)
-        cycle_issues = check_dependency_cycle(temp_state.entries)
+        component_doc_ids = _dependency_component_doc_ids(temp_state.entries, document_id)
+        cycle_entries = {
+            doc_id: temp_state.entries[doc_id]
+            for doc_id in component_doc_ids
+        }
+        cycle_issues = check_dependency_cycle(cycle_entries)
         if cycle_issues:
             summary = "; ".join(i.message for i in cycle_issues)
             details = [{"code": i.code, "message": i.message} for i in cycle_issues]
@@ -575,8 +607,9 @@ class StateDocumentUseCase:
                 details={"violations": details},
             )
 
-        # Compute derived fields for consistent response
-        derivation_state = _state_excluding_entries(state, set())
+        # Compute derived fields from temp_state (which has the entry set)
+        # This ensures correct derived fields for both idempotent and non-idempotent paths
+        derivation_state = _state_excluding_entries(temp_state, set())
         known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
         derived = compute_derived_fields(derivation_state, known_ids)
 
@@ -594,12 +627,17 @@ class StateDocumentUseCase:
         state.set_entry(entry)
         save_project_state(self._root_dir, state)
 
+        # Recompute derived from post-mutation state for non-idempotent path
+        post_derivation_state = _state_excluding_entries(state, set())
+        post_known_ids = _get_known_ids(self._root_dir) | set(post_derivation_state.entries.keys())
+        post_derived = compute_derived_fields(post_derivation_state, post_known_ids)
+
         result_warnings = _build_result_warnings(validation_issues, self._root_dir)
 
         return StateResult(
             document_id=document_id,
             action="set",
-            entry=_entry_to_dict(entry, derived.get(document_id)),
+            entry=_entry_to_dict(entry, post_derived.get(document_id)),
             warnings=result_warnings or None,
         )
 
@@ -644,7 +682,7 @@ class StateDocumentUseCase:
             document_id=document_id,
             action="get",
             entry=_entry_to_dict(entry, derived[document_id]),
-            warnings=validation_warnings if validation_warnings else None,
+            warnings=validation_warnings or None,
         )
 
     def list_states(

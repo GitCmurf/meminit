@@ -33,6 +33,16 @@ def test_detect_review_status_accepts_exact_clear_review_lines():
     )
 
 
+def test_detect_review_status_ignores_stderr_transcript_noise():
+    output = (
+        "I did not find any discrete, actionable bugs in the diff.\n\n"
+        "[stderr]\n"
+        "tool output mentions review comments and examples like - [P2] historical note\n"
+    )
+
+    assert MODULE.detect_review_status(output) == "clear"
+
+
 def test_detect_review_status_recognizes_codex_review_findings():
     output = """The patch has a bug.
 
@@ -42,6 +52,25 @@ Full review comments:
   This reports misleading data.
 """
     assert MODULE.detect_review_status(output) == "findings"
+
+
+def test_review_status_diagnostics_explain_clear_with_stderr_noise():
+    output = (
+        "I did not find any discrete, actionable bugs in the diff.\n\n"
+        "[stderr]\n"
+        "review comments:\n- [P2] stale transcript example\n"
+    )
+
+    diagnostics = MODULE.review_status_diagnostics(output)
+
+    assert diagnostics == {
+        "actionable_chars": 57,
+        "clear_phrase_present": True,
+        "explicit_status": None,
+        "finding_line_count": 0,
+        "status": "clear",
+        "stderr_present": True,
+    }
 
 
 def test_extract_finding_summaries_limits_codex_findings():
@@ -192,6 +221,119 @@ def test_loop_stops_after_review_reports_clear(tmp_path):
     assert [call[0][1] for call in calls] == ["review", "exec", "-m", "review"]
     assert calls[0][1] is None
     assert (tmp_path / "artifacts" / "summary.json").exists()
+
+
+def test_loop_stops_when_clear_review_has_noisy_stderr(tmp_path):
+    calls = []
+    review_outputs = iter(
+        [
+            "Finding: add regression coverage.\nREVIEW_STATUS: findings\n",
+            (
+                "I did not find any discrete, actionable bugs in the diff.\n\n"
+                "[stderr]\n"
+                "transcript mentions review comments and a historical - [P2] example\n"
+            ),
+        ]
+    )
+
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
+        calls.append((list(args), input_text))
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
+        return MODULE.CommandResult(list(args), 0, stdout="remediated\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=2,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+    )
+
+    summary = MODULE.run_loop(config, runner)
+
+    assert summary["final_status"] == "clear"
+    assert [call[0][1] for call in calls] == ["review", "exec", "review"]
+
+
+def test_debug_status_detection_writes_diagnostic_artifact(tmp_path):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout="No findings.\n")
+        return MODULE.CommandResult(list(args), 0, stdout="remediated\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+        debug_status_detection=True,
+    )
+
+    summary = MODULE.run_loop(config, runner)
+
+    diagnostic_path = tmp_path / "artifacts" / "review-1-status.json"
+    assert diagnostic_path.exists()
+    assert summary["artifact_paths"]["diagnostics"] == [str(diagnostic_path)]
+    assert summary["artifact_paths"]["reviews"] == [str(tmp_path / "artifacts" / "review-1.txt")]
+
+
+def test_loop_passes_configured_timeout_to_all_subprocess_phases(tmp_path):
+    calls = []
+    review_outputs = iter(
+        [
+            "Finding: add regression coverage.\nREVIEW_STATUS: findings\n",
+            "No actionable findings.\nREVIEW_STATUS: clear\n",
+        ]
+    )
+
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
+        calls.append((list(args), input_text, timeout_seconds))
+        if args[1] == "review":
+            return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
+        return MODULE.CommandResult(list(args), 0, stdout="ok\n")
+
+    config = MODULE.LoopConfig(
+        base="main",
+        max_iterations=1,
+        codex_bin="codex",
+        cwd=tmp_path,
+        artifact_dir=tmp_path / "artifacts",
+        check_commands=("python -m pytest tests/unit",),
+        timeout_seconds=900,
+    )
+
+    MODULE.run_loop(config, runner)
+
+    assert [call[2] for call in calls] == [900, 900, 900, 900]
+
+
+def test_resolve_timeout_seconds_allows_disabling_timeout():
+    assert MODULE.resolve_timeout_seconds(0) is None
+    assert MODULE.resolve_timeout_seconds(900) == 900
+
+
+def test_main_rejects_negative_timeout(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = MODULE.main(["--timeout-seconds", "-1"])
+
+    assert exit_code == 1
+    assert "--timeout-seconds must be 0 or greater" in capsys.readouterr().err
+
+
+def test_main_handles_keyboard_interrupt_without_traceback(tmp_path, monkeypatch, capsys):
+    def interrupted_run_loop(config):
+        raise KeyboardInterrupt
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(MODULE, "run_loop", interrupted_run_loop)
+
+    exit_code = MODULE.main([])
+
+    assert exit_code == 130
+    assert capsys.readouterr().err == "Interrupted by user.\n"
 
 
 def test_loop_can_start_from_initial_review_file(tmp_path):

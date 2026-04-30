@@ -3473,6 +3473,7 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
                     root=str(root_path),
                     success=True,
                     data=result.entry,
+                    warnings=result.warnings,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,
