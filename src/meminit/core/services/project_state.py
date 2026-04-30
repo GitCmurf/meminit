@@ -257,7 +257,7 @@ def _validate_top_level_structure(
     allowed_keys = {"state_schema_version", "documents"}
     unknown = set(raw.keys()) - allowed_keys
     if unknown:
-        unknown_str = ', '.join(str(k) for k in sorted(unknown))
+        unknown_str = ', '.join(sorted(str(k) for k in unknown))
         non_critical_violations.append(_schema_violation(
             state_file_rel,
             f"Unknown top-level keys: {unknown_str}"
@@ -284,7 +284,8 @@ def _validate_top_level_structure(
     if not isinstance(documents, dict):
         return None, None, [], ProjectState(
             schema_violations=non_critical_violations
-            + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")]
+            + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")],
+            schema_version=schema_version,
         )
 
     return schema_version, documents, non_critical_violations, None

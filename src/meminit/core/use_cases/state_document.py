@@ -203,7 +203,7 @@ def _collect_read_validation_warnings(
         if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
             skip_doc_ids.add(doc_id)
 
-    _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
+    _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG", "STATE_FIELD_INVALID_FORMAT"}
 
     for doc_id, entry in state.entries.items():
         planning_issues = validate_planning_fields(entry, fs_known)
@@ -575,6 +575,11 @@ class StateDocumentUseCase:
                 details={"violations": details},
             )
 
+        # Compute derived fields for consistent response
+        derivation_state = _state_excluding_entries(state, set())
+        known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
+        derived = compute_derived_fields(derivation_state, known_ids)
+
         if existing and _entry_is_idempotent(existing, entry):
             if state.schema_version != STATE_SCHEMA_VERSION:
                 save_project_state(self._root_dir, state)
@@ -582,7 +587,7 @@ class StateDocumentUseCase:
             return StateResult(
                 document_id=document_id,
                 action="set",
-                entry=_entry_to_dict(existing),
+                entry=_entry_to_dict(existing, derived.get(existing.document_id)),
                 warnings=result_warnings or None,
             )
 
@@ -594,7 +599,7 @@ class StateDocumentUseCase:
         return StateResult(
             document_id=document_id,
             action="set",
-            entry=_entry_to_dict(entry),
+            entry=_entry_to_dict(entry, derived.get(document_id)),
             warnings=result_warnings or None,
         )
 
