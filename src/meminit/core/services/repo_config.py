@@ -27,7 +27,7 @@ from meminit.core.services.observability import log_debug
 
 # Constants
 DEFAULT_DOCS_ROOT = "docs"
-DEFAULT_CATALOG_NAME = "catalogue.md"
+DEFAULT_CATALOG_NAME = "catalog.md"
 DEFAULT_TYPE_DIRECTORIES = {
     "GOV": "00-governance",
     "PLAN": "05-planning",
@@ -513,11 +513,15 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
     project_name = str(data.get("project_name") or root.name).strip() or root.name
 
     catalog_name_raw = data.get("catalog_name")
-    catalog_name = (
-        str(catalog_name_raw).strip()
-        if isinstance(catalog_name_raw, str) and str(catalog_name_raw).strip()
-        else DEFAULT_CATALOG_NAME
-    )
+    if isinstance(catalog_name_raw, str) and catalog_name_raw.strip():
+        catalog_name = catalog_name_raw.strip()
+    else:
+        # Check for legacy "catalogue.md" in the repo's docs directory for backward compatibility
+        docs_root = Path(root_dir) / data.get("docs_root", DEFAULT_DOCS_ROOT)
+        if (docs_root / "catalogue.md").exists():
+            catalog_name = "catalogue.md"
+        else:
+            catalog_name = DEFAULT_CATALOG_NAME
 
     defaults: Dict[str, Any] = dict(data)
     defaults.setdefault("docs_root", DEFAULT_DOCS_ROOT)

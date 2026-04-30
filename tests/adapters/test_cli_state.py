@@ -484,9 +484,11 @@ class TestCliStateSetMixedMutationModeRejection:
         ["--depends-on", "A", "--remove-depends-on", "B"],
         ["--depends-on", "A", "--clear-depends-on"],
         ["--add-depends-on", "B", "--clear-depends-on"],
+        ["--remove-depends-on", "B", "--clear-depends-on"],
         ["--blocked-by", "A", "--add-blocked-by", "B"],
-        ["--blocked-by", "A", "--clear-blocked-by"],
+        ["--blocked-by", "A", "--remove-blocked-by", "B"],
         ["--add-blocked-by", "B", "--clear-blocked-by"],
+        ["--remove-blocked-by", "B", "--clear-blocked-by"],
     ])
     def test_cli_rejects_mixed_modes(self, repo_with_docs, flags):
         runner = runner_no_mixed_stderr()

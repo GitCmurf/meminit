@@ -1,5 +1,4 @@
 import contextlib
-import datetime
 import json
 import os
 import shlex
@@ -17,7 +16,6 @@ from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import (
     EX_CANTCREAT,
     EX_COMPLIANCE_FAIL,
-    EX_USAGE,
     exit_code_for_error,
 )
 from meminit.core.services.observability import get_current_run_id, log_operation
@@ -3203,12 +3201,27 @@ def _validate_mutation_exclusivity(
         ) from exc
 
 
+def _normalize_mutation_arg(value):
+    """Convert empty tuple/list to None for mutation arg validation."""
+    if isinstance(value, (tuple, list)) and len(value) == 0:
+        return None
+    return value
+
+
 def _state_set_validate_args(
     impl_state, notes, clear, priority,
     depends_on, add_depends_on, remove_depends_on, clear_depends_on,
     blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
     assignee, next_action,
 ):
+    # Normalize empty tuples/lists from Click to None
+    depends_on = _normalize_mutation_arg(depends_on)
+    add_depends_on = _normalize_mutation_arg(add_depends_on)
+    remove_depends_on = _normalize_mutation_arg(remove_depends_on)
+    blocked_by = _normalize_mutation_arg(blocked_by)
+    add_blocked_by = _normalize_mutation_arg(add_blocked_by)
+    remove_blocked_by = _normalize_mutation_arg(remove_blocked_by)
+
     has_planning_flags = any([
         priority, depends_on, add_depends_on, remove_depends_on,
         clear_depends_on, blocked_by, add_blocked_by, remove_blocked_by,
@@ -3520,7 +3533,6 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
     from meminit.core.use_cases.state_document import StateDocumentUseCase
     from meminit.core.services.repo_config import load_repo_layout
     from meminit.core.services.project_state import ImplState
-    from meminit.core.services.error_codes import MeminitError
 
     validate_root_path(
         root_path,

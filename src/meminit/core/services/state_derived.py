@@ -195,16 +195,27 @@ def validate_planning_fields(
             )
         )
 
-    if entry.next_action is not None and len(entry.next_action) > MAX_NOTES_LENGTH:
-        issues.append(
-            ValidationIssue(
-                code="STATE_FIELD_TOO_LONG",
-                severity="fatal",
-                document_id=doc_id,
-                message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(entry.next_action)} chars).",
-                field="next_action",
+    if entry.next_action is not None:
+        if "\n" in entry.next_action or "\r" in entry.next_action:
+            issues.append(
+                ValidationIssue(
+                    code="STATE_FIELD_INVALID_FORMAT",
+                    severity="fatal",
+                    document_id=doc_id,
+                    message="next_action must not contain newlines.",
+                    field="next_action",
+                )
             )
-        )
+        if len(entry.next_action) > MAX_NOTES_LENGTH:
+            issues.append(
+                ValidationIssue(
+                    code="STATE_FIELD_TOO_LONG",
+                    severity="fatal",
+                    document_id=doc_id,
+                    message=f"next_action exceeds {MAX_NOTES_LENGTH} characters ({len(entry.next_action)} chars).",
+                    field="next_action",
+                )
+            )
 
     return issues
 

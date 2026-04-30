@@ -14,7 +14,7 @@ import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Optional, Sequence
 
 
 STATUS_RE = re.compile(r"^\s*REVIEW_STATUS:\s*(clear|findings)\s*$", re.IGNORECASE | re.MULTILINE)
@@ -31,6 +31,7 @@ PROGRESS_PHASE_CODES = {
 }
 COMPACT_PROGRESS_DETAIL_INDENT = 7
 DEFAULT_TERMINAL_COLUMNS = 120
+DEFAULT_TIMEOUT_SECONDS = 300
 
 DEFAULT_REMEDIATION_PROMPT = """You are running a bounded review-remediation loop.
 
@@ -83,7 +84,7 @@ class LoopConfig:
     check_commands: tuple[str, ...] = field(default_factory=tuple)
 
 
-Runner = Callable[[Sequence[str], Path, str | None], CommandResult]
+Runner = Callable[[Sequence[str], Path, str | None, Optional[float]], CommandResult]
 
 
 def progress_log(config: LoopConfig, message: str) -> None:
@@ -183,21 +184,30 @@ def progress_continuation(config: LoopConfig, phase: str, label: str, text: str,
         print(f"{' ' * len(prefix)}{' ' * indent}{line}", file=sys.stderr, flush=True)
 
 
-def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None) -> CommandResult:
-    completed = subprocess.run(
-        list(args),
-        cwd=cwd,
-        input=input_text,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    return CommandResult(
-        args=list(args),
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
-    )
+def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None, timeout_seconds: Optional[float] = None) -> CommandResult:
+    try:
+        completed = subprocess.run(
+            list(args),
+            cwd=cwd,
+            input=input_text,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+        return CommandResult(
+            args=list(args),
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+    except subprocess.TimeoutExpired:
+        return CommandResult(
+            args=list(args),
+            returncode=-1,
+            stdout="",
+            stderr=f"Command timed out after {timeout_seconds} seconds",
+        )
 
 
 def detect_review_status(output: str) -> str:
@@ -394,7 +404,7 @@ def run_codex_review(
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN\nREVIEW_STATUS: findings\n")
     else:
-        result = runner(command, config.cwd, None)
+        result = runner(command, config.cwd, None, DEFAULT_TIMEOUT_SECONDS)
     combined = _combined_output(result)
     artifact_path = config.artifact_dir / f"{artifact_label}.txt"
     write_artifact(artifact_path, combined)
@@ -446,7 +456,7 @@ def run_remediation(
     if config.dry_run:
         result = CommandResult(command, 0, stdout="DRY_RUN remediation skipped\n")
     else:
-        result = runner(command, config.cwd, prompt)
+        result = runner(command, config.cwd, prompt, DEFAULT_TIMEOUT_SECONDS)
     write_artifact(config.artifact_dir / f"remediation-{iteration}.txt", _combined_output(result))
     if result.returncode != 0:
         progress_event(config, "remediate", str(iteration), "failed", f"exit {result.returncode}")
@@ -466,7 +476,7 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
         if config.dry_run:
             result = CommandResult(command, 0, stdout=f"DRY_RUN check skipped: {check}\n")
         else:
-            result = runner(command, config.cwd, None)
+            result = runner(command, config.cwd, None, DEFAULT_TIMEOUT_SECONDS)
         results.append(result)
         write_artifact(
             config.artifact_dir / f"check-{iteration}-{index}.txt",

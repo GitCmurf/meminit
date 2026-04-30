@@ -93,8 +93,8 @@ The queue is built on three pillars:
 ## 5. Technical Design
 
 ### Architecture
+```text
 
-```
 project-state.yaml (v2)
         ↓ load
 ProjectState + ProjectStateEntry (5 planning fields)

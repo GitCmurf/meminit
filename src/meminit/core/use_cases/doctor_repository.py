@@ -217,7 +217,7 @@ class DoctorRepositoryUseCase:
 
         _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
 
-        for doc_id, entry in project_state.entries.items():
+        for entry in project_state.entries.values():
             for pi in validate_planning_fields(entry, known_doc_ids):
                 if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                     continue

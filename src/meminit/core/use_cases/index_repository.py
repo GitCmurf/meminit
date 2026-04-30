@@ -1120,7 +1120,7 @@ class IndexRepositoryUseCase:
                 warnings_list.append({
                     "code": ci.code,
                     "message": ci.message,
-                    "severity": ci.severity,
+                    "severity": _read_warning_severity(ci.severity),
                     "path": state_path,
                 })
 

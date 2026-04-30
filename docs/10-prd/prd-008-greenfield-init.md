@@ -41,7 +41,7 @@ related_ids:
   - MEMINIT-FDD-012
   - MEMINIT-GOV-001
   - MEMINIT-GOV-003
-  - MEMINIT-ADR-012
+  - MEMINIT-MEMINIT-ADR-012
   - MEMINIT-ADR-009
   - MEMINIT-ADR-013
 ---
@@ -162,7 +162,7 @@ These constraints are non-negotiable and derive from existing governance.
 2. **Byte-invariance of governed documents (STRAT-001, GOV-001).** Bootstrap MUST NOT silently rewrite Approved governed documents. Mutable per-asset state lives in `.meminit/setup.yaml`, never in governed frontmatter.
 3. **No writes outside the repo root.** All filesystem operations MUST go through `ensure_safe_write_path` (or equivalent) with symlink-escape protection. Existing tests (`test_init_refuses_symlink_escape`) MUST continue to pass.
 4. **No secrets or PII (GOV-003).** No installer may emit secrets, credentials, or user PII. Generated workflows MUST use the standard `${{ secrets.* }}` indirection only.
-5. **Dry-run by default for destructive operations.** Any command that mutates user-authored files (e.g., `upgrade-setup` touching `.pre-commit-config.yaml`) MUST be dry-run by default, consistent with [ADR-006](../45-adr/adr-006-design-auto-fix-workflow-dry-run-by-default.md).
+5. **Dry-run by default for destructive operations.** Any command that mutates user-authored files (e.g., `upgrade-setup` touching `.pre-commit-config.yaml`) MUST be dry-run by default, consistent with [MEMINIT-ADR-006](../45-adr/adr-006-design-auto-fix-workflow-dry-run-by-default.md).
 6. **Reuse, do not duplicate, the protocol asset machinery.** `ProtocolAssetRegistry`, marker grammar, and `classify_drift` are the single source of truth for protocol asset payloads. Greenfield installers are clients of this registry, not parallel implementations.
 7. **Cross-platform parity.** Linux and Windows are first-class; macOS is supported. File modes are advisory on Windows but MUST not crash. No POSIX-only shell snippets in canonical assets.
 8. **Existing command reuse.** New bootstrap installers MUST wrap or refactor existing use cases where they exist (`InitRepositoryUseCase`, `InstallPrecommitUseCase`, protocol check/sync) instead of duplicating behavior behind a second implementation.
@@ -188,7 +188,7 @@ These constraints are non-negotiable and derive from existing governance.
 2. Live API integrations with vendor agent platforms (Codex, Claude, Gemini hosts). Projections write static repo-local files only.
 3. Application-code scaffolding (no language-specific project bootstrapping beyond `.editorconfig` and basic ignore files).
 4. A SaaS dashboard or hosted control plane.
-5. Re-implementing brownfield migration in this PRD; this PRD provides the substrate, brownfield hardening (PRD-004) is a separate, sequenced workstream.
+5. Re-implementing brownfield migration in this PRD; this PRD provides the substrate, brownfield hardening (MEMINIT-PRD-004) is a separate, sequenced workstream.
 6. A plugin system for third-party installers in v1. The installer contract is internal-only until at least v2.
 
 ### 5.3 Success Metrics
@@ -200,7 +200,7 @@ These constraints are non-negotiable and derive from existing governance.
 | **Drift correctness** | 100 % | Fixture matrix of intentionally-corrupted assets (per drift outcome) is correctly classified by `protocol check` and remediated by `protocol sync` / `upgrade-setup`. |
 | **Cross-platform parity** | green on Linux + Windows | Greenfield smoke job in CI passes on both. |
 | **Manifest fidelity** | 100 % | For any sequence of `init` + `upgrade-setup`, `.meminit/setup.yaml` accurately describes the on-disk state (verified by contract tests). |
-| **Brownfield reuse** | ≥ 80 % shared code | At PRD-004 implementation time, brownfield installers reuse ≥ 80 % of the apply-path code by line count. |
+| **Brownfield reuse** | ≥ 80 % shared code | At MEMINIT-PRD-004 implementation time, brownfield installers reuse ≥ 80 % of the apply-path code by line count. |
 | **Contract coverage** | 100 % | Each concrete installer has schema, unit, contract, and integration coverage for `plan`, `apply`, `verify`, dry-run, idempotency, and conflict paths. |
 | **User-authored preservation** | 0 destructive rewrites | Existing user-authored files are preserved unless an explicit generated or projection marker permits replacement, or the user passes an apply/force flag documented by the relevant command. |
 
@@ -259,7 +259,7 @@ class BootstrapInstaller(Protocol):
     def verify(self, ctx: BootstrapContext) -> VerifyReport: ...
 ```
 
-- `plan()` is **read-only**. It inspects the repo and returns the actions needed to reach the desired state. This is the brownfield primitive: PRD-004's `meminit scan` will produce equivalent plans for existing repos.
+- `plan()` is **read-only**. It inspects the repo and returns the actions needed to reach the desired state. This is the brownfield primitive: MEMINIT-PRD-004's `meminit scan` will produce equivalent plans for existing repos.
 - `apply()` is **idempotent** and executes only typed `PlanAction` instances through `SafeFileWriter`. If the desired state already holds, it returns an empty `ApplyReport` and does not touch disk.
 - `verify()` is **side-effect-free**. It re-derives whether the installer's contract holds; it is the engine for `meminit doctor` and the post-apply assertion in CI.
 
@@ -280,7 +280,7 @@ Allowed v1 action types are `create_file`, `create_directory`, `update_generated
 The bootstrap architecture is built to demonstration-class excellence, ensuring long-term maintainability and readiness for brownfield adoption.
 
 - **Modularisation & Compartmentalisation:** Each concern is isolated in a standalone `BootstrapInstaller`. Installers communicate only via the orchestrator and are passed a `BootstrapContext` that limits their scope. They cannot access global state or each other's internal data.
-- **Reusability (The Brownfield Bridge):** The `plan()` phase is the core of our reusability strategy. It generates a deterministic `BootstrapPlan` that is identical in format whether derived from a clean directory (greenfield) or an existing repository (brownfield/upgrade). PRD-004's "scan" logic will reuse these same installer plans.
+- **Reusability (The Brownfield Bridge):** The `plan()` phase is the core of our reusability strategy. It generates a deterministic `BootstrapPlan` that is identical in format whether derived from a clean directory (greenfield) or an existing repository (brownfield/upgrade). MEMINIT-PRD-004's "scan" logic will reuse these same installer plans.
 - **Maintainability & Extensibility:** New installers and profiles can be added to their respective registries (`InstallerRegistry`, `ProfileRegistry`) without modifying the core `BootstrapOrchestrator`. This pluggable architecture allows Meminit to grow with new tool projections and governance rules.
 - **Robustness through Schema Validation:** All critical artifacts (`SetupManifest`, `BootstrapPlan`, CLI Envelopes) are governed by strict versioned schemas, ensuring robust data boundaries across different Meminit versions.
 - **Single Write Boundary:** Installers do not call `Path.write_text`, `chmod`, or YAML dumpers directly. They emit actions, and `SafeFileWriter` performs guarded atomic writes, managed-region merges, mode updates, and dry-run diffs.
@@ -317,7 +317,7 @@ add_ons:
   available: [security-first, testing-first, monorepo]
 ```
 
-Resolution precedence (highest wins): explicit CLI flags → repo overlay (`docops.config.yaml: bootstrap.profile_overlay`) → vendored org profile (ADR-012 local profile source) → packaged built-in. Resolution and merge rules live in `ProfileRegistry.resolve()` and MUST be deterministic and pure. Runtime network fetches are forbidden.
+Resolution precedence (highest wins): explicit CLI flags → repo overlay (`docops.config.yaml: bootstrap.profile_overlay`) → vendored org profile (MEMINIT-ADR-012 local profile source) → packaged built-in. Resolution and merge rules live in `ProfileRegistry.resolve()` and MUST be deterministic and pure. Runtime network fetches are forbidden.
 
 
 ### 6.5 Setup Manifest
@@ -470,6 +470,7 @@ The manifest, profile, profile overlay, bootstrap plan, plan action, and command
 Every installer MUST map conflicts into one of: `safe_create`, `safe_update_generated`, `safe_merge_managed_region`, `manual_conflict`, `unsafe_path`, `invalid_existing_file`, or `orphaned_projection`. The taxonomy MUST be present in both `BootstrapPlan` actions and SPEC-008 warnings/violations so agents can route remediation deterministically.
 
 
+<!-- MEMINIT_SECTION: non_functional_requirements -->
 ## 8. Non-Functional Requirements
 
 ### NFR-1 Determinism
@@ -512,6 +513,7 @@ Generated workflows and hook configs MUST pin external actions/tools, request le
 
 Adding a new built-in installer or projection MUST require registering one new module and one test fixture, not editing the orchestrator. Third-party plugin loading is explicitly out of scope for v1, but the internal boundaries must not block a future plugin registry.
 
+<!-- MEMINIT_SECTION: cli_surface -->
 ## 9. CLI Surface
 
 | Command | Purpose | Mutates? |
@@ -527,6 +529,7 @@ Adding a new built-in installer or projection MUST require registering one new m
 
 `--force` is valid only for generated or projected assets with deterministic expected hashes. It MUST NOT overwrite unmarked user-authored files, invalid YAML, or mixed files outside managed regions.
 
+<!-- MEMINIT_SECTION: json_envelope_profiles -->
 ## 10. JSON Envelope Profiles
 
 All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` payload for new/modified commands is specified below. Schemas live under `tests/contracts/bootstrap/` and are imported by tests.
@@ -600,6 +603,7 @@ New codes registered in `error_codes.py`:
 | `MEMINIT-VIOLATION-BOOTSTRAP-CONFLICT` | violation | An installer found an existing user-authored file or config structure it cannot safely merge. |
 | `MEMINIT-ERROR-BOOTSTRAP-UNSAFE-PATH` | error | A plan action targets a path outside the repo root or escapes through a symlink. |
 
+<!-- MEMINIT_SECTION: profiles_catalog -->
 ## 11. Profiles Catalog
 
 Built-in profiles in v1. Each is a packaged YAML asset; the table below is the normative summary.
@@ -614,6 +618,7 @@ Add-ons in v1: `security-first` (injects the `MEMINIT_AGENT_SECURITY` section in
 
 Projections in v1: `codex` (projects `meminit-docops` skill into `.codex/skills/`), `claude` (projects the same skill into `.claude/skills/`).
 
+<!-- MEMINIT_SECTION: phased_implementation_plan -->
 ## 12. Phased Implementation Plan
 
 Each phase is an independently mergeable increment. Every phase MUST ship with updated FDDs and tests (atomic unit of work per `AGENTS.md`).
@@ -658,9 +663,10 @@ Each phase is an independently mergeable increment. Every phase MUST ship with u
 
 - Freeze the `BootstrapPlan` JSON schema under `tests/contracts/bootstrap/plan.schema.json`.
 - Confirm `meminit fix --plan` accepts installer plans (schema test).
-- Update PRD-004/FDD-005 references only if their plan schema requires additive alignment.
-- Deliverable: PRD-004 work can begin against a stable installer contract.
+- Update MEMINIT-PRD-004/MEMINIT-FDD-005 references only if their plan schema requires additive alignment.
+- Deliverable: MEMINIT-PRD-004 work can begin against a stable installer contract.
 
+<!-- MEMINIT_SECTION: acceptance_criteria -->
 ## 13. Acceptance Criteria
 
 A phase is complete only when all criteria applicable to that phase hold:
@@ -686,14 +692,16 @@ Before implementation starts, engineering should create or update:
 - Contract fixtures under `tests/contracts/bootstrap/` for profile resolution, setup manifest, plan actions, and SPEC-008 command payloads.
 - Integration tests under `tests/integration/` that initialize a fresh repo, re-run idempotently, and verify `check`/`doctor`/`protocol check`.
 
+<!-- MEMINIT_SECTION: alternatives_considered -->
 ## 14. Alternatives Considered
 
-- **Keep a single `InitRepositoryUseCase` and grow it.** Rejected: violates SRP, makes brownfield reuse impossible, and defeats the PRD-004 plan-driven fix workflow.
+- **Keep a single `InitRepositoryUseCase` and grow it.** Rejected: violates SRP, makes brownfield reuse impossible, and defeats the MEMINIT-PRD-004 plan-driven fix workflow.
 - **Per-tool first-class entrypoints (`meminit init-codex`, `meminit init-claude`).** Rejected: combinatorial explosion, drift between surfaces, and no vendor-neutral story for `.agents/`.
 - **Hard-coded profile constants in Python.** Rejected: not overridable per-org, and couples profile evolution to Meminit releases. YAML bundles let orgs vendor profiles (see `install_org_profile.py`).
 - **Symlinks for projections.** Rejected: broken on Windows by default, invisible to `protocol check`, and hostile to agents that read files without following links.
 - **Store manifest in `docops.config.yaml`.** Rejected: `docops.config.yaml` is a user-authored policy file; the manifest is operational state. Mixing them breaks round-trip ergonomics and violates the byte-invariance goal for user-authored files.
 
+<!-- MEMINIT_SECTION: risks_and_mitigations -->
 ## 15. Risks and Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
@@ -705,6 +713,7 @@ Before implementation starts, engineering should create or update:
 | Brownfield plan format drift | medium | high | Shared JSON schema under `tests/contracts/bootstrap/plan.schema.json` imported by both init and fix tests (FR-18). |
 | Manifest corruption (user edit) | low | medium | `SetupManifest.load()` validates against schema and emits `MEMINIT-VIOLATION-MANIFEST-INVALID` rather than crashing; users repair by re-running `init`/`upgrade-setup` after moving the invalid manifest aside. |
 
+<!-- MEMINIT_SECTION: resolved_decisions_and_open_questions -->
 ## 16. Resolved Decisions and Open Questions
 
 ### Resolved
@@ -722,6 +731,7 @@ Before implementation starts, engineering should create or update:
 1. Should profile YAML support a machine-readable deprecation field so `upgrade-setup` can migrate users off retired profiles automatically?
 2. Should profile overlays be allowed from both vendored org profiles and repo config in v1, or should repo overlays wait until brownfield hardening?
 
+<!-- MEMINIT_SECTION: related_documents -->
 ## 17. Related Documents
 
 - [MEMINIT-STRAT-001 — Project Meminit Vision](../02-strategy/strat-001-project-meminit-vision.md)
@@ -739,7 +749,7 @@ Before implementation starts, engineering should create or update:
 - [MEMINIT-FDD-012 — Protocol Asset Governance](../50-fdd/fdd-012-protocol-asset-governance.md)
 - [MEMINIT-GOV-001 — Document Standards](../00-governance/gov-001-document-standards.md)
 - [MEMINIT-GOV-003 — Security Practices](../00-governance/gov-003-security-practices.md)
-- [MEMINIT-ADR-012 — XDG Org Profiles and Vendoring](../45-adr/adr-012-use-xdg-org-profiles-and-vendoring.md)
+- [MEMINIT-MEMINIT-ADR-012 — XDG Org Profiles and Vendoring](../45-adr/adr-012-use-xdg-org-profiles-and-vendoring.md)
 - [MEMINIT-ADR-009 — Minimal Repo Configuration for Brownfield Adoption](../45-adr/adr-009-add-minimal-repo-configuration-for-brownfield-adoption.md)
 - [MEMINIT-ADR-013 — Plan-driven Brownfield Adoption](../45-adr/adr-013-plan-driven-brownfield-adoption.md)
 

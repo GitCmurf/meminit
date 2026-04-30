@@ -170,7 +170,7 @@ def test_loop_stops_after_review_reports_clear(tmp_path):
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
@@ -203,7 +203,7 @@ def test_loop_can_start_from_initial_review_file(tmp_path):
     )
     review_outputs = iter(["No findings.\n"])
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
@@ -282,7 +282,7 @@ def test_main_resolves_latest_initial_review_from_custom_artifact_dir(tmp_path, 
 def test_loop_caps_remediation_passes_and_runs_final_review(tmp_path):
     calls = []
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout="Still failing.\nREVIEW_STATUS: findings\n")
@@ -324,7 +324,7 @@ def test_loop_continues_after_check_failure_and_feeds_output_into_next_pass(tmp_
     # check fails after iter-1, passes after iter-2
     check_outputs = iter([(1, "1 FAILED\n"), (0, "1 passed\n")])
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[0] == "codex" and args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
@@ -365,7 +365,7 @@ def test_pending_check_failure_blocks_early_clear_status(tmp_path):
     ])
     check_outputs = iter([(1, "1 FAILED\n"), (1, "still failing\n")])
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[0] == "codex" and args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
@@ -396,7 +396,7 @@ def test_pending_check_failure_blocks_early_clear_status(tmp_path):
 
 def test_skip_final_review_reports_unknown_status(tmp_path):
     """With --skip-final-review the loop must not report a stale pre-remediation status."""
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout="Issues found.\nREVIEW_STATUS: findings\n")
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -435,7 +435,7 @@ def test_final_check_failure_prevents_clear_status(tmp_path):
         ]
     )
 
-    def sequenced_runner(args, cwd, input_text=None):
+    def sequenced_runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[0] == "codex" and args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
         if args[0] == "pytest":
@@ -510,7 +510,7 @@ def test_remediation_prompt_uses_actionable_output_and_cap(tmp_path):
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
@@ -542,7 +542,7 @@ def test_summary_includes_latest_review_excerpt_and_artifact_paths(tmp_path):
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -599,7 +599,7 @@ def test_progress_logs_review_and_finding_summaries(tmp_path, capsys):
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -634,7 +634,7 @@ def test_compact_progress_wraps_to_terminal_width(tmp_path, capsys, monkeypatch)
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -664,7 +664,7 @@ def test_progress_logs_finding_detail_lines(tmp_path, capsys):
         ]
     )
 
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout=next(review_outputs))
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -685,7 +685,7 @@ def test_progress_logs_finding_detail_lines(tmp_path, capsys):
 
 
 def test_quiet_progress_suppresses_progress_logs(tmp_path, capsys):
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout="No findings.\n")
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
@@ -706,7 +706,7 @@ def test_quiet_progress_suppresses_progress_logs(tmp_path, capsys):
 
 
 def test_loop_writes_failure_summary_when_remediation_fails(tmp_path):
-    def runner(args, cwd, input_text=None):
+    def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
             return MODULE.CommandResult(list(args), 0, stdout="Full review comments:\n\n- [P1] Fix\n")
         return MODULE.CommandResult(list(args), 1, stderr="Error: turn/start failed\n")

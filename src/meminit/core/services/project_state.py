@@ -253,6 +253,15 @@ def _validate_top_level_structure(
     else:
         schema_version = STATE_SCHEMA_VERSION_LEGACY
 
+    # Check for unknown top-level keys
+    allowed_keys = {"state_schema_version", "documents"}
+    unknown = set(raw.keys()) - allowed_keys
+    if unknown:
+        non_critical_violations.append(_schema_violation(
+            state_file_rel,
+            f"Unknown top-level keys: {', '.join(sorted(unknown))}"
+        ))
+
     if "documents" not in raw:
         if raw:
             from meminit.core.services.error_codes import MeminitError
@@ -265,7 +274,10 @@ def _validate_top_level_structure(
                 ),
                 details={"file": state_file_rel},
             )
-        return None, None, [], ProjectState()
+        return None, None, [], ProjectState(
+            schema_violations=non_critical_violations,
+            schema_version=schema_version,
+        )
 
     documents = raw.get("documents")
     if not isinstance(documents, dict):

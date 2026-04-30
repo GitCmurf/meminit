@@ -299,7 +299,7 @@ full merged view.
 ### Safe loop pattern
 
 1. Run `meminit state next --root . --format json`.
-2. If `data.reason == "queue_empty"`, stop and report that the queue is empty.
+2. If `data.reason == "queue_empty"` or `data.reason == "state_missing"`, stop and report that the queue is empty (or missing).
 3. If `data.entry` is present, do the work deterministically.
 4. Persist the change with `meminit state set` or the appropriate writer.
 5. Re-run `meminit state next --root . --format json` and continue until the queue is empty.
@@ -331,7 +331,7 @@ is required. The migration preserves all existing entries and adds the
 five planning fields (`priority`, `depends_on`, `blocked_by`,
 `assignee`, `next_action`) with their default values.
 
-To force eager migration without changing any entry:
+To force eager migration with a minimal mutation (adds a notes field):
 
 ```bash
 meminit state set <ID> --notes "migrate to v2" --root . --format json

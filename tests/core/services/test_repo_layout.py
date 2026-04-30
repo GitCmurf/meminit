@@ -39,7 +39,7 @@ namespaces:
     assert layout.get_namespace("phyla").docs_root == "packages/phyla/docs"
 
 
-def test_load_repo_layout_defaults_catalog_name_to_catalogue(tmp_path):
+def test_load_repo_layout_defaults_catalog_name_to_catalog(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         """
 project_name: Example
@@ -53,8 +53,8 @@ repo_prefix: EXAMPLE
 
     layout = load_repo_layout(tmp_path)
 
-    assert layout.catalog_name == "catalogue.md"
-    assert "docs/01-indices/catalogue.md" in layout.namespaces[0].excluded_files
+    assert layout.catalog_name == "catalog.md"
+    assert "docs/01-indices/catalog.md" in layout.namespaces[0].excluded_files
 
 
 def test_load_repo_layout_allows_catalog_name_override(tmp_path):

@@ -157,8 +157,7 @@ center (MEMINIT-STRAT-001) and existing governance (MEMINIT-GOV-001):
 ### 4.2 Non-Goals
 
 1. Replacing or deprecating the existing `status:` frontmatter field.
-2. Building a full project management system (gantt charts, assignees,
-   dependencies, burndown).
+2. Building a full project management system (gantt charts, burndown). Limited assignee and dependency tracking for queue selection (`state next`, `state blockers`) is in scope.
 3. Enforcing implementation state transitions — this is advisory, not gated.
 4. Tracking implementation state for every document type. Some types (e.g.,
    GOV, ADR) may permanently have no meaningful implementation state.
@@ -554,8 +553,8 @@ or queue explanation.
 Implementation notes: This command is the recommended interface for both
 humans and agents. Direct YAML editing is permitted but not encouraged, as it
 bypasses automatic `updated`/`updated_by` population and sort-order
-enforcement. Queue consumers should prefer `state next` as the deterministic
-work item selector and `state blockers` when they need to understand why a
+enforcement. Queue consumers should prefer `state next` (uses assignee and dependency data for queue selection) as the deterministic
+work item selector and `state blockers` (identifies dependency-based blocks) when they need to understand why a
 ready item is not available.
 
 Plain English: User-supplied text must never be rendered as executable HTML.
@@ -924,7 +923,7 @@ This PRD is considered implemented when:
 | `project-state.yaml` drifts from reality (never updated)    | High   | Medium     | Provide `meminit state` CLI for easy updates; consider pre-commit reminder if state file is stale (>30 days since last update) |
 | Kanban HTML breaks in non-MkDocs viewers                    | Low    | Medium     | Fallback to plain Markdown lists when HTML rendering is unavailable; test in GitHub, VS Code, and `cat`                        |
 | State file schema evolution breaks existing files           | Medium | Low        | Version the schema; `meminit doctor` warns on unknown fields but does not fail                                                 |
-| Feature scope creep into project management                 | High   | Medium     | Strict non-goals; no assignees, dependencies, or burndown in v1                                                                |
+| Feature scope creep into project management                 | High   | Medium     | Limited assignee/dependency tracking for queue selection is in scope (v0.7); full project management (gantt, burndown) remains out of scope                                                                |
 | `meminit index` performance degrades with large state files | Low    | Low        | State file grows linearly with governed docs; 500 entries is trivially fast YAML parsing                                       |
 
 ---

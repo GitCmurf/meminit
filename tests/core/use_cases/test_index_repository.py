@@ -225,8 +225,8 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
 # Catalog generation
 # ---------------------------------------------------------------------------
 
-def test_index_generates_catalogue_md_by_default(tmp_path):
-    """catalogue.md is generated with --output-catalog by default."""
+def test_index_generates_catalog_md_by_default(tmp_path):
+    """catalog.md is generated with --output-catalog by default."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
@@ -234,7 +234,7 @@ def test_index_generates_catalogue_md_by_default(tmp_path):
 
     assert report.catalog_path is not None
     assert report.catalog_path.exists()
-    assert report.catalog_path.name == "catalogue.md"
+    assert report.catalog_path.name == "catalog.md"
     content = report.catalog_path.read_text(encoding="utf-8")
     assert "# Project Dashboard" in content
     assert "EXAMPLE-ADR-001" in content

@@ -47,12 +47,12 @@ def test_set_default_priority_is_idempotent(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     r1 = use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
-    mtime1 = state_file.stat().st_mtime
+    content1 = state_file.read_bytes()
 
     r2 = use_case.set_state("MEMINIT-ADR-001", priority="P2")
     assert r2.action == "set"
-    mtime2 = state_file.stat().st_mtime
-    assert mtime2 == mtime1
+    content2 = state_file.read_bytes()
+    assert content2 == content1
 
 
 def test_set_different_actor_is_not_idempotent(tmp_path):

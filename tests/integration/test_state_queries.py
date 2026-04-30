@@ -86,8 +86,9 @@ def _make_entry(
     return entry
 
 
-def _invoke_state_next(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
+def _invoke_state_next(tmp_path: Path, *flags, **extra_flags) -> Dict[str, Any]:
     args = ["state", "next", "--root", str(tmp_path), "--format", "json"]
+    args.extend(flags)
     for k, v in extra_flags.items():
         k = k.replace("_", "-")
         if isinstance(v, bool) and v:
@@ -351,7 +352,15 @@ _SET_VALIDATION_SCENARIOS = ["Q10", "Q11", "Q12", "Q13"]
 @pytest.mark.parametrize("scenario_id", _NEXT_SCENARIOS)
 def test_state_next_selection(scenario_id: str, tmp_path: Path):
     meta = _FIXTURE_BUILDERS[scenario_id](tmp_path)
-    data = _invoke_state_next(tmp_path)
+
+    # Build invocation flags based on meta
+    invoke_args = []
+    if meta.get("filter_assignee"):
+        invoke_args.extend(["--assignee", meta["filter_assignee"]])
+    if meta.get("filter_priority_at_least"):
+        invoke_args.extend(["--priority-at-least", meta["filter_priority_at_least"]])
+
+    data = _invoke_state_next(tmp_path, *invoke_args)
 
     assert data["success"] is True
     entry = data["data"]["entry"]
