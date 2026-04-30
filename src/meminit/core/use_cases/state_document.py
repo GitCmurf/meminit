@@ -708,12 +708,13 @@ class StateDocumentUseCase:
 
         from meminit.core.services.state_derived import check_status_conflicts
 
-        advisory = _build_status_advisory(state, check_status_conflicts, self._root_dir)
-
         validation_warnings, skip_doc_ids = _collect_read_validation_warnings(state, self._root_dir)
         derivation_state = _state_excluding_entries(state, skip_doc_ids)
         known_ids = _get_known_ids(self._root_dir) | set(derivation_state.entries.keys())
         derived = compute_derived_fields(derivation_state, known_ids)
+
+        # Build advisory AFTER skip_doc_ids is computed, using filtered state
+        advisory = _build_status_advisory(derivation_state, check_status_conflicts, self._root_dir)
 
         entries_list, ready_count, blocked_count = _build_entries_with_derived(
             state,
@@ -872,7 +873,7 @@ def _assert_single_mutation_mode(
     remove: Any,
     clear: bool,
 ) -> None:
-    modes = [bool(replace), bool(add or remove), bool(clear)]
+    modes = [replace is not None, (add is not None or remove is not None), clear]
     if sum(modes) <= 1:
         return
     raise MeminitError(

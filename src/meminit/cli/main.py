@@ -3192,7 +3192,7 @@ def _validate_mutation_exclusivity(
             "blocked_by": ("--blocked-by", "--add-blocked-by/--remove-blocked-by", "--clear-blocked-by"),
         }
         active = [flag_names[field_name][i] for i, m in enumerate(
-            [bool(replace), bool(add or remove), bool(clear)]
+            [replace is not None, (add is not None or remove is not None), clear]
         ) if m]
         raise MeminitError(
             ErrorCode.STATE_MIXED_MUTATION_MODE,

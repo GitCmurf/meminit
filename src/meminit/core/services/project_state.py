@@ -228,21 +228,21 @@ def _parse_planning_fields(
 
 def _validate_top_level_structure(
     raw: Any, state_file_rel: str
-) -> Tuple[Optional[str], Optional[Dict[str, Any]], Optional[ProjectState]]:
+) -> Tuple[Optional[str], Optional[Dict[str, Any]], List[Violation], Optional[ProjectState]]:
     if raw is None:
-        return None, None, ProjectState()
+        return None, None, [], ProjectState()
     if not isinstance(raw, dict):
-        return None, None, ProjectState(
+        return None, None, [], ProjectState(
             schema_violations=[
                 _schema_violation(state_file_rel, "Top-level project-state.yaml value must be a mapping.")
             ]
         )
 
-    schema_violations: List[Violation] = []
+    non_critical_violations: List[Violation] = []
     if "state_schema_version" in raw:
         schema_version_raw = raw["state_schema_version"]
         if str(schema_version_raw) != STATE_SCHEMA_VERSION:
-            schema_violations.append(_schema_violation(
+            non_critical_violations.append(_schema_violation(
                 state_file_rel,
                 (
                     "Field 'state_schema_version' must be exactly "
@@ -265,22 +265,16 @@ def _validate_top_level_structure(
                 ),
                 details={"file": state_file_rel},
             )
-        return None, None, ProjectState()
+        return None, None, [], ProjectState()
 
     documents = raw.get("documents")
     if not isinstance(documents, dict):
-        return None, None, ProjectState(
-            schema_violations=schema_violations
+        return None, None, [], ProjectState(
+            schema_violations=non_critical_violations
             + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")]
         )
 
-    if schema_violations:
-        return schema_version, documents, ProjectState(
-            schema_violations=schema_violations,
-            schema_version=schema_version,
-        )
-
-    return schema_version, documents, None
+    return schema_version, documents, non_critical_violations, None
 
 
 def _parse_entry_identity(
@@ -431,12 +425,12 @@ def load_project_state(
             details={"path": str(state_path)},
         ) from exc
 
-    schema_version, documents, early = _validate_top_level_structure(raw, state_file_rel)
+    schema_version, documents, non_critical_violations, early = _validate_top_level_structure(raw, state_file_rel)
     if early is not None:
         return early
 
     entries: Dict[str, ProjectStateEntry] = {}
-    schema_violations: List[Violation] = []
+    schema_violations: List[Violation] = list(non_critical_violations)
 
     for doc_id, fields in documents.items():
         entry, violations = _parse_single_entry(doc_id, fields, state_file_rel, default_now)
