@@ -359,7 +359,7 @@ trying to make protocol files authoritative.
 
 The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 
-- `meminit capabilities --format json` — deterministic, repo-independent data payload
+- `meminit capabilities --format json` — deterministic, repo-independent data payload (now includes `graph_index: true` per MEMINIT-IMPL-001)
 - `--correlation-id` support across all `agent_output_options()` commands, with JSON error envelope for invalid values
 - `meminit explain <ERROR_CODE> --format json` — structured remediation for all ErrorCode members
 - `meminit explain --list --format json` — full error code enumeration
@@ -460,4 +460,5 @@ This PRD is considered implemented when:
 | 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry. |
 | 0.3     | 2026-04-15 | GitCmurf | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped |
 | 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |
-| 0.5     | 2026-04-21 | Codex | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |
+| 0.5     | 2026-04-21 | Codex     | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |
+| 0.6     | 2026-04-30 | Codex     | Updated Phase 1 status to reflect graph_index is now true per MEMINIT-IMPL-001 |

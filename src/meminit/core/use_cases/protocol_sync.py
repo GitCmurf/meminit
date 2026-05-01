@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services.protocol_assets import (
     AssetOwnership,
     DriftOutcome,
@@ -155,7 +156,7 @@ class ProtocolSyncer:
             else:
                 force_message += "; no tampered assets required rewriting"
             warnings.append({
-                "code": "PROTOCOL_SYNC_FORCE_USED",
+                "code": WarningCode.PROTOCOL_SYNC_FORCE_USED,
                 "message": force_message,
                 "path": str(self._root_dir),
             })

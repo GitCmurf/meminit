@@ -108,6 +108,13 @@ def test_capabilities_commands_have_required_metadata():
         assert isinstance(cmd["agent_facing"], bool)
 
 
+def test_graph_index_capability_is_shipped():
+    """BG-4: The graph_index feature must be reported as True (shipped in Phase 2)."""
+    use_case = CapabilitiesUseCase()
+    caps = use_case.execute()
+    assert caps["features"]["graph_index"] is True
+
+
 def test_capabilities_features_are_boolean():
     use_case = CapabilitiesUseCase()
     caps = use_case.execute()

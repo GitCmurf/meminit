@@ -5,6 +5,7 @@ and backward compatibility for resolve/identify/link.
 """
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -275,6 +276,34 @@ def test_index_catalog_not_generated_without_flag(tmp_path):
     use_case = IndexRepositoryUseCase(str(tmp_path))
     report = use_case.execute()
     assert report.catalog_path is None
+
+
+def test_index_generated_artifacts_respect_umask(tmp_path, monkeypatch):
+    """First-write generated artifacts should not inherit world-writable mode."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    real_umask = os.umask
+    previous_umask = real_umask(0o027)
+
+    def fail_umask(mode):
+        raise AssertionError("atomic_write must not call os.umask")
+
+    monkeypatch.setattr("meminit.core.services.safe_fs.os.umask", fail_umask)
+    try:
+        report = IndexRepositoryUseCase(
+            str(tmp_path), output_catalog=True, output_kanban=True
+        ).execute()
+    finally:
+        real_umask(previous_umask)
+
+    expected_mode = 0o640
+    assert report.index_path.stat().st_mode & 0o777 == expected_mode
+    assert report.catalog_path is not None
+    assert report.catalog_path.stat().st_mode & 0o777 == expected_mode
+    assert report.kanban_path is not None
+    assert report.kanban_path.stat().st_mode & 0o777 == expected_mode
+    assert report.kanban_css_path is not None
+    assert report.kanban_css_path.stat().st_mode & 0o777 == expected_mode
 
 
 # ---------------------------------------------------------------------------

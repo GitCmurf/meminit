@@ -93,6 +93,14 @@ comment syntax) is allowed.
 
 `--dry-run` is the default for sync. `--force` allows overwriting tampered assets.
 
+**Dry-Run and Apply Semantics:**
+
+- `data.assets[]` always includes an `action` (e.g., `"noop"`, `"rewrite"`, `"refuse"`).
+- In dry-run mode, `violations` represent drift when `success` is false.
+- In apply mode (`--no-dry-run`), `violations` are generated for assets that were refused.
+- `data.applied` is true only when a write or file-mode repair actually occurred and the command is not a dry run.
+- Refused assets are represented both in `assets[].action == "refuse"` and, when appropriate, in `violations`.
+
 ### User Content Preservation
 
 For mixed-ownership assets, sync preserves user-managed bytes verbatim (byte-identical, no line-ending normalization). User content is extracted from after the end marker (or the entire file for legacy assets) and appended to the freshly rendered managed region.
@@ -100,6 +108,12 @@ For mixed-ownership assets, sync preserves user-managed bytes verbatim (byte-ide
 ### Atomic Writes
 
 All writes use `tempfile.mkstemp` + `os.replace` for atomic replacement, preventing partial writes from corrupting files.
+
+### Non-Fatal Diagnostics
+
+The protocol subsystem emits non-fatal warnings for operator awareness:
+
+- `PROTOCOL_SYNC_FORCE_USED`: Emitted when `meminit protocol sync --force` is used. This warns the operator that tampered assets may have been overwritten. It is not an error and does not affect the `success` flag if all requested assets were successfully synced or refused according to the force policy.
 
 ## Acceptance Criteria
 

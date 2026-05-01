@@ -7,7 +7,22 @@ import pytest
 
 from meminit.core.use_cases.protocol_check import ProtocolChecker
 from meminit.core.use_cases.protocol_sync import ProtocolSyncer
+from meminit.core.services.output_formatter import format_envelope
 from tests.fixtures.protocol.conftest import FIXTURE_SCENARIOS
+
+
+def _drift_violations(assets, status_field="status"):
+    violations = []
+    for a in assets:
+        status = a.get(status_field)
+        if status and status != "aligned":
+            violations.append({
+                "code": f"PROTOCOL_ASSET_{status.upper()}",
+                "message": f"{status}: {a['target_path']}",
+                "path": a["target_path"],
+                "severity": "error" if status in ("tampered", "unparseable") else "warning",
+            })
+    return violations
 
 
 @pytest.fixture
@@ -135,7 +150,7 @@ class TestIdempotency:
 
 
 class TestDeterminism:
-    """F15: Identical logical repo states produce identical data payloads."""
+    """F15: Identical logical repo states produce identical serialized JSON envelopes."""
 
     def test_check_determinism(self, tmp_path):
         from tests.fixtures.protocol.conftest import setup_f04_legacy_agents_md
@@ -154,14 +169,38 @@ class TestDeterminism:
         report_a = checker_a.execute()
         report_b = checker_b.execute()
 
-        # Compare serializable fields
-        assert report_a.summary == report_b.summary
-        assert report_a.success == report_b.success
+        fixed_run_id = "00000000-0000-4000-8000-000000000000"
+        fixed_root = "/repo"
 
-        # Compare asset statuses (sorted for deterministic order)
-        assets_a = sorted(report_a.assets, key=lambda a: a["id"])
-        assets_b = sorted(report_b.assets, key=lambda a: a["id"])
-        assert assets_a == assets_b
+        # Serialize both through the canonical envelope path
+        env_a = format_envelope(
+            command="protocol check",
+            root=fixed_root,
+            success=report_a.success,
+            data={
+                "summary": report_a.summary,
+                "assets": report_a.assets,
+            },
+            violations=_drift_violations(report_a.assets),
+            run_id=fixed_run_id,
+        )
+        env_b = format_envelope(
+            command="protocol check",
+            root=fixed_root,
+            success=report_b.success,
+            data={
+                "summary": report_b.summary,
+                "assets": report_b.assets,
+            },
+            violations=_drift_violations(report_b.assets),
+            run_id=fixed_run_id,
+        )
+
+        # Assert exact string equality (bit-identical JSON)
+        assert env_a == env_b
+        payload = json.loads(env_a)
+        assert payload["data"]["summary"] == report_a.summary
+        assert payload["data"]["assets"] == report_a.assets
 
     def test_sync_determinism(self, tmp_path):
         from tests.fixtures.protocol.conftest import setup_f02_missing_agents_md
@@ -180,10 +219,41 @@ class TestDeterminism:
         report_a = syncer_a.execute(dry_run=False)
         report_b = syncer_b.execute(dry_run=False)
 
-        # Compare non-volatile fields
-        assert report_a.summary == report_b.summary
-        assert report_a.success == report_b.success
+        fixed_run_id = "00000000-0000-4000-8000-000000000000"
+        fixed_root = "/repo"
 
-        assets_a = sorted(report_a.assets, key=lambda a: a["id"])
-        assets_b = sorted(report_b.assets, key=lambda a: a["id"])
-        assert assets_a == assets_b
+        # Note: protocol sync data fields: dry_run, applied, summary, assets
+        env_a = format_envelope(
+            command="protocol sync",
+            root=fixed_root,
+            success=report_a.success,
+            data={
+                "dry_run": report_a.dry_run,
+                "applied": report_a.applied,
+                "summary": report_a.summary,
+                "assets": report_a.assets,
+            },
+            warnings=report_a.warnings,
+            violations=_drift_violations(report_a.assets, status_field="prior_status"),
+            run_id=fixed_run_id,
+        )
+        env_b = format_envelope(
+            command="protocol sync",
+            root=fixed_root,
+            success=report_b.success,
+            data={
+                "dry_run": report_b.dry_run,
+                "applied": report_b.applied,
+                "summary": report_b.summary,
+                "assets": report_b.assets,
+            },
+            warnings=report_b.warnings,
+            violations=_drift_violations(report_b.assets, status_field="prior_status"),
+            run_id=fixed_run_id,
+        )
+
+        assert env_a == env_b
+        payload = json.loads(env_a)
+        assert payload["data"]["dry_run"] == report_a.dry_run
+        assert payload["data"]["summary"] == report_a.summary
+        assert payload["data"]["assets"] == report_a.assets

@@ -38,7 +38,7 @@ from meminit.core.services.project_state import (
     validate_project_state,
 )
 from meminit.core.services.repo_config import DEFAULT_CATALOG_NAME, load_repo_layout
-from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 from meminit.core.services.sanitization import (
     MAX_NOTES_LENGTH,
     escape_markdown_table,
@@ -1189,7 +1189,8 @@ class IndexRepositoryUseCase:
             warnings=canonical_warnings,
             advice=canonical_advice,
         )
-        index_path.write_text(
+        atomic_write(
+            index_path,
             json.dumps(payload, indent=2, default=_json_default, sort_keys=True) + "\n",
             encoding="utf-8",
         )
@@ -1207,7 +1208,7 @@ class IndexRepositoryUseCase:
                 status_filter=self._status_filter,
                 impl_state_filter=self._impl_state_filter,
             )
-            catalog_path.write_text(catalog_content, encoding="utf-8")
+            atomic_write(catalog_path, catalog_content, encoding="utf-8")
 
         # Generate kanban.md + kanban.css (FR-4).
         kanban_path: Optional[Path] = None
@@ -1222,11 +1223,11 @@ class IndexRepositoryUseCase:
                 root_dir=self._root_dir,
                 index_dir=index_path.parent,
             )
-            kanban_path.write_text(kanban_content, encoding="utf-8")
+            atomic_write(kanban_path, kanban_content, encoding="utf-8")
 
             kanban_css_path = index_path.parent / "kanban.css"
             ensure_safe_write_path(root_dir=self._root_dir, target_path=kanban_css_path)
-            kanban_css_path.write_text(KANBAN_CSS, encoding="utf-8")
+            atomic_write(kanban_css_path, KANBAN_CSS, encoding="utf-8")
 
         # Prepare filtered JSON entries for the report/stdout output
         sorted_filtered = sorted(filtered, key=lambda e: e.get("document_id", ""))

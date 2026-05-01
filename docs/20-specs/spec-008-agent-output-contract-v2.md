@@ -88,7 +88,7 @@ For `command: check`, additional required fields include counters (see [MEMINIT-
 
 ### 5. Command Payload Profiles
 
-Current v2 scope includes `check`, `new`, and `state` commands.
+Current scope includes the shared v3 envelope plus the listed Phase 1-4 command payload profiles.
 
 | Command             | Required `data` fields                                                                                   | Payload Type |
 | ------------------- | -------------------------------------------------------------------------------------------------------- | ------------ |
@@ -98,6 +98,14 @@ Current v2 scope includes `check`, `new`, and `state` commands.
 | `state list`        | `data.entries`                                                                                           | Object containing an array |
 | `state next`        | `data.entry`, `data.selection`, `data.reason`                                                            | Object containing `entry` object or `null`, selection object, and nullable reason |
 | `state blockers`    | `data.blocked`, `data.summary`                                                                           | Object containing blocked-entry array and summary object |
+| `capabilities`      | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object |
+| `explain`           | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list` |
+| `index`             | `data.index_path`, `data.node_count`, `data.edge_count`, `data.nodes`, `data.edges`, `data.filtered` | Object containing graph index data |
+| `resolve`           | `data.document_id`, `data.path`                                                                          | Object with resolution result (FILE_NOT_FOUND error on miss) |
+| `identify`          | `data.path`, `data.document_id`                                                                          | Object with identification result (FILE_NOT_FOUND error on miss) |
+| `link`              | `data.document_id`, `data.link`                                                                          | Object with link generation result (FILE_NOT_FOUND error on miss) |
+| `protocol check`    | `data.summary`, `data.assets`                                                                            | Object with asset status array and counters |
+| `protocol sync`     | `data.dry_run`, `data.applied`, `data.assets`, `data.summary`                                            | Object with sync outcome |
 
 ### 5.1 `new` Command Payload (Templates v2)
 
@@ -156,6 +164,137 @@ Required:
 - `blocked`: Array of blocked entries with their open blockers.
 - `summary`: Object containing total entry counts and blocked/ready counts.
 
+### 5.3 `index` Command Payload
+
+For `command: index`, the `data` object MUST contain:
+
+Required:
+
+- `index_path`: string (repo-relative path to written `meminit.index.json`, falling back to absolute if outside root)
+- `node_count`: integer
+- `edge_count`: integer
+- `nodes`: Array of document node objects.
+- `edges`: Array of directed relationship objects.
+- `filtered`: boolean (true if `--status` or `--impl-state` filter was active)
+
+Optional:
+
+- `catalog_path`: string (repo-relative path to generated `catalogue.md` or equivalent, falling back to absolute if outside root)
+- `kanban_path`: string (repo-relative path to generated `kanban.md`, falling back to absolute if outside root)
+
+### 5.4 `protocol sync` Command Payload
+
+For `command: protocol sync`, the `data` object MUST contain:
+
+Required:
+
+- `dry_run`: boolean. Reflects whether the command was run in dry-run mode.
+- `applied`: boolean. True only when a write or file-mode repair actually occurred and the command is not a dry run.
+- `summary`: Object containing `total`, `rewritten`, `refused`, and `noop` counts.
+- `assets`: Array of asset result objects.
+
+Asset result fields:
+
+- `id`: string asset ID.
+- `target_path`: string relative path.
+- `prior_status`: string drift outcome.
+- `action`: string (`"noop"`, `"rewrite"`, or `"refuse"`).
+- `preserved_user_bytes`: integer (present for mixed-ownership assets when user content was preserved).
+
+**Refusal Semantics:**
+- In dry-run mode, `violations` represent drift when `success` is false.
+- In apply mode, `violations` are generated for assets with `action: "refuse"`.
+- Refusal outcomes are represented both in `assets[].action == "refuse"` and in the `violations` array.
+
+### 5.5 `capabilities` Command Payload
+
+For `command: capabilities`, the `data` object MUST contain:
+
+Required:
+
+- `capabilities_version`: string (e.g., "1.0")
+- `cli_version`: string
+- `commands`: Array of command capability objects.
+- `features`: Object with boolean feature flags.
+- `error_codes`: Array of strings (sorted error codes).
+
+The command is repo-agnostic (`needs_root: false`), so `root` is omitted from the envelope.
+Warnings, violations, and advice are always empty arrays.
+
+### 5.6 `explain` Command Payload
+
+For `command: explain` (single code), the `data` object MUST contain:
+
+Required:
+
+- `code`: string (the error code explained)
+- `category`: string
+- `summary`: string
+- `cause`: string
+- `remediation`: Object containing `action` (string), `resolution_type` (string), `automatable` (boolean), and `relevant_commands` (array of strings)
+- `spec_reference`: string
+
+For `command: explain --list`, the `data` object MUST contain:
+
+Required:
+
+- `error_codes`: Array of objects, each containing `code`, `category`, and `summary`.
+
+The command is repo-agnostic (`needs_root: false`), so `root` is omitted from the envelope.
+
+### 5.7 `resolve` Command Payload
+
+For `command: resolve`, the `data` object MUST contain on success:
+
+Required:
+
+- `document_id`: string
+- `path`: string (repo-relative path)
+
+On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+
+### 5.8 `identify` Command Payload
+
+For `command: identify`, the `data` object MUST contain on success:
+
+Required:
+
+- `path`: string (repo-relative path)
+- `document_id`: string
+
+On a miss (path not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+
+### 5.9 `link` Command Payload
+
+For `command: link`, the `data` object MUST contain on success:
+
+Required:
+
+- `document_id`: string
+- `link`: string (Markdown formatted link)
+
+On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+
+### 5.10 `protocol check` Command Payload
+
+For `command: protocol check`, the `data` object MUST contain:
+
+Required:
+
+- `summary`: Object containing `total`, `aligned`, `drifted`, and `unparseable` counts.
+- `assets`: Array of asset status objects.
+
+Asset status fields:
+
+- `id`: string asset ID.
+- `target_path`: string relative path.
+- `status`: string (e.g., "aligned", "missing", "tampered", "legacy", "unparseable").
+- `auto_fixable`: boolean.
+
+**Warnings/Violations:**
+- A `success: false` result indicates drift.
+- Violations are emitted for all drifted assets (status other than "aligned").
+
 ## 6. Determinism Rules
 
 Same as [MEMINIT-SPEC-004](spec-004-agent-output-contract.md).
@@ -171,3 +310,5 @@ The normative schema is `docs/20-specs/agent-output.schema.v3.json`.
 | 1.0     | 2026-03-05 | Product Team | Initial agent output contract for `check` and `new`. |
 | 1.1     | 2026-04-16 | GitCmurf | Updated conditional root semantics and broadened command scope. |
 | 1.2     | 2026-04-21 | Codex    | Added Phase 4 queue command payload profiles (`state next`, `state blockers`) and clarified merged `state list` expectations. |
+| 1.3     | 2026-04-30 | Codex    | Added payload profiles for all Phase 1-3 commands and clarified protocol sync dry-run/apply semantics. |
+| 1.4     | 2026-04-30 | Codex    | Remediation: Updated index command CLI payload fields, corrected resolve/identify/link to remove 'found', and documented protocol sync 'dry_run'. |
