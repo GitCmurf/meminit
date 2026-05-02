@@ -164,6 +164,7 @@ Required:
 - `blocked`: Array of blocked entries with their open blockers.
 - `summary`: Object containing total entry counts and blocked/ready counts.
 
+<!-- MEMINIT_SECTION: index_payload -->
 ### 5.3 `index` Command Payload
 
 For `command: index`, the `data` object MUST contain:
@@ -182,6 +183,9 @@ Optional:
 - `catalog_path`: string (repo-relative path to generated `catalogue.md` or equivalent, falling back to absolute if outside root)
 - `kanban_path`: string (repo-relative path to generated `kanban.md`, falling back to absolute if outside root)
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: protocol_sync_payload -->
 ### 5.4 `protocol sync` Command Payload
 
 For `command: protocol sync`, the `data` object MUST contain:
@@ -206,6 +210,9 @@ Asset result fields:
 - In apply mode, `violations` are generated for assets with `action: "refuse"`.
 - Refusal outcomes are represented both in `assets[].action == "refuse"` and in the `violations` array.
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: capabilities_payload -->
 ### 5.5 `capabilities` Command Payload
 
 For `command: capabilities`, the `data` object MUST contain:
@@ -221,6 +228,9 @@ Required:
 The command is repo-agnostic (`needs_root: false`), so `root` is omitted from the envelope.
 Warnings, violations, and advice are always empty arrays.
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: explain_payload -->
 ### 5.6 `explain` Command Payload
 
 For `command: explain` (single code), the `data` object MUST contain:
@@ -242,6 +252,9 @@ Required:
 
 The command is repo-agnostic (`needs_root: false`), so `root` is omitted from the envelope.
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: resolve_payload -->
 ### 5.7 `resolve` Command Payload
 
 For `command: resolve`, the `data` object MUST contain on success:
@@ -251,8 +264,11 @@ Required:
 - `document_id`: string
 - `path`: string (repo-relative path)
 
-On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` as an empty object (`{}`).
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: identify_payload -->
 ### 5.8 `identify` Command Payload
 
 For `command: identify`, the `data` object MUST contain on success:
@@ -262,8 +278,11 @@ Required:
 - `path`: string (repo-relative path)
 - `document_id`: string
 
-On a miss (path not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+On a miss (path not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` as an empty object (`{}`).
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: link_payload -->
 ### 5.9 `link` Command Payload
 
 For `command: link`, the `data` object MUST contain on success:
@@ -273,8 +292,11 @@ Required:
 - `document_id`: string
 - `link`: string (Markdown formatted link)
 
-On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` present, normally empty.
+On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` as an empty object (`{}`).
 
+<!-- /MEMINIT_SECTION -->
+
+<!-- MEMINIT_SECTION: protocol_check_payload -->
 ### 5.10 `protocol check` Command Payload
 
 For `command: protocol check`, the `data` object MUST contain:
@@ -294,6 +316,8 @@ Asset status fields:
 **Warnings/Violations:**
 - A `success: false` result indicates drift.
 - Violations are emitted for all drifted assets (status other than "aligned").
+
+<!-- /MEMINIT_SECTION -->
 
 ## 6. Determinism Rules
 
