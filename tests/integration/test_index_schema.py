@@ -5,6 +5,19 @@ from jsonschema import Draft7Validator, FormatChecker
 
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_BUNDLED_SCHEMA = _REPO_ROOT / "src" / "meminit" / "core" / "assets" / "index-artifact.schema.json"
+_DOCS_SCHEMA = _REPO_ROOT / "docs" / "20-specs" / "index-artifact.schema.json"
+
+
+@pytest.fixture(scope="module")
+def index_artifact_schema():
+    """Load the index-artifact schema, asserting bundled/docs parity."""
+    bundled_text = _BUNDLED_SCHEMA.read_text(encoding="utf-8")
+    docs_text = _DOCS_SCHEMA.read_text(encoding="utf-8")
+    assert bundled_text == docs_text, "Bundled and docs index-artifact schema copies have drifted"
+    return json.loads(bundled_text)
+
 
 def _setup_doc(
     root: Path,
@@ -28,7 +41,7 @@ docops_version: 2.0
     return doc_path
 
 
-def test_persisted_index_matches_schema(tmp_path):
+def test_persisted_index_matches_schema(tmp_path, index_artifact_schema):
     """CG-4: Proves the written meminit.index.json artifact conforms to its published schema."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
@@ -40,23 +53,16 @@ def test_persisted_index_matches_schema(tmp_path):
 
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
-    # Load the schema
-    schema_path = Path("docs/20-specs/index-artifact.schema.json")
-    assert schema_path.exists()
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-
-    validator = Draft7Validator(schema, format_checker=FormatChecker())
+    validator = Draft7Validator(index_artifact_schema, format_checker=FormatChecker())
     errors = list(validator.iter_errors(payload))
 
     if errors:
         pytest.fail(f"Index artifact failed schema validation: {errors[0].message}")
 
 
-def test_index_schema_fails_on_malformed_payload():
+def test_index_schema_fails_on_malformed_payload(index_artifact_schema):
     """CG-4: Proves the schema correctly identifies invalid index artifacts."""
-    schema_path = Path("docs/20-specs/index-artifact.schema.json")
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    validator = Draft7Validator(schema, format_checker=FormatChecker())
+    validator = Draft7Validator(index_artifact_schema, format_checker=FormatChecker())
 
     # Missing required field 'command'
     bad_payload = {
@@ -78,11 +84,9 @@ def test_index_schema_fails_on_malformed_payload():
     assert validator.is_valid(bad_payload) is False
 
 
-def test_index_schema_fails_on_wrong_field_type():
+def test_index_schema_fails_on_wrong_field_type(index_artifact_schema):
     """CG-4: Proves the hardened schema identifies invalid field types in nodes."""
-    schema_path = Path("docs/20-specs/index-artifact.schema.json")
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    validator = Draft7Validator(schema, format_checker=FormatChecker())
+    validator = Draft7Validator(index_artifact_schema, format_checker=FormatChecker())
 
     payload = {
         "output_schema_version": "2.0",

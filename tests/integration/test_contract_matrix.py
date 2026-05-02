@@ -303,7 +303,8 @@ class TestPayloadContracts:
             encoding="utf-8"
         )
         # We need an index for resolve/identify/link to work
-        CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        index_result = CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        assert index_result.exit_code == 0, f"Indexing failed: {index_result.output}"
 
         runner = CliRunner()
         common_args = ["--format", "json", "--root", str(tmp_path)]
@@ -335,7 +336,8 @@ class TestPayloadContracts:
     def test_resolve_identify_link_not_found_behavior(self, tmp_path):
         """Step 2: Misses are represented as FILE_NOT_FOUND error envelopes."""
         _setup_initialized_repo(tmp_path)
-        CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        index_result = CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        assert index_result.exit_code == 0, f"Indexing failed: {index_result.output}"
 
         for cmd in ["resolve", "identify", "link"]:
             args = cmd.split() + ["--format", "json", "--root", str(tmp_path), "NON_EXISTENT"]

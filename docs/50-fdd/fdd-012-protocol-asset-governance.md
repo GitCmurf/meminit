@@ -107,7 +107,7 @@ For mixed-ownership assets, sync preserves user-managed bytes verbatim (byte-ide
 
 ### Atomic Writes
 
-All writes use `tempfile.mkstemp` + `os.replace` for atomic replacement, preventing partial writes from corrupting files.
+All writes use exclusive temp-file creation (`os.open` with `O_CREAT | O_EXCL`) followed by `os.replace` for atomic replacement, preventing partial writes from corrupting files.
 
 ### Non-Fatal Diagnostics
 

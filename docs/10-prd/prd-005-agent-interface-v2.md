@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.5"
-last_updated: 2026-04-21
+version: "0.6"
+last_updated: 2026-04-30
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -388,7 +388,7 @@ The following Phase 3 items are now implemented:
 - `meminit protocol check --format json` — read-only drift detection with structured violations
 - `meminit protocol sync --format json` — safe remediation with `--dry-run` default, `--force` for tampered assets
 - MEMINIT_PROTOCOL marker grammar for mixed-ownership assets (begin/end HTML comments with version + sha256)
-- Atomic writes via `tempfile.mkstemp` + `os.replace` for safe remediation
+- Atomic writes via `os.open(O_CREAT|O_EXCL)` + `os.replace` for safe remediation
 - User content preservation for mixed-ownership assets during sync
 - 5 `PROTOCOL_*` error codes added to ErrorCode enum and MEMINIT-SPEC-006
 - Init (`meminit init`) consumes `ProtocolAssetRegistry` as single source of truth for all protocol assets
