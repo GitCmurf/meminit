@@ -29,8 +29,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-008
 > **Owner:** Product Team
 > **Status:** Approved
-> **Version:** 1.2
-> **Last Updated:** 2026-04-21
+> **Version:** 1.4
+> **Last Updated:** 2026-04-30
 > **Type:** SPEC
 > **Area:** Agentic Integration
 

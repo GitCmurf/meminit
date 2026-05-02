@@ -18,8 +18,8 @@ def test_warning_code_constants_exist():
     assert WarningCode.PROTOCOL_SYNC_FORCE_USED == "PROTOCOL_SYNC_FORCE_USED"
 
 
-def test_warning_codes_prefixed_with_w():
-    """All warning codes start with W_ prefix."""
+def test_legacy_warning_codes_prefixed_with_w():
+    """Legacy warning codes (historical) start with W_ prefix."""
     for attr in dir(WarningCode):
         if attr.startswith("W_"):
             value = getattr(WarningCode, attr)
