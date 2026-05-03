@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-014
 type: PLAN
 title: Phase 5 Detailed Implementation Plan
 status: Draft
-version: '0.4'
+version: '0.5'
 last_updated: '2026-05-03'
 owner: GitCmurf
 docops_version: '2.0'
@@ -28,7 +28,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-014
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
+> **Version:** 0.5
 > **Last Updated:** 2026-05-03
 > **Type:** PLAN
 > **Area:** AGENT
@@ -1109,8 +1109,9 @@ true:
    cache E2E scenarios.
 5. `meminit index --explain-cache` reports the current manifest
    summary without triggering a rebuild.
-6. `meminit index --explain-cache` rejects `--no-cache` and
-   `--rebuild-cache` combinations with `INVALID_FLAG_COMBINATION`
+6. `meminit index` rejects `--no-cache` and `--rebuild-cache`
+   together with `E_INVALID_FILTER_VALUE`, while `--explain-cache`
+   rejects either cache-clearing flag with `INVALID_FLAG_COMBINATION`
    before any cache mutation occurs.
 7. The nightly slow test job runs the 1000-doc and 5000-doc scale
    fixtures and enforces the 2-second warm-incremental, 60-second
@@ -1142,4 +1143,4 @@ true:
 | 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 5 workstreams, sequencing, and exit criteria |
 | 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
 | 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |
-| 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage and documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship |
+| 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix |
