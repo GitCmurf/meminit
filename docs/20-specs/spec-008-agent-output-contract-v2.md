@@ -290,7 +290,7 @@ For `command: link`, the `data` object MUST contain on success:
 Required:
 
 - `document_id`: string
-- `link`: string (Markdown formatted link)
+- `link`: string (Markdown-formatted link)
 
 On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`success: false`) with `data` as an empty object (`{}`).
 

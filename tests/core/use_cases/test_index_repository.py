@@ -1009,7 +1009,7 @@ def test_index_cleanup_removes_generated_marked_header_with_frontmatter(tmp_path
         "status: Draft\n"
         "version: \"1.0\"\n"
         "last_updated: 2026-04-01\n"
-        "owner: GitCmurf\n"
+        "owner: __TBD__\n"
         "docops_version: \"2.0\"\n"
         "---\n\n"
         "<!-- MEMINIT_GENERATED: catalog -->\n\n"

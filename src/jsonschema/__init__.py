@@ -76,7 +76,7 @@ def _is_type(instance: Any, schema_type: str) -> bool:
         return isinstance(instance, bool)
     if schema_type == "null":
         return instance is None
-    return True
+    return False
 
 
 def _format_check(instance: Any, fmt: str) -> bool:

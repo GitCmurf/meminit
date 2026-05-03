@@ -18,22 +18,32 @@ def test_pytest_runs_without_implicit_coverage_plugin(tmp_path: Path):
     env = os.environ.copy()
     env["PYTHONPATH"] = str(repo_root / "src")
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-q",
-            "-p",
-            "no:pytest_cov",
-            str(sample_test),
-        ],
-        cwd=repo_root,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                "-p",
+                "no:pytest_cov",
+                str(sample_test),
+            ],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        pytest.fail(f"pytest subprocess timed out after 120s\nstdout: {stdout}\nstderr: {stderr}")
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "1 passed" in result.stdout

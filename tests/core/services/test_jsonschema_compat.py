@@ -26,4 +26,15 @@ def test_jsonschema_compat_validate_supports_refs_formats_and_constraints():
         jsonschema.validate(
             {"document_id": "bad", "created_at": "2025-01-01"},
             schema,
+            format_checker=jsonschema.FormatChecker(),
         )
+
+
+def test_jsonschema_unknown_type_rejects_instances():
+    """An unknown schema type must not match any instance (defensive)."""
+    schema = {"type": "strnig"}
+    assert not jsonschema.Draft7Validator(schema).is_valid("hello")
+    assert not jsonschema.Draft7Validator(schema).is_valid(42)
+    errors = list(jsonschema.Draft7Validator(schema).iter_errors("hello"))
+    assert len(errors) == 1
+    assert "strnig" in errors[0].message

@@ -506,7 +506,7 @@ def _generate_catalog(
     return "\n".join(lines)
 
 
-def _catalog_frontmatter(generated_at: str, repo_prefix: str) -> List[str]:
+def _catalog_frontmatter(generated_at: str, repo_prefix: str, owner: str = "__TBD__") -> List[str]:
     """Return governed frontmatter for the generated catalog artifact."""
     generated_date = generated_at[:10]
     return [
@@ -517,7 +517,7 @@ def _catalog_frontmatter(generated_at: str, repo_prefix: str) -> List[str]:
         "status: Draft",
         'version: "1.0"',
         f"last_updated: {generated_date}",
-        "owner: GitCmurf",
+        f"owner: {owner}",
         'docops_version: "2.0"',
         "---",
         "",
