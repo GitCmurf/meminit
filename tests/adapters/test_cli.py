@@ -914,6 +914,106 @@ def test_cli_index_cache_flags_clear_existing_cache(tmp_path, flag):
     assert data["command"] == "index"
 
 
+@pytest.mark.parametrize("flag", ["--no-cache", "--rebuild-cache"])
+def test_cli_index_explain_cache_rejects_cache_clearing_flags(tmp_path, flag):
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+
+    cache_root = tmp_path / ".meminit" / "cache" / "index"
+    (cache_root / "nodes").mkdir(parents=True, exist_ok=True)
+    (cache_root / "edges").mkdir(parents=True, exist_ok=True)
+    (cache_root / "manifest.json").write_text(
+        '{"manifest_schema_version":"1.0"}', encoding="utf-8"
+    )
+    (cache_root / "nodes" / "EXAMPLE-ADR-001.json").write_text(
+        "{}", encoding="utf-8"
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--explain-cache",
+            flag,
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    data = json.loads(result.output)
+    assert data["error"]["code"] == "INVALID_FLAG_COMBINATION"
+    assert cache_root.exists()
+    assert (cache_root / "manifest.json").exists()
+
+
+def test_cli_index_explain_cache_reports_existing_manifest(tmp_path):
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+
+    cache_root = tmp_path / ".meminit" / "cache" / "index"
+    (cache_root / "nodes").mkdir(parents=True, exist_ok=True)
+    (cache_root / "edges").mkdir(parents=True, exist_ok=True)
+    (cache_root / "manifest.json").write_text(
+        '{"manifest_schema_version":"1.0","files":[{"path":"docs/45-adr/adr-001.md"}],"config_sha256":"abc","schema_sha256":"def"}',
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--explain-cache",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    cache = data["data"]["cache"]
+    assert cache["exists"] is True
+    assert cache["manifest_schema_version"] == "1.0"
+    assert cache["file_count"] == 1
+    assert cache["config_sha256"] == "abc"
+    assert cache["schema_sha256"] == "def"
+    assert (cache_root / "manifest.json").exists()
+
+
 def test_cli_index_json_warnings_schema_validity(tmp_path):
     """PRD-007 + v2 Output Contract: Warnings in index --format json must include 'path'."""
     docs_dir = tmp_path / "docs" / "45-adr"

@@ -1109,13 +1109,16 @@ true:
    cache E2E scenarios.
 5. `meminit index --explain-cache` reports the current manifest
    summary without triggering a rebuild.
-6. The nightly slow test job runs the 1000-doc and 5000-doc scale
+6. `meminit index --explain-cache` rejects `--no-cache` and
+   `--rebuild-cache` combinations with `INVALID_FLAG_COMBINATION`
+   before any cache mutation occurs.
+7. The nightly slow test job runs the 1000-doc and 5000-doc scale
    fixtures and enforces the 2-second warm-incremental, 60-second
    full-rebuild, and 256 MB memory ceilings.
-7. All three `STREAM_*` and three `CACHE_*` error codes are
+8. All three `STREAM_*` and three `CACHE_*` error codes are
    registered in SPEC-006 with `explain` entries and wired into
    `exit_code_for_error`.
-8. Stdout isolation tests pass for every opted-in command: every
+9. Stdout isolation tests pass for every opted-in command: every
    stdout line during `--format ndjson` is a valid SPEC-011 record;
    all logs appear on stderr only.
 9. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,

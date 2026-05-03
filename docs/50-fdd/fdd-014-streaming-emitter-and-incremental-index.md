@@ -86,6 +86,9 @@ used, Meminit clears `.meminit/cache/index/` before the current full
 rebuild so stale fragments do not linger across runs.
 `--explain-cache` reports the current manifest summary as a standard
 v3 JSON envelope without rebuilding the index.
+`--explain-cache` cannot be combined with `--no-cache` or
+`--rebuild-cache`; those combinations fail with
+`INVALID_FLAG_COMBINATION` before any cache mutation occurs.
 
 The initial cache reporting contract is intentionally conservative:
 the persisted index artifact remains the source of truth, and the

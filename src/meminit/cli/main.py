@@ -1909,6 +1909,21 @@ def index(
                 "--no-cache and --rebuild-cache are mutually exclusive.",
                 details={"flags": ["--no-cache", "--rebuild-cache"]},
             )
+        if explain_cache and (no_cache or rebuild_cache):
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--explain-cache cannot be combined with --no-cache or --rebuild-cache.",
+                details={
+                    "flags": [
+                        "--explain-cache",
+                        *(
+                            ["--no-cache"]
+                            if no_cache
+                            else ["--rebuild-cache"]
+                        ),
+                    ]
+                },
+            )
         if no_cache or rebuild_cache:
             _clear_index_cache(root_path)
         if explain_cache:
