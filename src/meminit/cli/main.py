@@ -89,25 +89,15 @@ def command_output_handler(
             command_name,
             f"meminit {command_name} does not support --format ndjson.",
         )
-        stream = sys.stdout
-        close_stream = False
-        if output:
-            out_path = Path(output)
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            stream = out_path.open("w", encoding="utf-8")
-            close_stream = True
-        try:
-            StreamEmitter(
-                command=command_name,
-                root=root_path,
-                run_id=run_id,
-                stream=stream,
-                correlation_id=correlation_id,
-                include_timestamp=include_timestamp,
-            ).emit_error(error.code, error.message, error.details)
-        finally:
-            if close_stream:
-                stream.close()
+        _write_ndjson_error(
+            command_name=command_name,
+            error=error,
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            root_path=root_path,
+            correlation_id=correlation_id,
+        )
         raise SystemExit(exit_code_for_error(error.code))
 
     # Validate correlation_id early so JSON mode can emit a structured error
@@ -136,14 +126,15 @@ def command_output_handler(
         yield
     except MeminitError as e:
         if format == "ndjson":
-            StreamEmitter(
-                command=command_name,
-                root=root_path,
-                run_id=run_id,
-                stream=sys.stdout,
-                correlation_id=correlation_id,
+            _write_ndjson_error(
+                command_name=command_name,
+                error=e,
+                output=output,
                 include_timestamp=include_timestamp,
-            ).emit_error(e.code, e.message, e.details)
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
         elif format == "json":
             _write_output(
                 format_error_envelope(
@@ -200,6 +191,44 @@ def command_output_handler(
         # Always log the real error to stderr for operators
         click.echo(f"INTERNAL ERROR: {e}", err=True)
         raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+
+
+def _write_ndjson_error(
+    *,
+    command_name: str,
+    error: MeminitError,
+    output: Optional[str],
+    include_timestamp: bool,
+    run_id: str,
+    root_path: Optional[Path] = None,
+    correlation_id: Optional[str] = None,
+) -> None:
+    """Emit a terminal NDJSON error record to stdout or the requested file."""
+    stream = sys.stdout
+    close_stream = False
+    if output:
+        out_path = Path(output)
+        if not _is_safe_path(out_path):
+            click.echo(
+                f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
+                err=True,
+            )
+            raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        stream = out_path.open("w", encoding="utf-8")
+        close_stream = True
+    try:
+        StreamEmitter(
+            command=command_name,
+            root=root_path,
+            run_id=run_id,
+            stream=stream,
+            correlation_id=correlation_id,
+            include_timestamp=include_timestamp,
+        ).emit_error(error.code, error.message, error.details)
+    finally:
+        if close_stream:
+            stream.close()
 
 
 def complete_document_types(ctx, param, incomplete: str):
@@ -522,6 +551,20 @@ def validate_root_path(
             ),
             output=output,
         )
+    elif format == "ndjson":
+        _write_ndjson_error(
+            command_name=command,
+            error=MeminitError(
+                ErrorCode.INVALID_ROOT_PATH,
+                msg,
+                details=details,
+            ),
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id or get_current_run_id(),
+            root_path=root_path,
+            correlation_id=correlation_id,
+        )
     elif format == "md":
         _write_output(
             f"# Meminit Error\n\n- Code: INVALID_ROOT_PATH\n- Message: {msg}\n",
@@ -619,6 +662,20 @@ def validate_initialized(
                 correlation_id=correlation_id,
             ),
             output=output,
+        )
+    elif format == "ndjson":
+        _write_ndjson_error(
+            command_name=command,
+            error=MeminitError(
+                ErrorCode.CONFIG_MISSING,
+                msg,
+                details=details,
+            ),
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id or get_current_run_id(),
+            root_path=root_path,
+            correlation_id=correlation_id,
         )
     elif format == "md":
         _write_output(
@@ -1855,6 +1912,17 @@ def index(
                         output,
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
+                if format == "ndjson":
+                    _write_ndjson_error(
+                        command_name="index",
+                        error=e,
+                        output=output,
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        root_path=root_path,
+                        correlation_id=correlation_id,
+                    )
+                    raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "md":
                     lines = ["# Meminit Index\n", "- Status: error", ""]
                     lines.extend(["## Graph Violations", ""])
@@ -1911,13 +1979,9 @@ def index(
                     "index_version": "1.0",
                     "node_count": data["node_count"],
                     "edge_count": data["edge_count"],
-                    "rebuild": {
-                        "mode": "full" if no_cache or rebuild_cache else "incremental",
-                        "added": 0,
-                        "removed": 0,
-                        "changed": 0,
-                        "unchanged": data["node_count"],
-                    },
+                    # The current index implementation always performs a full rebuild;
+                    # it does not read or write a cache yet, so we only report that mode.
+                    "rebuild": {"mode": "full"},
                 }
                 return SummaryPayload(
                     data=summary,

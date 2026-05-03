@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Protocol, TextIO
 
@@ -59,7 +60,9 @@ class StreamEmitter:
         if root is not None:
             header["root"] = root.resolve().as_posix()
         if include_timestamp:
-            header["started_at"] = "1970-01-01T00:00:00Z"
+            header["started_at"] = (
+                datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            )
         self._write(header)
 
     @property

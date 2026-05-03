@@ -2766,6 +2766,26 @@ document_types:
         assert data["error"]["code"] == "INVALID_ROOT_PATH"
         assert "Path does not exist" in data["error"]["message"]
 
+    def test_error_ndjson_includes_error_code_and_message(self, repo_for_edge_cases):
+        """Test that NDJSON errors include correct error code and message."""
+        runner = runner_no_mixed_stderr()
+        missing = repo_for_edge_cases / "does-not-exist"
+        result = runner.invoke(
+            cli,
+            ["index", "--format", "ndjson", "--root", str(missing)],
+        )
+
+        assert result.exit_code != 0
+        records = [
+            json.loads(line)
+            for line in result.output.strip().splitlines()
+            if line.strip()
+        ]
+        assert records[0]["record_type"] == "header"
+        assert records[-1]["record_type"] == "error"
+        assert records[-1]["error"]["code"] == "INVALID_ROOT_PATH"
+        assert "Path does not exist" in records[-1]["error"]["message"]
+
     def test_error_json_is_single_line(self, repo_for_edge_cases):
         """Test that JSON error output is single-line (not multi-line)."""
         runner = runner_no_mixed_stderr()

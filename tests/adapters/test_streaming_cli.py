@@ -1,5 +1,6 @@
 import json
 from importlib import resources
+from datetime import datetime, timezone
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -69,9 +70,62 @@ def test_index_ndjson_outputs_header_items_and_summary(tmp_path):
     assert [r["sequence"] for r in records] == list(range(len(records)))
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "summary"
+    assert records[-1]["data"]["rebuild"]["mode"] == "full"
     assert {r.get("kind") for r in records if r["record_type"] == "item"} >= {"node"}
     for record in records:
         assert not list(_validator().iter_errors(record))
+
+
+def test_ndjson_header_uses_real_timestamp(tmp_path):
+    _init_repo(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "context",
+            "--root",
+            str(tmp_path),
+            "--deep",
+            "--format",
+            "ndjson",
+            "--include-timestamp",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    header = _records(result.output)[0]
+    assert header["record_type"] == "header"
+    started_at = datetime.fromisoformat(header["started_at"].replace("Z", "+00:00"))
+    delta_seconds = abs((datetime.now(timezone.utc) - started_at).total_seconds())
+    assert delta_seconds < 60
+
+
+def test_index_ndjson_graph_fatal_emits_terminal_error(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "docs" / "45-adr" / "adr-dup.md").write_text(
+        "---\n"
+        "document_id: TEST-ADR-001\n"
+        "type: ADR\n"
+        "title: Duplicate ADR\n"
+        "status: Draft\n"
+        "version: '0.1'\n"
+        "last_updated: '2026-05-03'\n"
+        "owner: Test Team\n"
+        "docops_version: '2.0'\n"
+        "area: TEST\n"
+        "description: Duplicate document.\n"
+        "keywords: [test]\n"
+        "related_ids: []\n"
+        "---\n\n# ADR: Duplicate\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code != 0
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID.value
 
 
 def test_context_ndjson_requires_deep(tmp_path):
@@ -81,6 +135,28 @@ def test_context_ndjson_requires_deep(tmp_path):
     )
     assert result.exit_code == 64
     records = _records(result.output)
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
+
+
+def test_context_ndjson_requires_deep_respects_output_path(tmp_path):
+    _init_repo(tmp_path)
+    output = tmp_path / "context.ndjson"
+    result = CliRunner().invoke(
+        cli,
+        [
+            "context",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "ndjson",
+            "--output",
+            str(output),
+        ],
+    )
+    assert result.exit_code == 64
+    records = _records(output.read_text(encoding="utf-8"))
+    assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
 
