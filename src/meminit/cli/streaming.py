@@ -13,7 +13,6 @@ from meminit.core.services.output_formatter import (
     canonical_json_dumps,
     normalize_correlation_id,
 )
-from meminit.core.services.safe_fs import ensure_safe_write_path
 
 STREAM_SCHEMA_VERSION = "1.0"
 
@@ -102,12 +101,12 @@ class StreamEmitter:
         self._closed = True
         self._write(record)
 
-    def emit_summary(self, summary: SummaryPayload) -> None:
+    def emit_summary(self, summary: SummaryPayload, *, success: bool = True) -> None:
         self._assert_open()
         record = self._base_record("summary")
         record.update(
             {
-                "success": True,
+                "success": success,
                 "data": summary.data,
                 "warnings": summary.warnings,
                 "violations": summary.violations,
@@ -145,6 +144,7 @@ def streaming_output_handler(
     run_id: str,
     root_path: Path | None = None,
     correlation_id: str | None = None,
+    success: bool = True,
 ) -> None:
     """Run a streaming producer and write a terminal summary or error."""
     stream = _open_stream(output=output, root_path=root_path)
@@ -158,7 +158,7 @@ def streaming_output_handler(
         include_timestamp=include_timestamp,
     )
     try:
-        emitter.emit_summary(producer(emitter))
+        emitter.emit_summary(producer(emitter), success=success)
     except MeminitError as exc:
         emitter.emit_error(exc.code, exc.message, exc.details)
         raise SystemExit(exit_code_for_error(exc.code)) from exc
@@ -187,7 +187,5 @@ def _open_stream(*, output: str | None, root_path: Path | None) -> TextIO:
     if not output:
         return sys.stdout
     out_path = Path(output)
-    if root_path is not None:
-        ensure_safe_write_path(root_dir=root_path, target_path=out_path.resolve())
     out_path.parent.mkdir(parents=True, exist_ok=True)
     return out_path.open("w", encoding="utf-8")

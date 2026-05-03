@@ -92,6 +92,24 @@
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-PLAN-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-SPEC-011' in related_ids but 'MEMINIT-SPEC-011' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-SPEC-011"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
       "message": "'MEMINIT-IMPL-001' lists 'MEMINIT-PLAN-010' in related_ids but 'MEMINIT-PLAN-010' does not list 'MEMINIT-IMPL-001'",
       "source": "MEMINIT-IMPL-001",
       "target": "MEMINIT-PLAN-010"
@@ -365,6 +383,12 @@
       "message": "'MEMINIT-PRD-004' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-004'",
       "source": "MEMINIT-PRD-004",
       "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-FDD-014' in related_ids but 'MEMINIT-FDD-014' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-FDD-014"
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
@@ -677,12 +701,18 @@
       "message": "'MEMINIT-SPEC-010' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-SPEC-010'",
       "source": "MEMINIT-SPEC-010",
       "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-011' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-SPEC-011'",
+      "source": "MEMINIT-SPEC-011",
+      "target": "MEMINIT-PLAN-014"
     }
   ],
   "command": "index",
   "data": {
-    "document_count": 75,
-    "edge_count": 223,
+    "document_count": 77,
+    "edge_count": 234,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -816,6 +846,27 @@
         "guaranteed": true,
         "source": "MEMINIT-FDD-013",
         "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-SPEC-011"
       },
       {
         "context": "body.markdown_link",
@@ -1448,6 +1499,13 @@
         "target": "MEMINIT-STRAT-001"
       },
       {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-FDD-014"
+      },
+      {
         "context": "body.markdown_link",
         "edge_type": "references",
         "guaranteed": false,
@@ -1551,6 +1609,13 @@
         "guaranteed": true,
         "source": "MEMINIT-PRD-005",
         "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-011"
       },
       {
         "context": "body.markdown_link",
@@ -2144,6 +2209,13 @@
         "context": "frontmatter.related_ids",
         "edge_type": "related",
         "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
         "source": "MEMINIT-SPEC-007",
         "target": "MEMINIT-PRD-006"
       },
@@ -2207,6 +2279,13 @@
         "context": "frontmatter.related_ids",
         "edge_type": "related",
         "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
         "source": "MEMINIT-SPEC-010",
         "target": "MEMINIT-ADR-014"
       },
@@ -2239,6 +2318,34 @@
         "target": "MEMINIT-SPEC-007"
       },
       {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
         "context": "body.markdown_link",
         "edge_type": "references",
         "guaranteed": false,
@@ -2260,7 +2367,7 @@
         "repo_prefix": "ORG"
       }
     ],
-    "node_count": 75,
+    "node_count": 77,
     "nodes": [
       {
         "area": null,
@@ -2852,6 +2959,34 @@
         "unblocks": []
       },
       {
+        "area": "AGENT",
+        "description": "Feature design for Phase 5 NDJSON streaming and repo-local index cache surfaces.",
+        "document_id": "MEMINIT-FDD-014",
+        "keywords": [
+          "streaming",
+          "ndjson",
+          "index",
+          "cache"
+        ],
+        "last_updated": "2026-05-03",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-014-streaming-emitter-and-incremental-index.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-SPEC-011",
+          "MEMINIT-SPEC-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Streaming Emitter and Incremental Index",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
         "area": null,
         "description": null,
         "document_id": "MEMINIT-GOV-001",
@@ -3308,7 +3443,7 @@
           "ndjson",
           "incremental"
         ],
-        "last_updated": "2026-04-19",
+        "last_updated": "2026-05-03",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3483,6 +3618,8 @@
           "MEMINIT-RUNBOOK-006",
           "MEMINIT-PRD-007",
           "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011",
+          "MEMINIT-FDD-014",
           "ORG-GOV-001",
           "MEMINIT-GOV-003"
         ],
@@ -3900,7 +4037,8 @@
           "MEMINIT-PRD-003",
           "MEMINIT-SPEC-008",
           "MEMINIT-PRD-007",
-          "MEMINIT-PLAN-013"
+          "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011"
         ],
         "repo_prefix": "MEMINIT",
         "status": "Draft",
@@ -3960,7 +4098,8 @@
           "MEMINIT-SPEC-007",
           "MEMINIT-PRD-006",
           "MEMINIT-PRD-007",
-          "MEMINIT-PLAN-013"
+          "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011"
         ],
         "repo_prefix": "MEMINIT",
         "status": "Approved",
@@ -3996,6 +4135,35 @@
         "status": "Draft",
         "superseded_by": null,
         "title": "Template Migration Specification",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Normative NDJSON record contract for streamed Meminit CLI output.",
+        "document_id": "MEMINIT-SPEC-011",
+        "keywords": [
+          "streaming",
+          "ndjson",
+          "agent",
+          "output"
+        ],
+        "last_updated": "2026-05-03",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/20-specs/spec-011-ndjson-streaming-contract.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-008"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "NDJSON Streaming Contract",
         "type": "SPEC",
         "unblocks": []
       },

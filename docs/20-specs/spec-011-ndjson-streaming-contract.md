@@ -48,7 +48,7 @@ The supported record types are:
 | `header` | exactly 1 | Stream metadata and run identity |
 | `item` | 0..N | Command-specific entity payload |
 | `progress` | 0..N | Deterministic coarse progress |
-| `summary` | 0 or 1 terminal | Successful terminal summary |
+| `summary` | 0 or 1 terminal | Terminal summary with overall success state |
 | `error` | 0 or 1 terminal | Failed terminal summary |
 
 ## 3. Common Fields
@@ -68,8 +68,9 @@ Every record MUST include:
 
 `item` records include `kind` and `data`. `summary` records include
 `success`, `data`, `warnings`, `violations`, `advice`, and `counts`.
-`error` records include `error.code`, `error.message`, and optional
-`error.details`.
+The `success` field is boolean and MUST reflect the command's terminal
+status. `error` records include `error.code`, `error.message`, and
+optional `error.details`.
 
 ## 4. Command Catalogues
 
@@ -93,6 +94,12 @@ Commands that do not advertise `supports_ndjson: true` in
 On operational failure after a stream has started, Meminit writes a
 terminal `error` record, flushes stdout, and exits with the exit code
 mapped from `error.code`.
+
+Some commands may complete their stream with a terminal `summary`
+record whose `success` field is `false`. This is reserved for cases
+where the stream is fully materialized but the command's overall result
+is unsuccessful, such as a graph index run with error-severity state
+warnings.
 
 `STREAM_PRODUCER_FAILED` is reserved for unexpected producer
 exceptions. `STREAM_INTERRUPTED` is reserved for signal-driven

@@ -68,10 +68,10 @@ Definition:
   where each line is a complete, self-describing object.
 - A **record** is a single line in the stream. Every record carries the
   minimum metadata required to be interpreted in isolation (see §3.1.2).
-- The **summary record** is the terminal record of a successful stream
+- The **summary record** is the terminal record of a completed stream
   and carries the same counters, warnings, violations, and advice that
   a non-streaming envelope would carry under `data` plus the envelope
-  top-level arrays.
+  top-level arrays. Its `success` flag reflects the terminal status.
 - An **incremental rebuild** is a subsequent `meminit index` invocation
   that produces a byte-identical index artifact to a full rebuild but
   recomputes only the portion of the graph affected by changed inputs.
@@ -314,7 +314,7 @@ The stream carries exactly five record types:
 | `item`        | Per-entity payload (node, edge, action, namespace)          | 0..N                      |
 | `progress`    | Optional coarse-grained progress update                     | 0..N                      |
 | `error`       | Terminal record on operational failure                      | 0 or 1 (terminal)         |
-| `summary`     | Terminal record on successful completion                    | exactly 1 (terminal)      |
+| `summary`     | Terminal record on completion; `success` may be `true` or `false` | exactly 1 (terminal)      |
 
 Each stream ends with either a `summary` record (success) or an
 `error` record (failure). A stream that ends without one of those
@@ -345,13 +345,13 @@ Emitting progress records is OPTIONAL per command (see §3.3).
 `details`) mirroring the non-streaming error envelope. After an
 `error` record, no further records may be emitted.
 
-`summary`-only fields: `success` (boolean, always `true` for
-`summary`), `data` (object — the summary payload equivalent to a
-non-streaming `data`), `warnings` (array), `violations` (array),
-`advice` (array), optional `counts` (object with per-`kind` counters
-derived from the item records). The summary's `data` must contain the
-same fields that the non-streaming `data` would contain, minus any
-fields that were emitted as individual items.
+`summary`-only fields: `success` (boolean reflecting terminal status),
+`data` (object — the summary payload equivalent to a non-streaming
+`data`), `warnings` (array), `violations` (array), `advice` (array),
+optional `counts` (object with per-`kind` counters derived from the
+item records). The summary's `data` must contain the same fields that
+the non-streaming `data` would contain, minus any fields that were
+emitted as individual items.
 
 Ordering rules:
 

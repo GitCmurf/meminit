@@ -85,6 +85,17 @@ def test_context_ndjson_requires_deep(tmp_path):
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
 
 
+def test_check_ndjson_emits_structured_unsupported_error(tmp_path):
+    result = CliRunner().invoke(
+        cli, ["check", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 64
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
+
+
 def test_context_deep_ndjson_includes_documents(tmp_path):
     _init_repo(tmp_path)
     result = CliRunner().invoke(
@@ -105,6 +116,56 @@ def test_context_deep_ndjson_includes_documents(tmp_path):
         "type": "ADR",
     } in documents
     assert records[-1]["data"]["document_count"] == len(documents)
+
+
+def test_index_ndjson_allows_external_output_path(tmp_path):
+    root = tmp_path / "repo"
+    _init_repo(root)
+    output = tmp_path / "index.ndjson"
+    result = CliRunner().invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(root),
+            "--format",
+            "ndjson",
+            "--output",
+            str(output),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert output.exists()
+    records = _records(output.read_text(encoding="utf-8"))
+    assert records[-1]["record_type"] == "summary"
+    assert records[-1]["success"] is True
+
+
+def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
+    root = tmp_path / "repo"
+    _init_repo(root)
+    state_dir = root / "docs" / "01-indices"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "project-state.yaml").write_text(
+        "documents:\n"
+        "  UNKNOWN-001:\n"
+        "    impl_state: Done\n"
+        "    updated: 2025-12-21T10:00:00Z\n"
+        "    : invalid\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli, ["index", "--root", str(root), "--format", "ndjson"]
+    )
+    assert result.exit_code == 1, result.output
+    records = _records(result.output)
+    assert records[-1]["record_type"] == "summary"
+    assert records[-1]["success"] is False
+    assert any(
+        warning.get("code") == "E_STATE_YAML_MALFORMED"
+        for warning in records[-1]["warnings"]
+    )
 
 
 def test_capabilities_advertises_streaming(tmp_path):

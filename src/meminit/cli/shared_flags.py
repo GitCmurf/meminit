@@ -176,6 +176,11 @@ def agent_repo_options():
 _CAPABILITIES_REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 
+def command_supports_ndjson(name: str) -> bool:
+    """Return whether a registered command advertises NDJSON support."""
+    return bool(_CAPABILITIES_REGISTRY.get(name, {}).get("supports_ndjson", False))
+
+
 def register_capability(
     name: str,
     description: str,

@@ -10,7 +10,11 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from meminit.cli.shared_flags import agent_output_options, agent_repo_options
+from meminit.cli.shared_flags import (
+    agent_output_options,
+    agent_repo_options,
+    command_supports_ndjson,
+)
 from meminit.cli.streaming import (
     StreamEmitter,
     SummaryPayload,
@@ -80,6 +84,32 @@ def command_output_handler(
     correlation_id: Optional[str] = None,
 ):
     """Centralized error handling and output formatting for CLI commands."""
+    if format == "ndjson" and not command_supports_ndjson(command_name):
+        error = unsupported_ndjson(
+            command_name,
+            f"meminit {command_name} does not support --format ndjson.",
+        )
+        stream = sys.stdout
+        close_stream = False
+        if output:
+            out_path = Path(output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            stream = out_path.open("w", encoding="utf-8")
+            close_stream = True
+        try:
+            StreamEmitter(
+                command=command_name,
+                root=root_path,
+                run_id=run_id,
+                stream=stream,
+                correlation_id=correlation_id,
+                include_timestamp=include_timestamp,
+            ).emit_error(error.code, error.message, error.details)
+        finally:
+            if close_stream:
+                stream.close()
+        raise SystemExit(exit_code_for_error(error.code))
+
     # Validate correlation_id early so JSON mode can emit a structured error
     # envelope instead of a raw Click usage error.
     if correlation_id is not None:
@@ -1903,6 +1933,7 @@ def index(
                 run_id=run_id,
                 root_path=root_path,
                 correlation_id=correlation_id,
+                success=not has_error,
             )
             if has_error:
                 raise SystemExit(1)

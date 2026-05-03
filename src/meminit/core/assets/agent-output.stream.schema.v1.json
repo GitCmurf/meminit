@@ -113,7 +113,7 @@
             "record_type": { "const": "summary" },
             "command": true,
             "sequence": true,
-            "success": { "const": true },
+            "success": { "type": "boolean" },
             "data": { "type": "object" },
             "warnings": { "type": "array" },
             "violations": { "type": "array" },
