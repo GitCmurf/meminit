@@ -38,7 +38,7 @@ related_ids:
 
 ## 1. Purpose
 
-This document defines the normative JSON output contract for v2-migrated Meminit CLI commands when `--format json` is used (currently `check`, `new`, and the Phase 4 state queue commands). It specifies the output envelope, error envelope, field semantics, determinism rules, and minimum required payloads per command.
+This document defines the normative JSON output contract for all JSON-supporting Meminit CLI commands when `--format json` is used. It specifies the shared v3 envelope, error envelope, field semantics, determinism rules, and Phase 1–4 command payload profiles. Section 5 provides the authoritative per-command payload specification.
 
 This is the v2 evolution of [MEMINIT-SPEC-004](spec-004-agent-output-contract.md).
 
@@ -46,7 +46,7 @@ This is the v2 evolution of [MEMINIT-SPEC-004](spec-004-agent-output-contract.md
 
 In scope:
 
-- JSON output for v2-migrated CLI commands (currently `check`, `new`, `state set`, `state get`, `state list`, `state next`, and `state blockers`).
+- JSON output for all JSON-supporting CLI commands (see Section 5 for the full command set, including Phase 1–4 payload profiles).
 - Error envelope and error code usage.
 - Determinism and ordering rules for stable machine parsing.
 

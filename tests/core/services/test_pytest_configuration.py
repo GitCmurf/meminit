@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def test_pytest_runs_without_implicit_coverage_plugin(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[3]
