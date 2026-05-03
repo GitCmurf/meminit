@@ -2,7 +2,6 @@ import contextlib
 import json
 import os
 import shlex
-import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -17,6 +16,7 @@ from meminit.cli.shared_flags import (
     command_supports_ndjson,
 )
 from meminit.cli.streaming import (
+    CallableStreamingProducer,
     StreamEmitter,
     SummaryPayload,
     _open_stream,
@@ -30,13 +30,13 @@ from meminit.core.services.exit_codes import (
     EX_COMPLIANCE_FAIL,
     exit_code_for_error,
 )
+from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
     normalize_correlation_id,
     format_envelope,
     format_error_envelope,
 )
-from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.versioning import get_cli_version
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
@@ -74,27 +74,6 @@ def get_console() -> Console:
     except Exception:
         pass
     return console
-
-
-def _clear_index_cache(root_path: Path) -> bool:
-    """Remove the repo-local index cache directory if it exists."""
-    cache_root = root_path / ".meminit" / "cache" / "index"
-    if not cache_root.exists():
-        return False
-
-    ensure_safe_write_path(root_dir=root_path, target_path=cache_root)
-    try:
-        if cache_root.is_dir():
-            shutil.rmtree(cache_root)
-        else:
-            cache_root.unlink()
-    except OSError as exc:
-        raise MeminitError(
-            ErrorCode.CACHE_WRITE_FAILED,
-            f"Unable to clear the cache directory at '{cache_root}'.",
-            details={"cache_path": str(cache_root)},
-        ) from exc
-    return True
 
 
 @contextlib.contextmanager
@@ -1413,15 +1392,25 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 ):
                     value = scan_data.get(key)
                     if value:
-                        suggestions.append({"code": key, "value": value})
-                for item in sorted(suggestions, key=lambda r: r["code"]):
+                        suggestions.append(
+                            {
+                                "severity": "info",
+                                "code": key,
+                                "path": ".",
+                                "value": value,
+                            }
+                        )
+                for item in sorted(
+                    suggestions,
+                    key=lambda r: (r["severity"], r["code"], r["path"]),
+                ):
                     emit.emit_item("suggestion", item)
                 summary = _summary_data(scan_data)
                 return SummaryPayload(data=summary)
 
             streaming_output_handler(
                 command="scan",
-                producer=produce,
+                producer=CallableStreamingProducer(produce),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -1891,45 +1880,21 @@ def index(
                     ]
                 },
             )
+        index_cache = IndexCache(root_path)
         if no_cache or rebuild_cache:
-            _clear_index_cache(root_path)
+            index_cache.clear()
         if explain_cache:
             if format == "ndjson":
                 raise unsupported_ndjson(
                     "index",
                     "meminit index --explain-cache does not support --format ndjson.",
                 )
-            cache_manifest = (
-                root_path / ".meminit" / "cache" / "index" / "manifest.json"
-            )
-            summary: dict[str, Any] = {
-                "cache_path": relative_path_string(cache_manifest, root_path),
-                "exists": cache_manifest.is_file(),
-            }
-            if cache_manifest.is_file():
-                try:
-                    manifest = json.loads(cache_manifest.read_text(encoding="utf-8"))
-                    summary.update(
-                        {
-                            "manifest_schema_version": manifest.get(
-                                "manifest_schema_version"
-                            ),
-                            "file_count": len(manifest.get("files", [])),
-                            "config_sha256": manifest.get("config_sha256"),
-                            "schema_sha256": manifest.get("schema_sha256"),
-                        }
-                    )
-                except (OSError, json.JSONDecodeError) as exc:
-                    summary["warning"] = {
-                        "code": ErrorCode.CACHE_ENTRY_INVALID.value,
-                        "message": f"Cache manifest is not readable JSON: {exc.__class__.__name__}",
-                    }
             _write_output(
                 format_envelope(
                     command="index",
                     root=str(root_path),
                     success=True,
-                    data={"cache": summary},
+                    data={"cache": index_cache.explain()},
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,
@@ -1952,9 +1917,10 @@ def index(
             # Only intercept graph fatal diagnostics (details.errors present).
             # Re-raise all other MeminitErrors so command_output_handler
             # formats them consistently for text/md/json modes.
-            is_graph_fatal = isinstance(e.details, dict) and "errors" in e.details
+            details = e.details if isinstance(e.details, dict) else {}
+            is_graph_fatal = "errors" in details
             if is_graph_fatal:
-                violations = e.details["errors"]
+                violations = details["errors"]
                 if format == "json":
                     _write_output(
                         format_envelope(
@@ -2044,7 +2010,7 @@ def index(
 
             streaming_output_handler(
                 command="index",
-                producer=produce,
+                producer=CallableStreamingProducer(produce),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -3376,13 +3342,20 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                     "document_type",
                     sorted(doc_type_rows, key=lambda r: r.get("type", "")),
                 )
-                _emit_items(emit, "document", result.documents)
-                summary = _summary_data(result.data, "namespaces")
+                _emit_items(
+                    emit,
+                    "document",
+                    sorted(
+                        result.documents,
+                        key=lambda row: (row["document_id"], row["path"]),
+                    ),
+                )
+                summary = _summary_data(result.data, "namespaces", "documents")
                 return SummaryPayload(data=summary, warnings=result.warnings)
 
             streaming_output_handler(
                 command="context",
-                producer=produce,
+                producer=CallableStreamingProducer(produce),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,

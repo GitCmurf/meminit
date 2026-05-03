@@ -240,6 +240,8 @@ class ContextRepositoryUseCase:
             documents,
             key=lambda row: (row["document_id"], row["path"]),
         )
+        if deep:
+            context_data["documents"] = documents_sorted
 
         return ContextResult(
             data=context_data,

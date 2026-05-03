@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import signal
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from types import FrameType
 from typing import Any, Callable, Protocol, TextIO
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -29,9 +31,19 @@ class SummaryPayload:
 
 
 class StreamingProducer(Protocol):
-    """Callable shape for a streaming producer."""
+    """Protocol implemented by streaming producers."""
 
-    def __call__(self, emit: "StreamEmitter") -> SummaryPayload: ...
+    def produce(self, emit: "StreamEmitter") -> SummaryPayload: ...
+
+
+@dataclass(frozen=True)
+class CallableStreamingProducer:
+    """Adapter for small CLI-local producers while use cases gain stream APIs."""
+
+    func: Callable[["StreamEmitter"], SummaryPayload]
+
+    def produce(self, emit: "StreamEmitter") -> SummaryPayload:
+        return self.func(emit)
 
 
 class StreamEmitter:
@@ -70,6 +82,11 @@ class StreamEmitter:
         """Return item counts by kind."""
         return dict(sorted(self._counts.items()))
 
+    @property
+    def closed(self) -> bool:
+        """Return whether a terminal record has already been emitted."""
+        return self._closed
+
     def emit_item(self, kind: str, data: dict[str, Any]) -> None:
         self._assert_open()
         self._counts[kind] = self._counts.get(kind, 0) + 1
@@ -96,7 +113,7 @@ class StreamEmitter:
         details: dict[str, Any] | None = None,
     ) -> None:
         self._assert_open()
-        error = {"code": error_code.value, "message": message}
+        error: dict[str, Any] = {"code": error_code.value, "message": message}
         if details:
             error["details"] = details
         record = self._base_record("error")
@@ -169,10 +186,13 @@ def streaming_output_handler(
                 stream.close()
         raise SystemExit(exit_code)
     try:
-        emitter.emit_summary(producer(emitter), success=success)
+        previous_handlers = _register_interrupt_handlers(emitter)
+        emitter.emit_summary(producer.produce(emitter), success=success)
     except MeminitError as exc:
         emitter.emit_error(exc.code, exc.message, exc.details)
         raise SystemExit(exit_code_for_error(exc.code)) from exc
+    except SystemExit:
+        raise
     except Exception as exc:
         emitter.emit_error(
             ErrorCode.STREAM_PRODUCER_FAILED,
@@ -181,6 +201,7 @@ def streaming_output_handler(
         )
         raise SystemExit(exit_code_for_error(ErrorCode.STREAM_PRODUCER_FAILED)) from exc
     finally:
+        _restore_interrupt_handlers(locals().get("previous_handlers", {}))
         if close_stream:
             stream.close()
 
@@ -253,3 +274,36 @@ def _is_safe_path(path: Path) -> bool:
                 if path_str == f or path_str.startswith(f + "/"):
                     return False
     return True
+
+
+def _register_interrupt_handlers(
+    emitter: StreamEmitter,
+) -> dict[signal.Signals, Any]:
+    previous: dict[signal.Signals, Any] = {}
+
+    def handle(signum: int, _frame: FrameType | None) -> None:
+        if not emitter.closed:
+            emitter.emit_error(
+                ErrorCode.STREAM_INTERRUPTED,
+                "Streaming output interrupted.",
+                {"signal": signum},
+            )
+        raise SystemExit(128 + signum)
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            previous[sig] = signal.getsignal(sig)
+            signal.signal(sig, handle)
+        except (ValueError, OSError, RuntimeError):
+            previous.pop(sig, None)
+    return previous
+
+
+def _restore_interrupt_handlers(
+    previous: dict[signal.Signals, Any],
+) -> None:
+    for sig, handler in previous.items():
+        try:
+            signal.signal(sig, handler)
+        except (ValueError, OSError, RuntimeError):
+            pass

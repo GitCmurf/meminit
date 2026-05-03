@@ -178,7 +178,10 @@ class InitRepositoryUseCase:
         else:
             record(config_path, created=False)
 
-        # 3. Create Templates & Schema
+        # 3. Ensure generated local cache artifacts stay out of version control.
+        self._ensure_gitignore_cache_entry(record)
+
+        # 4. Create Templates & Schema
         gov_dir = self.docs_dir / "00-governance"
         template_dir = gov_dir / "templates"
         template_dir.mkdir(parents=True, exist_ok=True)
@@ -220,7 +223,7 @@ class InitRepositoryUseCase:
             else:
                 record(dest, created=False)
 
-        # 4. Install protocol assets from registry (AGENTS.md, skill manifest, brownfield script)
+        # 5. Install protocol assets from registry (AGENTS.md, skill manifest, brownfield script)
         registry = ProtocolAssetRegistry.default()
         project_name, repo_prefix = resolve_repo_metadata(self.root_dir)
 
@@ -266,7 +269,7 @@ class InitRepositoryUseCase:
                 logging.warning("Failed to install protocol asset %s", asset.id)
                 record(target, created=False)
 
-        # 5. Install gov-001 constitution document
+        # 6. Install gov-001 constitution document
         self._install_optional_asset(
             target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
             package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
@@ -281,6 +284,25 @@ class InitRepositoryUseCase:
             created_paths=created_paths_sorted,
             skipped_paths=skipped_paths_sorted,
         )
+
+    def _ensure_gitignore_cache_entry(self, record_fn) -> None:
+        gitignore_path = self.root_dir / ".gitignore"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=gitignore_path)
+        entry = ".meminit/cache/"
+        if not gitignore_path.exists():
+            atomic_write(gitignore_path, f"{entry}\n", encoding="utf-8")
+            record_fn(gitignore_path, created=True)
+            return
+        if not gitignore_path.is_file():
+            raise FileExistsError(f"{gitignore_path} exists and is not a file")
+        content = gitignore_path.read_text(encoding="utf-8")
+        entries = {line.strip() for line in content.splitlines()}
+        if entry in entries:
+            record_fn(gitignore_path, created=False)
+            return
+        separator = "" if content.endswith("\n") or not content else "\n"
+        atomic_write(gitignore_path, f"{content}{separator}{entry}\n", encoding="utf-8")
+        record_fn(gitignore_path, created=True)
 
     def _install_optional_asset(
         self,

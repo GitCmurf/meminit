@@ -3,7 +3,7 @@ document_id: MEMINIT-SPEC-011
 type: SPEC
 title: NDJSON Streaming Contract
 status: Draft
-version: "0.1"
+version: "0.2"
 last_updated: 2026-05-03
 owner: GitCmurf
 docops_version: "2.0"
@@ -72,6 +72,18 @@ The `success` field is boolean and MUST reflect the command's terminal
 status. `error` records include `error.code`, `error.message`, and
 optional `error.details`.
 
+All records MUST be serialized with Meminit's canonical JSON writer:
+UTF-8, one JSON object per line, stable key ordering, and no extra
+stdout text. A repeated run over identical inputs MUST produce a
+byte-identical stream after ignoring `header.run_id` and any requested
+`header.started_at` timestamp.
+
+`progress` records, when emitted, MUST use deterministic boundaries:
+`index` and `scan` emit only after every 100 processed items, and
+`context --deep` emits only after every 50 processed documents. A
+producer MAY omit progress records entirely when the total work is
+small or unknown.
+
 ## 4. Command Catalogues
 
 Phase 5 defines streaming for these command shapes:
@@ -86,6 +98,16 @@ For `scan`, each `file` item MUST correspond to one Markdown file discovered
 under the active docs root. The item payload MUST include a repo-relative
 `path`, and SHOULD include namespace and governance metadata when available.
 Namespace summary rows are not valid `file` items.
+
+Item ordering is part of the contract:
+
+- `index` emits `node` records sorted by `document_id`, then `edge`
+  records sorted by `source`, `target`, and `type`.
+- `scan` emits `file` records sorted by `path`, then `suggestion`
+  records sorted by `severity`, `code`, and `path`.
+- `context --deep` emits `namespace` records sorted by `name`,
+  `document_type` records sorted by `type`, and `document` records
+  sorted by `document_id` and `path`.
 
 `meminit index --explain-cache --format ndjson` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
@@ -124,3 +146,10 @@ The normative schema is committed in two byte-identical copies:
 
 Both copies use `additionalProperties: false` on each concrete record
 definition so agents can reject drift early.
+
+## 7. Version History
+
+| Version | Date | Author | Notes |
+| ------- | ---- | ------ | ----- |
+| 0.1 | 2026-05-03 | Codex | Initial NDJSON stream shape and supported command set |
+| 0.2 | 2026-05-03 | Codex | Added deterministic serialization, progress boundaries, and command item ordering rules |

@@ -3,7 +3,7 @@ document_id: MEMINIT-FDD-014
 type: FDD
 title: Streaming Emitter and Incremental Index
 status: Draft
-version: "0.1"
+version: "0.2"
 last_updated: 2026-05-03
 owner: GitCmurf
 docops_version: "2.0"
@@ -63,12 +63,11 @@ tests and prevents silent stream drift.
 `index` emits document nodes before graph edges. The summary includes
 the persisted artifact path, index version, and node/edge counts.
 
-`scan` emits configured namespace/file-like inventory records followed
-by suggestion records. The summary includes scan counts and a
-configuration preview.
+`scan` emits Markdown file records followed by suggestion records. The
+summary includes scan counts and a configuration preview.
 
-`context --deep` emits namespaces and document type metadata. The
-non-deep mode remains bounded output and deliberately rejects
+`context --deep` emits namespace, document type, and document metadata.
+The non-deep mode remains bounded output and deliberately rejects
 `--format ndjson`.
 
 ## 5. Cache Surface
@@ -90,10 +89,15 @@ v3 JSON envelope without rebuilding the index.
 `--rebuild-cache`; those combinations fail with
 `INVALID_FLAG_COMBINATION` before any cache mutation occurs.
 
-The initial cache reporting contract is intentionally conservative:
-the persisted index artifact remains the source of truth, and the
-stream summary exposes rebuild metadata without changing the artifact
-schema.
+This implementation does not yet ship the changed-file-only
+incremental rebuild engine described by MEMINIT-PLAN-014 Workstream D.
+There is no manifest-writing cache service, no changed-file reuse
+algorithm, and no lock-managed cache mutation path. Until those land,
+`meminit index` always performs a full rebuild and reports
+`rebuild.mode: "full"` in the NDJSON summary. The current flags and
+diagnostic command are deliberately limited to cache-directory cleanup
+and manifest inspection so the public CLI surface is present without
+overstating incremental behavior.
 
 ## 6. Safety Constraints
 
@@ -103,3 +107,10 @@ conforming to MEMINIT-SPEC-011.
 
 Cache files must never be committed. Operators can delete
 `.meminit/cache/` at any time to force a cold rebuild.
+
+## 7. Version History
+
+| Version | Date | Author | Notes |
+| ------- | ---- | ------ | ----- |
+| 0.1 | 2026-05-03 | Codex | Initial shared streaming emitter and cache-control surface design |
+| 0.2 | 2026-05-03 | Codex | Clarified shipped cache boundary and documented that the incremental rebuild engine remains unimplemented |

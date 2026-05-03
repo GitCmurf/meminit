@@ -11,35 +11,11 @@ from jsonschema import Draft7Validator
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import exit_code_for_error
+from tests.cli.streaming_helpers import create_initialized_repo
 
 
 def _records(output: str) -> list[dict]:
     return [json.loads(line) for line in output.splitlines() if line.strip()]
-
-
-def _init_repo(tmp_path):
-    runner = CliRunner()
-    result = runner.invoke(cli, ["init", "--root", str(tmp_path), "--format", "json"])
-    assert result.exit_code == 0, result.output
-    doc_dir = tmp_path / "docs" / "45-adr"
-    doc_dir.mkdir(parents=True, exist_ok=True)
-    (doc_dir / "adr-001-test.md").write_text(
-        "---\n"
-        "document_id: TEST-ADR-001\n"
-        "type: ADR\n"
-        "title: Test ADR\n"
-        "status: Draft\n"
-        "version: '0.1'\n"
-        "last_updated: '2026-05-03'\n"
-        "owner: Test Team\n"
-        "docops_version: '2.0'\n"
-        "area: TEST\n"
-        "description: Test document.\n"
-        "keywords: [test]\n"
-        "related_ids: []\n"
-        "---\n\n# ADR: Test\n",
-        encoding="utf-8",
-    )
 
 
 def _validator() -> Draft7Validator:
@@ -64,7 +40,7 @@ def test_stream_schema_copies_are_identical():
 
 
 def test_index_ndjson_outputs_header_items_and_summary(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
     )
@@ -94,7 +70,7 @@ def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
 
 
 def test_scan_ndjson_emits_real_file_items(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     extra_file = tmp_path / "docs" / "20-specs" / "spec-001-test.md"
     extra_file.parent.mkdir(parents=True, exist_ok=True)
     extra_file.write_text("# Spec\n", encoding="utf-8")
@@ -156,7 +132,7 @@ def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_pat
 
 
 def test_ndjson_header_uses_real_timestamp(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli,
         [
@@ -178,7 +154,7 @@ def test_ndjson_header_uses_real_timestamp(tmp_path):
 
 
 def test_index_ndjson_graph_fatal_emits_terminal_error(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     (tmp_path / "docs" / "45-adr" / "adr-dup.md").write_text(
         "---\n"
         "document_id: TEST-ADR-001\n"
@@ -208,7 +184,7 @@ def test_index_ndjson_graph_fatal_emits_terminal_error(tmp_path):
 
 
 def test_context_ndjson_requires_deep(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli, ["context", "--root", str(tmp_path), "--format", "ndjson"]
     )
@@ -219,7 +195,7 @@ def test_context_ndjson_requires_deep(tmp_path):
 
 
 def test_context_ndjson_requires_deep_respects_output_path(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     output = tmp_path / "context.ndjson"
     result = CliRunner().invoke(
         cli,
@@ -252,7 +228,7 @@ def test_check_ndjson_emits_structured_unsupported_error(tmp_path):
 
 
 def test_context_deep_ndjson_includes_documents(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli, ["context", "--root", str(tmp_path), "--deep", "--format", "ndjson"]
     )
@@ -342,7 +318,7 @@ def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_
 
 def test_index_ndjson_allows_external_output_path(tmp_path):
     root = tmp_path / "repo"
-    _init_repo(root)
+    create_initialized_repo(root)
     output = tmp_path / "index.ndjson"
     result = CliRunner().invoke(
         cli,
@@ -364,7 +340,7 @@ def test_index_ndjson_allows_external_output_path(tmp_path):
 
 
 def test_index_ndjson_summary_preserves_metadata_for_artifacts(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli,
         [
@@ -391,7 +367,7 @@ def test_index_ndjson_summary_preserves_metadata_for_artifacts(tmp_path):
 
 
 def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     output = tmp_path / "unsafe" / "index.ndjson"
     with patch("meminit.cli.streaming._is_safe_path", return_value=False):
         result = CliRunner().invoke(
@@ -416,7 +392,7 @@ def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
 
 
 def test_index_explain_cache_ndjson_is_rejected(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli,
         [
@@ -439,7 +415,7 @@ def test_index_explain_cache_ndjson_is_rejected(tmp_path):
 
 
 def test_check_ndjson_invalid_correlation_id_is_structured(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
         cli,
         [
@@ -463,7 +439,7 @@ def test_check_ndjson_invalid_correlation_id_is_structured(tmp_path):
 
 
 def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
-    _init_repo(tmp_path)
+    create_initialized_repo(tmp_path)
     output = tmp_path / "index.ndjson"
 
     with patch("meminit.cli.streaming.Path.open", side_effect=OSError("boom")):
@@ -487,7 +463,7 @@ def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
     assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
-def test_scan_ndjson_generic_exception_emits_terminal_error(tmp_path):
+def test_scan_ndjson_pre_streaming_exception_uses_command_error_handler(tmp_path):
     with patch(
         "meminit.cli.main.ScanRepositoryUseCase.execute",
         side_effect=RuntimeError("boom"),
@@ -505,7 +481,7 @@ def test_scan_ndjson_generic_exception_emits_terminal_error(tmp_path):
 
 def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
     root = tmp_path / "repo"
-    _init_repo(root)
+    create_initialized_repo(root)
     state_dir = root / "docs" / "01-indices"
     state_dir.mkdir(parents=True, exist_ok=True)
     (state_dir / "project-state.yaml").write_text(

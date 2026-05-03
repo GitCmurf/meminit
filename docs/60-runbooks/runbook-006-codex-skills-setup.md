@@ -133,7 +133,7 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 | Use case | Recommended format | Reason |
 | -------- | ------------------ | ------ |
 | Bootstrapping repo constraints | `meminit context --format json` | Bounded output; one envelope is simpler |
-| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace and type records |
+| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace, type, and document records |
 | Building graph artifacts for agents | `meminit index --format ndjson` | Streams graph items and still writes the persisted index |
 | Brownfield migration scan | `meminit scan --format ndjson` | Streams scan inventory and suggestions |
 | CI gates and small commands | `--format json` | Stable v3 envelope and easier assertions |
@@ -143,8 +143,8 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 - A stream is valid only if the last record is `summary` or `error`.
 - `STREAM_UNSUPPORTED_FORMAT` means the command or mode does not support NDJSON; check `supports_ndjson` in `meminit capabilities`.
 - A truncated stream should be discarded and the command retried with `--format json` if a single diagnostic envelope is easier to inspect.
-- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears `.meminit/cache/index/` before the next rebuild.
-- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding.
+- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag currently clears `.meminit/cache/index/` before a full rebuild.
+- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, incremental index reuse has not been initialized yet.
 
 ## Bounded Codex Review-Remediation Loop
 
