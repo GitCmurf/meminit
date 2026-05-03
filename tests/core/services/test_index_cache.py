@@ -54,6 +54,21 @@ def test_index_cache_explain_reports_invalid_manifest(tmp_path):
     assert "JSONDecodeError" in summary["warning"]["message"]
 
 
+def test_index_cache_explain_rejects_symlinked_manifest(tmp_path):
+    cache = IndexCache(tmp_path)
+    cache.manifest_path.parent.mkdir(parents=True)
+    outside = tmp_path.parent / "outside-manifest.json"
+    outside.write_text(
+        '{"manifest_schema_version":"1.0","files":[]}', encoding="utf-8"
+    )
+    cache.manifest_path.symlink_to(outside)
+
+    with pytest.raises(MeminitError) as exc_info:
+        cache.explain()
+
+    assert exc_info.value.code is ErrorCode.PATH_ESCAPE
+
+
 def test_index_cache_clear_removes_directory(tmp_path):
     cache = IndexCache(tmp_path)
     cache.manifest_path.parent.mkdir(parents=True)

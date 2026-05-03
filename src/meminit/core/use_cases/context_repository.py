@@ -216,6 +216,7 @@ class ContextRepositoryUseCase:
                 )
                 if count is None:
                     deep_incomplete = True
+                    documents.extend(ns_documents)
                     ns_entry["document_count"] = None
                     for rest in namespaces_data[i + 1 :]:
                         rest["document_count"] = None

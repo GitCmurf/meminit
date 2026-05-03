@@ -14,7 +14,9 @@ from typing import Any
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.path_utils import relative_path_string
-from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.safe_fs import (
+    ensure_safe_write_path,
+)
 
 
 class IndexCache:
@@ -46,12 +48,25 @@ class IndexCache:
 
     def explain(self) -> dict[str, Any]:
         """Return a stable manifest summary without mutating the cache."""
+        ensure_safe_write_path(root_dir=self._root_path, target_path=self.manifest_path)
+        manifest_exists = self.manifest_path.exists()
         summary: dict[str, Any] = {
             "cache_path": relative_path_string(self.manifest_path, self._root_path),
-            "exists": self.manifest_path.is_file(),
+            "exists": manifest_exists,
         }
-        if not self.manifest_path.is_file():
+        if not manifest_exists:
             return summary
+
+        if not self.manifest_path.is_file():
+            raise MeminitError(
+                ErrorCode.NOT_A_REGULAR_FILE,
+                f"Path '{self.manifest_path}' is not a regular file",
+                details={
+                    "target_path": str(self.manifest_path),
+                    "root_dir": str(self._root_path),
+                    "required": "regular file (not directory/symlink)",
+                },
+            )
 
         try:
             manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
