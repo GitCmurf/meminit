@@ -78,6 +78,54 @@ def test_index_ndjson_outputs_header_items_and_summary(tmp_path):
         assert not list(_validator().iter_errors(record))
 
 
+def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
+    result = CliRunner().invoke(
+        cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 0, result.output
+    records = _records(result.output)
+    summary = records[-1]["data"]
+    assert summary["docs_root"] is None
+    assert summary["governed_markdown_count"] == 0
+    assert summary["notes"]
+    assert summary["overlapping_namespaces"] == []
+    assert "configured_namespaces" not in summary
+
+
+def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_path):
+    (tmp_path / "docs" / "00-governance" / "org").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "readme.md").write_text("# Root doc\n", encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "org" / "org-gov-001.md").write_text(
+        "# ORG doc\n", encoding="utf-8"
+    )
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Example\n"
+        "repo_prefix: EXAMPLE\n"
+        "docops_version: '2.0'\n"
+        "namespaces:\n"
+        "  - name: repo\n"
+        "    repo_prefix: EXAMPLE\n"
+        "    docs_root: docs\n"
+        "  - name: org\n"
+        "    repo_prefix: ORG\n"
+        "    docs_root: docs/00-governance/org\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 0, result.output
+    summary = _records(result.output)[-1]["data"]
+    assert summary["docs_root"] == "docs"
+    assert summary["governed_markdown_count"] >= 1
+    assert summary["overlapping_namespaces"]
+    assert any(
+        overlap.get("child_docs_root") == "docs/00-governance/org"
+        for overlap in summary["overlapping_namespaces"]
+    )
+
+
 def test_ndjson_header_uses_real_timestamp(tmp_path):
     _init_repo(tmp_path)
     result = CliRunner().invoke(
@@ -193,7 +241,14 @@ def test_context_deep_ndjson_includes_documents(tmp_path):
         "title": "Test ADR",
         "type": "ADR",
     } in documents
-    assert records[-1]["data"]["document_count"] == len(documents)
+    summary = records[-1]["data"]
+    assert summary["allowed_types"]
+    assert summary["config_path"] == "docops.config.yaml"
+    assert summary["default_owner"] is None
+    assert summary["index_path"]
+    assert summary["schema_path"]
+    assert summary["deep_incomplete"] is False
+    assert "namespaces" not in summary
 
 
 def test_index_ndjson_allows_external_output_path(tmp_path):
@@ -217,6 +272,33 @@ def test_index_ndjson_allows_external_output_path(tmp_path):
     records = _records(output.read_text(encoding="utf-8"))
     assert records[-1]["record_type"] == "summary"
     assert records[-1]["success"] is True
+
+
+def test_index_ndjson_summary_preserves_metadata_for_artifacts(tmp_path):
+    _init_repo(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--status",
+            "Draft",
+            "--output-catalog",
+            "--output-kanban",
+            "--format",
+            "ndjson",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    summary = _records(result.output)[-1]["data"]
+    assert summary["index_path"] == "docs/01-indices/meminit.index.json"
+    assert summary["filtered"] is True
+    assert summary["catalog_path"]
+    assert summary["kanban_path"]
+    assert summary["rebuild"]["mode"] == "full"
+    assert "nodes" not in summary
+    assert "edges" not in summary
 
 
 def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
@@ -311,6 +393,22 @@ def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
 
     assert result.exit_code == 73
     records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+
+
+def test_scan_ndjson_generic_exception_emits_terminal_error(tmp_path):
+    with patch(
+        "meminit.cli.main.ScanRepositoryUseCase.execute",
+        side_effect=RuntimeError("boom"),
+    ):
+        result = CliRunner().invoke(
+            cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+        )
+
+    assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
+    records = _records("\n".join(line for line in result.output.splitlines() if line.lstrip().startswith("{")))
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value

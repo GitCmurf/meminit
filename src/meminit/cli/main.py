@@ -189,6 +189,20 @@ def command_output_handler(
                 ),
                 output,
             )
+        elif format == "ndjson":
+            _write_ndjson_error(
+                command_name=command_name,
+                error=MeminitError(
+                    ErrorCode.UNKNOWN_ERROR,
+                    safe_msg,
+                    details={"internal_error": str(e)},
+                ),
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
         elif format == "md":
             _write_output(
                 f"# Error\n\n- Code: UNKNOWN_ERROR\n- Message: {safe_msg}\n",
@@ -422,6 +436,14 @@ def _index_output_data(
     if report.kanban_path:
         data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
     return data
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    """Return a shallow copy of summary data with selected keys removed."""
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
 
 
 def _emit_items(emit: StreamEmitter, kind: str, rows: list[dict[str, Any]]) -> None:
@@ -1382,17 +1404,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                         suggestions.append({"code": key, "value": value})
                 for item in sorted(suggestions, key=lambda r: r["code"]):
                     emit.emit_item("suggestion", item)
-                summary = {
-                    "files_scanned": scan_data.get("markdown_count", 0),
-                    "suggestion_count": len(suggestions),
-                    "config_preview": {
-                        "docs_root": scan_data.get("docs_root"),
-                        "suggested_type_directories": scan_data.get(
-                            "suggested_type_directories", {}
-                        ),
-                        "suggested_namespaces": scan_data.get("suggested_namespaces", []),
-                    },
-                }
+                summary = _summary_data(scan_data, "configured_namespaces")
                 return SummaryPayload(data=summary)
 
             streaming_output_handler(
@@ -1991,15 +2003,10 @@ def index(
                         ),
                     ),
                 )
-                summary = {
-                    "artifact_path": data["index_path"],
-                    "index_version": "1.0",
-                    "node_count": data["node_count"],
-                    "edge_count": data["edge_count"],
-                    # The current index implementation always performs a full rebuild;
-                    # it does not read or write a cache yet, so we only report that mode.
-                    "rebuild": {"mode": "full"},
-                }
+                summary = _summary_data(data, "nodes", "edges")
+                # The current index implementation always performs a full rebuild;
+                # it does not read or write a cache yet, so we only report that mode.
+                summary["rebuild"] = {"mode": "full"}
                 return SummaryPayload(
                     data=summary,
                     warnings=warnings_list,
@@ -3342,12 +3349,7 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                 )
                 documents = _context_document_items(root_path)
                 _emit_items(emit, "document", documents)
-                summary = {
-                    "repo_prefix": result.data.get("repo_prefix"),
-                    "namespace_count": len(namespaces),
-                    "document_type_count": len(doc_type_rows),
-                    "document_count": len(documents),
-                }
+                summary = _summary_data(result.data, "namespaces")
                 return SummaryPayload(data=summary, warnings=result.warnings)
 
             streaming_output_handler(
