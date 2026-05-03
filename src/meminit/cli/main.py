@@ -18,6 +18,7 @@ from meminit.cli.shared_flags import (
 from meminit.cli.streaming import (
     StreamEmitter,
     SummaryPayload,
+    _open_stream,
     streaming_output_handler,
     unsupported_ndjson,
 )
@@ -84,22 +85,6 @@ def command_output_handler(
     correlation_id: Optional[str] = None,
 ):
     """Centralized error handling and output formatting for CLI commands."""
-    if format == "ndjson" and not command_supports_ndjson(command_name):
-        error = unsupported_ndjson(
-            command_name,
-            f"meminit {command_name} does not support --format ndjson.",
-        )
-        _write_ndjson_error(
-            command_name=command_name,
-            error=error,
-            output=output,
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            root_path=root_path,
-            correlation_id=correlation_id,
-        )
-        raise SystemExit(exit_code_for_error(error.code))
-
     # Validate correlation_id early so JSON mode can emit a structured error
     # envelope instead of a raw Click usage error.
     if correlation_id is not None:
@@ -119,9 +104,36 @@ def command_output_handler(
                     ),
                     output,
                 )
+            elif format == "ndjson":
+                _write_ndjson_error(
+                    command_name=command_name,
+                    error=MeminitError(
+                        ErrorCode.INVALID_FLAG_COMBINATION, error_msg
+                    ),
+                    output=output,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    root_path=root_path,
+                    correlation_id=None,
+                )
             else:
                 _write_output(f"Error: {error_msg}\n", output)
             raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION)) from e
+    if format == "ndjson" and not command_supports_ndjson(command_name):
+        error = unsupported_ndjson(
+            command_name,
+            f"meminit {command_name} does not support --format ndjson.",
+        )
+        _write_ndjson_error(
+            command_name=command_name,
+            error=error,
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            root_path=root_path,
+            correlation_id=correlation_id,
+        )
+        raise SystemExit(exit_code_for_error(error.code))
     try:
         yield
     except MeminitError as e:
@@ -204,20 +216,20 @@ def _write_ndjson_error(
     correlation_id: Optional[str] = None,
 ) -> None:
     """Emit a terminal NDJSON error record to stdout or the requested file."""
-    stream = sys.stdout
-    close_stream = False
-    if output:
-        out_path = Path(output)
-        if not _is_safe_path(out_path):
-            click.echo(
-                f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
-                err=True,
-            )
-            raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        stream = out_path.open("w", encoding="utf-8")
-        close_stream = True
+    stream, close_stream, open_error, exit_code = _open_stream(output=output)
     try:
+        if open_error is not None:
+            StreamEmitter(
+                command=command_name,
+                root=root_path,
+                run_id=run_id,
+                stream=stream,
+                correlation_id=correlation_id,
+                include_timestamp=include_timestamp,
+            ).emit_error(
+                open_error["code"], open_error["message"], open_error.get("details")
+            )
+            raise SystemExit(exit_code)
         StreamEmitter(
             command=command_name,
             root=root_path,
@@ -1841,6 +1853,11 @@ def index(
                 details={"flags": ["--no-cache", "--rebuild-cache"]},
         )
         if explain_cache:
+            if format == "ndjson":
+                raise unsupported_ndjson(
+                    "index",
+                    "meminit index --explain-cache does not support --format ndjson.",
+                )
             cache_manifest = (
                 root_path / ".meminit" / "cache" / "index" / "manifest.json"
             )

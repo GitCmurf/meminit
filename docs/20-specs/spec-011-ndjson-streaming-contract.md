@@ -82,6 +82,10 @@ Phase 5 defines streaming for these command shapes:
 | `scan` | `meminit scan --format ndjson` | `file`, `suggestion` |
 | `context` | `meminit context --deep --format ndjson` | `namespace`, `document_type`, `document` |
 
+`meminit index --explain-cache --format ndjson` MUST fail with
+`STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
+JSON-only.
+
 `meminit context --format ndjson` without `--deep` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`.
 

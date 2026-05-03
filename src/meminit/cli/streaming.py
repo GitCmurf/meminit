@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol, TextIO
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.exit_codes import exit_code_for_error
+from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.output_formatter import (
     canonical_json_dumps,
     normalize_correlation_id,
@@ -150,8 +150,7 @@ def streaming_output_handler(
     success: bool = True,
 ) -> None:
     """Run a streaming producer and write a terminal summary or error."""
-    stream = _open_stream(output=output, root_path=root_path)
-    close_stream = stream is not sys.stdout
+    stream, close_stream, open_error, exit_code = _open_stream(output=output)
     emitter = StreamEmitter(
         command=command,
         run_id=run_id,
@@ -160,6 +159,15 @@ def streaming_output_handler(
         correlation_id=correlation_id,
         include_timestamp=include_timestamp,
     )
+    if open_error is not None:
+        try:
+            emitter.emit_error(
+                open_error["code"], open_error["message"], open_error.get("details")
+            )
+        finally:
+            if close_stream:
+                stream.close()
+        raise SystemExit(exit_code)
     try:
         emitter.emit_summary(producer(emitter), success=success)
     except MeminitError as exc:
@@ -186,9 +194,62 @@ def unsupported_ndjson(command: str, message: str) -> MeminitError:
     )
 
 
-def _open_stream(*, output: str | None, root_path: Path | None) -> TextIO:
+def _open_stream(
+    *, output: str | None
+) -> tuple[TextIO, bool, dict[str, Any] | None, int | None]:
     if not output:
-        return sys.stdout
+        return sys.stdout, False, None, None
     out_path = Path(output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    return out_path.open("w", encoding="utf-8")
+    if not _is_safe_path(out_path):
+        return (
+            sys.stdout,
+            False,
+            {
+                "code": ErrorCode.PATH_ESCAPE,
+                "message": f"Output path is considered unsafe: {output}",
+                "details": {"output_path": output},
+            },
+            exit_code_for_error(ErrorCode.PATH_ESCAPE),
+        )
+    try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        return out_path.open("w", encoding="utf-8"), True, None, None
+    except OSError as exc:
+        return (
+            sys.stdout,
+            False,
+            {
+                "code": ErrorCode.UNKNOWN_ERROR,
+                "message": f"Failed to write output file: {output}",
+                "details": {"output_path": output, "reason": str(exc)},
+            },
+            EX_CANTCREAT,
+        )
+
+
+def _is_safe_path(path: Path) -> bool:
+    """Basic safety check for output paths."""
+    forbidden = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var"]
+    try:
+        abs_path = path.resolve()
+        path_str = abs_path.as_posix()
+        for f in forbidden:
+            if path_str == f or path_str.startswith(f + "/"):
+                return False
+        try:
+            home = Path.home().resolve().as_posix()
+            if path_str.startswith(home) and abs_path.name.startswith("."):
+                if not (
+                    path_str == f"{home}/.meminit"
+                    or path_str.startswith(f"{home}/.meminit/")
+                ):
+                    return False
+        except (RuntimeError, OSError):
+            pass
+    except (OSError, ValueError):
+        if path.is_absolute():
+            path_str = path.as_posix()
+            for f in forbidden:
+                if path_str == f or path_str.startswith(f + "/"):
+                    return False
+    return True

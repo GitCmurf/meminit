@@ -2,12 +2,14 @@ import json
 from importlib import resources
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.exit_codes import exit_code_for_error
 
 
 def _records(output: str) -> list[dict]:
@@ -215,6 +217,103 @@ def test_index_ndjson_allows_external_output_path(tmp_path):
     records = _records(output.read_text(encoding="utf-8"))
     assert records[-1]["record_type"] == "summary"
     assert records[-1]["success"] is True
+
+
+def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
+    _init_repo(tmp_path)
+    output = tmp_path / "unsafe" / "index.ndjson"
+    with patch("meminit.cli.streaming._is_safe_path", return_value=False):
+        result = CliRunner().invoke(
+            cli,
+            [
+                "index",
+                "--root",
+                str(tmp_path),
+                "--format",
+                "ndjson",
+                "--output",
+                str(output),
+            ],
+        )
+
+    assert result.exit_code == exit_code_for_error(ErrorCode.PATH_ESCAPE)
+    assert not output.exists()
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.PATH_ESCAPE.value
+
+
+def test_index_explain_cache_ndjson_is_rejected(tmp_path):
+    _init_repo(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--explain-cache",
+            "--format",
+            "ndjson",
+        ],
+    )
+
+    assert result.exit_code == exit_code_for_error(
+        ErrorCode.STREAM_UNSUPPORTED_FORMAT
+    )
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
+
+
+def test_check_ndjson_invalid_correlation_id_is_structured(tmp_path):
+    _init_repo(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "ndjson",
+            "--correlation-id",
+            "bad id",
+        ],
+    )
+
+    assert result.exit_code == exit_code_for_error(
+        ErrorCode.INVALID_FLAG_COMBINATION
+    )
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.INVALID_FLAG_COMBINATION.value
+
+
+def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
+    _init_repo(tmp_path)
+    output = tmp_path / "index.ndjson"
+
+    with patch("meminit.cli.streaming.Path.open", side_effect=OSError("boom")):
+        result = CliRunner().invoke(
+            cli,
+            [
+                "index",
+                "--root",
+                str(tmp_path),
+                "--format",
+                "ndjson",
+                "--output",
+                str(output),
+            ],
+        )
+
+    assert result.exit_code == 73
+    records = _records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
 def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
