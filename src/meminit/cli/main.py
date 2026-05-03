@@ -507,6 +507,31 @@ def _context_document_items(root_path: Path) -> list[dict[str, Any]]:
     return sorted(documents, key=lambda row: row["document_id"])
 
 
+def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, Any]]:
+    from meminit.core.services.repo_config import load_repo_layout
+
+    if not docs_root:
+        return []
+
+    docs_dir = root_path / docs_root
+    if not docs_dir.exists():
+        return []
+
+    layout = load_repo_layout(root_path)
+    items: list[dict[str, Any]] = []
+    for path in docs_dir.rglob("*.md"):
+        owner = layout.namespace_for_path(path)
+        items.append(
+            {
+                "path": path.relative_to(root_path).as_posix(),
+                "namespace": owner.namespace if owner else None,
+                "governed": bool(owner and not owner.is_excluded(path)),
+            }
+        )
+
+    return sorted(items, key=lambda row: row["path"])
+
+
 @contextlib.contextmanager
 def maybe_capture(output: Optional[str], format: str):
     """Capture console output if output file is specified and format is text."""
@@ -1411,10 +1436,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 )
 
             def produce(emit: StreamEmitter) -> SummaryPayload:
-                configured = scan_data.get("configured_namespaces", [])
-                for item in sorted(
-                    configured, key=lambda r: str(r.get("namespace", ""))
-                ):
+                for item in _scan_file_items(root_path, scan_data.get("docs_root")):
                     emit.emit_item("file", item)
                 suggestions = []
                 for key in (

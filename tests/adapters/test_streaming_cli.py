@@ -92,6 +92,33 @@ def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
     assert "configured_namespaces" not in summary
 
 
+def test_scan_ndjson_emits_real_file_items(tmp_path):
+    _init_repo(tmp_path)
+    extra_file = tmp_path / "docs" / "20-specs" / "spec-001-test.md"
+    extra_file.parent.mkdir(parents=True, exist_ok=True)
+    extra_file.write_text("# Spec\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 0, result.output
+
+    records = _records(result.output)
+    file_items = [
+        record
+        for record in records
+        if record["record_type"] == "item" and record["kind"] == "file"
+    ]
+    assert file_items
+    assert all("path" in record["data"] for record in file_items)
+    assert all("governed_markdown_count" not in record["data"] for record in file_items)
+
+    paths = {record["data"]["path"] for record in file_items}
+    assert "docs/20-specs/spec-001-test.md" in paths
+    assert "docs/45-adr/adr-001-test.md" in paths
+    assert records[-1]["counts"]["file"] == len(file_items)
+
+
 def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_path):
     (tmp_path / "docs" / "00-governance" / "org").mkdir(parents=True, exist_ok=True)
     (tmp_path / "docs" / "readme.md").write_text("# Root doc\n", encoding="utf-8")

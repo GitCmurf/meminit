@@ -82,6 +82,11 @@ Phase 5 defines streaming for these command shapes:
 | `scan` | `meminit scan --format ndjson` | `file`, `suggestion` |
 | `context` | `meminit context --deep --format ndjson` | `namespace`, `document_type`, `document` |
 
+For `scan`, each `file` item MUST correspond to one Markdown file discovered
+under the active docs root. The item payload MUST include a repo-relative
+`path`, and SHOULD include namespace and governance metadata when available.
+Namespace summary rows are not valid `file` items.
+
 `meminit index --explain-cache --format ndjson` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
 JSON-only.
