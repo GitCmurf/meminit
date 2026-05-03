@@ -81,9 +81,11 @@ The user-facing index command exposes:
 - `--explain-cache`
 
 `--no-cache` and `--rebuild-cache` are mutually exclusive and fail
-with `E_INVALID_FILTER_VALUE`. `--explain-cache` reports the current
-manifest summary as a standard v3 JSON envelope without rebuilding
-the index.
+with `E_INVALID_FILTER_VALUE`. When either cache-control flag is
+used, Meminit clears `.meminit/cache/index/` before the current full
+rebuild so stale fragments do not linger across runs.
+`--explain-cache` reports the current manifest summary as a standard
+v3 JSON envelope without rebuilding the index.
 
 The initial cache reporting contract is intentionally conservative:
 the persisted index artifact remains the source of truth, and the

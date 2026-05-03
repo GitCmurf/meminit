@@ -2,6 +2,7 @@ import contextlib
 import json
 import os
 import shlex
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -35,6 +36,7 @@ from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
 )
+from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.versioning import get_cli_version
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
@@ -72,6 +74,27 @@ def get_console() -> Console:
     except Exception:
         pass
     return console
+
+
+def _clear_index_cache(root_path: Path) -> bool:
+    """Remove the repo-local index cache directory if it exists."""
+    cache_root = root_path / ".meminit" / "cache" / "index"
+    if not cache_root.exists():
+        return False
+
+    ensure_safe_write_path(root_dir=root_path, target_path=cache_root)
+    try:
+        if cache_root.is_dir():
+            shutil.rmtree(cache_root)
+        else:
+            cache_root.unlink()
+    except OSError as exc:
+        raise MeminitError(
+            ErrorCode.CACHE_WRITE_FAILED,
+            f"Unable to clear the cache directory at '{cache_root}'.",
+            details={"cache_path": str(cache_root)},
+        ) from exc
+    return True
 
 
 @contextlib.contextmanager
@@ -1812,13 +1835,13 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
     "--no-cache",
     is_flag=True,
     default=False,
-    help="Skip the incremental index cache.",
+    help="Clear the repo-local index cache before rebuilding.",
 )
 @click.option(
     "--rebuild-cache",
     is_flag=True,
     default=False,
-    help="Rebuild the incremental index cache.",
+    help="Force a clean rebuild by clearing the repo-local index cache first.",
 )
 @click.option(
     "--explain-cache",
@@ -1863,7 +1886,9 @@ def index(
                 ErrorCode.E_INVALID_FILTER_VALUE,
                 "--no-cache and --rebuild-cache are mutually exclusive.",
                 details={"flags": ["--no-cache", "--rebuild-cache"]},
-        )
+            )
+        if no_cache or rebuild_cache:
+            _clear_index_cache(root_path)
         if explain_cache:
             if format == "ndjson":
                 raise unsupported_ndjson(
@@ -2005,7 +2030,7 @@ def index(
                 )
                 summary = _summary_data(data, "nodes", "edges")
                 # The current index implementation always performs a full rebuild;
-                # it does not read or write a cache yet, so we only report that mode.
+                # cache-control flags clear the repo-local cache directory first.
                 summary["rebuild"] = {"mode": "full"}
                 return SummaryPayload(
                     data=summary,

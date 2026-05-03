@@ -143,7 +143,7 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 - A stream is valid only if the last record is `summary` or `error`.
 - `STREAM_UNSUPPORTED_FORMAT` means the command or mode does not support NDJSON; check `supports_ndjson` in `meminit capabilities`.
 - A truncated stream should be discarded and the command retried with `--format json` if a single diagnostic envelope is easier to inspect.
-- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat.
+- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears `.meminit/cache/index/` before the next rebuild.
 - Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding.
 
 ## Bounded Codex Review-Remediation Loop
