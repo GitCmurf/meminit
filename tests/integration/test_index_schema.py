@@ -41,6 +41,22 @@ docops_version: 2.0
     return doc_path
 
 
+def _setup_incomplete_doc(root: Path, doc_id: str) -> Path:
+    """Create a brownfield document with missing type/title frontmatter."""
+    docs_dir = root / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    doc_path = docs_dir / f"adr-{doc_id.split('-')[-1]}.md"
+    content = f"""---
+document_id: {doc_id}
+status: Draft
+docops_version: 2.0
+---
+# Incomplete document
+"""
+    doc_path.write_text(content, encoding="utf-8")
+    return doc_path
+
+
 def test_persisted_index_matches_schema(tmp_path, index_artifact_schema):
     """CG-4: Proves the written meminit.index.json artifact conforms to its published schema."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
@@ -58,6 +74,29 @@ def test_persisted_index_matches_schema(tmp_path, index_artifact_schema):
 
     if errors:
         pytest.fail(f"Index artifact failed schema validation: {errors[0].message}")
+
+
+def test_persisted_index_allows_brownfield_nodes_with_missing_type_and_title(
+    tmp_path, index_artifact_schema
+):
+    """CG-4: Brownfield docs with partial metadata still validate against the published schema."""
+    _setup_incomplete_doc(tmp_path, "EXAMPLE-ADR-002")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    node = payload["data"]["nodes"][0]
+
+    assert node["type"] is None
+    assert node["title"] is None
+
+    validator = Draft7Validator(index_artifact_schema, format_checker=FormatChecker())
+    errors = list(validator.iter_errors(payload))
+
+    if errors:
+        pytest.fail(f"Brownfield index artifact failed schema validation: {errors[0].message}")
 
 
 def test_index_schema_fails_on_malformed_payload(index_artifact_schema):

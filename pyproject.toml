@@ -56,7 +56,7 @@ include-package-data = true
 "meminit.core.assets" = ["**/*"]
 
 [tool.pytest.ini_options]
-addopts = "-ra -q --cov=meminit"
+addopts = "-ra -q"
 testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [

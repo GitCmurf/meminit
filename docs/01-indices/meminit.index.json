@@ -3468,7 +3468,7 @@
           "queue",
           "docops"
         ],
-        "last_updated": "2026-04-21",
+        "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3949,7 +3949,7 @@
           "cli",
           "templates-v2"
         ],
-        "last_updated": "2026-04-21",
+        "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",

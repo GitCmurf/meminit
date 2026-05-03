@@ -122,7 +122,9 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 - Runtime correlation metadata remains available in CLI JSON output (`meminit index --format json`) rather than the committed index artifact.
 - Generated side views (`catalogue.md`, custom catalog names, `kanban.md`,
   `kanban.css`) are tracked operationally by Meminit-generated file markers and
-  cleaned up outside the canonical index artifact.
+  cleaned up outside the canonical index artifact. Cleanup only matches the
+  generated header marker after optional frontmatter, so ordinary notes files
+  that merely quote the marker are preserved.
 
 ## Tests
 

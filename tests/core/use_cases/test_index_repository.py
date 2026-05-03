@@ -81,6 +81,22 @@ def _setup_state_file(root: Path, documents: dict) -> Path:
     return state_path
 
 
+def _setup_repo_config(root: Path, *, project_name: str, repo_prefix: str) -> Path:
+    """Create a minimal docops.config.yaml for repo-prefix-sensitive tests."""
+    config_path = root / "docops.config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "project_name": project_name,
+                "repo_prefix": repo_prefix,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    return config_path
+
+
 # ---------------------------------------------------------------------------
 # Basic backward compatibility
 # ---------------------------------------------------------------------------
@@ -228,6 +244,7 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
 
 def test_index_generates_catalogue_md_by_default(tmp_path):
     """catalogue.md is generated with --output-catalog by default."""
+    _setup_repo_config(tmp_path, project_name="Example Project", repo_prefix="EXAMPLE")
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
@@ -237,6 +254,11 @@ def test_index_generates_catalogue_md_by_default(tmp_path):
     assert report.catalog_path.exists()
     assert report.catalog_path.name == "catalogue.md"
     content = report.catalog_path.read_text(encoding="utf-8")
+    assert content.startswith("---\n")
+    assert "document_id: EXAMPLE-INDEX-001" in content
+    assert "type: INDEX" in content
+    assert "title: Project Dashboard" in content
+    assert "\n---\n\n<!-- MEMINIT_GENERATED: catalog -->" in content
     assert "# Project Dashboard" in content
     assert "EXAMPLE-ADR-001" in content
     assert "First ADR" in content
@@ -268,6 +290,44 @@ def test_index_catalog_name_allows_catalog_md_override(tmp_path):
     assert report.catalog_path is not None
     assert report.catalog_path.name == "catalog.md"
     assert report.catalog_path.exists()
+
+
+def test_index_rerun_excludes_previous_custom_catalog_artifact(tmp_path):
+    """A rerun must not re-index the prior generated custom catalog as a document."""
+    _setup_repo_config(tmp_path, project_name="Example Project", repo_prefix="EXAMPLE")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
+
+    first_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md"
+    ).execute()
+    assert first_report.document_count == 1
+
+    second_report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md"
+    ).execute()
+
+    payload = json.loads(second_report.index_path.read_text(encoding="utf-8"))
+    node_ids = [node["document_id"] for node in payload["data"]["nodes"]]
+
+    assert second_report.document_count == 1
+    assert node_ids == ["EXAMPLE-ADR-001"]
+    assert "EXAMPLE-INDEX-001" not in node_ids
+
+
+def test_index_catalog_frontmatter_uses_repo_prefix_from_config(tmp_path):
+    """Catalog frontmatter should track the active repo prefix, not a fixed literal."""
+    _setup_repo_config(tmp_path, project_name="Example Project", repo_prefix="EXAMPLE")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="First ADR", status="Draft")
+
+    report = IndexRepositoryUseCase(
+        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md"
+    ).execute()
+
+    assert report.catalog_path is not None
+    assert report.catalog_path.name == "review-catalog.md"
+    content = report.catalog_path.read_text(encoding="utf-8")
+    assert "document_id: EXAMPLE-INDEX-001" in content
+    assert "document_id: MEMINIT-INDEX-001" not in content
 
 
 def test_index_catalog_not_generated_without_flag(tmp_path):
@@ -916,6 +976,52 @@ def test_index_cleanup_removes_legacy_catalog_path_artifact(tmp_path):
 
     assert report.index_path.exists()
     assert not legacy_catalog.exists()
+
+
+def test_index_cleanup_ignores_marker_mentions_in_user_docs(tmp_path):
+    """Cleanup must not unlink notes files that merely quote the generated marker."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    notes = index_dir / "notes.md"
+    notes.write_text(
+        "# Notes\n\n"
+        "This file documents <!-- MEMINIT_GENERATED: catalog --> in prose.\n",
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.index_path.exists()
+    assert notes.exists()
+
+
+def test_index_cleanup_removes_generated_marked_header_with_frontmatter(tmp_path):
+    """Cleanup should still remove generated Markdown with header markers."""
+    index_dir = tmp_path / "docs" / "01-indices"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    generated_view = index_dir / "review-catalog.md"
+    generated_view.write_text(
+        "---\n"
+        "document_id: EXAMPLE-INDEX-001\n"
+        "type: INDEX\n"
+        "title: Project Dashboard\n"
+        "status: Draft\n"
+        "version: \"1.0\"\n"
+        "last_updated: 2026-04-01\n"
+        "owner: GitCmurf\n"
+        "docops_version: \"2.0\"\n"
+        "---\n\n"
+        "<!-- MEMINIT_GENERATED: catalog -->\n\n"
+        "# Project Dashboard\n",
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.index_path.exists()
+    assert not generated_view.exists()
 
 
 def test_index_fatal_cleanup_missing_file_no_mask(tmp_path):

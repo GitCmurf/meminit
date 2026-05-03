@@ -39,6 +39,7 @@ from meminit.core.services.project_state import (
 )
 from meminit.core.services.repo_config import DEFAULT_CATALOG_NAME, load_repo_layout
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.sanitization import (
     MAX_NOTES_LENGTH,
     escape_markdown_table,
@@ -107,6 +108,25 @@ def _read_warning_severity(severity: str) -> str:
     return "warning" if severity == "fatal" else severity
 
 
+def _generated_marker_in_header(contents: str, marker: str) -> bool:
+    """Return True when a generated marker is the first non-empty header line.
+
+    Generated index-side Markdown views may include YAML frontmatter. We only
+    treat a file as Meminit-generated when the marker appears immediately after
+    the optional frontmatter block, before any substantive body content.
+    """
+    try:
+        post = safe_frontmatter_loads(contents)
+    except Exception:
+        return False
+
+    for line in post.content.splitlines():
+        if not line.strip():
+            continue
+        return line.strip() == marker
+    return False
+
+
 def _remove_stale_artifacts(
     index_dir: Path,
     catalog_name: Optional[str] = None,
@@ -145,14 +165,16 @@ def _remove_stale_artifacts(
     # catches historical custom catalog names without touching user files.
     for candidate in index_dir.glob("*.md"):
         try:
-            with candidate.open(encoding="utf-8") as f:
-                first_line = next(f, "")
+            contents = candidate.read_text(encoding="utf-8")
         except OSError:
             continue
-        if first_line.rstrip() in {
-            "<!-- MEMINIT_GENERATED: catalog -->",
-            "<!-- MEMINIT_GENERATED: kanban -->",
-        }:
+        if any(
+            _generated_marker_in_header(contents, marker)
+            for marker in (
+                "<!-- MEMINIT_GENERATED: catalog -->",
+                "<!-- MEMINIT_GENERATED: kanban -->",
+            )
+        ):
             known.add(candidate)
 
     for path in known:
@@ -387,11 +409,13 @@ def _format_md_table(headers: List[str], rows: List[List[str]]) -> str:
 def _generate_catalog(
     entries: List[Dict[str, Any]],
     generated_at: str,
+    repo_prefix: str,
     status_filter: Optional[List[str]] = None,
     impl_state_filter: Optional[List[str]] = None,
 ) -> str:
     """Generate catalog table view with dynamic padding and composite grouping."""
     lines: List[str] = []
+    lines.extend(_catalog_frontmatter(generated_at, repo_prefix))
     lines.append("<!-- MEMINIT_GENERATED: catalog -->")
     lines.append("")
     lines.append("# Project Dashboard")
@@ -480,6 +504,24 @@ def _generate_catalog(
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _catalog_frontmatter(generated_at: str, repo_prefix: str) -> List[str]:
+    """Return governed frontmatter for the generated catalog artifact."""
+    generated_date = generated_at[:10]
+    return [
+        "---",
+        f"document_id: {repo_prefix}-INDEX-001",
+        "type: INDEX",
+        "title: Project Dashboard",
+        "status: Draft",
+        'version: "1.0"',
+        f"last_updated: {generated_date}",
+        "owner: GitCmurf",
+        'docops_version: "2.0"',
+        "---",
+        "",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -909,8 +951,19 @@ class IndexRepositoryUseCase:
         index_path = self._layout.index_file
         ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
+        catalog_out_name = (
+            Path(self._catalog_name).name if self._output_catalog else None
+        )
 
         warnings_list: List[Dict[str, Any]] = []
+
+        # Remove any previously generated catalog/kanban artifacts before the
+        # scan so stale custom catalogs cannot be re-indexed as governed docs.
+        _remove_stale_artifacts(
+            index_path.parent,
+            catalog_name=catalog_out_name,
+            remove_index=False,
+        )
 
         # Load project state (gracefully optional).
         try:
@@ -1054,7 +1107,6 @@ class IndexRepositoryUseCase:
         graph_warnings, graph_advice, graph_fatal = graph.validate_graph_integrity(
             entries, all_edges, known_doc_ids, doc_id_paths,
         )
-        catalog_out_name = Path(self._catalog_name).name if self._output_catalog else None
         if graph_fatal:
             # Invalidate all stale generated artifacts so downstream
             # commands and human readers don't see outputs from a
@@ -1159,15 +1211,6 @@ class IndexRepositoryUseCase:
         # Apply filters.
         filtered = _apply_filters(entries, self._status_filter, self._impl_state_filter)
 
-        # Remove stale generated side views from previous runs before writing
-        # the current optional outputs. This keeps successful reruns from
-        # leaving obsolete catalog/kanban files behind when flags change.
-        _remove_stale_artifacts(
-            index_path.parent,
-            catalog_name=catalog_out_name,
-            remove_index=False,
-        )
-
         # Write main index JSON (recency/body fields stripped — internal only).
         # Keep canonical JSON unfiltered for downstream commands that depend on
         # full repository inventory (resolve/identify/link). Filters are for
@@ -1205,6 +1248,7 @@ class IndexRepositoryUseCase:
             catalog_content = _generate_catalog(
                 filtered,
                 generated_at,
+                repo_prefix=self._layout.default_namespace().repo_prefix,
                 status_filter=self._status_filter,
                 impl_state_filter=self._impl_state_filter,
             )
