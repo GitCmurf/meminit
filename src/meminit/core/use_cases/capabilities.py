@@ -66,7 +66,7 @@ class CapabilitiesUseCase:
                 "explain": True,
                 "capabilities": True,
                 "streaming": False,
-                "graph_index": False,
+                "graph_index": True,
             },
             "error_codes": sorted(code.value for code in ErrorCode),
         }

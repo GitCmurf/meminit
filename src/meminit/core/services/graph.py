@@ -220,6 +220,7 @@ def _check_duplicate_document_ids(
 
 def _check_supersession_cycle(
     edges: List[Edge],
+    doc_id_paths: Dict[str, List[str]],
 ) -> List[Dict[str, Any]]:
     """GRAPH_SUPERSESSION_CYCLE: supersession chain forms a cycle.
 
@@ -266,12 +267,20 @@ def _check_supersession_cycle(
                 if cycle_key not in seen_cycles:
                     seen_cycles.add(cycle_key)
                     cycle = list(cycle_key) + [cycle_key[0]]
+
+                    # Deterministic path for one involved document.
+                    report_path = ""
+                    for cid in sorted(cycle_key):
+                        if cid in doc_id_paths and doc_id_paths[cid]:
+                            report_path = sorted(doc_id_paths[cid])[0]
+                            break
+
                     errors.append(
                         {
                             "code": ErrorCode.GRAPH_SUPERSESSION_CYCLE.value,
                             "message": f"Supersession cycle detected: {' -> '.join(cycle)}",
                             "severity": Severity.ERROR.value,
-                            "path": "",
+                            "path": report_path,
                             "line": 0,
                         }
                     )
@@ -286,6 +295,7 @@ def _check_supersession_cycle(
 def _check_dangling_targets(
     edges: List[Edge],
     known_doc_ids: Set[str],
+    doc_id_paths: Dict[str, List[str]],
 ) -> List[Dict[str, Any]]:
     """Dangling edge targets: related_ids or superseded_by pointing to unknown document IDs."""
 
@@ -304,12 +314,19 @@ def _check_dangling_targets(
             edge.target if edge.edge_type == "related" else edge.source
         )
         if edge.edge_type in _CODE_MAP and dangling_end not in known_doc_ids:
+            # For dangling related_ids, report the declaring document path: edge.source.
+            # For dangling superseded_by, report the superseded document path: edge.target.
+            report_doc_id = edge.source if edge.edge_type == "related" else edge.target
+            report_path = ""
+            if report_doc_id in doc_id_paths and doc_id_paths[report_doc_id]:
+                report_path = sorted(doc_id_paths[report_doc_id])[0]
+
             warnings.append(
                 {
                     "code": _CODE_MAP[edge.edge_type],
                     "message": f"{_FIELD_MAP[edge.edge_type]} target '{dangling_end}' not found in index (declared by '{edge.source if edge.edge_type == 'related' else edge.target}')",
                     "severity": Severity.WARNING.value,
-                    "path": "",
+                    "path": report_path,
                     "line": 0,
                 }
             )
@@ -411,11 +428,11 @@ def validate_graph_integrity(
 
     # Fatal checks.
     errors.extend(_check_duplicate_document_ids(doc_id_paths))
-    errors.extend(_check_supersession_cycle(edges))
+    errors.extend(_check_supersession_cycle(edges, doc_id_paths))
 
     # Non-fatal checks (only run if no fatal errors to avoid noise).
     if not errors:
-        warnings.extend(_check_dangling_targets(edges, known_doc_ids))
+        warnings.extend(_check_dangling_targets(edges, known_doc_ids, doc_id_paths))
         warnings.extend(_check_supersession_status_mismatch(entries))
         advice.extend(_check_related_id_asymmetry(edges))
 

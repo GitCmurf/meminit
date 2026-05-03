@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import tempfile
+import uuid
 
 from pathlib import Path
 
@@ -124,7 +124,11 @@ def atomic_write(
     writes are visible to concurrent readers.
 
     If *file_mode* is given, it is applied to the temp file before the
-    atomic rename so that chmod failures abort the write entirely.
+    atomic rename so that chmod failures abort the write entirely. For new
+    files without an explicit mode, the temp file is created with 0o666 so the
+    kernel applies the current process umask without mutating global state.
+    On platforms that define ``os.O_BINARY``, the temp file is opened in binary
+    mode so byte content is preserved exactly.
 
     The caller is responsible for validating the target path with
     ``ensure_safe_write_path`` before calling this function.
@@ -139,18 +143,33 @@ def atomic_write(
         try:
             effective_mode = target_path.stat().st_mode & 0o777
         except OSError:
-            effective_mode = 0o666
+            effective_mode = None
 
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(target_path.parent),
-        prefix=f".{target_path.name}.tmp.",
-        suffix=".tmp",
-    )
-    try:
+    tmp_path = None
+    fd = None
+    for _ in range(100):
+        candidate = target_path.parent / f".{target_path.name}.tmp.{uuid.uuid4().hex}.tmp"
         try:
-            os.fchmod(fd, effective_mode)
-        except AttributeError:
-            os.chmod(tmp_path, effective_mode)
+            open_flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+            if hasattr(os, "O_BINARY"):
+                open_flags |= os.O_BINARY
+            fd = os.open(
+                candidate,
+                open_flags,
+                0o666 if effective_mode is None else effective_mode,
+            )
+        except FileExistsError:
+            continue
+        tmp_path = str(candidate)
+        break
+    if fd is None or tmp_path is None:
+        raise FileExistsError(f"Unable to create temporary file for '{target_path}'")
+    try:
+        if effective_mode is not None:
+            try:
+                os.fchmod(fd, effective_mode)
+            except AttributeError:
+                os.chmod(tmp_path, effective_mode)
         view = memoryview(data)
         written = 0
         while written < len(view):

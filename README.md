@@ -224,9 +224,12 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
+pytest --cov=meminit
 meminit doctor --root .
 meminit check --root .
 ```
+
+The coverage report is optional and requires the `pytest-cov` extra.
 
 ## Contributing
 

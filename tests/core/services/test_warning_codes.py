@@ -12,10 +12,14 @@ def test_warning_code_constants_exist():
     assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE == "W_STATE_UNKNOWN_IMPL_STATE"
     assert WarningCode.W_FIELD_SANITIZATION_FAILED == "W_FIELD_SANITIZATION_FAILED"
     assert WarningCode.W_STATE_UNSORTED_KEYS == "W_STATE_UNSORTED_KEYS"
+    assert WarningCode.GRAPH_DANGLING_RELATED_ID == "GRAPH_DANGLING_RELATED_ID"
+    assert WarningCode.GRAPH_DANGLING_SUPERSEDED_BY == "GRAPH_DANGLING_SUPERSEDED_BY"
+    assert WarningCode.GRAPH_SUPERSESSION_STATUS_MISMATCH == "GRAPH_SUPERSESSION_STATUS_MISMATCH"
+    assert WarningCode.PROTOCOL_SYNC_FORCE_USED == "PROTOCOL_SYNC_FORCE_USED"
 
 
-def test_warning_codes_prefixed_with_w():
-    """All warning codes start with W_ prefix."""
+def test_legacy_warning_codes_prefixed_with_w():
+    """Legacy warning codes (historical) start with W_ prefix."""
     for attr in dir(WarningCode):
         if attr.startswith("W_"):
             value = getattr(WarningCode, attr)

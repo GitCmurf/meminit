@@ -92,6 +92,18 @@
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-IMPL-001' lists 'MEMINIT-PLAN-010' in related_ids but 'MEMINIT-PLAN-010' does not list 'MEMINIT-IMPL-001'",
+      "source": "MEMINIT-IMPL-001",
+      "target": "MEMINIT-PLAN-010"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-IMPL-001' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-IMPL-001'",
+      "source": "MEMINIT-IMPL-001",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
       "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-004'",
       "source": "MEMINIT-PLAN-004",
       "target": "MEMINIT-PLAN-003"
@@ -669,8 +681,8 @@
   ],
   "command": "index",
   "data": {
-    "document_count": 74,
-    "edge_count": 221,
+    "document_count": 75,
+    "edge_count": 223,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -818,6 +830,20 @@
         "guaranteed": false,
         "source": "MEMINIT-GOV-002",
         "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-IMPL-001",
+        "target": "MEMINIT-PLAN-010"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-IMPL-001",
+        "target": "MEMINIT-PRD-005"
       },
       {
         "context": "body.markdown_link",
@@ -2234,7 +2260,7 @@
         "repo_prefix": "ORG"
       }
     ],
-    "node_count": 74,
+    "node_count": 75,
     "nodes": [
       {
         "area": null,
@@ -2902,6 +2928,31 @@
         "unblocks": []
       },
       {
+        "area": "AGENT",
+        "description": "Corrects the graph_index capability flag status from future-only to shipped.",
+        "document_id": "MEMINIT-IMPL-001",
+        "keywords": [
+          "capabilities",
+          "graph_index"
+        ],
+        "last_updated": "2026-04-30",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Codex",
+        "path": "docs/05-planning/impl-note-001-graph-index-capabilities.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-010",
+          "MEMINIT-PRD-005"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Graph Index Capabilities Correction",
+        "type": "Implementation Note",
+        "unblocks": []
+      },
+      {
         "area": null,
         "description": null,
         "document_id": "MEMINIT-PLAN-001",
@@ -3417,7 +3468,7 @@
           "queue",
           "docops"
         ],
-        "last_updated": "2026-04-21",
+        "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3549,7 +3600,7 @@
           "installer-contract",
           "brownfield-reuse"
         ],
-        "last_updated": "2026-04-25",
+        "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Meminit maintainers",
@@ -3898,7 +3949,7 @@
           "cli",
           "templates-v2"
         ],
-        "last_updated": "2026-04-21",
+        "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",

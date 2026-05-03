@@ -59,6 +59,32 @@ def test_atomic_write_retries_short_writes(tmp_path, monkeypatch):
     assert len(writes) >= 2, "Short write should trigger at least one retry"
 
 
+def test_atomic_write_opens_temp_file_in_binary_mode(tmp_path, monkeypatch):
+    """Atomic temp files should preserve bytes on platforms with O_BINARY."""
+    from meminit.core.services.safe_fs import atomic_write
+
+    target = tmp_path / "artifact.txt"
+    captured = {}
+    real_open = os.open
+
+    monkeypatch.setattr(os, "O_BINARY", 0x8000, raising=False)
+
+    def capture_open(path, flags, mode=0o777):
+        captured["path"] = Path(path)
+        captured["flags"] = flags
+        captured["mode"] = mode
+        return real_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    atomic_write(target, "line1\nline2")
+
+    assert captured["path"].parent == target.parent
+    assert captured["flags"] & os.O_WRONLY
+    assert captured["flags"] & os.O_BINARY
+    assert target.read_bytes() == b"line1\nline2"
+
+
 def test_atomic_write_preserves_existing_mode(tmp_path):
     from meminit.core.services.safe_fs import atomic_write
 
@@ -72,15 +98,25 @@ def test_atomic_write_preserves_existing_mode(tmp_path):
     assert target.stat().st_mode & 0o777 == 0o640
 
 
-def test_atomic_write_new_file_default_mode(tmp_path):
-    """New files (no pre-existing target) should get mode 0o666."""
+def test_atomic_write_new_file_default_mode_respects_umask(tmp_path, monkeypatch):
+    """New files should use the process umask without mutating global state."""
     from meminit.core.services.safe_fs import atomic_write
 
     target = tmp_path / "artifact.txt"
-    atomic_write(target, "new")
+    real_umask = os.umask
+    previous_umask = real_umask(0o027)
+
+    def fail_umask(mode):
+        raise AssertionError("atomic_write must not call os.umask")
+
+    monkeypatch.setattr("meminit.core.services.safe_fs.os.umask", fail_umask)
+    try:
+        atomic_write(target, "new")
+    finally:
+        real_umask(previous_umask)
 
     assert target.read_text(encoding="utf-8") == "new"
-    assert target.stat().st_mode & 0o777 == 0o666
+    assert target.stat().st_mode & 0o777 == 0o640
 
 
 def test_ensure_existing_regular_file_rejects_directory(tmp_path):

@@ -258,6 +258,144 @@ class TestEnvelopeValidity:
             + "\n".join(f"  - {e.message}" for e in errors)
         )
 
+
+class TestPayloadContracts:
+    """Specific data-payload field assertions for v3 contracts."""
+
+    def test_index_payload_fields(self, tmp_path):
+        """Step 1: index data must match the CLI envelope contract (SPEC-008)."""
+        _setup_initialized_repo(tmp_path)
+        result = _invoke_and_assert_output("index", tmp_path)
+        data = parse_first_json_line(result.output)["data"]
+
+        # Required fields
+        for field in ["index_path", "node_count", "edge_count", "nodes", "edges", "filtered"]:
+            assert field in data, f"Missing required index field: {field}"
+
+        # Persisted-artifact fields must NOT be in the CLI data payload
+        for field in ["index_version", "graph_schema_version", "document_count"]:
+            assert field not in data, f"Persisted-artifact field {field} leaked into CLI data"
+
+    def test_protocol_sync_payload_fields(self, tmp_path):
+        """Step 3: protocol sync must include dry_run as a stable field."""
+        _setup_initialized_repo(tmp_path)
+
+        # Dry-run mode (default)
+        r1 = _invoke_and_assert_output("protocol sync", tmp_path)
+        d1 = parse_first_json_line(r1.output)["data"]
+        assert d1["dry_run"] is True
+        assert "applied" in d1
+        assert "summary" in d1
+        assert "assets" in d1
+
+        # Apply mode
+        r2 = _invoke_and_assert_output("protocol sync", tmp_path, ["--no-dry-run"])
+        d2 = parse_first_json_line(r2.output)["data"]
+        assert d2["dry_run"] is False
+
+    def test_resolve_identify_link_success_payloads(self, tmp_path):
+        """Step 2: Successful resolution/identification/link payloads do not include 'found'."""
+        _setup_initialized_repo(tmp_path)
+        # Create a document so they succeed
+        doc_path = tmp_path / "docs" / "45-adr" / "adr-001.md"
+        doc_path.write_text(
+            "---\ndocument_id: TEST-ADR-001\ntype: ADR\ntitle: Test\nstatus: Draft\ndocops_version: '2.0'\n---\n# Test",
+            encoding="utf-8"
+        )
+        # We need an index for resolve/identify/link to work
+        index_result = CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        assert index_result.exit_code == 0, f"Indexing failed: {index_result.output}"
+
+        runner = CliRunner()
+        common_args = ["--format", "json", "--root", str(tmp_path)]
+
+        # Resolve
+        res = runner.invoke(cli, ["resolve"] + common_args + ["TEST-ADR-001"])
+        assert res.exit_code == 0
+        d_res = parse_first_json_line(res.output)["data"]
+        assert "document_id" in d_res
+        assert "path" in d_res
+        assert "found" not in d_res
+
+        # Identify
+        ident = runner.invoke(cli, ["identify"] + common_args + ["docs/45-adr/adr-001.md"])
+        assert ident.exit_code == 0
+        d_ident = parse_first_json_line(ident.output)["data"]
+        assert "path" in d_ident
+        assert "document_id" in d_ident
+        assert "found" not in d_ident
+
+        # Link
+        link = runner.invoke(cli, ["link"] + common_args + ["TEST-ADR-001"])
+        assert link.exit_code == 0
+        d_link = parse_first_json_line(link.output)["data"]
+        assert "document_id" in d_link
+        assert "link" in d_link
+        assert "found" not in d_link
+
+    def test_resolve_identify_link_not_found_behavior(self, tmp_path):
+        """Step 2: Misses are represented as FILE_NOT_FOUND error envelopes."""
+        _setup_initialized_repo(tmp_path)
+        index_result = CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
+        assert index_result.exit_code == 0, f"Indexing failed: {index_result.output}"
+
+        for cmd in ["resolve", "identify", "link"]:
+            args = cmd.split() + ["--format", "json", "--root", str(tmp_path), "NON_EXISTENT"]
+            result = CliRunner().invoke(cli, args)
+            assert result.exit_code != 0
+            payload = parse_first_json_line(result.output)
+            assert payload["success"] is False
+            assert payload["error"]["code"] == "FILE_NOT_FOUND"
+            assert "found" not in payload["data"]
+
+    def test_capabilities_payload_fields(self, tmp_path):
+        """CG-1: capabilities payload has required fields and no root."""
+        result = _invoke_and_assert_output("capabilities", tmp_path)
+        payload = parse_first_json_line(result.output)
+        assert "root" not in payload
+        data = payload["data"]
+        for field in ["capabilities_version", "cli_version", "commands", "features", "error_codes"]:
+            assert field in data, f"Missing {field} in capabilities data"
+
+    def test_explain_single_payload_fields(self, tmp_path):
+        """CG-1: explain single-code payload has correct detailed fields and no root."""
+        # Invoke explain for a known code
+        runner = CliRunner()
+        result = runner.invoke(cli, ["explain", "FILE_NOT_FOUND", "--format", "json"])
+        assert result.exit_code == 0
+        payload = parse_first_json_line(result.output)
+        assert "root" not in payload
+        data = payload["data"]
+        for field in ["code", "category", "summary", "cause", "remediation", "spec_reference"]:
+            assert field in data, f"Missing {field} in explain single data"
+
+        remed = data["remediation"]
+        for r_field in ["action", "resolution_type", "automatable", "relevant_commands"]:
+            assert r_field in remed, f"Missing {r_field} in remediation object"
+
+    def test_explain_list_payload_fields(self, tmp_path):
+        """CG-1: explain --list payload has correct summary fields and no root."""
+        result = _invoke_and_assert_output("explain", tmp_path)
+        payload = parse_first_json_line(result.output)
+        assert "root" not in payload
+        data = payload["data"]
+        assert "error_codes" in data
+        assert len(data["error_codes"]) > 0
+        first_code = data["error_codes"][0]
+        for field in ["code", "category", "summary"]:
+            assert field in first_code, f"Missing {field} in explain --list entry"
+
+    def test_protocol_check_payload_fields(self, tmp_path):
+        """CG-1: protocol check payload has summary and assets fields."""
+        _setup_initialized_repo(tmp_path)
+        result = _invoke_and_assert_output("protocol check", tmp_path)
+        data = parse_first_json_line(result.output)["data"]
+        assert "summary" in data
+        assert "assets" in data
+        summary = data["summary"]
+        for field in ["total", "aligned", "drifted", "unparseable"]:
+            assert field in summary, f"Missing {field} in protocol check summary"
+
 class TestCapabilitiesSelfConsistency:
     """Capabilities output must be internally consistent."""
 

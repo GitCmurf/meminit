@@ -246,9 +246,11 @@ class TestCheckSupersessionCycle:
             Edge("A", "B", "supersedes"),
             Edge("B", "A", "supersedes"),
         ]
-        errors = _check_cycles(edges)
+        doc_id_paths = {"A": ["a.md"], "B": ["b.md"]}
+        errors = _check_cycles(edges, doc_id_paths)
         assert len(errors) == 1
         assert errors[0]["code"] == "GRAPH_SUPERSESSION_CYCLE"
+        assert errors[0]["path"] == "a.md"  # sorted(cycle_key)[0] -> A -> a.md
 
     def test_transitive_cycle(self):
         edges = [
@@ -290,17 +292,21 @@ class TestCheckDanglingTargets:
 
     def test_dangling_related(self):
         edges = [Edge("A", "MISSING", "related")]
-        warnings = _check_dangling(edges, {"A"})
+        doc_id_paths = {"A": ["a.md"]}
+        warnings = _check_dangling(edges, {"A"}, doc_id_paths)
         assert len(warnings) == 1
         assert warnings[0]["code"] == "GRAPH_DANGLING_RELATED_ID"
         assert "MISSING" in warnings[0]["message"]
+        assert warnings[0]["path"] == "a.md"
 
     def test_dangling_superseded(self):
         edges = [Edge("MISSING", "A", "supersedes")]
-        warnings = _check_dangling(edges, {"A"})
+        doc_id_paths = {"A": ["a.md"]}
+        warnings = _check_dangling(edges, {"A"}, doc_id_paths)
         assert len(warnings) == 1
         assert warnings[0]["code"] == "GRAPH_DANGLING_SUPERSEDED_BY"
         assert "MISSING" in warnings[0]["message"]
+        assert warnings[0]["path"] == "a.md"  # superseded_by is target -> A -> a.md
 
 
 class TestCheckSupersessionStatusMismatch:
@@ -399,14 +405,14 @@ def _check_dup(doc_id_paths):
     return _check_duplicate_document_ids(doc_id_paths)
 
 
-def _check_cycles(edges):
+def _check_cycles(edges, doc_id_paths=None):
     from meminit.core.services.graph import _check_supersession_cycle
-    return _check_supersession_cycle(edges)
+    return _check_supersession_cycle(edges, doc_id_paths or {})
 
 
-def _check_dangling(edges, known_ids):
+def _check_dangling(edges, known_ids, doc_id_paths=None):
     from meminit.core.services.graph import _check_dangling_targets
-    return _check_dangling_targets(edges, known_ids)
+    return _check_dangling_targets(edges, known_ids, doc_id_paths or {})
 
 
 def _check_supersession_status(entries):

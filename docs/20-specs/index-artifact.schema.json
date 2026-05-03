@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meminit.io/schemas/index-artifact.schema.json",
+  "title": "Meminit Persisted Index Artifact",
+  "type": "object",
+  "required": [
+    "output_schema_version",
+    "success",
+    "command",
+    "data",
+    "warnings",
+    "violations",
+    "advice"
+  ],
+  "properties": {
+    "output_schema_version": {
+      "type": "string",
+      "enum": ["2.0"]
+    },
+    "success": {
+      "type": "boolean",
+      "enum": [true]
+    },
+    "command": {
+      "type": "string",
+      "enum": ["index"]
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "index_version",
+        "graph_schema_version",
+        "node_count",
+        "edge_count",
+        "document_count",
+        "namespaces",
+        "nodes",
+        "edges"
+      ],
+      "properties": {
+        "index_version": { "type": "string", "enum": ["1.0"] },
+        "graph_schema_version": { "type": "string", "enum": ["1.0"] },
+        "node_count": { "type": "integer", "minimum": 0 },
+        "edge_count": { "type": "integer", "minimum": 0 },
+        "document_count": { "type": "integer", "minimum": 0 },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["namespace", "docs_root", "repo_prefix"],
+            "properties": {
+              "namespace": { "type": "string" },
+              "docs_root": { "type": "string" },
+              "repo_prefix": { "type": "string" }
+            }
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["document_id", "path", "type", "title"],
+            "properties": {
+              "document_id": { "type": "string" },
+              "path": { "type": "string" },
+              "type": { "type": ["string", "null"] },
+              "title": { "type": ["string", "null"] }
+            },
+            "additionalProperties": true
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "target", "edge_type", "guaranteed"],
+            "properties": {
+              "source": { "type": "string" },
+              "target": { "type": "string" },
+              "edge_type": { "type": "string" },
+              "guaranteed": { "type": "boolean" },
+              "context": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "violations": {
+      "type": "array",
+      "items": { "type": "object" },
+      "maxItems": 0
+    },
+    "advice": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  },
+  "additionalProperties": false
+}

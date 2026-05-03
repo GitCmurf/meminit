@@ -45,9 +45,16 @@ The index artifact was upgraded from a flat document inventory to a graph-grade 
 ### Artifact shape
 
 - `index_version: "1.0"` with `graph_schema_version: "1.0"`.
-- `output_schema_version` belongs to the CLI envelope, not the committed index
-  artifact. The artifact schema itself uses `index_version` and
-  `graph_schema_version`.
+- The persisted index artifact uses an envelope-like structure to maintain
+  consistency with CLI outputs while ensuring a stable consumer contract.
+  It includes:
+  - `output_schema_version: "2.0"` (stable version for the persisted artifact)
+  - `success: true`
+  - `command: "index"`
+  - `data`: containing `nodes`, `edges`, and counters.
+  - `warnings`, `violations`, `advice`: diagnostic arrays.
+- The normative schema for the persisted artifact is defined in
+  `docs/20-specs/index-artifact.schema.json`.
 - Generated-view choices such as catalog filenames are operational metadata
   and are not persisted in the canonical index artifact.
 - The `documents` array was renamed to `nodes`. `document_count` is retained alongside new `node_count` and `edge_count`.
@@ -115,7 +122,9 @@ Fatal errors halt the build and are surfaced in the CLI JSON envelope `violation
 - Runtime correlation metadata remains available in CLI JSON output (`meminit index --format json`) rather than the committed index artifact.
 - Generated side views (`catalogue.md`, custom catalog names, `kanban.md`,
   `kanban.css`) are tracked operationally by Meminit-generated file markers and
-  cleaned up outside the canonical index artifact.
+  cleaned up outside the canonical index artifact. Cleanup only matches the
+  generated header marker after optional frontmatter, so ordinary notes files
+  that merely quote the marker are preserved.
 
 ## Tests
 
