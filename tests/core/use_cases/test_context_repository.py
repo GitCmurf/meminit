@@ -65,15 +65,41 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
-    (tmp_path / "docs" / "00-governance" / "b.md").write_text("# B\n", encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "a.md").write_text(
+        "---\n"
+        "document_id: DOC-A\n"
+        "type: ADR\n"
+        "title: A\n"
+        "---\n\n# A\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance" / "b.md").write_text(
+        "---\n"
+        "document_id: DOC-B\n"
+        "type: ADR\n"
+        "title: B\n"
+        "---\n\n# B\n",
+        encoding="utf-8",
+    )
     (tmp_path / "docs" / "WIP-notes.md").write_text("# WIP\n", encoding="utf-8")
     (tmp_path / "docs" / "00-governance" / "templates" / "tmpl.md").write_text(
         "# Template\n", encoding="utf-8"
     )
-    (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
+    (tmp_path / "docs-other" / "00-governance" / "c.md").write_text(
+        "---\n"
+        "document_id: DOC-C\n"
+        "type: ADR\n"
+        "title: C\n"
+        "---\n\n# C\n",
+        encoding="utf-8",
+    )
     (tmp_path / "docs" / "nested" / "00-governance" / "d.md").write_text(
-        "# D\n", encoding="utf-8"
+        "---\n"
+        "document_id: DOC-D\n"
+        "type: ADR\n"
+        "title: D\n"
+        "---\n\n# D\n",
+        encoding="utf-8",
     )
 
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
@@ -85,6 +111,36 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     assert namespaces[0]["document_count"] == 2
     assert namespaces[1]["document_count"] == 1
     assert namespaces[2]["document_count"] == 1
+    assert result.documents == [
+        {
+            "document_id": "DOC-A",
+            "namespace": "default",
+            "path": "docs/00-governance/a.md",
+            "title": "A",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-B",
+            "namespace": "default",
+            "path": "docs/00-governance/b.md",
+            "title": "B",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-C",
+            "namespace": "other",
+            "path": "docs-other/00-governance/c.md",
+            "title": "C",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-D",
+            "namespace": "nested",
+            "path": "docs/nested/00-governance/d.md",
+            "title": "D",
+            "type": "ADR",
+        },
+    ]
     assert result.warnings == []
 
 

@@ -2,6 +2,7 @@ import json
 from importlib import resources
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from click.testing import CliRunner
@@ -89,7 +90,7 @@ def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
     assert summary["governed_markdown_count"] == 0
     assert summary["notes"]
     assert summary["overlapping_namespaces"] == []
-    assert "configured_namespaces" not in summary
+    assert "configured_namespaces" in summary
 
 
 def test_scan_ndjson_emits_real_file_items(tmp_path):
@@ -146,6 +147,7 @@ def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_pat
     summary = _records(result.output)[-1]["data"]
     assert summary["docs_root"] == "docs"
     assert summary["governed_markdown_count"] >= 1
+    assert summary["configured_namespaces"]
     assert summary["overlapping_namespaces"]
     assert any(
         overlap.get("child_docs_root") == "docs/00-governance/org"
@@ -276,6 +278,66 @@ def test_context_deep_ndjson_includes_documents(tmp_path):
     assert summary["schema_path"]
     assert summary["deep_incomplete"] is False
     assert "namespaces" not in summary
+
+
+@patch("meminit.cli.main.ContextRepositoryUseCase")
+def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Example\nrepo_prefix: EXAMPLE\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    instance = mock_use_case.return_value
+    instance.execute.return_value = SimpleNamespace(
+        data={
+            "allowed_types": ["ADR"],
+            "config_path": "docops.config.yaml",
+            "default_owner": None,
+            "deep_incomplete": False,
+            "document_types": {"ADR": {"directory": "45-adr"}},
+            "index_path": "docs/.meminit/index.json",
+            "namespaces": [
+                {
+                    "name": "default",
+                    "docs_root": "docs",
+                    "document_types": {"ADR": {"directory": "45-adr"}},
+                }
+            ],
+            "project_name": "Example",
+            "schema_path": "docs/schema.json",
+            "repo_prefix": "EXAMPLE",
+        },
+        warnings=[],
+        documents=[
+            {
+                "document_id": "TEST-ADR-001",
+                "namespace": "default",
+                "path": "docs/45-adr/adr-001-test.md",
+                "title": "Test ADR",
+                "type": "ADR",
+            }
+        ],
+    )
+
+    result = CliRunner().invoke(
+        cli, ["context", "--root", str(tmp_path), "--deep", "--format", "ndjson"]
+    )
+
+    assert result.exit_code == 0, result.output
+    records = _records(result.output)
+    documents = [
+        record["data"]
+        for record in records
+        if record["record_type"] == "item" and record["kind"] == "document"
+    ]
+    assert documents == [
+        {
+            "document_id": "TEST-ADR-001",
+            "namespace": "default",
+            "path": "docs/45-adr/adr-001-test.md",
+            "title": "Test ADR",
+            "type": "ADR",
+        }
+    ]
 
 
 def test_index_ndjson_allows_external_output_path(tmp_path):

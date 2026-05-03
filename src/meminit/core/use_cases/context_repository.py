@@ -28,24 +28,29 @@ class ContextResult:
 
     data: Dict[str, Any]
     warnings: List[Dict[str, Any]] = field(default_factory=list)
+    documents: List[Dict[str, Any]] = field(default_factory=list)
 
 
 def _count_governed_markdown(
     layout: RepoLayout, ns: RepoConfig, *, deadline: float | None = None
-) -> int | None:
-    """Count markdown files under a docs directory.
+) -> tuple[int | None, list[Dict[str, Any]]]:
+    """Count markdown files under a docs directory and collect document items.
 
-    If ``deadline`` is provided and exceeded during traversal, returns None to
-    signal an incomplete count.
+    If ``deadline`` is provided and exceeded during traversal, returns
+    ``(None, documents)`` to signal an incomplete count while preserving any
+    documents already discovered.
     """
+    import frontmatter
+
     docs_dir = ns.docs_dir
     if not docs_dir.is_dir():
-        return 0
+        return 0, []
 
     count = 0
+    documents: list[Dict[str, Any]] = []
     for path in docs_dir.rglob("*"):
         if deadline is not None and time.monotonic() >= deadline:
-            return None
+            return None, documents
         if path.suffix.lower() != ".md":
             continue
         if not path.is_file():
@@ -56,7 +61,23 @@ def _count_governed_markdown(
         if ns.is_excluded(path):
             continue
         count += 1
-    return count
+        try:
+            post = frontmatter.load(path)
+        except Exception:
+            continue
+        doc_id = post.metadata.get("document_id")
+        if not isinstance(doc_id, str) or not doc_id.strip():
+            continue
+        documents.append(
+            {
+                "document_id": doc_id.strip(),
+                "path": path.relative_to(layout.root_dir).as_posix(),
+                "type": post.metadata.get("type"),
+                "title": post.metadata.get("title"),
+                "namespace": ns.namespace,
+            }
+        )
+    return count, documents
 
 
 def _load_config_yaml(root_dir: Path) -> Dict[str, Any]:
@@ -171,6 +192,7 @@ class ContextRepositoryUseCase:
             "repo_prefix": default_ns.repo_prefix,
             "schema_path": default_ns.schema_path,
         }
+        documents: List[Dict[str, Any]] = []
 
         if deep:
             budget_seconds = 10.0
@@ -187,7 +209,7 @@ class ContextRepositoryUseCase:
                         rest["document_count"] = None
                     break
 
-                count = _count_governed_markdown(
+                count, ns_documents = _count_governed_markdown(
                     layout,
                     namespaces_sorted[i],
                     deadline=deadline,
@@ -199,6 +221,7 @@ class ContextRepositoryUseCase:
                         rest["document_count"] = None
                     break
                 ns_entry["document_count"] = count
+                documents.extend(ns_documents)
 
             context_data["deep_incomplete"] = deep_incomplete
             if deep_incomplete:
@@ -213,4 +236,13 @@ class ContextRepositoryUseCase:
                     }
                 )
 
-        return ContextResult(data=context_data, warnings=warnings)
+        documents_sorted = sorted(
+            documents,
+            key=lambda row: (row["document_id"], row["path"]),
+        )
+
+        return ContextResult(
+            data=context_data,
+            warnings=warnings,
+            documents=documents_sorted,
+        )

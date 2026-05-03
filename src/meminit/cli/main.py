@@ -474,39 +474,6 @@ def _emit_items(emit: StreamEmitter, kind: str, rows: list[dict[str, Any]]) -> N
         emit.emit_item(kind, row)
 
 
-def _context_document_items(root_path: Path) -> list[dict[str, Any]]:
-    import frontmatter
-
-    from meminit.core.services.repo_config import load_repo_layout
-
-    layout = load_repo_layout(root_path)
-    documents: list[dict[str, Any]] = []
-    for ns in layout.namespaces:
-        if not ns.docs_dir.exists():
-            continue
-        for path in ns.docs_dir.rglob("*.md"):
-            owner = layout.namespace_for_path(path)
-            if owner is None or owner.namespace != ns.namespace or ns.is_excluded(path):
-                continue
-            try:
-                post = frontmatter.load(path)
-            except Exception:
-                continue
-            doc_id = post.metadata.get("document_id")
-            if not isinstance(doc_id, str) or not doc_id.strip():
-                continue
-            documents.append(
-                {
-                    "document_id": doc_id.strip(),
-                    "path": path.relative_to(root_path).as_posix(),
-                    "type": post.metadata.get("type"),
-                    "title": post.metadata.get("title"),
-                    "namespace": ns.namespace,
-                }
-            )
-    return sorted(documents, key=lambda row: row["document_id"])
-
-
 def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, Any]]:
     from meminit.core.services.repo_config import load_repo_layout
 
@@ -1449,7 +1416,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                         suggestions.append({"code": key, "value": value})
                 for item in sorted(suggestions, key=lambda r: r["code"]):
                     emit.emit_item("suggestion", item)
-                summary = _summary_data(scan_data, "configured_namespaces")
+                summary = _summary_data(scan_data)
                 return SummaryPayload(data=summary)
 
             streaming_output_handler(
@@ -3409,8 +3376,7 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                     "document_type",
                     sorted(doc_type_rows, key=lambda r: r.get("type", "")),
                 )
-                documents = _context_document_items(root_path)
-                _emit_items(emit, "document", documents)
+                _emit_items(emit, "document", result.documents)
                 summary = _summary_data(result.data, "namespaces")
                 return SummaryPayload(data=summary, warnings=result.warnings)
 
