@@ -88,6 +88,14 @@ class ErrorCode(str, Enum):
     PROTOCOL_ASSET_UNPARSEABLE = "PROTOCOL_ASSET_UNPARSEABLE"
     PROTOCOL_SYNC_WRITE_FAILED = "PROTOCOL_SYNC_WRITE_FAILED"
 
+    # Streaming output and incremental cache error codes (Phase 5)
+    STREAM_UNSUPPORTED_FORMAT = "STREAM_UNSUPPORTED_FORMAT"
+    STREAM_PRODUCER_FAILED = "STREAM_PRODUCER_FAILED"
+    STREAM_INTERRUPTED = "STREAM_INTERRUPTED"
+    CACHE_LOCK_HELD = "CACHE_LOCK_HELD"
+    CACHE_ENTRY_INVALID = "CACHE_ENTRY_INVALID"
+    CACHE_WRITE_FAILED = "CACHE_WRITE_FAILED"
+
 
 # ---------------------------------------------------------------------------
 # Error explanation registry (co-located with ErrorCode per MEMINIT-PLAN-010 §3.4.3)
@@ -823,6 +831,89 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         spec_reference="MEMINIT-SPEC-006",
     ),
 }
+
+ERROR_EXPLANATIONS.update(
+    {
+        ErrorCode.STREAM_UNSUPPORTED_FORMAT.value: ErrorExplanation(
+            code=ErrorCode.STREAM_UNSUPPORTED_FORMAT.value,
+            category="agent",
+            summary="The command does not support NDJSON streaming for this invocation.",
+            cause="The caller requested --format ndjson for a command or mode that has no streaming capability.",
+            remediation=RemediationInfo(
+                action="Check meminit capabilities and use --format json, or add the required command mode such as context --deep.",
+                resolution_type="manual",
+                automatable=False,
+                relevant_commands=["capabilities", "context"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+        ErrorCode.STREAM_PRODUCER_FAILED.value: ErrorExplanation(
+            code=ErrorCode.STREAM_PRODUCER_FAILED.value,
+            category="agent",
+            summary="The streaming producer failed before writing a summary.",
+            cause="A streaming command raised an unexpected exception while producing records.",
+            remediation=RemediationInfo(
+                action="Re-run with standard JSON to isolate the failing command, then inspect stderr or MEMINIT_LOG_FILE for the internal exception.",
+                resolution_type="manual",
+                automatable=False,
+                relevant_commands=["index", "scan", "context"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+        ErrorCode.STREAM_INTERRUPTED.value: ErrorExplanation(
+            code=ErrorCode.STREAM_INTERRUPTED.value,
+            category="agent",
+            summary="The NDJSON stream was interrupted by a termination signal.",
+            cause="The process received SIGINT or SIGTERM during record emission.",
+            remediation=RemediationInfo(
+                action="Retry the command. Treat records before the terminal error as partial diagnostic output only.",
+                resolution_type="retryable",
+                automatable=True,
+                relevant_commands=["index", "scan", "context"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+        ErrorCode.CACHE_LOCK_HELD.value: ErrorExplanation(
+            code=ErrorCode.CACHE_LOCK_HELD.value,
+            category="agent",
+            summary="The incremental index cache is locked by another process.",
+            cause="Another meminit index invocation currently owns the repo-local cache lock.",
+            remediation=RemediationInfo(
+                action="Wait for the other index run to finish, then retry; use --no-cache when a rebuild must not wait.",
+                resolution_type="retryable",
+                automatable=True,
+                relevant_commands=["index"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+        ErrorCode.CACHE_ENTRY_INVALID.value: ErrorExplanation(
+            code=ErrorCode.CACHE_ENTRY_INVALID.value,
+            category="agent",
+            summary="A cached index fragment was invalid and was recomputed.",
+            cause="A cache entry was missing, malformed, or inconsistent with the current file fingerprint.",
+            remediation=RemediationInfo(
+                action="No manual action is required unless the warning repeats; use meminit index --rebuild-cache to reset the cache.",
+                resolution_type="auto_fixable",
+                automatable=True,
+                relevant_commands=["index"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+        ErrorCode.CACHE_WRITE_FAILED.value: ErrorExplanation(
+            code=ErrorCode.CACHE_WRITE_FAILED.value,
+            category="agent",
+            summary="Meminit could not write the incremental index cache.",
+            cause="The repo-local .meminit/cache/index directory or one of its files could not be written atomically.",
+            remediation=RemediationInfo(
+                action="Check repository permissions and path safety, then retry with --rebuild-cache.",
+                resolution_type="manual",
+                automatable=False,
+                relevant_commands=["index"],
+            ),
+            spec_reference="MEMINIT-SPEC-011",
+        ),
+    }
+)
 
 
 class MeminitError(Exception):

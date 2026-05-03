@@ -31,6 +31,8 @@ related_ids:
   - MEMINIT-RUNBOOK-006
   - MEMINIT-PRD-007
   - MEMINIT-PLAN-013
+  - MEMINIT-SPEC-011
+  - MEMINIT-FDD-014
   - ORG-GOV-001
   - MEMINIT-GOV-003
 ---
@@ -217,16 +219,22 @@ Notes:
 
 ### FR-3 Streaming Output Mode for Large Payload Commands
 
-Requirement: Commands expected to produce large payloads (at minimum `scan`,
-`index`, and any `--deep` modes) SHOULD support `--format ndjson`.
+Requirement: Commands expected to produce large payloads MUST support the
+MEMINIT-SPEC-011 NDJSON contract where Phase 5 marks them as opted in.
+The normative Phase 5 set is `scan`, `index`, and `context --deep`.
 
 Notes:
 
-- NDJSON records MUST be self-describing and include `output_schema_version`.
-- If NDJSON is introduced, v2 MUST define:
-  - a deterministic record order,
-  - an end-of-stream summary record (or equivalent),
-  - and error behavior (how operational errors are represented mid-stream).
+- NDJSON records MUST be self-describing and include
+  `stream_schema_version: "1.0"`.
+- `meminit capabilities --format json` MUST advertise
+  `supports_ndjson` per command and `features.streaming: true` when any
+  command has opted in.
+- `--format json` remains the default machine contract and continues to emit
+  one v3 envelope. `--format ndjson` emits a header, zero or more item records,
+  and one terminal summary or error record.
+- `meminit context --format ndjson` without `--deep` MUST fail with
+  `STREAM_UNSUPPORTED_FORMAT`.
 
 ### FR-4 Structured Logging Surface (Optional)
 

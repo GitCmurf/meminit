@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-014
 type: PLAN
 title: Phase 5 Detailed Implementation Plan
 status: Draft
-version: '0.3'
-last_updated: '2026-04-19'
+version: '0.4'
+last_updated: '2026-05-03'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -28,8 +28,8 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-014
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-19
+> **Version:** 0.4
+> **Last Updated:** 2026-05-03
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Detailed implementation plan for MEMINIT-PLAN-008 Phase 5 scale and streaming work.
@@ -1138,3 +1138,4 @@ true:
 | 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
 | 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 5 workstreams, sequencing, and exit criteria |
 | 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
+| 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |

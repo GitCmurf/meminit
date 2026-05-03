@@ -184,6 +184,16 @@ def generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
+def canonical_json_dumps(payload: Any) -> str:
+    """Serialize payload as deterministic compact JSON."""
+    return json.dumps(
+        recursively_sort_keys(payload),
+        separators=(",", ":"),
+        default=str,
+        sort_keys=True,
+    )
+
+
 def normalize_correlation_id(correlation_id: str | None) -> str | None:
     """Validate and normalize a caller-supplied correlation ID.
 

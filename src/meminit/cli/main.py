@@ -11,6 +11,12 @@ from rich.console import Console
 from rich.table import Table
 
 from meminit.cli.shared_flags import agent_output_options, agent_repo_options
+from meminit.cli.streaming import (
+    StreamEmitter,
+    SummaryPayload,
+    streaming_output_handler,
+    unsupported_ndjson,
+)
 from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import (
@@ -99,7 +105,16 @@ def command_output_handler(
     try:
         yield
     except MeminitError as e:
-        if format == "json":
+        if format == "ndjson":
+            StreamEmitter(
+                command=command_name,
+                root=root_path,
+                run_id=run_id,
+                stream=sys.stdout,
+                correlation_id=correlation_id,
+                include_timestamp=include_timestamp,
+            ).emit_error(e.code, e.message, e.details)
+        elif format == "json":
             _write_output(
                 format_error_envelope(
                     command=command_name,
@@ -298,6 +313,82 @@ def _write_output(
                 click.echo(f"Error writing output file '{output}': {exc}", err=True)
             raise SystemExit(EX_CANTCREAT)
     click.echo(output_str, nl=add_newline)
+
+
+def _filter_index_edges(
+    report: Any, *, status_filter: str | None, impl_state_filter: str | None
+) -> list[dict[str, Any]]:
+    has_filter = status_filter is not None or impl_state_filter is not None
+    if not has_filter:
+        return report.edges
+    visible_ids = {n["document_id"] for n in report.documents}
+    return [
+        e for e in report.edges
+        if e.get("source") in visible_ids and e.get("target") in visible_ids
+    ]
+
+
+def _index_output_data(
+    report: Any,
+    root_path: Path,
+    *,
+    status_filter: str | None = None,
+    impl_state_filter: str | None = None,
+) -> dict[str, Any]:
+    display_edges = _filter_index_edges(
+        report, status_filter=status_filter, impl_state_filter=impl_state_filter
+    )
+    data: dict[str, Any] = {
+        "index_path": relative_path_string(report.index_path, root_path),
+        "node_count": report.document_count,
+        "edge_count": len(display_edges),
+        "nodes": report.documents,
+        "edges": display_edges,
+        "filtered": status_filter is not None or impl_state_filter is not None,
+    }
+    if report.catalog_path:
+        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
+    if report.kanban_path:
+        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+    return data
+
+
+def _emit_items(emit: StreamEmitter, kind: str, rows: list[dict[str, Any]]) -> None:
+    for row in rows:
+        emit.emit_item(kind, row)
+
+
+def _context_document_items(root_path: Path) -> list[dict[str, Any]]:
+    import frontmatter
+
+    from meminit.core.services.repo_config import load_repo_layout
+
+    layout = load_repo_layout(root_path)
+    documents: list[dict[str, Any]] = []
+    for ns in layout.namespaces:
+        if not ns.docs_dir.exists():
+            continue
+        for path in ns.docs_dir.rglob("*.md"):
+            owner = layout.namespace_for_path(path)
+            if owner is None or owner.namespace != ns.namespace or ns.is_excluded(path):
+                continue
+            try:
+                post = frontmatter.load(path)
+            except Exception:
+                continue
+            doc_id = post.metadata.get("document_id")
+            if not isinstance(doc_id, str) or not doc_id.strip():
+                continue
+            documents.append(
+                {
+                    "document_id": doc_id.strip(),
+                    "path": path.relative_to(root_path).as_posix(),
+                    "type": post.metadata.get("type"),
+                    "title": post.metadata.get("title"),
+                    "namespace": ns.namespace,
+                }
+            )
+    return sorted(documents, key=lambda row: row["document_id"])
 
 
 @contextlib.contextmanager
@@ -1168,6 +1259,54 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
         report = use_case.execute(generate_plan=bool(plan))
         scan_data = report.as_dict()
 
+        if format == "ndjson":
+            if plan:
+                raise unsupported_ndjson(
+                    "scan",
+                    "meminit scan --format ndjson does not support --plan; run scan --format json --plan for plan artifacts.",
+                )
+
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                configured = scan_data.get("configured_namespaces", [])
+                for item in sorted(
+                    configured, key=lambda r: str(r.get("namespace", ""))
+                ):
+                    emit.emit_item("file", item)
+                suggestions = []
+                for key in (
+                    "suggested_type_directories",
+                    "ambiguous_types",
+                    "suggested_namespaces",
+                ):
+                    value = scan_data.get(key)
+                    if value:
+                        suggestions.append({"code": key, "value": value})
+                for item in sorted(suggestions, key=lambda r: r["code"]):
+                    emit.emit_item("suggestion", item)
+                summary = {
+                    "files_scanned": scan_data.get("markdown_count", 0),
+                    "suggestion_count": len(suggestions),
+                    "config_preview": {
+                        "docs_root": scan_data.get("docs_root"),
+                        "suggested_type_directories": scan_data.get(
+                            "suggested_type_directories", {}
+                        ),
+                        "suggested_namespaces": scan_data.get("suggested_namespaces", []),
+                    },
+                }
+                return SummaryPayload(data=summary)
+
+            streaming_output_handler(
+                command="scan",
+                producer=produce,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+            return
+
         if plan and report.plan:
             plan_path = Path(plan)
             if not _is_safe_path(plan_path):
@@ -1558,6 +1697,24 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
         "(if omitted, uses config or defaults to catalogue.md)."
     ),
 )
+@click.option(
+    "--no-cache",
+    is_flag=True,
+    default=False,
+    help="Skip the incremental index cache.",
+)
+@click.option(
+    "--rebuild-cache",
+    is_flag=True,
+    default=False,
+    help="Rebuild the incremental index cache.",
+)
+@click.option(
+    "--explain-cache",
+    is_flag=True,
+    default=False,
+    help="Describe the current index cache manifest without rebuilding.",
+)
 def index(
     root,
     format,
@@ -1569,6 +1726,9 @@ def index(
     output_catalog,
     output_kanban,
     catalog_name,
+    no_cache,
+    rebuild_cache,
+    explain_cache,
 ):
     """Build or update the repository index artifact."""
     run_id = get_current_run_id()
@@ -1587,6 +1747,51 @@ def index(
             output=output,
             correlation_id=correlation_id,
         )
+        if no_cache and rebuild_cache:
+            raise MeminitError(
+                ErrorCode.E_INVALID_FILTER_VALUE,
+                "--no-cache and --rebuild-cache are mutually exclusive.",
+                details={"flags": ["--no-cache", "--rebuild-cache"]},
+        )
+        if explain_cache:
+            cache_manifest = (
+                root_path / ".meminit" / "cache" / "index" / "manifest.json"
+            )
+            summary: dict[str, Any] = {
+                "cache_path": relative_path_string(cache_manifest, root_path),
+                "exists": cache_manifest.is_file(),
+            }
+            if cache_manifest.is_file():
+                try:
+                    manifest = json.loads(cache_manifest.read_text(encoding="utf-8"))
+                    summary.update(
+                        {
+                            "manifest_schema_version": manifest.get(
+                                "manifest_schema_version"
+                            ),
+                            "file_count": len(manifest.get("files", [])),
+                            "config_sha256": manifest.get("config_sha256"),
+                            "schema_sha256": manifest.get("schema_sha256"),
+                        }
+                    )
+                except (OSError, json.JSONDecodeError) as exc:
+                    summary["warning"] = {
+                        "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                        "message": f"Cache manifest is not readable JSON: {exc.__class__.__name__}",
+                    }
+            _write_output(
+                format_envelope(
+                    command="index",
+                    root=str(root_path),
+                    success=True,
+                    data={"cache": summary},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            return
 
         use_case = IndexRepositoryUseCase(
             root_dir=str(root_path),
@@ -1643,33 +1848,65 @@ def index(
             w.get("severity") == Severity.ERROR.value for w in warnings_list
         )
         status = "error" if has_error else ("warn" if warnings_list else "ok")
+        data = _index_output_data(
+            report,
+            root_path,
+            status_filter=status_filter,
+            impl_state_filter=impl_state_filter,
+        )
+        display_edges = data["edges"]
 
-        # Filter edges to only include those whose endpoints are in the visible
-        # node set — but only when the user requested node filtering.  On the
-        # unfiltered path we must preserve dangling edges (e.g. related_ids
-        # pointing to a non-existent document) so agents see the full graph.
-        has_filter = status_filter is not None or impl_state_filter is not None
-        if has_filter:
-            visible_ids = {n["document_id"] for n in report.documents}
-            display_edges = [
-                e for e in report.edges
-                if e.get("source") in visible_ids and e.get("target") in visible_ids
-            ]
-        else:
-            display_edges = report.edges
+        if format == "ndjson":
 
-        data: Dict[str, Any] = {
-            "index_path": relative_path_string(report.index_path, root_path),
-            "node_count": report.document_count,
-            "edge_count": len(display_edges),
-            "nodes": report.documents,
-            "edges": display_edges,
-            "filtered": has_filter,
-        }
-        if report.catalog_path:
-            data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
-        if report.kanban_path:
-            data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                _emit_items(
+                    emit,
+                    "node",
+                    sorted(data["nodes"], key=lambda n: n.get("document_id", "")),
+                )
+                _emit_items(
+                    emit,
+                    "edge",
+                    sorted(
+                        display_edges,
+                        key=lambda e: (
+                            e.get("source", ""),
+                            e.get("target", ""),
+                            e.get("type", e.get("edge_type", "")),
+                        ),
+                    ),
+                )
+                summary = {
+                    "artifact_path": data["index_path"],
+                    "index_version": "1.0",
+                    "node_count": data["node_count"],
+                    "edge_count": data["edge_count"],
+                    "rebuild": {
+                        "mode": "full" if no_cache or rebuild_cache else "incremental",
+                        "added": 0,
+                        "removed": 0,
+                        "changed": 0,
+                        "unchanged": data["node_count"],
+                    },
+                }
+                return SummaryPayload(
+                    data=summary,
+                    warnings=warnings_list,
+                    advice=getattr(report, "advice", []),
+                )
+
+            streaming_output_handler(
+                command="index",
+                producer=produce,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+            if has_error:
+                raise SystemExit(1)
+            return
 
         if format == "json":
             _write_output(
@@ -2968,6 +3205,49 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
         result = use_case.execute(deep=deep)
+
+        if format == "ndjson":
+            if not deep:
+                raise unsupported_ndjson(
+                    "context",
+                    "meminit context --format ndjson requires --deep.",
+                )
+
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                namespaces = result.data.get("namespaces", [])
+                for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
+                    emit.emit_item("namespace", ns)
+                doc_type_rows = []
+                for doc_type, payload in result.data.get("document_types", {}).items():
+                    row = {"type": doc_type}
+                    if isinstance(payload, dict):
+                        row.update(payload)
+                    doc_type_rows.append(row)
+                _emit_items(
+                    emit,
+                    "document_type",
+                    sorted(doc_type_rows, key=lambda r: r.get("type", "")),
+                )
+                documents = _context_document_items(root_path)
+                _emit_items(emit, "document", documents)
+                summary = {
+                    "repo_prefix": result.data.get("repo_prefix"),
+                    "namespace_count": len(namespaces),
+                    "document_type_count": len(doc_type_rows),
+                    "document_count": len(documents),
+                }
+                return SummaryPayload(data=summary, warnings=result.warnings)
+
+            streaming_output_handler(
+                command="context",
+                producer=produce,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+            return
 
         if format == "json":
             _write_output(

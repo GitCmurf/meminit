@@ -19,6 +19,7 @@ related_ids:
   - MEMINIT-SPEC-008
   - MEMINIT-PRD-007
   - MEMINIT-PLAN-013
+  - MEMINIT-SPEC-011
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -63,6 +64,8 @@ Categories:
 | Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
 | Graph      | Codes for graph integrity violations during `meminit index` build.  |
 | Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`). |
+| Streaming  | Codes for NDJSON stream negotiation and producer failures.          |
+| Cache      | Codes for repo-local incremental index cache failures.              |
 
 ## 3. Canonical ErrorCode Inventory
 
@@ -118,6 +121,13 @@ The canonical implementation is `src/meminit/core/services/error_codes.py`. The 
 | `PROTOCOL_ASSET_STALE`     | Protocol   | A protocol asset's managed region is version/hash-stale vs canonical. |
 | `PROTOCOL_ASSET_TAMPERED`  | Protocol   | A protocol asset's managed region was edited without updating markers. |
 | `PROTOCOL_ASSET_UNPARSEABLE` | Protocol | A protocol asset's markers are malformed (unparseable state). |
+| `PROTOCOL_SYNC_WRITE_FAILED` | Protocol | Protocol sync could not write a managed asset. |
+| `STREAM_UNSUPPORTED_FORMAT` | Streaming | `--format ndjson` was requested for an unsupported command or mode. |
+| `STREAM_PRODUCER_FAILED` | Streaming | A streaming producer failed before a terminal summary. |
+| `STREAM_INTERRUPTED` | Streaming | The process was interrupted while emitting a stream. |
+| `CACHE_LOCK_HELD` | Cache | Another index process owns the repo-local cache lock. |
+| `CACHE_ENTRY_INVALID` | Cache | A cache entry was invalid and was recomputed or ignored. |
+| `CACHE_WRITE_FAILED` | Cache | The repo-local index cache could not be written safely. |
 
 ## 4. Adding a New Error Code
 

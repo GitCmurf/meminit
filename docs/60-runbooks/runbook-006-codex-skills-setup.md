@@ -122,10 +122,29 @@ Does not:
 
 The `meminit-docops` skill is designed to work with the **v3 output contract** (see MEMINIT-SPEC-008). When developing or modifying skills that consume Meminit:
 
-1. **Always use `--format json`** for machine parsing.
-2. **Expect exactly one JSON object on STDOUT**.
-3. **Handle errors structuredly** via the `error` object in the envelope.
-4. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+1. **Use `--format json` by default** for machine parsing.
+2. **Expect exactly one JSON object on STDOUT** for JSON mode.
+3. **Use `--format ndjson` only for opted-in large-output commands** advertised by `meminit capabilities --format json`.
+4. **Handle errors structuredly** via the `error` object in JSON envelopes or the terminal `error` record in NDJSON streams.
+5. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+
+### JSON vs NDJSON Decision Table
+
+| Use case | Recommended format | Reason |
+| -------- | ------------------ | ------ |
+| Bootstrapping repo constraints | `meminit context --format json` | Bounded output; one envelope is simpler |
+| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace and type records |
+| Building graph artifacts for agents | `meminit index --format ndjson` | Streams graph items and still writes the persisted index |
+| Brownfield migration scan | `meminit scan --format ndjson` | Streams scan inventory and suggestions |
+| CI gates and small commands | `--format json` | Stable v3 envelope and easier assertions |
+
+### Streaming Troubleshooting
+
+- A stream is valid only if the last record is `summary` or `error`.
+- `STREAM_UNSUPPORTED_FORMAT` means the command or mode does not support NDJSON; check `supports_ndjson` in `meminit capabilities`.
+- A truncated stream should be discarded and the command retried with `--format json` if a single diagnostic envelope is easier to inspect.
+- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat.
+- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding.
 
 ## Bounded Codex Review-Remediation Loop
 

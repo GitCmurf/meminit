@@ -73,6 +73,13 @@ def test_exit_code_for_error_mappings():
         ErrorCode.PROTOCOL_ASSET_TAMPERED: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_ASSET_UNPARSEABLE: EX_COMPLIANCE_FAIL,
         ErrorCode.PROTOCOL_SYNC_WRITE_FAILED: EX_NOPERM,
+        # Streaming and cache error codes
+        ErrorCode.STREAM_UNSUPPORTED_FORMAT: EX_USAGE,
+        ErrorCode.STREAM_PRODUCER_FAILED: EX_DATAERR,
+        ErrorCode.STREAM_INTERRUPTED: EX_DATAERR,
+        ErrorCode.CACHE_LOCK_HELD: EX_CANTCREAT,
+        ErrorCode.CACHE_ENTRY_INVALID: EX_DATAERR,
+        ErrorCode.CACHE_WRITE_FAILED: EX_CANTCREAT,
     }
 
     # Verify every defined ErrorCode is in our test expectation

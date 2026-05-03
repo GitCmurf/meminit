@@ -30,13 +30,13 @@ class CapabilitiesUseCase:
             "cli_version": get_cli_version(),
             "output_schema_version": OUTPUT_SCHEMA_VERSION_V3,
             "commands": commands,
-            "output_formats": ["json", "md", "text"],
+            "output_formats": ["json", "md", "ndjson", "text"],
             "global_flags": sorted(
                 [
                     {
                         "flag": "--format",
                         "type": "choice",
-                        "values": ["text", "json", "md"],
+                        "values": ["text", "json", "md", "ndjson"],
                         "default": "text",
                         "description": "Output format",
                     },
@@ -65,7 +65,7 @@ class CapabilitiesUseCase:
                 "structured_output": True,
                 "explain": True,
                 "capabilities": True,
-                "streaming": False,
+                "streaming": any(c.get("supports_ndjson", False) for c in commands),
                 "graph_index": True,
             },
             "error_codes": sorted(code.value for code in ErrorCode),
