@@ -20,15 +20,25 @@ def test_streaming_commands_emit_only_json_lines_on_stdout(
 ):
     monkeypatch.setenv("MEMINIT_LOG_FILE", "-")
     commands = [
-        ["index", "--root", str(initialized_repo), "--format", "ndjson"],
-        ["scan", "--root", str(initialized_repo), "--format", "ndjson"],
-        ["context", "--root", str(initialized_repo), "--deep", "--format", "ndjson"],
+        ["--verbose", "index", "--root", str(initialized_repo), "--format", "ndjson"],
+        ["--verbose", "scan", "--root", str(initialized_repo), "--format", "ndjson"],
+        [
+            "--verbose",
+            "context",
+            "--root",
+            str(initialized_repo),
+            "--deep",
+            "--format",
+            "ndjson",
+        ],
     ]
 
     for command in commands:
         result = _runner().invoke(cli, command)
         assert result.exit_code == 0, result.output
-        parsed = records(result.output)
+        assert result.stderr
+        assert "_stream" in result.stderr
+        parsed = records(result.stdout)
         assert parsed
         assert parsed[0]["record_type"] == "header"
         assert parsed[-1]["record_type"] == "summary"

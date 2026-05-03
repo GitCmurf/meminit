@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.6"
-last_updated: 2026-04-30
+version: "0.7"
+last_updated: 2026-05-03
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -44,8 +44,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-04-21
+> **Version:** 0.7
+> **Last Updated:** 2026-05-03
 > **Type:** PRD
 > **Area:** AGENT
 
@@ -381,7 +381,10 @@ The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 
 Remaining items (future phases):
 
-- FR-3: NDJSON streaming output mode
+- FR-3: NDJSON streaming output mode (partially delivered for
+  `index`, `scan`, and `context --deep`; constant-memory producers,
+  incremental rebuilds, scale fixtures, and remaining commands are
+  deferred)
 - FR-4: Structured logging surface
 
 ---
@@ -470,3 +473,4 @@ This PRD is considered implemented when:
 | 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |
 | 0.5     | 2026-04-21 | Codex     | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |
 | 0.6     | 2026-04-30 | Codex     | Updated Phase 1 status to reflect graph_index is now true per MEMINIT-IMPL-001 |
+| 0.7     | 2026-05-03 | Codex     | Clarified FR-3 streaming status after Phase 5 partial delivery |

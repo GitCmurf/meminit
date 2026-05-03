@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2026-04-28
+last_updated: 2026-05-03
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
-version: "0.4"
+version: "0.5"
 ---
 
 # Runbook: Codex Skills Setup for Meminit

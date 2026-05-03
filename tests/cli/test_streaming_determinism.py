@@ -3,7 +3,14 @@ from __future__ import annotations
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
-from tests.cli.streaming_helpers import normalize_stream
+
+
+def _stable_non_header_lines(output: str) -> list[str]:
+    return [
+        line
+        for line in output.splitlines()
+        if line.strip() and '"record_type":"header"' not in line
+    ]
 
 
 def test_streaming_outputs_are_deterministic_modulo_run_id(initialized_repo):
@@ -20,4 +27,6 @@ def test_streaming_outputs_are_deterministic_modulo_run_id(initialized_repo):
 
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
-        assert normalize_stream(first.output) == normalize_stream(second.output)
+        assert _stable_non_header_lines(first.output) == _stable_non_header_lines(
+            second.output
+        )

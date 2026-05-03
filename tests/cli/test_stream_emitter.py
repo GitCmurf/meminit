@@ -81,7 +81,14 @@ def test_streaming_output_handler_emits_producer_failure(capsys):
     assert parsed[-1]["error"]["code"] == ErrorCode.STREAM_PRODUCER_FAILED.value
 
 
+@pytest.mark.skipif(
+    os.getenv("PYTEST_XDIST_WORKER") is not None,
+    reason="signal test incompatible with xdist worker process signalling",
+)
 def test_streaming_output_handler_emits_interrupted_record(capsys):
+    original_sigint = signal.getsignal(signal.SIGINT)
+    original_sigterm = signal.getsignal(signal.SIGTERM)
+
     def produce(_emit: StreamEmitter) -> SummaryPayload:
         os.kill(os.getpid(), signal.SIGINT)
         return SummaryPayload()
@@ -99,3 +106,5 @@ def test_streaming_output_handler_emits_interrupted_record(capsys):
     parsed = records(capsys.readouterr().out)
     assert parsed[-1]["record_type"] == "error"
     assert parsed[-1]["error"]["code"] == ErrorCode.STREAM_INTERRUPTED.value
+    assert signal.getsignal(signal.SIGINT) == original_sigint
+    assert signal.getsignal(signal.SIGTERM) == original_sigterm

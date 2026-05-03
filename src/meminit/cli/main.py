@@ -4,7 +4,7 @@ import os
 import shlex
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import click
 from rich.console import Console
@@ -448,7 +448,7 @@ def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
     return summary
 
 
-def _emit_items(emit: StreamEmitter, kind: str, rows: list[dict[str, Any]]) -> None:
+def _emit_items(emit: StreamEmitter, kind: str, rows: Iterable[dict[str, Any]]) -> None:
     for row in rows:
         emit.emit_item(kind, row)
 
@@ -476,6 +476,31 @@ def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, A
         )
 
     return sorted(items, key=lambda row: row["path"])
+
+
+def _scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:
+    docs_root = scan_data.get("docs_root")
+    suggestion_specs = (
+        ("ambiguous_types", "warning", docs_root or "."),
+        ("suggested_namespaces", "info", "docops.config.yaml"),
+        ("suggested_type_directories", "info", docs_root or "."),
+    )
+    suggestions: list[dict[str, Any]] = []
+    for code, severity, path in suggestion_specs:
+        value = scan_data.get(code)
+        if value:
+            suggestions.append(
+                {
+                    "severity": severity,
+                    "code": code,
+                    "path": path,
+                    "value": value,
+                }
+            )
+    return sorted(
+        suggestions,
+        key=lambda row: (row["severity"], row["code"], row["path"]),
+    )
 
 
 @contextlib.contextmanager
@@ -1384,26 +1409,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             def produce(emit: StreamEmitter) -> SummaryPayload:
                 for item in _scan_file_items(root_path, scan_data.get("docs_root")):
                     emit.emit_item("file", item)
-                suggestions = []
-                for key in (
-                    "suggested_type_directories",
-                    "ambiguous_types",
-                    "suggested_namespaces",
-                ):
-                    value = scan_data.get(key)
-                    if value:
-                        suggestions.append(
-                            {
-                                "severity": "info",
-                                "code": key,
-                                "path": ".",
-                                "value": value,
-                            }
-                        )
-                for item in sorted(
-                    suggestions,
-                    key=lambda r: (r["severity"], r["code"], r["path"]),
-                ):
+                for item in _scan_suggestion_items(scan_data):
                     emit.emit_item("suggestion", item)
                 summary = _summary_data(scan_data)
                 return SummaryPayload(data=summary)

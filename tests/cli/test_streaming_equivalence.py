@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from meminit.cli.main import cli
+from meminit.cli.main import _scan_suggestion_items, cli
 from tests.cli.streaming_helpers import records
 
 
@@ -59,6 +59,23 @@ def test_scan_json_and_ndjson_summaries_are_equivalent(initialized_repo):
     report = json.loads(json_result.output)["data"]["report"]
     summary = records(stream_result.output)[-1]["data"]
     assert summary == report
+
+
+def test_scan_suggestions_sort_by_severity_code_and_path():
+    suggestions = _scan_suggestion_items(
+        {
+            "docs_root": "docs",
+            "suggested_type_directories": {"ADR": "adrs"},
+            "ambiguous_types": {"SPEC": ["specs", "specifications"]},
+            "suggested_namespaces": [{"name": "packages"}],
+        }
+    )
+
+    assert [(row["severity"], row["code"], row["path"]) for row in suggestions] == [
+        ("info", "suggested_namespaces", "docops.config.yaml"),
+        ("info", "suggested_type_directories", "docs"),
+        ("warning", "ambiguous_types", "docs"),
+    ]
 
 
 def test_context_json_and_ndjson_are_equivalent(initialized_repo):

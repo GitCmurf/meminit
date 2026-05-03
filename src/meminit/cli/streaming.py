@@ -12,6 +12,7 @@ from typing import Any, Callable, Protocol, TextIO
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
+from meminit.core.services.observability import log_operation
 from meminit.core.services.output_formatter import (
     canonical_json_dumps,
     normalize_correlation_id,
@@ -40,6 +41,8 @@ class StreamingProducer(Protocol):
 class CallableStreamingProducer:
     """Adapter for small CLI-local producers while use cases gain stream APIs."""
 
+    # TODO(MEMINIT-PLAN-014): remove once command use cases expose stream()
+    # producers directly and CLI closures are no longer needed.
     func: Callable[["StreamEmitter"], SummaryPayload]
 
     def produce(self, emit: "StreamEmitter") -> SummaryPayload:
@@ -187,7 +190,14 @@ def streaming_output_handler(
         raise SystemExit(exit_code)
     try:
         previous_handlers = _register_interrupt_handlers(emitter)
-        emitter.emit_summary(producer.produce(emitter), success=success)
+        with log_operation(
+            operation=f"{command}_stream",
+            details={"stream_schema_version": STREAM_SCHEMA_VERSION},
+            run_id=run_id,
+        ) as log_ctx:
+            summary = producer.produce(emitter)
+            log_ctx["details"]["counts"] = emitter.counts
+        emitter.emit_summary(summary, success=success)
     except MeminitError as exc:
         emitter.emit_error(exc.code, exc.message, exc.details)
         raise SystemExit(exit_code_for_error(exc.code)) from exc

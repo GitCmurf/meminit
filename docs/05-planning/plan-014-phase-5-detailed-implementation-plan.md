@@ -121,6 +121,18 @@ Memory-efficiency requirement:
   generator or callback, and the emitter writes each record to stdout
   before producing the next.
 
+Current implementation debt as of version 0.6:
+
+- The shipped `index`, `scan`, and `context --deep` streaming adapters
+  still invoke their use cases before emission and iterate over
+  materialized result payloads. This is accepted only for the first
+  integrated streaming slice. It remains a blocking Workstream D/E item
+  before claiming the 5000-document constant-memory target.
+- The remediation path is to move producer ownership into the use cases
+  through generator-backed `stream()` APIs, remove the CLI-local
+  `CallableStreamingProducer` adapter, and enforce the requirement with
+  generated large/scale fixtures.
+
 Scale targets:
 
 - Full `meminit index --format ndjson` must complete for a 5000-document
@@ -1144,3 +1156,4 @@ true:
 | 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
 | 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |
 | 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix |
+| 0.6 | 2026-05-03 | Codex | Recorded known architectural debt: current streaming command adapters still materialize use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target |
