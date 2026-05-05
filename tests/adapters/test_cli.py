@@ -1060,6 +1060,46 @@ def test_cli_index_explain_cache_reports_existing_manifest(tmp_path):
     assert (cache_root / "manifest.json").exists()
 
 
+@pytest.mark.parametrize(
+    "format_name, expected_prefix",
+    [
+        ("text", "[ERROR INVALID_FLAG_COMBINATION]"),
+        ("md", "# Error"),
+    ],
+)
+def test_cli_index_explain_cache_rejects_non_json_formats(
+    tmp_path, format_name, expected_prefix
+):
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    args = ["index", "--root", str(tmp_path), "--explain-cache"]
+    if format_name != "text":
+        args.extend(["--format", format_name])
+    result = runner.invoke(cli, args)
+
+    assert result.exit_code != 0
+    assert result.output.startswith(expected_prefix)
+    assert "INVALID_FLAG_COMBINATION" in result.output
+    assert "requires --format" in result.output
+    assert "json" in result.output
+
+
 def test_cli_index_json_warnings_schema_validity(tmp_path):
     """PRD-007 + v2 Output Contract: Warnings in index --format json must include 'path'."""
     docs_dir = tmp_path / "docs" / "45-adr"

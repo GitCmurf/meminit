@@ -1895,6 +1895,12 @@ def index(
                     "index",
                     "meminit index --explain-cache does not support --format ndjson.",
                 )
+            if format != "json":
+                raise MeminitError(
+                    ErrorCode.INVALID_FLAG_COMBINATION,
+                    "meminit index --explain-cache requires --format json.",
+                    details={"format": format},
+                )
             _write_output(
                 format_envelope(
                     command="index",

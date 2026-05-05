@@ -54,6 +54,18 @@ def test_index_cache_explain_reports_invalid_manifest(tmp_path):
     assert "JSONDecodeError" in summary["warning"]["message"]
 
 
+def test_index_cache_explain_reports_non_object_manifest(tmp_path):
+    cache = IndexCache(tmp_path)
+    cache.manifest_path.parent.mkdir(parents=True)
+    cache.manifest_path.write_text("[]", encoding="utf-8")
+
+    summary = cache.explain()
+
+    assert summary["exists"] is True
+    assert summary["warning"]["code"] == ErrorCode.CACHE_ENTRY_INVALID.value
+    assert "list" in summary["warning"]["message"]
+
+
 def test_index_cache_explain_rejects_symlinked_manifest(tmp_path):
     cache = IndexCache(tmp_path)
     cache.manifest_path.parent.mkdir(parents=True)

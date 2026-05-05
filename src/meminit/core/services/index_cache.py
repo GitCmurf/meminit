@@ -80,6 +80,16 @@ class IndexCache:
             }
             return summary
 
+        if not isinstance(manifest, dict):
+            summary["warning"] = {
+                "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                "message": (
+                    "Cache manifest JSON must be an object, "
+                    f"got {type(manifest).__name__}."
+                ),
+            }
+            return summary
+
         files = manifest.get("files", [])
         summary.update(
             {
