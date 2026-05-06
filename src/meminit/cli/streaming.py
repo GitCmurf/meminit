@@ -17,6 +17,7 @@ from meminit.core.services.output_formatter import (
     canonical_json_dumps,
     normalize_correlation_id,
 )
+from meminit.core.services.path_utils import is_safe_cli_output_path
 
 STREAM_SCHEMA_VERSION = "1.0"
 
@@ -155,7 +156,7 @@ class StreamEmitter:
 
     def _assert_open(self) -> None:
         if self._closed:
-            raise AssertionError("cannot emit records after terminal record")
+            raise RuntimeError("cannot emit records after terminal record")
 
 
 def streaming_output_handler(
@@ -171,24 +172,22 @@ def streaming_output_handler(
 ) -> None:
     """Run a streaming producer and write a terminal summary or error."""
     stream, close_stream, open_error, exit_code = _open_stream(output=output)
-    emitter = StreamEmitter(
-        command=command,
-        run_id=run_id,
-        root=root_path,
-        stream=stream,
-        correlation_id=correlation_id,
-        include_timestamp=include_timestamp,
-    )
-    if open_error is not None:
-        try:
+    previous_handlers = {}
+    emitter: StreamEmitter | None = None
+    try:
+        emitter = StreamEmitter(
+            command=command,
+            run_id=run_id,
+            root=root_path,
+            stream=stream,
+            correlation_id=correlation_id,
+            include_timestamp=include_timestamp,
+        )
+        if open_error is not None:
             emitter.emit_error(
                 open_error["code"], open_error["message"], open_error.get("details")
             )
-        finally:
-            if close_stream:
-                stream.close()
-        raise SystemExit(exit_code)
-    try:
+            raise SystemExit(exit_code)
         previous_handlers = _register_interrupt_handlers(emitter)
         with log_operation(
             operation=f"{command}_stream",
@@ -199,11 +198,15 @@ def streaming_output_handler(
             log_ctx["details"]["counts"] = emitter.counts
         emitter.emit_summary(summary, success=success)
     except MeminitError as exc:
+        if emitter is None:
+            raise
         emitter.emit_error(exc.code, exc.message, exc.details)
         raise SystemExit(exit_code_for_error(exc.code)) from exc
     except SystemExit:
         raise
     except Exception as exc:
+        if emitter is None:
+            raise
         emitter.emit_error(
             ErrorCode.STREAM_PRODUCER_FAILED,
             "Streaming producer failed.",
@@ -211,7 +214,39 @@ def streaming_output_handler(
         )
         raise SystemExit(exit_code_for_error(ErrorCode.STREAM_PRODUCER_FAILED)) from exc
     finally:
-        _restore_interrupt_handlers(locals().get("previous_handlers", {}))
+        _restore_interrupt_handlers(previous_handlers)
+        if close_stream:
+            stream.close()
+
+
+def write_ndjson_error(
+    *,
+    command_name: str,
+    error: MeminitError,
+    output: str | None,
+    include_timestamp: bool,
+    run_id: str,
+    root_path: Path | None = None,
+    correlation_id: str | None = None,
+) -> None:
+    """Emit a single terminal NDJSON error record."""
+    stream, close_stream, open_error, exit_code = _open_stream(output=output)
+    try:
+        emitter = StreamEmitter(
+            command=command_name,
+            root=root_path,
+            run_id=run_id,
+            stream=stream,
+            correlation_id=correlation_id,
+            include_timestamp=include_timestamp,
+        )
+        if open_error is not None:
+            emitter.emit_error(
+                open_error["code"], open_error["message"], open_error.get("details")
+            )
+            raise SystemExit(exit_code)
+        emitter.emit_error(error.code, error.message, error.details)
+    finally:
         if close_stream:
             stream.close()
 
@@ -231,7 +266,7 @@ def _open_stream(
     if not output:
         return sys.stdout, False, None, None
     out_path = Path(output)
-    if not _is_safe_path(out_path):
+    if not is_safe_cli_output_path(out_path):
         return (
             sys.stdout,
             False,
@@ -256,35 +291,6 @@ def _open_stream(
             },
             EX_CANTCREAT,
         )
-
-
-def _is_safe_path(path: Path) -> bool:
-    """Basic safety check for output paths."""
-    forbidden = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var"]
-    try:
-        abs_path = path.resolve()
-        path_str = abs_path.as_posix()
-        for f in forbidden:
-            if path_str == f or path_str.startswith(f + "/"):
-                return False
-        try:
-            home = Path.home().resolve().as_posix()
-            if path_str.startswith(home) and abs_path.name.startswith("."):
-                if not (
-                    path_str == f"{home}/.meminit"
-                    or path_str.startswith(f"{home}/.meminit/")
-                ):
-                    return False
-        except (RuntimeError, OSError):
-            pass
-    except (OSError, ValueError):
-        if path.is_absolute():
-            path_str = path.as_posix()
-            for f in forbidden:
-                if path_str == f or path_str.startswith(f + "/"):
-                    return False
-    return True
-
 
 def _register_interrupt_handlers(
     emitter: StreamEmitter,

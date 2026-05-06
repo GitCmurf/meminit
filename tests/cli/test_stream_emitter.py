@@ -39,7 +39,7 @@ def test_stream_emitter_rejects_records_after_terminal_summary():
     emitter = StreamEmitter(command="scan", run_id=RUN_ID, stream=stream)
     emitter.emit_summary(SummaryPayload())
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError):
         emitter.emit_item("file", {"path": "docs/a.md"})
 
 

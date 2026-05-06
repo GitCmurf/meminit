@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 
 
@@ -60,7 +61,6 @@ def _count_governed_markdown(
             continue
         if ns.is_excluded(path):
             continue
-        count += 1
         try:
             post = frontmatter.load(path)
         except Exception:
@@ -68,10 +68,11 @@ def _count_governed_markdown(
         doc_id = post.metadata.get("document_id")
         if not isinstance(doc_id, str) or not doc_id.strip():
             continue
+        count += 1
         documents.append(
             {
                 "document_id": doc_id.strip(),
-                "path": path.relative_to(layout.root_dir).as_posix(),
+                "path": relative_path_string(path, layout.root_dir),
                 "type": post.metadata.get("type"),
                 "title": post.metadata.get("title"),
                 "namespace": ns.namespace,

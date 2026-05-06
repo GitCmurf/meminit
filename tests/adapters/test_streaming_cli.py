@@ -387,7 +387,7 @@ def test_index_ndjson_summary_preserves_metadata_for_artifacts(tmp_path):
 def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
     create_initialized_repo(tmp_path)
     output = tmp_path / "unsafe" / "index.ndjson"
-    with patch("meminit.cli.streaming._is_safe_path", return_value=False):
+    with patch("meminit.cli.streaming.is_safe_cli_output_path", return_value=False):
         result = CliRunner().invoke(
             cli,
             [

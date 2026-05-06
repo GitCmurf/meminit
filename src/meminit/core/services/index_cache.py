@@ -88,7 +88,17 @@ class IndexCache:
         ensure_safe_write_path(root_dir=self._root_path, target_path=self.cache_dir)
         try:
             if self.cache_dir.is_dir():
-                shutil.rmtree(self.cache_dir)
+                kept_lock = False
+                for child in self.cache_dir.iterdir():
+                    if child == self.lock_path:
+                        kept_lock = True
+                        continue
+                    if child.is_dir():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+                if not kept_lock:
+                    self.cache_dir.rmdir()
             else:
                 self.cache_dir.unlink()
         except OSError as exc:
@@ -245,8 +255,8 @@ class IndexCache:
         rewrite_paths: set[str] | None = None,
     ) -> None:
         try:
-            self.nodes_dir.mkdir(parents=True, exist_ok=True)
             ensure_safe_write_path(root_dir=self._root_path, target_path=self.nodes_dir)
+            self.nodes_dir.mkdir(parents=True, exist_ok=True)
             entry_by_id = {
                 str(entry["document_id"]): entry
                 for entry in entries
@@ -387,6 +397,9 @@ class IndexCacheLock:
                 details={"lock_path": str(self._cache.lock_path)},
             ) from exc
         except OSError as exc:
+            if self._fd is not None:
+                os.close(self._fd)
+                self._fd = None
             raise MeminitError(
                 ErrorCode.CACHE_WRITE_FAILED,
                 "Failed to create index cache lock.",
@@ -407,11 +420,16 @@ class IndexCacheLock:
             self._cache.lock_path.unlink(missing_ok=True)
         except OSError:
             pass
+        try:
+            self._cache.cache_dir.rmdir()
+        except OSError:
+            pass
 
 
 def _cache_key(value: str) -> str:
     safe = "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in value)
-    return safe or hashlib.sha256(value.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+    return f"{safe or 'id'}-{digest}"
 
 
 def _cache_warning(message: str) -> dict[str, Any]:

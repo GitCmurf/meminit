@@ -107,7 +107,7 @@ Item ordering is part of the contract:
   records sorted by `severity`, `code`, and `path`.
 - `context --deep` emits `namespace` records sorted by `name`,
   `document_type` records sorted by `type`, and `document` records
-  sorted by `document_id` and `path`.
+  sorted by `document_id`.
 
 `meminit index --explain-cache --format ndjson` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains

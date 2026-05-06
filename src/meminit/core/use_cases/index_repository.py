@@ -998,7 +998,9 @@ class IndexRepositoryUseCase:
             impl_state_filter, self._valid_impl_states, "--impl-state"
         )
 
-    def execute(self, *, use_cache: bool = True) -> IndexBuildReport:
+    def execute(
+        self, *, use_cache: bool = True, clear_cache: bool = False
+    ) -> IndexBuildReport:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
             raise FileNotFoundError(
@@ -1013,37 +1015,92 @@ class IndexRepositoryUseCase:
         )
 
         index_cache = IndexCache(self._root_dir)
-        lock_context = index_cache.acquire_lock() if use_cache else nullcontext()
-        with lock_context:
-            _remove_stale_artifacts(
-                index_path.parent,
-                catalog_name=catalog_out_name,
-                remove_index=False,
+        lock_context = (
+            index_cache.acquire_lock() if use_cache or clear_cache else nullcontext()
+        )
+        try:
+            with lock_context:
+                return self._execute_locked(
+                    index_cache=index_cache,
+                    index_path=index_path,
+                    catalog_out_name=catalog_out_name,
+                    use_cache=use_cache,
+                    clear_cache=clear_cache,
+                    initial_warnings=[],
+                )
+        except MeminitError as exc:
+            if (
+                exc.code not in {ErrorCode.CACHE_LOCK_HELD, ErrorCode.CACHE_WRITE_FAILED}
+                or clear_cache
+                or not use_cache
+            ):
+                raise
+            warning_code = exc.code.value
+            return self._execute_locked(
+                index_cache=index_cache,
+                index_path=index_path,
+                catalog_out_name=catalog_out_name,
+                use_cache=False,
+                clear_cache=False,
+                initial_warnings=[
+                    {
+                        "code": warning_code,
+                        "message": (
+                            "Index cache is unavailable; using a full rebuild "
+                            "without cache."
+                        ),
+                        "severity": Severity.WARNING.value,
+                        "path": ".meminit/cache/index/.lock",
+                    }
+                ],
             )
-            warnings_list: List[Dict[str, Any]] = []
-            cache_context = _index_cache_context(self._root_dir)
-            doc_paths = self._discover_document_paths()
+
+    def _execute_locked(
+        self,
+        *,
+        index_cache: IndexCache,
+        index_path: Path,
+        catalog_out_name: Optional[str],
+        use_cache: bool,
+        clear_cache: bool,
+        initial_warnings: List[Dict[str, Any]],
+    ) -> IndexBuildReport:
+        if clear_cache:
+            index_cache.clear()
+        _remove_stale_artifacts(
+            index_path.parent,
+            catalog_name=catalog_out_name,
+            remove_index=False,
+        )
+        warnings_list: List[Dict[str, Any]] = list(initial_warnings)
+        cache_context = _index_cache_context(self._root_dir)
+        doc_paths = self._discover_document_paths()
+        if use_cache:
             cache_plan = index_cache.build_plan(
                 doc_paths=doc_paths,
                 context=cache_context,
-                use_cache=use_cache,
+                use_cache=True,
             )
-            if cache_plan.manifest_warning:
-                warnings_list.append(cache_plan.manifest_warning)
-            cached_report = self._cached_no_change_report(index_path, cache_plan)
-            if cached_report is not None:
-                return cached_report
-            return self._execute_with_cache_plan(
-                cache=index_cache,
-                cache_context=cache_context,
-                cache_plan=cache_plan,
-                cache_rewrites=set(cache_plan.added | cache_plan.changed),
-                use_cache=use_cache,
-                index_path=index_path,
-                catalog_out_name=catalog_out_name,
-                warnings_list=warnings_list,
-                doc_paths=doc_paths,
-            )
+        else:
+            cache_plan = CachePlan(mode="disabled")
+        if cache_plan.manifest_warning:
+            warnings_list.append(cache_plan.manifest_warning)
+        cached_report = self._cached_no_change_report(
+            index_path, cache_plan, warnings_list
+        )
+        if cached_report is not None:
+            return cached_report
+        return self._execute_with_cache_plan(
+            cache=index_cache,
+            cache_context=cache_context,
+            cache_plan=cache_plan,
+            cache_rewrites=set(cache_plan.added | cache_plan.changed),
+            use_cache=use_cache,
+            index_path=index_path,
+            catalog_out_name=catalog_out_name,
+            warnings_list=warnings_list,
+            doc_paths=doc_paths,
+        )
 
     def _execute_with_cache_plan(
         self,
@@ -1319,13 +1376,6 @@ class IndexRepositoryUseCase:
         json_edges = [e.to_dict() for e in all_edges]
         canonical_warnings = canonicalize_warning_list(warnings_list)
         canonical_advice = canonicalize_advice_list(graph_advice)
-        if use_cache:
-            cache.write(
-                context=cache_context,
-                fingerprints=cache_plan.fingerprints,
-                entries=entries,
-                rewrite_paths=None if cache_plan.mode == "full" else cache_rewrites,
-            )
 
         payload = _build_persisted_index_payload(
             layout_namespaces=self._layout.namespaces,
@@ -1340,6 +1390,13 @@ class IndexRepositoryUseCase:
             json.dumps(payload, indent=2, default=_json_default, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        if use_cache:
+            cache.write(
+                context=cache_context,
+                fingerprints=cache_plan.fingerprints,
+                entries=entries,
+                rewrite_paths=None if cache_plan.mode == "full" else cache_rewrites,
+            )
 
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1464,7 +1521,10 @@ class IndexRepositoryUseCase:
         recency = cached.get("_recency")
         if isinstance(recency, str):
             try:
-                cached["_recency"] = datetime.fromisoformat(recency)
+                dt = datetime.fromisoformat(recency)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                cached["_recency"] = dt
             except ValueError:
                 cached["_recency"] = datetime.min.replace(tzinfo=timezone.utc)
         return cached
@@ -1473,6 +1533,7 @@ class IndexRepositoryUseCase:
         self,
         index_path: Path,
         cache_plan: CachePlan,
+        warnings_list: List[Dict[str, Any]],
     ) -> IndexBuildReport | None:
         if (
             cache_plan.mode != "incremental"
@@ -1497,10 +1558,15 @@ class IndexRepositoryUseCase:
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
             return None
+        payload_warnings = payload.get("warnings", [])
+        if not isinstance(payload_warnings, list):
+            payload_warnings = []
         return IndexBuildReport(
             index_path=index_path,
             document_count=int(data.get("document_count", len(nodes))),
-            warnings=payload.get("warnings", []),
+            warnings=canonicalize_warning_list(
+                [*payload_warnings, *warnings_list]
+            ),
             documents=nodes,
             edges=edges,
             advice=payload.get("advice", []),

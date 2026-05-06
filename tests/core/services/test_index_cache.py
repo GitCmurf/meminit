@@ -5,7 +5,7 @@ import json
 import pytest
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.index_cache import IndexCache
+from meminit.core.services.index_cache import IndexCache, _cache_key
 
 
 def test_index_cache_explain_missing_manifest(tmp_path):
@@ -108,3 +108,7 @@ def test_index_cache_clear_rejects_unsafe_target(monkeypatch, tmp_path):
         cache.clear()
 
     assert exc_info.value.code is ErrorCode.PATH_ESCAPE
+
+
+def test_cache_key_disambiguates_sanitized_collisions():
+    assert _cache_key("foo/bar") != _cache_key("foo_bar")

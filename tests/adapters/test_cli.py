@@ -958,7 +958,7 @@ def test_cli_index_rejects_both_cache_clearing_flags(tmp_path):
 
     assert result.exit_code != 0
     data = json.loads(result.output)
-    assert data["error"]["code"] == "E_INVALID_FILTER_VALUE"
+    assert data["error"]["code"] == "INVALID_FLAG_COMBINATION"
     assert cache_root.exists()
     assert (cache_root / "manifest.json").exists()
 

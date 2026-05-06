@@ -163,7 +163,7 @@ does not become an indefinite reminder.
 | TD-005 | Phase 5 external testbed closeout evidence is not stored in-repo | MEMINIT-PLAN-014 requires at least one external testbed exercise, but the repo cannot prove which external repository was used or which command outputs were observed | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts | Low | Release owner | Add a non-PII Phase 5 closeout note or release checklist entry recording the external testbed date, commands, and sanitized result summary | Open |
 | TD-006 | Streaming CLI test fixture helper duplication | `tests/adapters/test_streaming_cli.py` uses local helper setup while newer streaming test modules use shared fixture infrastructure | Minor maintainability cost and inconsistent setup style across streaming tests | Low | Test maintainers | Refactor streaming CLI tests to use the shared initialized repository fixture without reducing command-specific assertions | Open |
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 5.1-5.2; [Plan-014: Phase 5 Detailed Implementation Plan](plan-014-phase-5-detailed-implementation-plan.md)
+**See:** [plan-006-atomic-task-list](plan-006-atomic-task-list.md) - Tasks 5.1-5.2; [plan-014-phase-5-detailed-implementation-plan](plan-014-phase-5-detailed-implementation-plan.md)
 
 ---
 

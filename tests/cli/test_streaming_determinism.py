@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+import json
+
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
 
 
 def _stable_non_header_lines(output: str) -> list[str]:
-    return [
-        line
-        for line in output.splitlines()
-        if line.strip() and '"record_type":"header"' not in line
-    ]
+    lines: list[str] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            lines.append(line)
+            continue
+        if record.get("record_type") != "header":
+            lines.append(line)
+    return lines
 
 
 def test_streaming_outputs_are_deterministic_modulo_run_id(initialized_repo):

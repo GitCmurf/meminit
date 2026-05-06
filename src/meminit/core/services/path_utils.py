@@ -65,6 +65,34 @@ def relative_path_string(path: Path, base: Path) -> str:
         return str(path)
 
 
+def is_safe_cli_output_path(path: Path) -> bool:
+    """Return whether a CLI output path avoids protected system locations."""
+    forbidden = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var"]
+    try:
+        abs_path = path.resolve()
+        path_str = abs_path.as_posix()
+        for prefix in forbidden:
+            if path_str == prefix or path_str.startswith(prefix + "/"):
+                return False
+        try:
+            home = Path.home().resolve().as_posix()
+            if path_str.startswith(home) and abs_path.name.startswith("."):
+                if not (
+                    path_str == f"{home}/.meminit"
+                    or path_str.startswith(f"{home}/.meminit/")
+                ):
+                    return False
+        except (RuntimeError, OSError):
+            pass
+    except (OSError, ValueError):
+        if path.is_absolute():
+            path_str = path.as_posix()
+            for prefix in forbidden:
+                if path_str == prefix or path_str.startswith(prefix + "/"):
+                    return False
+    return True
+
+
 def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     """Load documents from a meminit index JSON file.
 

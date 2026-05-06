@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.index_cache import _cache_key
 from meminit.core.use_cases.index_repository import (
     IndexRepositoryUseCase,
     _safe_css_slug,
@@ -97,6 +98,23 @@ def _setup_repo_config(root: Path, *, project_name: str, repo_prefix: str) -> Pa
     return config_path
 
 
+def test_index_use_cache_false_skips_cache_fingerprinting(monkeypatch, tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    def fail_sha256(_path: Path) -> str:
+        raise AssertionError("disabled cache should not hash documents")
+
+    monkeypatch.setattr(
+        "meminit.core.services.index_cache._sha256_file",
+        fail_sha256,
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute(use_cache=False)
+
+    assert report.document_count == 1
+    assert report.rebuild["mode"] == "disabled"
+
+
 # ---------------------------------------------------------------------------
 # Basic backward compatibility
 # ---------------------------------------------------------------------------
@@ -178,11 +196,11 @@ def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
     node_path = (
         tmp_path
         / ".meminit"
-        / "cache"
-        / "index"
-        / "nodes"
-        / "EXAMPLE-ADR-001.json"
-    )
+            / "cache"
+            / "index"
+            / "nodes"
+            / f"{_cache_key('EXAMPLE-ADR-001')}.json"
+        )
     node_path.write_text("{bad json", encoding="utf-8")
     doc_two.write_text(
         doc_two.read_text(encoding="utf-8").replace("Second", "Second Revised"),

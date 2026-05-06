@@ -333,7 +333,7 @@ The stream carries exactly five record types:
 | `error`       | Terminal record on operational failure                      | 0 or 1 (terminal)         |
 | `summary`     | Terminal record on completion; `success` may be `true` or `false` | exactly 1 (terminal)      |
 
-Each stream ends with either a `summary` record (success) or an
+Each stream ends with either a `summary` record or an
 `error` record (failure). A stream that ends without one of those
 terminators is malformed.
 
@@ -860,7 +860,7 @@ mutable state.
   cache is suspected of corruption.
 
 Both flags are mutually exclusive; combining them raises
-`E_INVALID_FILTER_VALUE`.
+`INVALID_FLAG_COMBINATION`.
 
 #### 3.4.5 New error codes
 
@@ -881,7 +881,7 @@ The other two are error-level.
   elapsed wall time.
 - When streaming, these counters also appear in the summary
   record's `data` under a `rebuild` key:
-  `{"rebuild": {"mode": "incremental" | "full", "added": N, ...}}`.
+  `{"rebuild": {"mode": "incremental" | "full" | "disabled", "added": N, ...}}`.
 - The `meminit index --explain-cache` diagnostic flag prints the
   current manifest summary (counts and SHAs only, not the full
   file list) to stdout as a standard v3 envelope, for debugging
@@ -1125,7 +1125,7 @@ true:
 5. `meminit index --explain-cache` reports the current manifest
    summary without triggering a rebuild.
 6. `meminit index` rejects `--no-cache` and `--rebuild-cache`
-   together with `E_INVALID_FILTER_VALUE`, while `--explain-cache`
+   together with `INVALID_FLAG_COMBINATION`, while `--explain-cache`
    rejects either cache-clearing flag with `INVALID_FLAG_COMBINATION`
    before any cache mutation occurs.
 7. The nightly slow test job runs the 1000-doc and 5000-doc scale
@@ -1137,17 +1137,17 @@ true:
 9. Stdout isolation tests pass for every opted-in command: every
    stdout line during `--format ndjson` is a valid SPEC-011 record;
    all logs appear on stderr only.
-9. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,
+10. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,
    and the operator runbook are updated or created and pass
    `meminit check`.
-10. The external testbed has been exercised with `--format ndjson`
+11. The external testbed has been exercised with `--format ndjson`
     and with incremental rebuilds; the testbed checklist is marked
     complete on the closing PR.
-11. All code added in this phase respects the repository engineering
+12. All code added in this phase respects the repository engineering
     principles: no function exceeds the soft 40-line limit; no
     `eval`, no `shell=True`, no hidden global mutable state in the
     cache path.
-12. `meminit check --format json` reports zero new violations and
+13. `meminit check --format json` reports zero new violations and
     zero new warnings attributable to Phase 5 changes.
 
 ## 6. Version History
@@ -1159,5 +1159,5 @@ true:
 | 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
 | 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |
 | 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix |
-| 0.6 | 2026-05-03 | Codex | Recorded known architectural debt: current streaming command adapters still materialize use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target |
+| 0.6 | 2026-05-03 | Codex | Recorded known architectural debt: current streaming command adapters still materialise use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target |
 | 1.0 | 2026-05-06 | Codex | Completed Phase 5 implementation: incremental index cache with manifest fingerprints, cache lock, changed/added/removed/corrupt scenarios, deterministic streaming fixtures, slow scale-test wiring, and aligned operator docs |

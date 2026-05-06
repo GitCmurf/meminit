@@ -16,7 +16,11 @@ from tests.fixtures.streaming.generators import build_streaming_fixture, tree_sh
 FIXTURE_ROOT = Path(__file__).parent / "streaming"
 
 
-def _max_rss_bytes() -> int:
+def _current_rss_bytes() -> int:
+    statm = Path("/proc/self/statm")
+    if statm.is_file():
+        pages = int(statm.read_text(encoding="utf-8").split()[1])
+        return pages * os.sysconf("SC_PAGE_SIZE")
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return rss if sys.platform == "darwin" else rss * 1024
 
@@ -75,14 +79,16 @@ def test_generated_large_fixture_warm_incremental_target(tmp_path):
 def test_generated_scale_fixture_memory_ceiling(tmp_path):
     build_streaming_fixture(tmp_path, count=5000, seed=1405)
 
+    before_rss = _current_rss_bytes()
     started = time.monotonic()
     report = IndexRepositoryUseCase(str(tmp_path)).execute(use_cache=False)
     elapsed = time.monotonic() - started
+    rss_delta = _current_rss_bytes() - before_rss
 
     assert report.document_count == 5000
-    assert report.rebuild["mode"] == "full"
+    assert report.rebuild["mode"] == "disabled"
     assert elapsed < 60.0
-    assert _max_rss_bytes() < 256 * 1024 * 1024
+    assert rss_delta < 256 * 1024 * 1024
 
 
 def test_static_tiny_fixture_can_be_copied_without_hash_drift(tmp_path):

@@ -10,7 +10,7 @@ from jsonschema import Draft7Validator
 from tests.cli.streaming_helpers import create_initialized_repo
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def stream_schema_validator() -> Draft7Validator:
     schema = json.loads(
         resources.files("meminit.core.assets")

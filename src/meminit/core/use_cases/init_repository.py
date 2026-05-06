@@ -15,6 +15,7 @@ from meminit.core.services.protocol_assets import (
     normalize_protocol_payload,
 )
 from meminit.core.services.repo_config import derive_repo_prefix
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 
 _FALLBACK_SCHEMA_JSON = b"""{
@@ -294,7 +295,11 @@ class InitRepositoryUseCase:
             record_fn(gitignore_path, created=True)
             return
         if not gitignore_path.is_file():
-            raise FileExistsError(f"{gitignore_path} exists and is not a file")
+            raise MeminitError(
+                ErrorCode.NOT_A_REGULAR_FILE,
+                "Cannot update .gitignore: path exists but is not a regular file.",
+                details={"path": str(gitignore_path)},
+            )
         content = gitignore_path.read_text(encoding="utf-8")
         entries = {line.strip() for line in content.splitlines()}
         if entry in entries:
@@ -302,7 +307,7 @@ class InitRepositoryUseCase:
             return
         separator = "" if content.endswith("\n") or not content else "\n"
         atomic_write(gitignore_path, f"{content}{separator}{entry}\n", encoding="utf-8")
-        record_fn(gitignore_path, created=True)
+        record_fn(gitignore_path, created=False)
 
     def _install_optional_asset(
         self,

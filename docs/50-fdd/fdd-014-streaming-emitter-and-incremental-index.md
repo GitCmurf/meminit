@@ -80,7 +80,7 @@ The user-facing index command exposes:
 - `--explain-cache`
 
 `--no-cache` and `--rebuild-cache` are mutually exclusive and fail
-with `E_INVALID_FILTER_VALUE`. When either cache-control flag is
+with `INVALID_FLAG_COMBINATION`. When either cache-control flag is
 used, Meminit clears `.meminit/cache/index/` before the current full
 rebuild so stale fragments do not linger across runs.
 `--explain-cache` reports the current manifest summary as a standard
