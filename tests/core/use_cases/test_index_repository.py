@@ -120,6 +120,82 @@ def test_index_repository_builds_index(tmp_path):
     assert "generated_at" not in payload["data"]
 
 
+def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild == {
+        "mode": "incremental",
+        "added": 0,
+        "changed": 0,
+        "removed": 0,
+        "unchanged": 1,
+    }
+    assert second_report.index_path.read_bytes() == first_bytes
+
+
+def test_index_repository_incremental_detects_changed_added_and_removed(tmp_path):
+    first_path = _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Original")
+    second_path = _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Second")
+    IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    first_path.write_text(
+        first_path.read_text(encoding="utf-8").replace("Original", "Changed"),
+        encoding="utf-8",
+    )
+    second_path.unlink()
+    _setup_doc(tmp_path, "EXAMPLE-ADR-003", title="Third")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.rebuild["mode"] == "incremental"
+    assert report.rebuild["changed"] == 1
+    assert report.rebuild["added"] == 1
+    assert report.rebuild["removed"] == 1
+    assert report.rebuild["unchanged"] == 0
+    assert {doc["document_id"] for doc in report.documents} == {
+        "EXAMPLE-ADR-001",
+        "EXAMPLE-ADR-003",
+    }
+    removed_node = (
+        tmp_path
+        / ".meminit"
+        / "cache"
+        / "index"
+        / "nodes"
+        / "EXAMPLE-ADR-002.json"
+    )
+    assert not removed_node.exists()
+
+
+def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    doc_two = _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Second")
+    IndexRepositoryUseCase(str(tmp_path)).execute()
+    node_path = (
+        tmp_path
+        / ".meminit"
+        / "cache"
+        / "index"
+        / "nodes"
+        / "EXAMPLE-ADR-001.json"
+    )
+    node_path.write_text("{bad json", encoding="utf-8")
+    doc_two.write_text(
+        doc_two.read_text(encoding="utf-8").replace("Second", "Second Revised"),
+        encoding="utf-8",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert any(w["code"] == ErrorCode.CACHE_ENTRY_INVALID.value for w in report.warnings)
+    assert report.document_count == 2
+    assert json.loads(node_path.read_text(encoding="utf-8"))["document_id"] == "EXAMPLE-ADR-001"
+
+
 def test_index_repository_persisted_json_is_stable_across_runs(tmp_path):
     """Persisted index excludes runtime metadata that would churn between runs."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")

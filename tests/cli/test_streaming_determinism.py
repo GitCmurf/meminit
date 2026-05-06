@@ -22,9 +22,11 @@ def test_streaming_outputs_are_deterministic_modulo_run_id(initialized_repo):
     runner = CliRunner()
 
     for command in commands:
+        warmup = runner.invoke(cli, command)
         first = runner.invoke(cli, command)
         second = runner.invoke(cli, command)
 
+        assert warmup.exit_code == 0, warmup.output
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
         assert _stable_non_header_lines(first.output) == _stable_non_header_lines(

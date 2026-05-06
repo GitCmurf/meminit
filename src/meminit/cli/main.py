@@ -432,6 +432,7 @@ def _index_output_data(
         "nodes": report.documents,
         "edges": display_edges,
         "filtered": status_filter is not None or impl_state_filter is not None,
+        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
     }
     if report.catalog_path:
         data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
@@ -1924,7 +1925,7 @@ def index(
             impl_state_filter=impl_state_filter,
         )
         try:
-            report = use_case.execute()
+            report = use_case.execute(use_cache=not no_cache)
         except MeminitError as e:
             # Only intercept graph fatal diagnostics (details.errors present).
             # Re-raise all other MeminitErrors so command_output_handler
@@ -2011,9 +2012,7 @@ def index(
                     ),
                 )
                 summary = _summary_data(data, "nodes", "edges")
-                # The current index implementation always performs a full rebuild;
-                # cache-control flags clear the repo-local cache directory first.
-                summary["rebuild"] = {"mode": "full"}
+                summary["rebuild"] = getattr(report, "rebuild", {"mode": "full"})
                 return SummaryPayload(
                     data=summary,
                     warnings=warnings_list,

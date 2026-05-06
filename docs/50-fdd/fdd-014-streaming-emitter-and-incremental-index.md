@@ -3,8 +3,8 @@ document_id: MEMINIT-FDD-014
 type: FDD
 title: Streaming Emitter and Incremental Index
 status: Draft
-version: "0.2"
-last_updated: 2026-05-03
+version: "1.0"
+last_updated: 2026-05-06
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -89,15 +89,24 @@ v3 JSON envelope without rebuilding the index.
 `--rebuild-cache`; those combinations fail with
 `INVALID_FLAG_COMBINATION` before any cache mutation occurs.
 
-This implementation does not yet ship the changed-file-only
-incremental rebuild engine described by MEMINIT-PLAN-014 Workstream D.
-There is no manifest-writing cache service, no changed-file reuse
-algorithm, and no lock-managed cache mutation path. Until those land,
-`meminit index` always performs a full rebuild and reports
-`rebuild.mode: "full"` in the NDJSON summary. The current flags and
-diagnostic command are deliberately limited to cache-directory cleanup
-and manifest inspection so the public CLI surface is present without
-overstating incremental behavior.
+The index cache now writes a deterministic manifest plus per-document
+node fragments. `meminit index` uses that manifest by default:
+unchanged files whose size and mtime match the previous manifest reuse
+their cached node payload without rereading the governed document bytes;
+edges are rebuilt deterministically from the merged node set; added and
+changed files are recomputed; removed files are dropped.
+
+The manifest records Meminit version, index version, config hash,
+schema hash, project-state hash, and sorted file fingerprints. Any
+global-context change falls back to a full rebuild and rewrites the
+cache. Corrupt node entries emit `CACHE_ENTRY_INVALID` warnings and are
+recomputed without failing the run.
+
+`--no-cache` clears the repo-local index cache and performs a cold full
+rebuild without repopulating the cache. `--rebuild-cache` clears the
+cache, performs a full rebuild, and repopulates the cache. `meminit
+index --explain-cache --format json` reports manifest status without
+triggering a rebuild.
 
 ## 6. Safety Constraints
 
@@ -114,3 +123,4 @@ Cache files must never be committed. Operators can delete
 | ------- | ---- | ------ | ----- |
 | 0.1 | 2026-05-03 | Codex | Initial shared streaming emitter and cache-control surface design |
 | 0.2 | 2026-05-03 | Codex | Clarified shipped cache boundary and documented that the incremental rebuild engine remains unimplemented |
+| 1.0 | 2026-05-06 | Codex | Documented the shipped incremental index cache, manifest context, corruption recovery, and cache-control semantics |

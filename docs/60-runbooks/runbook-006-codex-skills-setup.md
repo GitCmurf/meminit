@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2026-05-03
+last_updated: 2026-05-06
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
-version: "0.5"
+version: "0.6"
 ---
 
 # Runbook: Codex Skills Setup for Meminit
@@ -143,8 +143,21 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 - A stream is valid only if the last record is `summary` or `error`.
 - `STREAM_UNSUPPORTED_FORMAT` means the command or mode does not support NDJSON; check `supports_ndjson` in `meminit capabilities`.
 - A truncated stream should be discarded and the command retried with `--format json` if a single diagnostic envelope is easier to inspect.
-- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag currently clears `.meminit/cache/index/` before a full rebuild.
-- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, incremental index reuse has not been initialized yet.
+- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears and repopulates `.meminit/cache/index/` with a full rebuild.
+- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, run `meminit index --format json` once to initialize incremental index reuse.
+
+### Phase 5 Testbed Checklist
+
+Before closing Phase 5, exercise at least one external testbed repo with:
+
+- `meminit scan --format ndjson`
+- `meminit context --deep --format ndjson`
+- `meminit index --format ndjson`
+- two consecutive `meminit index --format json` runs proving warm-cache reuse
+- `meminit index --rebuild-cache --format json`
+- `meminit index --explain-cache --format json`
+
+Record the command outputs or CI run link in the closing PR.
 
 ## Bounded Codex Review-Remediation Loop
 

@@ -906,7 +906,10 @@ def test_cli_index_cache_flags_clear_existing_cache(tmp_path, flag):
     )
 
     assert result.exit_code == 0
-    assert not cache_root.exists()
+    if flag == "--no-cache":
+        assert not cache_root.exists()
+    else:
+        assert (cache_root / "manifest.json").exists()
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
     assert index_path.exists()
     data = json.loads(result.output)
@@ -1058,6 +1061,48 @@ def test_cli_index_explain_cache_reports_existing_manifest(tmp_path):
     assert cache["config_sha256"] == "abc"
     assert cache["schema_sha256"] == "def"
     assert (cache_root / "manifest.json").exists()
+
+
+def test_cli_index_explain_cache_reports_manifest_after_index_run(tmp_path):
+    docs_dir = tmp_path / "docs" / "45-adr"
+    docs_dir.mkdir(parents=True)
+    (docs_dir / "adr-001.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Test\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-21\n"
+        "owner: Test\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Test\n",
+        encoding="utf-8",
+    )
+
+    runner = runner_no_mixed_stderr()
+    index_result = runner.invoke(
+        cli, ["index", "--root", str(tmp_path), "--format", "json"]
+    )
+    explain_result = runner.invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--explain-cache",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert index_result.exit_code == 0
+    assert explain_result.exit_code == 0
+    cache = json.loads(explain_result.output)["data"]["cache"]
+    assert cache["exists"] is True
+    assert cache["manifest_schema_version"] == "1.0"
+    assert cache["file_count"] == 1
 
 
 @pytest.mark.parametrize(
