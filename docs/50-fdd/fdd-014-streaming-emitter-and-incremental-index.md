@@ -2,7 +2,7 @@
 document_id: MEMINIT-FDD-014
 type: FDD
 title: Streaming Emitter and Incremental Index
-status: Draft
+status: Approved
 version: "1.0"
 last_updated: 2026-05-06
 owner: GitCmurf

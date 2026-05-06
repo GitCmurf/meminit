@@ -55,6 +55,24 @@ def test_index_ndjson_outputs_header_items_and_summary(tmp_path):
         assert not list(_validator().iter_errors(record))
 
 
+def test_index_ndjson_reports_incremental_on_second_run(tmp_path):
+    create_initialized_repo(tmp_path)
+    runner = CliRunner()
+
+    first = runner.invoke(
+        cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    second = runner.invoke(
+        cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    summary = _records(second.output)[-1]
+    assert summary["record_type"] == "summary"
+    assert summary["data"]["rebuild"]["mode"] == "incremental"
+
+
 def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
     result = CliRunner().invoke(
         cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]

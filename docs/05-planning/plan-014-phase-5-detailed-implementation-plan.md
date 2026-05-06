@@ -2,7 +2,7 @@
 document_id: MEMINIT-PLAN-014
 type: PLAN
 title: Phase 5 Detailed Implementation Plan
-status: Draft
+status: Approved
 version: '1.0'
 last_updated: '2026-05-06'
 owner: GitCmurf
@@ -27,7 +27,7 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-014
 > **Owner:** GitCmurf
-> **Status:** Draft
+> **Status:** Approved
 > **Version:** 1.0
 > **Last Updated:** 2026-05-06
 > **Type:** PLAN
@@ -132,7 +132,11 @@ Implementation status as of version 1.0:
   fully into use-case `stream()` APIs and remove the CLI-local
   `CallableStreamingProducer` adapter. That cleanup is no longer a
   correctness blocker for the index cache scenarios, but it remains the
-  preferred long-term boundary.
+  preferred long-term boundary. The follow-up is tracked in
+  MEMINIT-PLAN-005 as TD-003.
+- Scenario traceability follow-ups for the one-test-per-scenario
+  S05-S14 fixture matrix and external-testbed evidence are tracked in
+  MEMINIT-PLAN-005 as TD-004 and TD-005.
 
 Scale targets:
 

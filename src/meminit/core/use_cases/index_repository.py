@@ -59,7 +59,7 @@ def _repo_relative_path(path: Path, root_dir: Path) -> str:
     path_text = str(path)
     root_text = str(root_dir).rstrip(os.sep) + os.sep
     if path_text.startswith(root_text):
-        return path_text[len(root_text) :].replace(os.sep, "/")
+        return path_text[len(root_text):].replace(os.sep, "/")
     return relative_path_string(path, root_dir)
 
 
@@ -67,7 +67,7 @@ def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
     path_text = str(path)
     docs_text = str(namespace.docs_dir).rstrip(os.sep) + os.sep
     if path_text.startswith(docs_text):
-        rel_to_docs = path_text[len(docs_text) :].replace(os.sep, "/")
+        rel_to_docs = path_text[len(docs_text):].replace(os.sep, "/")
         for prefix in namespace.excluded_filename_prefixes:
             prefix_lower = prefix.lower()
             if any(part.lower().startswith(prefix_lower) for part in rel_to_docs.split("/")):

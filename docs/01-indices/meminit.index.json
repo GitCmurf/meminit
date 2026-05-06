@@ -712,7 +712,7 @@
   "command": "index",
   "data": {
     "document_count": 77,
-    "edge_count": 234,
+    "edge_count": 235,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -986,6 +986,13 @@
         "guaranteed": false,
         "source": "MEMINIT-PLAN-005",
         "target": "MEMINIT-PLAN-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-005",
+        "target": "MEMINIT-PLAN-014"
       },
       {
         "context": "body.markdown_link",
@@ -2980,7 +2987,7 @@
           "MEMINIT-SPEC-006"
         ],
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Streaming Emitter and Incremental Index",
         "type": "FDD",
@@ -3183,7 +3190,7 @@
         "document_id": "MEMINIT-PLAN-005",
         "impl_state": "In Progress",
         "keywords": null,
-        "last_updated": "2026-03-07",
+        "last_updated": "2026-05-06",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3458,7 +3465,7 @@
           "MEMINIT-SPEC-008"
         ],
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Phase 5 Detailed Implementation Plan",
         "type": "PLAN",

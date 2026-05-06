@@ -435,7 +435,7 @@ def _fast_relative_path(path: Path, root_path: Path) -> str:
     path_text = str(path)
     root_text = str(root_path).rstrip(os.sep) + os.sep
     if path_text.startswith(root_text):
-        return path_text[len(root_text) :].replace(os.sep, "/")
+        return path_text[len(root_text):].replace(os.sep, "/")
     return relative_path_string(path, root_path)
 
 
