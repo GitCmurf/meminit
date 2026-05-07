@@ -400,6 +400,10 @@ class IndexCacheLock:
             if self._fd is not None:
                 os.close(self._fd)
                 self._fd = None
+            try:
+                self._cache.lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass
             raise MeminitError(
                 ErrorCode.CACHE_WRITE_FAILED,
                 "Failed to create index cache lock.",

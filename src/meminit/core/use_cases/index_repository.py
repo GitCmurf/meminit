@@ -1392,22 +1392,7 @@ class IndexRepositoryUseCase:
             for e in sorted_entries
         ]
         json_edges = [e.to_dict() for e in all_edges]
-        canonical_warnings = canonicalize_warning_list(warnings_list)
-        canonical_advice = canonicalize_advice_list(graph_advice)
 
-        payload = _build_persisted_index_payload(
-            layout_namespaces=self._layout.namespaces,
-            document_count=len(json_nodes),
-            nodes=json_nodes,
-            edges=json_edges,
-            warnings=canonical_warnings,
-            advice=canonical_advice,
-        )
-        atomic_write(
-            index_path,
-            json.dumps(payload, indent=2, default=_json_default, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
         if use_cache:
             try:
                 cache.write(
@@ -1431,6 +1416,23 @@ class IndexRepositoryUseCase:
                         ),
                     }
                 )
+
+        canonical_warnings = canonicalize_warning_list(warnings_list)
+        canonical_advice = canonicalize_advice_list(graph_advice)
+
+        payload = _build_persisted_index_payload(
+            layout_namespaces=self._layout.namespaces,
+            document_count=len(json_nodes),
+            nodes=json_nodes,
+            edges=json_edges,
+            warnings=canonical_warnings,
+            advice=canonical_advice,
+        )
+        atomic_write(
+            index_path,
+            json.dumps(payload, indent=2, default=_json_default, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
