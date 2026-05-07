@@ -1041,6 +1041,11 @@ class IndexRepositoryUseCase:
             ):
                 raise
             warning_code = exc.code.value
+            fallback_path = (
+                exc.details.get("cache_path") or exc.details.get("lock_path")
+                if isinstance(exc.details, dict)
+                else ".meminit/cache/index/.lock"
+            ) or ".meminit/cache/index/.lock"
             return self._execute_locked(
                 index_cache=index_cache,
                 index_path=index_path,
@@ -1055,7 +1060,7 @@ class IndexRepositoryUseCase:
                             "without cache."
                         ),
                         "severity": Severity.WARNING.value,
-                        "path": ".meminit/cache/index/.lock",
+                        "path": fallback_path,
                     }
                 ],
             )
@@ -1404,12 +1409,28 @@ class IndexRepositoryUseCase:
             encoding="utf-8",
         )
         if use_cache:
-            cache.write(
-                context=cache_context,
-                fingerprints=cache_plan.fingerprints,
-                entries=entries,
-                rewrite_paths=None if cache_plan.mode == "full" else cache_rewrites,
-            )
+            try:
+                cache.write(
+                    context=cache_context,
+                    fingerprints=cache_plan.fingerprints,
+                    entries=entries,
+                    rewrite_paths=None if cache_plan.mode == "full" else cache_rewrites,
+                )
+            except MeminitError as cache_exc:
+                if cache_exc.code != ErrorCode.CACHE_WRITE_FAILED:
+                    raise
+                warnings_list.append(
+                    {
+                        "code": cache_exc.code.value,
+                        "message": "Index was built successfully but cache write failed.",
+                        "severity": Severity.WARNING.value,
+                        "path": (
+                            cache_exc.details.get("cache_path", ".meminit/cache/index/")
+                            if isinstance(cache_exc.details, dict)
+                            else ".meminit/cache/index/"
+                        ),
+                    }
+                )
 
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
