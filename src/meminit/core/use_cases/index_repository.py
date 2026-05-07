@@ -12,6 +12,7 @@ Enhancements:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import hashlib
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
+import yaml
 
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -1162,7 +1164,15 @@ class IndexRepositoryUseCase:
                 continue
             try:
                 post = frontmatter.load(path)
-            except Exception:
+            except (
+                yaml.YAMLError,
+                FileNotFoundError,
+                PermissionError,
+                IsADirectoryError,
+                UnicodeDecodeError,
+                OSError,
+            ) as err:
+                logging.warning("Failed to parse document %s: %s", path, err)
                 continue
 
             doc_id = post.metadata.get("document_id")
