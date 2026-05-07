@@ -200,18 +200,20 @@ def streaming_output_handler(
     except MeminitError as exc:
         if emitter is None:
             raise
-        emitter.emit_error(exc.code, exc.message, exc.details)
+        if not emitter.closed:
+            emitter.emit_error(exc.code, exc.message, exc.details)
         raise SystemExit(exit_code_for_error(exc.code)) from exc
     except SystemExit:
         raise
     except Exception as exc:
         if emitter is None:
             raise
-        emitter.emit_error(
-            ErrorCode.STREAM_PRODUCER_FAILED,
-            "Streaming producer failed.",
-            {"exception": exc.__class__.__name__},
-        )
+        if not emitter.closed:
+            emitter.emit_error(
+                ErrorCode.STREAM_PRODUCER_FAILED,
+                "Streaming producer failed.",
+                {"exception": exc.__class__.__name__},
+            )
         raise SystemExit(exit_code_for_error(ErrorCode.STREAM_PRODUCER_FAILED)) from exc
     finally:
         _restore_interrupt_handlers(previous_handlers)

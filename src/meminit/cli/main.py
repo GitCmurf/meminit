@@ -3296,6 +3296,7 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                     row = {"type": doc_type}
                     if isinstance(payload, dict):
                         row.update(payload)
+                    row["type"] = doc_type
                     doc_type_rows.append(row)
                 _emit_items(
                     emit,

@@ -75,12 +75,13 @@ def is_safe_cli_output_path(path: Path) -> bool:
             if path_str == prefix or path_str.startswith(prefix + "/"):
                 return False
         try:
-            home = Path.home().resolve().as_posix()
-            if path_str.startswith(home) and abs_path.name.startswith("."):
-                if not (
-                    path_str == f"{home}/.meminit"
-                    or path_str.startswith(f"{home}/.meminit/")
-                ):
+            home = Path.home().resolve()
+            try:
+                rel = abs_path.relative_to(home)
+            except ValueError:
+                return True
+            for part in rel.parts:
+                if part.startswith(".") and part != ".meminit":
                     return False
         except (RuntimeError, OSError):
             pass

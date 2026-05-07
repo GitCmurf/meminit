@@ -109,11 +109,14 @@ def _index_cache_context(root_dir: Path) -> Dict[str, Any]:
 def _optional_sha256(path: Path) -> str | None:
     if not path.is_file():
         return None
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
 
 
 def _safe_css_slug(value: str, *, default: str = "unknown") -> str:
@@ -1513,6 +1516,17 @@ class IndexRepositoryUseCase:
                 {
                     "code": ErrorCode.CACHE_ENTRY_INVALID.value,
                     "message": "Cached node path does not match manifest; recomputing document.",
+                    "severity": Severity.WARNING.value,
+                    "path": rel_path,
+                }
+            )
+            return None
+        if cached.get("document_id") != fingerprint.document_id:
+            cache_rewrites.add(rel_path)
+            warnings_list.append(
+                {
+                    "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                    "message": "Cached node document_id does not match manifest; recomputing document.",
                     "severity": Severity.WARNING.value,
                     "path": rel_path,
                 }

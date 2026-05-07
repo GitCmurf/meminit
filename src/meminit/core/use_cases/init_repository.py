@@ -307,7 +307,7 @@ class InitRepositoryUseCase:
             return
         separator = "" if content.endswith("\n") or not content else "\n"
         atomic_write(gitignore_path, f"{content}{separator}{entry}\n", encoding="utf-8")
-        record_fn(gitignore_path, created=False)
+        record_fn(gitignore_path, created=True)
 
     def _install_optional_asset(
         self,

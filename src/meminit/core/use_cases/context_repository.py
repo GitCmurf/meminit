@@ -65,10 +65,10 @@ def _count_governed_markdown(
             post = frontmatter.load(path)
         except Exception:
             continue
+        count += 1
         doc_id = post.metadata.get("document_id")
         if not isinstance(doc_id, str) or not doc_id.strip():
             continue
-        count += 1
         documents.append(
             {
                 "document_id": doc_id.strip(),
