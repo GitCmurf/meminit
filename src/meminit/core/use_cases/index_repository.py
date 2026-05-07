@@ -1575,9 +1575,14 @@ class IndexRepositoryUseCase:
         payload_warnings = payload.get("warnings", [])
         if not isinstance(payload_warnings, list):
             payload_warnings = []
+        raw_count = data.get("document_count", len(nodes))
+        try:
+            document_count = int(raw_count)
+        except (ValueError, TypeError):
+            document_count = len(nodes)
         return IndexBuildReport(
             index_path=index_path,
-            document_count=int(data.get("document_count", len(nodes))),
+            document_count=document_count,
             warnings=canonicalize_warning_list(
                 [*payload_warnings, *warnings_list]
             ),

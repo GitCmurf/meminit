@@ -239,7 +239,7 @@ class InitRepositoryUseCase:
                 # rather than overwriting with the full registered file_mode.
                 # Authoritative mode enforcement is handled by
                 # ProtocolSyncer._apply_file_mode_if_needed on subsequent syncs.
-                if asset.file_mode is not None:
+                if asset.file_mode is not None and asset.file_mode & 0o111:
                     self._set_executable_permission(target)
                 record(target, created=False)
                 continue

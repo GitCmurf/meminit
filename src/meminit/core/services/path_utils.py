@@ -67,7 +67,10 @@ def relative_path_string(path: Path, base: Path) -> str:
 
 def is_safe_cli_output_path(path: Path) -> bool:
     """Return whether a CLI output path avoids protected system locations."""
-    forbidden = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var"]
+    forbidden = [
+        "/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var",
+        "/proc", "/sys", "/dev", "/boot",
+    ]
     try:
         abs_path = path.resolve()
         path_str = abs_path.as_posix()
