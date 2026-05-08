@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from meminit.core.services.repo_config import RepoLayout
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.index_cache import _cache_key
 from meminit.core.use_cases.index_repository import (
@@ -144,6 +145,59 @@ def test_index_repository_builds_index(tmp_path):
     assert "run_id" not in payload
     assert "root" not in payload
     assert "generated_at" not in payload["data"]
+
+
+def test_index_repository_resolves_namespace_per_file_in_same_parent(
+    monkeypatch, tmp_path
+):
+    """Multi-namespace indexing must not cache namespace ownership by parent."""
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+    _setup_doc(
+        tmp_path,
+        "AIDHA-ADR-001",
+        title="Root",
+        filename="adr-root.md",
+    )
+    _setup_doc(
+        tmp_path,
+        "PHYLA-ADR-001",
+        title="Phyla",
+        filename="adr-phyla.md",
+    )
+
+    original_namespace_for_path = RepoLayout.namespace_for_path
+
+    def namespace_for_path(self: RepoLayout, path: Path):
+        if path.name == "adr-root.md":
+            return self.get_namespace("root")
+        if path.name == "adr-phyla.md":
+            return self.get_namespace("phyla")
+        return original_namespace_for_path(self, path)
+
+    monkeypatch.setattr(RepoLayout, "namespace_for_path", namespace_for_path)
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.document_count == 2
+    assert {node["document_id"] for node in report.documents} == {
+        "AIDHA-ADR-001",
+        "PHYLA-ADR-001",
+    }
+    assert {node["namespace"] for node in report.documents} == {"root", "phyla"}
 
 
 def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path):

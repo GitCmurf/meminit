@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '0.3'
+version: '0.4'
 last_updated: '2026-05-08'
 owner: GitCmurf
 docops_version: '2.0'
@@ -30,7 +30,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
+> **Version:** 0.4
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT
@@ -117,6 +117,23 @@ tests, and governed docs.
 | MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found. |
 | MEMINIT-PLAN-013 | Complete for queue surfaces; state helper cleanup and naming consistency remain TD-006 through TD-009. |
 | MEMINIT-PLAN-014 | Core implementation complete; producer architecture, cache traceability, testbed evidence, and fixture consolidation remain TD-002 through TD-005. |
+
+### 3.1 Implementation Progress
+
+Progress is marked only after code, tests, and relevant docs are aligned and
+the listed verification commands pass.
+
+| Workstream | Backlog item | Status | Verification evidence |
+| ---------- | ------------ | ------ | --------------------- |
+| D: Multi-Namespace Index Correctness | TD-001 | Completed | Removed parent-directory namespace ownership caching, added same-parent multi-namespace regression, and passed `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py`. |
+| E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
+| E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
+| E3: State-File Path Strictness | TD-009 | Open | Not started. |
+| A: Streaming Producer Architecture | TD-002 | Open | Not started; blocked on GATE-001. |
+| B: Phase 5 Cache Scenario Traceability | TD-003 | Open | Not started. |
+| C: Phase 5 External Testbed Evidence | TD-004 | Open | Operator-only; blocked on GATE-002. |
+| G: Streaming Test Fixture Consolidation | TD-005 | Open | Not started. |
+| F: Error-Code Contract Cleanup | TD-008 | Open | Blocked on GATE-003. |
 
 ## 4. Pre-Sprint Decisions and Gates
 
@@ -344,6 +361,10 @@ Backlog item:
 
 - TD-001
 
+Status:
+
+- Completed and verified on 2026-05-08.
+
 Goal:
 
 - Prevent namespace cache reuse from skipping documents when configured
@@ -389,6 +410,10 @@ Backlog item:
 
 - TD-006
 
+Status:
+
+- Completed and verified on 2026-05-08.
+
 Goal:
 
 - Remove misleading unused parameters from state derivation helpers without
@@ -428,6 +453,10 @@ Suggested verification:
 Backlog item:
 
 - TD-007
+
+Status:
+
+- Completed and verified on 2026-05-08.
 
 Goal:
 
@@ -683,3 +712,4 @@ This plan is complete when:
 | 0.1 | 2026-05-08 | Codex | Initial post-Phase-5 improvement sprint plan based on the live technical debt assessment of MEMINIT-PLAN-008 through MEMINIT-PLAN-014. |
 | 0.2 | 2026-05-08 | Codex | Incorporated critical review feedback: added pre-sprint gates, specified the streaming producer architecture, marked external testbed evidence operator-only, split state workstreams, tightened cache scenario evidence, added rollback rules, and made definitions of done mechanically verifiable. |
 | 0.3 | 2026-05-08 | Codex | Resolved the Workstream A producer-pattern ambiguity by standardizing on core-owned synchronous generator producers and CLI-owned NDJSON emission. |
+| 0.4 | 2026-05-08 | Codex | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open. |

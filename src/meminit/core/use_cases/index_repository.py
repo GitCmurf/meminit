@@ -1143,16 +1143,11 @@ class IndexRepositoryUseCase:
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
         single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        ns_cache: Dict[Path, Optional[Any]] = {}
         for path in doc_paths:
             if single_ns is not None:
                 ns = single_ns
             else:
-                parent_key = path.parent
-                ns = ns_cache.get(parent_key)
-                if parent_key not in ns_cache:
-                    ns = self._layout.namespace_for_path(path)
-                    ns_cache[parent_key] = ns
+                ns = self._layout.namespace_for_path(path)
                 if ns is None:
                     continue
             cached = self._cached_entry(
@@ -1497,7 +1492,6 @@ class IndexRepositoryUseCase:
         single_ns = (
             self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
         )
-        ns_cache: Dict[Path, Optional[Any]] = {}
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -1505,11 +1499,7 @@ class IndexRepositoryUseCase:
                 if single_ns is not None:
                     owner = single_ns
                 else:
-                    parent_key = path.parent
-                    owner = ns_cache.get(parent_key)
-                    if parent_key not in ns_cache:
-                        owner = self._layout.namespace_for_path(path)
-                        ns_cache[parent_key] = owner
+                    owner = self._layout.namespace_for_path(path)
                     if owner is None or owner.namespace.lower() != ns.namespace.lower():
                         continue
                 if not _is_excluded_for_index(path, ns, self._root_dir):

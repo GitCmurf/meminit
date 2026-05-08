@@ -46,7 +46,7 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P2 |
-| Status | Open |
+| Status | Closed |
 | Owner | Core indexing maintainers |
 | Source | Review follow-up from Phase 4/5 index work |
 | Related plans | `MEMINIT-PLAN-011`, `MEMINIT-PLAN-013`, `MEMINIT-PLAN-014` |
@@ -55,6 +55,7 @@ updated together.
 | Remediation | Replace the flat parent-directory namespace cache with a key that includes namespace identity, or remove that cache from multi-namespace iteration and rely on `namespace_for_path()` per file. |
 | Definition of done | Add an overlapping-namespace regression fixture; prove both namespaces' files are indexed; update index behavior docs if the lookup algorithm changes; run the focused index tests and `meminit check --format json`. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py` |
+| Closure evidence | Closed on 2026-05-08 by removing multi-namespace parent-directory ownership caching and adding `test_index_repository_resolves_namespace_per_file_in_same_parent`; focused verification passed. |
 
 ### TD-002: Streaming producers still materialize use-case results before emitting
 
@@ -121,7 +122,7 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Open |
+| Status | Closed |
 | Owner | State/queue maintainers |
 | Source | Review follow-up from Phase 4 state derivation |
 | Related plans | `MEMINIT-PLAN-013` |
@@ -130,13 +131,14 @@ updated together.
 | Remediation | Remove `known_ids` from helper signatures and update callers/tests to make the explicit-state semantics obvious. |
 | Definition of done | Helper signatures match the actual algorithm; state derivation tests still cover known, unknown, missing-state, and explicit-done dependencies; FDD-013 remains accurate. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py` |
+| Closure evidence | Closed on 2026-05-08 after verifying `src/meminit/core/services/state_derived.py` helper signatures no longer carry unused `known_ids`; focused verification passed. |
 
 ### TD-007: `compute_derived_fields` uses quadratic unblocks derivation
 
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Open |
+| Status | Closed |
 | Owner | State/queue maintainers |
 | Source | Review follow-up from Phase 4 state derivation |
 | Related plans | `MEMINIT-PLAN-013` |
@@ -145,6 +147,7 @@ updated together.
 | Remediation | Build a dependency inverse adjacency map once per `compute_derived_fields` call and answer `unblocks` from that map. |
 | Definition of done | Derived output is byte-identical for existing fixtures; a scale-oriented unit test demonstrates linear-style behavior or at least prevents accidental extra full scans; docs do not need updating unless payload semantics change. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py` |
+| Closure evidence | Closed on 2026-05-08 after verifying `_build_incoming_references` is used once per derivation and adding a 1000-entry reverse-lookup regression; focused verification passed. |
 
 ### TD-008: State error-code prefix convention is inconsistent
 
@@ -203,8 +206,9 @@ Summary:
 
 ## Closed, Superseded, and Rejected Items
 
-No items were closed, superseded, or rejected in this pass. Future updates
-should move entries here rather than deleting historical context.
+Closed items remain in the backlog table with closure evidence so their
+original context and verification commands stay near the implementation
+handoff. Current closed items: TD-001, TD-006, and TD-007.
 
 ## Change History
 
