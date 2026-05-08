@@ -89,7 +89,7 @@ def is_safe_cli_output_path(path: Path) -> bool:
             if abs_path.name.startswith(".") and abs_path.name != ".meminit":
                 return False
             for part in rel.parts[:-1]:
-                if part in _SENSITIVE_HOME_DIRS:
+                if part.lower() in _SENSITIVE_HOME_DIRS:
                     return False
         except (RuntimeError, OSError):
             pass
