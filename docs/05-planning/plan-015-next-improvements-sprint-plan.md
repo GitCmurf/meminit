@@ -30,7 +30,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.5
+> **Version:** 0.6
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT
@@ -130,7 +130,7 @@ the listed verification commands pass.
 | E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E3: State-File Path Strictness | TD-009 | Narrowed | Added explicit strict and fallback state-file path helpers, covered missing/malformed config behavior, and passed `./.venv/bin/pytest -q tests/core/services/test_project_state.py`. Remaining work is caller migration. |
 | A: Streaming Producer Architecture | TD-002 | Open | Not started; blocked on GATE-001. |
-| B: Phase 5 Cache Scenario Traceability | TD-003 | Open | Not started. |
+| B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Open | Operator-only; blocked on GATE-002. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Open | Not started. |
 | F: Error-Code Contract Cleanup | TD-008 | Open | Blocked on GATE-003. |
@@ -267,18 +267,39 @@ Scenario classification:
 
 Implementation steps:
 
-1. Inventory the existing cache tests and map each to S05-S14.
-2. Add named E2E-style regression tests for every scenario class marked
+1. [x] Inventory the existing cache tests and map each to S05-S14.
+2. [x] Add named E2E-style regression tests for every scenario class marked
    "must have named tests" above.
-3. For scenario classes allowed to map to existing coverage, record the
+3. [x] For scenario classes allowed to map to existing coverage, record the
    exact test names and scenario IDs in MEMINIT-FDD-014 or a Draft closeout
    note.
-4. Prefer test names that include the scenario identifier when practical.
-5. Update MEMINIT-PLAN-014 only if explicit authorization is given to amend
+4. [x] Prefer test names that include the scenario identifier when practical.
+5. [x] Update MEMINIT-PLAN-014 only if explicit authorization is given to amend
    the Approved plan; otherwise record the mapping in MEMINIT-FDD-014 or a
    governed closeout note.
-6. Ensure cache behavior remains byte-identical between warm incremental and
+6. [x] Ensure cache behavior remains byte-identical between warm incremental and
    full rebuild paths.
+
+Status:
+
+- Completed and verified on 2026-05-08. `MEMINIT-PLAN-014` and
+  `MEMINIT-FDD-014` are Approved, so the closeout mapping is recorded here
+  rather than rewriting protected documents.
+
+Scenario-to-test mapping:
+
+| Scenario | Test evidence |
+| -------- | ------------- |
+| S05 `single_file_changed` | `test_index_repository_incremental_detects_changed_added_and_removed` |
+| S06 `single_file_added` | `test_index_repository_incremental_detects_changed_added_and_removed` |
+| S07 `single_file_removed` | `test_index_repository_incremental_detects_changed_added_and_removed` |
+| S08 `edge_crosses_changed` | `test_s08_index_repository_incremental_recomputes_changed_related_edges` |
+| S09 `config_changed` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[config_sha256]` |
+| S10 `schema_changed` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[schema_sha256]` |
+| S11 `version_bump` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[meminit_version]` |
+| S12 `corrupt_cache_entry` | `test_index_repository_rebuild_cache_recovers_corrupt_node` |
+| S13 `missing_manifest` | `test_s13_index_cache_missing_manifest_degrades_to_full_rebuild` |
+| S14 `concurrent_index` | `test_s14_index_cache_concurrent_lock_reports_cache_lock_held` |
 
 Definition of done:
 
@@ -723,3 +744,4 @@ This plan is complete when:
 | 0.3 | 2026-05-08 | Codex | Resolved the Workstream A producer-pattern ambiguity by standardizing on core-owned synchronous generator producers and CLI-owned NDJSON emission. |
 | 0.4 | 2026-05-08 | Codex | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open. |
 | 0.5 | 2026-05-08 | Codex | Narrowed Workstream E3 by adding strict/fallback state-file path APIs and verification, leaving caller migration as the remaining behavior-changing step. |
+| 0.6 | 2026-05-08 | Codex | Closed Workstream B by adding named cache scenario regressions and recording the S05-S14 test mapping without editing protected Approved docs. |

@@ -77,7 +77,7 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P2 |
-| Status | Open |
+| Status | Closed |
 | Owner | Test maintainers |
 | Source | MEMINIT-PLAN-014 fixture matrix S05-S14 |
 | Related plans | `MEMINIT-PLAN-014` |
@@ -86,6 +86,7 @@ updated together.
 | Remediation | Either add explicit scenario tests matching S05-S14 or revise MEMINIT-PLAN-014 to state that combined lower-level coverage is the accepted verification surface. |
 | Definition of done | Every S05-S14 row has a named test or a documented supersession note; the plan/FDD/test names agree; cache and streaming tests remain green. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_index_cache.py tests/adapters/test_cli.py tests/adapters/test_streaming_cli.py` |
+| Closure evidence | Closed on 2026-05-08 by adding named S08, S09/S10/S11, S13, and S14 regressions, preserving existing S05-S07 and S12 coverage, and recording the scenario-to-test mapping in `MEMINIT-PLAN-015`. |
 
 ### TD-004: Phase 5 external testbed closeout evidence is not committed
 

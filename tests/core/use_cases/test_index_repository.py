@@ -310,6 +310,44 @@ def test_index_repository_incremental_detects_changed_added_and_removed(tmp_path
     assert not removed_node.exists()
 
 
+def test_s08_index_repository_incremental_recomputes_changed_related_edges(tmp_path):
+    source_path = _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Source")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", title="Target")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    source_path.write_text(
+        source_path.read_text(encoding="utf-8").replace(
+            "docops_version: 2.0\n---",
+            "docops_version: 2.0\nrelated_ids:\n  - EXAMPLE-ADR-002\n---",
+        ),
+        encoding="utf-8",
+    )
+    stat = source_path.stat()
+    os.utime(
+        source_path,
+        ns=(stat.st_atime_ns + 1_000_000_000, stat.st_mtime_ns + 1_000_000_000),
+    )
+
+    report = use_case.execute()
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    related_edges = [
+        edge for edge in payload["data"]["edges"] if edge["edge_type"] == "related"
+    ]
+
+    assert report.rebuild["mode"] == "incremental"
+    assert report.rebuild["changed"] == 1
+    assert related_edges == [
+        {
+            "source": "EXAMPLE-ADR-001",
+            "target": "EXAMPLE-ADR-002",
+            "edge_type": "related",
+            "context": "frontmatter.related_ids",
+            "guaranteed": True,
+        }
+    ]
+
+
 def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     doc_two = _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Second")
