@@ -99,6 +99,7 @@ def is_safe_cli_output_path(path: Path) -> bool:
             for prefix in forbidden:
                 if path_str == prefix or path_str.startswith(prefix + "/"):
                     return False
+        return False
     return True
 
 
