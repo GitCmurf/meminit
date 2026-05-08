@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 
 from meminit.core.domain.entities import Severity, Violation
-from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 from meminit.core.services.sanitization import (
     ACTOR_REGEX,
@@ -49,8 +49,68 @@ PROJECT_STATE_ENTRY_FIELDS = frozenset({
 })
 
 
-def get_state_file_rel_path(root_dir: Path) -> str:
-    """Resolve the project-state.yaml path dynamically from RepoConfig."""
+def _config_missing_error(root_dir: Path, message: str, reason: str) -> MeminitError:
+    return MeminitError(
+        code=ErrorCode.CONFIG_MISSING,
+        message=message,
+        details={
+            "reason": reason,
+            "hint": "meminit init",
+            "root": str(root_dir),
+            "file": "docops.config.yaml",
+        },
+    )
+
+
+def get_state_file_rel_path_strict(root_dir: Path) -> str:
+    """Resolve the state-file path, failing when repo config is unavailable."""
+    from meminit.core.services.repo_config import load_repo_config
+
+    config_path = root_dir / "docops.config.yaml"
+    if not config_path.exists():
+        raise _config_missing_error(
+            root_dir,
+            "Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.",
+            "missing",
+        )
+    if not config_path.is_file() or config_path.is_symlink():
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository not initialized: docops.config.yaml exists but is not a "
+                "regular file. Run 'meminit init' to repair."
+            ),
+            "not_regular_file",
+        )
+
+    try:
+        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository config is malformed: docops.config.yaml could not be "
+                f"parsed ({exc}). Run 'meminit init' to repair."
+            ),
+            "unparseable",
+        ) from exc
+    if not isinstance(raw, dict) or raw.get("docops_version") is None:
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository config is malformed: docops.config.yaml is missing "
+                "required fields (e.g., docops_version). Run 'meminit init' to repair."
+            ),
+            "missing_version",
+        )
+
+    config = load_repo_config(root_dir)
+    docs_root = config.docs_root if config.docs_root else "docs"
+    return f"{docs_root}/01-indices/project-state.yaml"
+
+
+def get_state_file_rel_path_fallback(root_dir: Path) -> str:
+    """Resolve the state-file path for diagnostics, falling back to defaults."""
     from meminit.core.services.repo_config import load_repo_config
 
     try:
@@ -59,6 +119,11 @@ def get_state_file_rel_path(root_dir: Path) -> str:
         return f"{docs_root}/01-indices/project-state.yaml"
     except Exception:
         return "docs/01-indices/project-state.yaml"
+
+
+def get_state_file_rel_path(root_dir: Path) -> str:
+    """Resolve project-state.yaml path with diagnostic fallback semantics."""
+    return get_state_file_rel_path_fallback(root_dir)
 
 
 def _schema_violation(file: str, message: str) -> Violation:

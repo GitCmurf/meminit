@@ -30,7 +30,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
+> **Version:** 0.5
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT
@@ -128,7 +128,7 @@ the listed verification commands pass.
 | D: Multi-Namespace Index Correctness | TD-001 | Completed | Removed parent-directory namespace ownership caching, added same-parent multi-namespace regression, and passed `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py`. |
 | E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
-| E3: State-File Path Strictness | TD-009 | Open | Not started. |
+| E3: State-File Path Strictness | TD-009 | Narrowed | Added explicit strict and fallback state-file path helpers, covered missing/malformed config behavior, and passed `./.venv/bin/pytest -q tests/core/services/test_project_state.py`. Remaining work is caller migration. |
 | A: Streaming Producer Architecture | TD-002 | Open | Not started; blocked on GATE-001. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Open | Not started. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Open | Operator-only; blocked on GATE-002. |
@@ -511,16 +511,25 @@ Size:
 
 Implementation steps:
 
-1. Identify every `get_state_file_rel_path` caller and classify it as strict
+1. [x] Identify every `get_state_file_rel_path` caller and classify it as strict
    or diagnostic.
-2. Split state-file path lookup into strict and fallback variants.
-3. Use the strict variant in command/use-case paths where missing config
+2. [x] Split state-file path lookup into strict and fallback variants.
+3. [ ] Use the strict variant in command/use-case paths where missing config
    should fail.
-4. Preserve the documented empty-queue behavior for missing
+4. [x] Preserve the documented empty-queue behavior for missing
    `project-state.yaml`.
-5. Add tests for strict vs fallback path behavior.
-6. Update MEMINIT-FDD-013 or MEMINIT-RUNBOOK-006 if user-visible diagnostics
+5. [x] Add tests for strict vs fallback path behavior.
+6. [ ] Update MEMINIT-FDD-013 or MEMINIT-RUNBOOK-006 if user-visible diagnostics
    change.
+
+Status:
+
+- Narrowed on 2026-05-08. `get_state_file_rel_path_strict()` now emits
+  `CONFIG_MISSING` for missing, malformed, or invalid repo config, while
+  `get_state_file_rel_path_fallback()` preserves diagnostic default-path
+  behavior. Caller migration remains open because it can change direct use-case
+  behavior outside the CLI initialization guard and should be reviewed as a
+  separate compatibility decision.
 
 Definition of done:
 
@@ -713,3 +722,4 @@ This plan is complete when:
 | 0.2 | 2026-05-08 | Codex | Incorporated critical review feedback: added pre-sprint gates, specified the streaming producer architecture, marked external testbed evidence operator-only, split state workstreams, tightened cache scenario evidence, added rollback rules, and made definitions of done mechanically verifiable. |
 | 0.3 | 2026-05-08 | Codex | Resolved the Workstream A producer-pattern ambiguity by standardizing on core-owned synchronous generator producers and CLI-owned NDJSON emission. |
 | 0.4 | 2026-05-08 | Codex | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open. |
+| 0.5 | 2026-05-08 | Codex | Narrowed Workstream E3 by adding strict/fallback state-file path APIs and verification, leaving caller migration as the remaining behavior-changing step. |

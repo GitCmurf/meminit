@@ -16,6 +16,8 @@ from meminit.core.services.project_state import (
     ProjectStateEntry,
     STATE_SCHEMA_VERSION,
     STATE_SCHEMA_VERSION_LEGACY,
+    get_state_file_rel_path_fallback,
+    get_state_file_rel_path_strict,
     load_project_state,
     save_project_state,
     validate_project_state,
@@ -448,6 +450,39 @@ def test_get_state_file_rel_path_custom_docs_root(tmp_path):
 def test_get_state_file_rel_path_default(tmp_path):
     from meminit.core.services.project_state import get_state_file_rel_path
     assert get_state_file_rel_path(tmp_path) == "docs/01-indices/project-state.yaml"
+
+
+def test_get_state_file_rel_path_strict_custom_docs_root(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "docops_version: '2.0'\ndocs_root: handbook\n",
+        encoding="utf-8",
+    )
+
+    assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+
+
+def test_get_state_file_rel_path_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "missing"
+
+
+def test_get_state_file_rel_path_strict_malformed_config_raises(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text("docops_version: [\n", encoding="utf-8")
+
+    with pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "unparseable"
+
+
+def test_get_state_file_rel_path_fallback_preserves_default_for_diagnostics(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text("docops_version: [\n", encoding="utf-8")
+
+    assert get_state_file_rel_path_fallback(tmp_path) == "docs/01-indices/project-state.yaml"
 
 
 # ---------------------------------------------------------------------------
