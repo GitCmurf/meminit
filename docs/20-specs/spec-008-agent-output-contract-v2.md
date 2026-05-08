@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-008
 type: SPEC
 title: Agent Output Contract (Templates v2 → v3)
 status: Approved
-version: "1.4"
-last_updated: 2026-04-30
+version: "1.5"
+last_updated: 2026-05-06
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -22,6 +22,7 @@ related_ids:
   - MEMINIT-PRD-006
   - MEMINIT-PRD-007
   - MEMINIT-PLAN-013
+  - MEMINIT-SPEC-011
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -53,6 +54,8 @@ In scope:
 Out of scope:
 
 - Human-readable text or markdown output.
+- NDJSON streaming record shape, which is defined separately by
+  MEMINIT-SPEC-011.
 - Logging and telemetry formats.
 - Runbook workflows.
 
@@ -62,6 +65,21 @@ Out of scope:
 - "Envelope" refers to the top-level JSON object emitted by the CLI.
 - "Command" refers to the Meminit CLI subcommand invoked.
 - "Agent" refers to an automated tool that consumes JSON output.
+
+<!-- MEMINIT_SECTION: streaming_envelope -->
+### 3.1 Streaming and the v3 Envelope
+
+`--format json` emits exactly one v3 envelope as defined by this document.
+`--format ndjson` emits a sequence of MEMINIT-SPEC-011 stream records instead.
+
+The two output modes share command names, `run_id`, `correlation_id`, and
+repo-root semantics. A successful stream's terminal `summary.data` is the
+logical equivalent of the non-streaming envelope's `data` for the same command,
+minus entity arrays that were already emitted as `item` records.
+
+Consumers MUST choose the parser from the requested `--format` value. They
+MUST NOT attempt to parse NDJSON as a v3 envelope.
+<!-- /MEMINIT_SECTION: streaming_envelope -->
 
 ## 4. Output Envelope
 
@@ -336,3 +354,4 @@ The normative schema is `docs/20-specs/agent-output.schema.v3.json`.
 | 1.2     | 2026-04-21 | Codex    | Added Phase 4 queue command payload profiles (`state next`, `state blockers`) and clarified merged `state list` expectations. |
 | 1.3     | 2026-04-30 | Codex    | Added payload profiles for all Phase 1-3 commands and clarified protocol sync dry-run/apply semantics. |
 | 1.4     | 2026-04-30 | Codex    | Remediation: Updated index command CLI payload fields, corrected resolve/identify/link to remove 'found', and documented protocol sync 'dry_run'. |
+| 1.5     | 2026-05-06 | Codex    | Added Section 3.1 streaming/envelope semantics and the MEMINIT-SPEC-011 cross-reference. |

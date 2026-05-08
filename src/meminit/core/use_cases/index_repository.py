@@ -12,14 +12,18 @@ Enhancements:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import hashlib
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
+import yaml
 
 from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
@@ -49,6 +53,36 @@ from meminit.core.services.sanitization import (
 )
 from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services import graph
+from meminit.core.services.index_cache import CachePlan, IndexCache
+from meminit.core.services.versioning import get_cli_version
+
+
+def _repo_relative_path(path: Path, root_dir: Path) -> str:
+    path_text = str(path)
+    root_text = str(root_dir).rstrip(os.sep) + os.sep
+    if path_text.startswith(root_text):
+        return path_text[len(root_text):].replace(os.sep, "/")
+    return relative_path_string(path, root_dir)
+
+
+def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
+    path_text = str(path)
+    docs_text = str(namespace.docs_dir).rstrip(os.sep) + os.sep
+    if path_text.startswith(docs_text):
+        rel_to_docs = path_text[len(docs_text):].replace(os.sep, "/")
+        for prefix in namespace.excluded_filename_prefixes:
+            prefix_lower = prefix.lower()
+            if any(part.lower().startswith(prefix_lower) for part in rel_to_docs.split("/")):
+                return True
+
+    rel = _repo_relative_path(path, root_dir)
+    rel_parts = tuple(part for part in rel.split("/") if part)
+    for excluded in namespace.excluded_paths:
+        ex_parts = Path(excluded).parts
+        if ex_parts and rel_parts[: len(ex_parts)] == ex_parts:
+            return True
+
+    return rel in namespace.excluded_files
 
 
 def _json_default(obj: Any) -> str:
@@ -58,6 +92,32 @@ def _json_default(obj: Any) -> str:
     if isinstance(obj, date):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _index_cache_context(root_dir: Path) -> Dict[str, Any]:
+    state_file_rel = get_state_file_rel_path(root_dir)
+    return {
+        "meminit_version": get_cli_version(),
+        "index_version": "1.0",
+        "config_sha256": _optional_sha256(root_dir / "docops.config.yaml"),
+        "schema_sha256": _optional_sha256(
+            root_dir / "docs" / "00-governance" / "metadata.schema.json"
+        ),
+        "state_sha256": _optional_sha256(root_dir / state_file_rel),
+    }
+
+
+def _optional_sha256(path: Path) -> str | None:
+    if not path.is_file():
+        return None
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
 
 
 def _safe_css_slug(value: str, *, default: str = "unknown") -> str:
@@ -241,6 +301,7 @@ class IndexBuildReport:
     documents: List[Dict[str, Any]] = field(default_factory=list)
     edges: List[Dict[str, Any]] = field(default_factory=list)
     advice: List[Dict[str, Any]] = field(default_factory=list)
+    rebuild: Dict[str, Any] = field(default_factory=lambda: {"mode": "full"})
 
 
 # ---------------------------------------------------------------------------
@@ -941,7 +1002,9 @@ class IndexRepositoryUseCase:
             impl_state_filter, self._valid_impl_states, "--impl-state"
         )
 
-    def execute(self) -> IndexBuildReport:
+    def execute(
+        self, *, use_cache: bool = True, clear_cache: bool = False
+    ) -> IndexBuildReport:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
             raise FileNotFoundError(
@@ -955,16 +1018,112 @@ class IndexRepositoryUseCase:
             Path(self._catalog_name).name if self._output_catalog else None
         )
 
-        warnings_list: List[Dict[str, Any]] = []
+        index_cache = IndexCache(self._root_dir)
+        lock_context = (
+            index_cache.acquire_lock() if use_cache or clear_cache else nullcontext()
+        )
+        try:
+            with lock_context:
+                return self._execute_locked(
+                    index_cache=index_cache,
+                    index_path=index_path,
+                    catalog_out_name=catalog_out_name,
+                    use_cache=use_cache,
+                    clear_cache=clear_cache,
+                    initial_warnings=[],
+                )
+        except MeminitError as exc:
+            if (
+                exc.code not in {ErrorCode.CACHE_LOCK_HELD, ErrorCode.CACHE_WRITE_FAILED}
+                or clear_cache
+                or not use_cache
+            ):
+                raise
+            warning_code = exc.code.value
+            fallback_path = (
+                exc.details.get("cache_path") or exc.details.get("lock_path")
+                if isinstance(exc.details, dict)
+                else ".meminit/cache/index/.lock"
+            ) or ".meminit/cache/index/.lock"
+            return self._execute_locked(
+                index_cache=index_cache,
+                index_path=index_path,
+                catalog_out_name=catalog_out_name,
+                use_cache=False,
+                clear_cache=False,
+                initial_warnings=[
+                    {
+                        "code": warning_code,
+                        "message": (
+                            "Index cache is unavailable; using a full rebuild "
+                            "without cache."
+                        ),
+                        "severity": Severity.WARNING.value,
+                        "path": fallback_path,
+                    }
+                ],
+            )
 
-        # Remove any previously generated catalog/kanban artifacts before the
-        # scan so stale custom catalogs cannot be re-indexed as governed docs.
+    def _execute_locked(
+        self,
+        *,
+        index_cache: IndexCache,
+        index_path: Path,
+        catalog_out_name: Optional[str],
+        use_cache: bool,
+        clear_cache: bool,
+        initial_warnings: List[Dict[str, Any]],
+    ) -> IndexBuildReport:
+        if clear_cache:
+            index_cache.clear()
         _remove_stale_artifacts(
             index_path.parent,
             catalog_name=catalog_out_name,
             remove_index=False,
         )
+        warnings_list: List[Dict[str, Any]] = list(initial_warnings)
+        cache_context = _index_cache_context(self._root_dir)
+        doc_paths = self._discover_document_paths()
+        if use_cache:
+            cache_plan = index_cache.build_plan(
+                doc_paths=doc_paths,
+                context=cache_context,
+                use_cache=True,
+            )
+        else:
+            cache_plan = CachePlan(mode="disabled")
+        if cache_plan.manifest_warning:
+            warnings_list.append(cache_plan.manifest_warning)
+        cached_report = self._cached_no_change_report(
+            index_path, cache_plan, warnings_list
+        )
+        if cached_report is not None:
+            return cached_report
+        return self._execute_with_cache_plan(
+            cache=index_cache,
+            cache_context=cache_context,
+            cache_plan=cache_plan,
+            cache_rewrites=set(cache_plan.added | cache_plan.changed),
+            use_cache=use_cache,
+            index_path=index_path,
+            catalog_out_name=catalog_out_name,
+            warnings_list=warnings_list,
+            doc_paths=doc_paths,
+        )
 
+    def _execute_with_cache_plan(
+        self,
+        *,
+        cache: IndexCache,
+        cache_context: Dict[str, Any],
+        cache_plan: CachePlan,
+        cache_rewrites: set[str],
+        use_cache: bool,
+        index_path: Path,
+        catalog_out_name: Optional[str],
+        warnings_list: List[Dict[str, Any]],
+        doc_paths: Sequence[Path],
+    ) -> IndexBuildReport:
         # Load project state (gracefully optional).
         try:
             project_state = load_project_state(self._root_dir)
@@ -984,118 +1143,129 @@ class IndexRepositoryUseCase:
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
         single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        _ns_cache: Dict[Path, Optional[Any]] = {}
-        for ns in self._layout.namespaces:
-            if not ns.docs_dir.exists():
+        ns_cache: Dict[Path, Optional[Any]] = {}
+        for path in doc_paths:
+            if single_ns is not None:
+                ns = single_ns
+            else:
+                parent_key = path.parent
+                ns = ns_cache.get(parent_key)
+                if parent_key not in ns_cache:
+                    ns = self._layout.namespace_for_path(path)
+                    ns_cache[parent_key] = ns
+                if ns is None:
+                    continue
+            cached = self._cached_entry(
+                cache, cache_plan, path, warnings_list, cache_rewrites
+            )
+            if cached is not None:
+                entries.append(cached)
+                doc_id = str(cached.get("document_id", "")).strip()
+                rel_path = str(cached.get("path", ""))
+                if doc_id:
+                    known_doc_ids.add(doc_id)
+                    doc_id_paths.setdefault(doc_id, []).append(rel_path)
                 continue
-            for path in ns.docs_dir.rglob("*.md"):
-                if single_ns is not None:
-                    owner = single_ns
-                else:
-                    parent_key = path.parent
-                    if parent_key in _ns_cache:
-                        owner = _ns_cache[parent_key]
+            try:
+                post = frontmatter.load(path)
+            except (
+                yaml.YAMLError,
+                FileNotFoundError,
+                PermissionError,
+                IsADirectoryError,
+                UnicodeDecodeError,
+                OSError,
+            ) as err:
+                logging.warning("Failed to parse document %s: %s", path, err)
+                continue
+
+            doc_id = post.metadata.get("document_id")
+            if not isinstance(doc_id, str) or not doc_id.strip():
+                continue
+            doc_id = doc_id.strip()
+            known_doc_ids.add(doc_id)
+            rel_path = _repo_relative_path(path, self._root_dir)
+            doc_id_paths.setdefault(doc_id, []).append(rel_path)
+
+            entry: Dict[str, Any] = {
+                "document_id": doc_id,
+                "path": rel_path,
+                "namespace": ns.namespace,
+                "repo_prefix": ns.repo_prefix,
+                "type": post.metadata.get("type"),
+                "title": sanitize_field(
+                    post.metadata.get("title"), max_length=None, html_escape=True
+                ),
+                "_raw_title": post.metadata.get("title"),
+                "status": post.metadata.get("status"),
+                "owner": sanitize_field(
+                    post.metadata.get("owner"), max_length=None, html_escape=True
+                ),
+                "last_updated": post.metadata.get("last_updated"),
+                "area": post.metadata.get("area"),
+                "description": post.metadata.get("description"),
+                "keywords": post.metadata.get("keywords"),
+                "superseded_by": post.metadata.get("superseded_by"),
+                "related_ids": _normalize_related_ids(post.metadata.get("related_ids")),
+            }
+
+            # Merge state (additive — new optional fields).
+            state_updated: Optional[datetime] = None
+            if project_state:
+                state_entry = project_state.get(doc_id)
+                if state_entry:
+                    resolved_state = ImplState.from_string(state_entry.impl_state)
+                    if resolved_state is not None:
+                        entry["impl_state"] = resolved_state.value
                     else:
-                        owner = self._layout.namespace_for_path(path)
-                        _ns_cache[parent_key] = owner
-                    if owner is None or owner.namespace.lower() != ns.namespace.lower():
-                        continue
-                if ns.is_excluded(path):
-                    continue
-                try:
-                    post = frontmatter.load(path)
-                except Exception:
-                    continue
+                        entry["impl_state"] = state_entry.impl_state
 
-                doc_id = post.metadata.get("document_id")
-                if not isinstance(doc_id, str) or not doc_id.strip():
-                    continue
-                doc_id = doc_id.strip()
-                known_doc_ids.add(doc_id)
-                rel_path = path.relative_to(self._root_dir).as_posix()
-                doc_id_paths.setdefault(doc_id, []).append(rel_path)
+                    entry["updated"] = state_entry.updated.isoformat()
 
-                entry: Dict[str, Any] = {
-                    "document_id": doc_id,
-                    "path": rel_path,
-                    "namespace": ns.namespace,
-                    "repo_prefix": ns.repo_prefix,
-                    "type": post.metadata.get("type"),
-                    "title": sanitize_field(
-                        post.metadata.get("title"), max_length=None, html_escape=True
-                    ),
-                    "_raw_title": post.metadata.get("title"),
-                    "status": post.metadata.get("status"),
-                    "owner": sanitize_field(
-                        post.metadata.get("owner"), max_length=None, html_escape=True
-                    ),
-                    "last_updated": post.metadata.get("last_updated"),
-                    "area": post.metadata.get("area"),
-                    "description": post.metadata.get("description"),
-                    "keywords": post.metadata.get("keywords"),
-                    "superseded_by": post.metadata.get("superseded_by"),
-                    "related_ids": _normalize_related_ids(post.metadata.get("related_ids")),
-                }
+                    if state_entry.updated_by and validate_actor(state_entry.updated_by):
+                        entry["updated_by"] = state_entry.updated_by
+                    elif state_entry.updated_by == "":
+                        entry["updated_by"] = (
+                            ""  # preserve explicitly empty string if originally there
+                        )
 
-                # Merge state (additive — new optional fields).
-                state_updated: Optional[datetime] = None
-                if project_state:
-                    state_entry = project_state.get(doc_id)
-                    if state_entry:
-                        resolved_state = ImplState.from_string(state_entry.impl_state)
-                        if resolved_state is not None:
-                            entry["impl_state"] = resolved_state.value
-                        else:
-                            entry["impl_state"] = state_entry.impl_state
+                    if state_entry.notes is not None:
+                        sanitized_notes = sanitize_field(
+                            state_entry.notes,
+                            max_length=MAX_NOTES_LENGTH,
+                            html_escape=True,
+                        )
+                        if sanitized_notes:
+                            entry["notes"] = sanitized_notes
+                            entry["_raw_notes"] = state_entry.notes
 
-                        entry["updated"] = state_entry.updated.isoformat()
+                    if state_entry.priority is not None:
+                        # Intentionally dropped: validate_project_state (called
+                        # upstream) emits STATE_INVALID_PRIORITY for invalid
+                        # values; we silently omit them from the index entry.
+                        if state_entry.priority in VALID_PRIORITIES:
+                            entry["priority"] = state_entry.priority
+                    if state_entry.depends_on:
+                        entry["depends_on"] = list(state_entry.depends_on)
+                    if state_entry.blocked_by:
+                        entry["blocked_by"] = list(state_entry.blocked_by)
+                    if state_entry.assignee is not None:
+                        entry["assignee"] = state_entry.assignee
+                    if state_entry.next_action is not None:
+                        entry["next_action"] = state_entry.next_action
 
-                        if state_entry.updated_by and validate_actor(
-                            state_entry.updated_by
-                        ):
-                            entry["updated_by"] = state_entry.updated_by
-                        elif state_entry.updated_by == "":
-                            entry["updated_by"] = (
-                                ""  # preserve explicitly empty string if originally there
-                            )
+                    state_updated = state_entry.updated
 
-                        if state_entry.notes is not None:
-                            sanitized_notes = sanitize_field(
-                                state_entry.notes,
-                                max_length=MAX_NOTES_LENGTH,
-                                html_escape=True,
-                            )
-                            if sanitized_notes:
-                                entry["notes"] = sanitized_notes
-                                entry["_raw_notes"] = state_entry.notes
+            # Capture body for reference edge extraction (stripped before JSON output).
+            entry["_body"] = post.content
 
-                        if state_entry.priority is not None:
-                            # Intentionally dropped: validate_project_state (called
-                            # upstream) emits STATE_INVALID_PRIORITY for invalid
-                            # values; we silently omit them from the index entry.
-                            if state_entry.priority in VALID_PRIORITIES:
-                                entry["priority"] = state_entry.priority
-                        if state_entry.depends_on:
-                            entry["depends_on"] = list(state_entry.depends_on)
-                        if state_entry.blocked_by:
-                            entry["blocked_by"] = list(state_entry.blocked_by)
-                        if state_entry.assignee is not None:
-                            entry["assignee"] = state_entry.assignee
-                        if state_entry.next_action is not None:
-                            entry["next_action"] = state_entry.next_action
+            # Compute activity recency (used for sorting, not stored in JSON) - always calculate
+            entry["_recency"] = _activity_recency(
+                entry.get("last_updated"),
+                state_updated,
+            )
 
-                        state_updated = state_entry.updated
-
-                # Capture body for reference edge extraction (stripped before JSON output).
-                entry["_body"] = post.content
-
-                # Compute activity recency (used for sorting, not stored in JSON) - always calculate
-                entry["_recency"] = _activity_recency(
-                    entry.get("last_updated"),
-                    state_updated,
-                )
-
-                entries.append(entry)
+            entries.append(entry)
 
         # --- Graph pipeline ---
 
@@ -1221,6 +1391,31 @@ class IndexRepositoryUseCase:
             for e in sorted_entries
         ]
         json_edges = [e.to_dict() for e in all_edges]
+
+        if use_cache:
+            try:
+                cache.write(
+                    context=cache_context,
+                    fingerprints=cache_plan.fingerprints,
+                    entries=entries,
+                    rewrite_paths=None if cache_plan.mode == "full" else cache_rewrites,
+                )
+            except MeminitError as cache_exc:
+                if cache_exc.code != ErrorCode.CACHE_WRITE_FAILED:
+                    raise
+                warnings_list.append(
+                    {
+                        "code": cache_exc.code.value,
+                        "message": "Index was built successfully but cache write failed.",
+                        "severity": Severity.WARNING.value,
+                        "path": (
+                            cache_exc.details.get("cache_path", ".meminit/cache/index/")
+                            if isinstance(cache_exc.details, dict)
+                            else ".meminit/cache/index/"
+                        ),
+                    }
+                )
+
         canonical_warnings = canonicalize_warning_list(warnings_list)
         canonical_advice = canonicalize_advice_list(graph_advice)
 
@@ -1294,4 +1489,137 @@ class IndexRepositoryUseCase:
             documents=json_filtered,
             edges=json_edges,
             advice=canonical_advice,
+            rebuild=cache_plan.summary(),
+        )
+
+    def _discover_document_paths(self) -> List[Path]:
+        paths: List[Path] = []
+        single_ns = (
+            self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
+        )
+        ns_cache: Dict[Path, Optional[Any]] = {}
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
+                continue
+            for path in ns.docs_dir.rglob("*.md"):
+                if single_ns is not None:
+                    owner = single_ns
+                else:
+                    parent_key = path.parent
+                    owner = ns_cache.get(parent_key)
+                    if parent_key not in ns_cache:
+                        owner = self._layout.namespace_for_path(path)
+                        ns_cache[parent_key] = owner
+                    if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                        continue
+                if not _is_excluded_for_index(path, ns, self._root_dir):
+                    paths.append(path)
+        return sorted(paths, key=lambda path: _repo_relative_path(path, self._root_dir))
+
+    def _cached_entry(
+        self,
+        cache: IndexCache,
+        cache_plan: CachePlan,
+        path: Path,
+        warnings_list: List[Dict[str, Any]],
+        cache_rewrites: set[str],
+    ) -> Dict[str, Any] | None:
+        rel_path = _repo_relative_path(path, self._root_dir)
+        if rel_path not in cache_plan.unchanged:
+            return None
+        fingerprint = cache_plan.fingerprints.get(rel_path)
+        if fingerprint is None or not fingerprint.document_id:
+            return None
+        cached = cache.read_node(fingerprint.document_id)
+        if cached is None:
+            cache_rewrites.add(rel_path)
+            warnings_list.append(
+                {
+                    "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                    "message": "Cached node entry is invalid; recomputing document.",
+                    "severity": Severity.WARNING.value,
+                    "path": rel_path,
+                }
+            )
+            return None
+        if cached.get("path") != rel_path:
+            cache_rewrites.add(rel_path)
+            warnings_list.append(
+                {
+                    "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                    "message": "Cached node path does not match manifest; recomputing document.",
+                    "severity": Severity.WARNING.value,
+                    "path": rel_path,
+                }
+            )
+            return None
+        if cached.get("document_id") != fingerprint.document_id:
+            cache_rewrites.add(rel_path)
+            warnings_list.append(
+                {
+                    "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                    "message": "Cached node document_id does not match manifest; recomputing document.",
+                    "severity": Severity.WARNING.value,
+                    "path": rel_path,
+                }
+            )
+            return None
+        recency = cached.get("_recency")
+        if isinstance(recency, str):
+            try:
+                dt = datetime.fromisoformat(recency)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                cached["_recency"] = dt
+            except ValueError:
+                cached["_recency"] = datetime.min.replace(tzinfo=timezone.utc)
+        return cached
+
+    def _cached_no_change_report(
+        self,
+        index_path: Path,
+        cache_plan: CachePlan,
+        warnings_list: List[Dict[str, Any]],
+    ) -> IndexBuildReport | None:
+        if (
+            cache_plan.mode != "incremental"
+            or cache_plan.added
+            or cache_plan.changed
+            or cache_plan.removed
+            or self._output_catalog
+            or self._output_kanban
+            or self._status_filter is not None
+            or self._impl_state_filter is not None
+            or not index_path.is_file()
+        ):
+            return None
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return None
+        nodes = data.get("nodes")
+        edges = data.get("edges")
+        if not isinstance(nodes, list) or not isinstance(edges, list):
+            return None
+        payload_warnings = payload.get("warnings", [])
+        if not isinstance(payload_warnings, list):
+            payload_warnings = []
+        raw_count = data.get("document_count", len(nodes))
+        try:
+            document_count = int(raw_count)
+        except (ValueError, TypeError):
+            document_count = len(nodes)
+        return IndexBuildReport(
+            index_path=index_path,
+            document_count=document_count,
+            warnings=canonicalize_warning_list(
+                [*payload_warnings, *warnings_list]
+            ),
+            documents=nodes,
+            edges=edges,
+            advice=payload.get("advice", []),
+            rebuild=cache_plan.summary(),
         )

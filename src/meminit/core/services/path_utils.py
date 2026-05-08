@@ -65,6 +65,44 @@ def relative_path_string(path: Path, base: Path) -> str:
         return str(path)
 
 
+_SENSITIVE_HOME_DIRS = frozenset({".ssh", ".gnupg", ".aws", ".kube"})
+
+
+def is_safe_cli_output_path(path: Path) -> bool:
+    """Return whether a CLI output path avoids protected system locations."""
+    forbidden = [
+        "/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var",
+        "/proc", "/sys", "/dev", "/boot",
+    ]
+    try:
+        abs_path = path.resolve()
+        path_str = abs_path.as_posix()
+        for prefix in forbidden:
+            if path_str == prefix or path_str.startswith(prefix + "/"):
+                return False
+        try:
+            home = Path.home().resolve()
+            try:
+                rel = abs_path.relative_to(home)
+            except ValueError:
+                return True
+            if abs_path.name.startswith(".") and abs_path.name != ".meminit":
+                return False
+            for part in rel.parts[:-1]:
+                if part.lower() in _SENSITIVE_HOME_DIRS:
+                    return False
+        except (RuntimeError, OSError):
+            pass
+    except (OSError, ValueError):
+        if path.is_absolute():
+            path_str = path.as_posix()
+            for prefix in forbidden:
+                if path_str == prefix or path_str.startswith(prefix + "/"):
+                    return False
+        return False
+    return True
+
+
 def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     """Load documents from a meminit index JSON file.
 

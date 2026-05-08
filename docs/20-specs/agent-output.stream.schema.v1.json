@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Meminit Agent Output Stream Record v1",
+  "oneOf": [
+    { "$ref": "#/definitions/header" },
+    { "$ref": "#/definitions/item" },
+    { "$ref": "#/definitions/progress" },
+    { "$ref": "#/definitions/error" },
+    { "$ref": "#/definitions/summary" }
+  ],
+  "definitions": {
+    "base": {
+      "type": "object",
+      "required": ["stream_schema_version", "record_type", "command", "sequence"],
+      "properties": {
+        "stream_schema_version": { "const": "1.0" },
+        "record_type": { "enum": ["header", "item", "progress", "error", "summary"] },
+        "command": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "header": {
+      "allOf": [
+        { "$ref": "#/definitions/base" },
+        {
+          "type": "object",
+          "required": ["run_id"],
+          "properties": {
+            "stream_schema_version": true,
+            "record_type": { "const": "header" },
+            "command": true,
+            "sequence": true,
+            "run_id": { "type": "string" },
+            "correlation_id": { "type": "string" },
+            "root": { "type": "string" },
+            "started_at": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "item": {
+      "allOf": [
+        { "$ref": "#/definitions/base" },
+        {
+          "type": "object",
+          "required": ["kind", "data"],
+          "properties": {
+            "stream_schema_version": true,
+            "record_type": { "const": "item" },
+            "command": true,
+            "sequence": true,
+            "kind": { "type": "string", "minLength": 1 },
+            "data": { "type": "object" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "progress": {
+      "allOf": [
+        { "$ref": "#/definitions/base" },
+        {
+          "type": "object",
+          "required": ["processed"],
+          "properties": {
+            "stream_schema_version": true,
+            "record_type": { "const": "progress" },
+            "command": true,
+            "sequence": true,
+            "processed": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 0 },
+            "stage": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "error": {
+      "allOf": [
+        { "$ref": "#/definitions/base" },
+        {
+          "type": "object",
+          "required": ["error"],
+          "properties": {
+            "stream_schema_version": true,
+            "record_type": { "const": "error" },
+            "command": true,
+            "sequence": true,
+            "error": {
+              "type": "object",
+              "required": ["code", "message"],
+              "properties": {
+                "code": { "type": "string" },
+                "message": { "type": "string" },
+                "details": { "type": "object" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "summary": {
+      "allOf": [
+        { "$ref": "#/definitions/base" },
+        {
+          "type": "object",
+          "required": ["success", "data", "warnings", "violations", "advice"],
+          "properties": {
+            "stream_schema_version": true,
+            "record_type": { "const": "summary" },
+            "command": true,
+            "sequence": true,
+            "success": { "type": "boolean" },
+            "data": { "type": "object" },
+            "warnings": { "type": "array" },
+            "violations": { "type": "array" },
+            "advice": { "type": "array" },
+            "counts": { "type": "object" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

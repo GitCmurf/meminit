@@ -42,6 +42,8 @@ Meminit is designed to work _with_ AI coding agents, not just alongside them:
 - **Enforce repo rules in CI and pre-commit** — `meminit doctor`, `meminit check`
 - **Auto-fix common violations** (dry-run by default) — `meminit fix`
 - **Build an index for stable ID → path resolution** — `meminit index`, `meminit resolve`
+- **Stream large agent payloads** — `meminit index --format ndjson`, specified by
+  [MEMINIT-SPEC-011](docs/20-specs/spec-011-ndjson-streaming-contract.md)
 
 See the full project vision:
 [MEMINIT-STRAT-001](docs/02-strategy/strat-001-project-meminit-vision.md).

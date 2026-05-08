@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.index_cache import _cache_key
 from meminit.core.use_cases.index_repository import (
     IndexRepositoryUseCase,
     _safe_css_slug,
@@ -48,13 +49,14 @@ def _setup_doc(
     status: str = "Draft",
     owner: str = "Test",
     last_updated: str = "2025-12-21",
+    docs_root: str = "docs",
     subdir: str = "45-adr",
     filename: str | None = None,
     body: str = "",
     extra_frontmatter: str = "",
 ) -> Path:
     """Create a governed document under docs/."""
-    docs_dir = root / "docs" / subdir
+    docs_dir = root / docs_root / subdir
     docs_dir.mkdir(parents=True, exist_ok=True)
     fname = filename or f"{doc_type.lower()}-{doc_id.split('-')[-1]}.md"
     doc_path = docs_dir / fname
@@ -81,7 +83,13 @@ def _setup_state_file(root: Path, documents: dict) -> Path:
     return state_path
 
 
-def _setup_repo_config(root: Path, *, project_name: str, repo_prefix: str) -> Path:
+def _setup_repo_config(
+    root: Path,
+    *,
+    project_name: str,
+    repo_prefix: str,
+    docs_root: str = "docs",
+) -> Path:
     """Create a minimal docops.config.yaml for repo-prefix-sensitive tests."""
     config_path = root / "docops.config.yaml"
     config_path.write_text(
@@ -89,12 +97,30 @@ def _setup_repo_config(root: Path, *, project_name: str, repo_prefix: str) -> Pa
             {
                 "project_name": project_name,
                 "repo_prefix": repo_prefix,
+                "docs_root": docs_root,
             },
             sort_keys=False,
         ),
         encoding="utf-8",
     )
     return config_path
+
+
+def test_index_use_cache_false_skips_cache_fingerprinting(monkeypatch, tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    def fail_sha256(_path: Path) -> str:
+        raise AssertionError("disabled cache should not hash documents")
+
+    monkeypatch.setattr(
+        "meminit.core.services.index_cache._sha256_file",
+        fail_sha256,
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute(use_cache=False)
+
+    assert report.document_count == 1
+    assert report.rebuild["mode"] == "disabled"
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +144,141 @@ def test_index_repository_builds_index(tmp_path):
     assert "run_id" not in payload
     assert "root" not in payload
     assert "generated_at" not in payload["data"]
+
+
+def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    first_bytes = first_report.index_path.read_bytes()
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild == {
+        "mode": "incremental",
+        "added": 0,
+        "changed": 0,
+        "removed": 0,
+        "unchanged": 1,
+    }
+    assert second_report.index_path.read_bytes() == first_bytes
+
+
+def test_index_repository_invalidates_cache_when_custom_docs_root_state_changes(tmp_path):
+    _setup_repo_config(
+        tmp_path,
+        project_name="Documentation",
+        repo_prefix="DOC",
+        docs_root="documentation",
+    )
+    docs_root = tmp_path / "documentation"
+    docs_root.mkdir(parents=True, exist_ok=True)
+    _setup_doc(
+        tmp_path,
+        "EXAMPLE-ADR-001",
+        title="Original",
+        docs_root="documentation",
+    )
+    state_path = docs_root / "01-indices" / "project-state.yaml"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        yaml.safe_dump(
+            {
+                "documents": {
+                    "EXAMPLE-ADR-001": {
+                        "impl_state": "In Progress",
+                        "updated": "2026-05-01T12:00:00Z",
+                        "updated_by": "Test",
+                    }
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert first_report.rebuild["mode"] == "full"
+
+    state_path.write_text(
+        yaml.safe_dump(
+            {
+                "documents": {
+                    "EXAMPLE-ADR-001": {
+                        "impl_state": "Blocked",
+                        "updated": "2026-05-02T12:00:00Z",
+                        "updated_by": "Test",
+                        "notes": "Waiting on review",
+                    }
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild["mode"] == "full"
+    assert second_report.document_count == 1
+
+
+def test_index_repository_incremental_detects_changed_added_and_removed(tmp_path):
+    first_path = _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Original")
+    second_path = _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Second")
+    IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    first_path.write_text(
+        first_path.read_text(encoding="utf-8").replace("Original", "Changed"),
+        encoding="utf-8",
+    )
+    second_path.unlink()
+    _setup_doc(tmp_path, "EXAMPLE-ADR-003", title="Third")
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.rebuild["mode"] == "incremental"
+    assert report.rebuild["changed"] == 1
+    assert report.rebuild["added"] == 1
+    assert report.rebuild["removed"] == 1
+    assert report.rebuild["unchanged"] == 0
+    assert {doc["document_id"] for doc in report.documents} == {
+        "EXAMPLE-ADR-001",
+        "EXAMPLE-ADR-003",
+    }
+    removed_node = (
+        tmp_path
+        / ".meminit"
+        / "cache"
+        / "index"
+        / "nodes"
+        / "EXAMPLE-ADR-002.json"
+    )
+    assert not removed_node.exists()
+
+
+def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    doc_two = _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Second")
+    IndexRepositoryUseCase(str(tmp_path)).execute()
+    node_path = (
+        tmp_path
+        / ".meminit"
+            / "cache"
+            / "index"
+            / "nodes"
+            / f"{_cache_key('EXAMPLE-ADR-001')}.json"
+        )
+    node_path.write_text("{bad json", encoding="utf-8")
+    doc_two.write_text(
+        doc_two.read_text(encoding="utf-8").replace("Second", "Second Revised"),
+        encoding="utf-8",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert any(w["code"] == ErrorCode.CACHE_ENTRY_INVALID.value for w in report.warnings)
+    assert report.document_count == 2
+    assert json.loads(node_path.read_text(encoding="utf-8"))["document_id"] == "EXAMPLE-ADR-001"
 
 
 def test_index_repository_persisted_json_is_stable_across_runs(tmp_path):

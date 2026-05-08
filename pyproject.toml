@@ -59,6 +59,9 @@ include-package-data = true
 addopts = "-ra -q"
 testpaths = ["tests"]
 pythonpath = ["src"]
+filterwarnings = [
+    "ignore:Legacy config keys detected.*Use 'meminit migrate-templates':DeprecationWarning",
+]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]

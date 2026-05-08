@@ -65,15 +65,41 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
-    (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
-    (tmp_path / "docs" / "00-governance" / "b.md").write_text("# B\n", encoding="utf-8")
+    (tmp_path / "docs" / "00-governance" / "a.md").write_text(
+        "---\n"
+        "document_id: DOC-A\n"
+        "type: ADR\n"
+        "title: A\n"
+        "---\n\n# A\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance" / "b.md").write_text(
+        "---\n"
+        "document_id: DOC-B\n"
+        "type: ADR\n"
+        "title: B\n"
+        "---\n\n# B\n",
+        encoding="utf-8",
+    )
     (tmp_path / "docs" / "WIP-notes.md").write_text("# WIP\n", encoding="utf-8")
     (tmp_path / "docs" / "00-governance" / "templates" / "tmpl.md").write_text(
         "# Template\n", encoding="utf-8"
     )
-    (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
+    (tmp_path / "docs-other" / "00-governance" / "c.md").write_text(
+        "---\n"
+        "document_id: DOC-C\n"
+        "type: ADR\n"
+        "title: C\n"
+        "---\n\n# C\n",
+        encoding="utf-8",
+    )
     (tmp_path / "docs" / "nested" / "00-governance" / "d.md").write_text(
-        "# D\n", encoding="utf-8"
+        "---\n"
+        "document_id: DOC-D\n"
+        "type: ADR\n"
+        "title: D\n"
+        "---\n\n# D\n",
+        encoding="utf-8",
     )
 
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
@@ -85,6 +111,36 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     assert namespaces[0]["document_count"] == 2
     assert namespaces[1]["document_count"] == 1
     assert namespaces[2]["document_count"] == 1
+    assert result.documents == [
+        {
+            "document_id": "DOC-A",
+            "namespace": "default",
+            "path": "docs/00-governance/a.md",
+            "title": "A",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-B",
+            "namespace": "default",
+            "path": "docs/00-governance/b.md",
+            "title": "B",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-C",
+            "namespace": "other",
+            "path": "docs-other/00-governance/c.md",
+            "title": "C",
+            "type": "ADR",
+        },
+        {
+            "document_id": "DOC-D",
+            "namespace": "nested",
+            "path": "docs/nested/00-governance/d.md",
+            "title": "D",
+            "type": "ADR",
+        },
+    ]
     assert result.warnings == []
 
 
@@ -148,27 +204,25 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
-    # Multiple files so the counter loop runs more than once.
-    (tmp_path / "docs" / "00-governance" / "a.md").write_text("# A\n", encoding="utf-8")
-    (tmp_path / "docs" / "00-governance" / "b.md").write_text("# B\n", encoding="utf-8")
-    (tmp_path / "docs-other" / "00-governance" / "c.md").write_text("# C\n", encoding="utf-8")
-
     use_case = ContextRepositoryUseCase(root_dir=tmp_path)
+    partial_documents = [
+        {
+            "document_id": "DOC-A",
+            "namespace": "default",
+            "path": "docs/00-governance/a.md",
+            "title": "A",
+            "type": "ADR",
+        }
+    ]
 
-    def monotonic_after(calls_before_deadline: int):
-        calls = 0
+    def fake_count(layout, ns, *, deadline=None):
+        if ns.namespace == "default":
+            return None, partial_documents
+        return 0, []
 
-        def _fn():
-            nonlocal calls
-            calls += 1
-            return 0.0 if calls <= calls_before_deadline else 10.1
-
-        return _fn
-
-    # Exceed budget during the first namespace count.
     with patch(
-        "meminit.core.use_cases.context_repository.time.monotonic",
-        new=monotonic_after(2),
+        "meminit.core.use_cases.context_repository._count_governed_markdown",
+        side_effect=fake_count,
     ):
         result = use_case.execute(deep=True)
 
@@ -178,6 +232,7 @@ def test_context_repository_execute_deep_budget_exceeded_mid_count(tmp_path):
     assert namespaces[0]["document_count"] is None
     assert namespaces[1]["document_count"] is None
     assert namespaces[2]["document_count"] is None
+    assert result.documents == partial_documents
     assert result.warnings and result.warnings[0]["code"] == "DEEP_BUDGET_EXCEEDED"
 
 

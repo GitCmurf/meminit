@@ -4,13 +4,25 @@ import os
 import shlex
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from meminit.cli.shared_flags import agent_output_options, agent_repo_options
+from meminit.cli.shared_flags import (
+    agent_output_options,
+    agent_repo_options,
+    command_supports_ndjson,
+)
+from meminit.cli.streaming import (
+    CallableStreamingProducer,
+    StreamEmitter,
+    SummaryPayload,
+    streaming_output_handler,
+    unsupported_ndjson,
+    write_ndjson_error,
+)
 from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import (
@@ -18,6 +30,7 @@ from meminit.core.services.exit_codes import (
     EX_COMPLIANCE_FAIL,
     exit_code_for_error,
 )
+from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
     normalize_correlation_id,
@@ -25,7 +38,10 @@ from meminit.core.services.output_formatter import (
     format_error_envelope,
 )
 from meminit.core.services.versioning import get_cli_version
-from meminit.core.services.path_utils import relative_path_string
+from meminit.core.services.path_utils import (
+    is_safe_cli_output_path,
+    relative_path_string,
+)
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
@@ -93,13 +109,50 @@ def command_output_handler(
                     ),
                     output,
                 )
+            elif format == "ndjson":
+                _write_ndjson_error(
+                    command_name=command_name,
+                    error=MeminitError(
+                        ErrorCode.INVALID_FLAG_COMBINATION, error_msg
+                    ),
+                    output=output,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    root_path=root_path,
+                    correlation_id=None,
+                )
             else:
                 _write_output(f"Error: {error_msg}\n", output)
             raise SystemExit(exit_code_for_error(ErrorCode.INVALID_FLAG_COMBINATION)) from e
+    if format == "ndjson" and not command_supports_ndjson(command_name):
+        error = unsupported_ndjson(
+            command_name,
+            f"meminit {command_name} does not support --format ndjson.",
+        )
+        _write_ndjson_error(
+            command_name=command_name,
+            error=error,
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            root_path=root_path,
+            correlation_id=correlation_id,
+        )
+        raise SystemExit(exit_code_for_error(error.code))
     try:
         yield
     except MeminitError as e:
-        if format == "json":
+        if format == "ndjson":
+            _write_ndjson_error(
+                command_name=command_name,
+                error=e,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+        elif format == "json":
             _write_output(
                 format_error_envelope(
                     command=command_name,
@@ -141,6 +194,20 @@ def command_output_handler(
                 ),
                 output,
             )
+        elif format == "ndjson":
+            _write_ndjson_error(
+                command_name=command_name,
+                error=MeminitError(
+                    ErrorCode.UNKNOWN_ERROR,
+                    safe_msg,
+                    details={"internal_error": str(e)},
+                ),
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
         elif format == "md":
             _write_output(
                 f"# Error\n\n- Code: UNKNOWN_ERROR\n- Message: {safe_msg}\n",
@@ -155,6 +222,28 @@ def command_output_handler(
         # Always log the real error to stderr for operators
         click.echo(f"INTERNAL ERROR: {e}", err=True)
         raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
+
+
+def _write_ndjson_error(
+    *,
+    command_name: str,
+    error: MeminitError,
+    output: Optional[str],
+    include_timestamp: bool,
+    run_id: str,
+    root_path: Optional[Path] = None,
+    correlation_id: Optional[str] = None,
+) -> None:
+    """Emit a terminal NDJSON error record to stdout or the requested file."""
+    write_ndjson_error(
+        command_name=command_name,
+        error=error,
+        output=output,
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        root_path=root_path,
+        correlation_id=correlation_id,
+    )
 
 
 def complete_document_types(ctx, param, incomplete: str):
@@ -173,41 +262,6 @@ def complete_document_types(ctx, param, incomplete: str):
     except Exception:
         pass
     return []
-
-
-def _is_safe_path(path: Path) -> bool:
-    """Basic safety check for output paths."""
-    # Forbidden system paths (simplified)
-    forbidden = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var"]
-    try:
-        # Resolve to handle symlinks and relative paths
-        abs_path = path.resolve()
-        path_str = abs_path.as_posix()
-        for f in forbidden:
-            if path_str == f or path_str.startswith(f + "/"):
-                return False
-        # Prevent hidden files in home directory (e.g. .ssh, .bashrc)
-        try:
-            home = Path.home().resolve().as_posix()
-            if path_str.startswith(home) and abs_path.name.startswith("."):
-                # Allow .meminit specific files if any
-                if not (
-                    path_str == f"{home}/.meminit"
-                    or path_str.startswith(f"{home}/.meminit/")
-                ):
-                    return False
-        except (RuntimeError, OSError):
-            # No home directory or cannot resolve
-            pass
-    except (OSError, ValueError):
-        # Cannot resolve path (e.g. permission denied on parent)
-        # If we can't resolve it, we err on the side of safety if it looks absolute
-        if path.is_absolute():
-            path_str = path.as_posix()
-            for f in forbidden:
-                if path_str == f or path_str.startswith(f + "/"):
-                    return False
-    return True
 
 
 def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
@@ -239,7 +293,7 @@ def _write_output(
     """Write output to stdout or to a file if requested."""
     if output:
         out_path = Path(output)
-        if not _is_safe_path(out_path):
+        if not is_safe_cli_output_path(out_path):
             payload = _extract_envelope_metadata(output_str)
             if payload is not None:
                 click.echo(
@@ -298,6 +352,108 @@ def _write_output(
                 click.echo(f"Error writing output file '{output}': {exc}", err=True)
             raise SystemExit(EX_CANTCREAT)
     click.echo(output_str, nl=add_newline)
+
+
+def _filter_index_edges(
+    report: Any, *, status_filter: str | None, impl_state_filter: str | None
+) -> list[dict[str, Any]]:
+    has_filter = status_filter is not None or impl_state_filter is not None
+    if not has_filter:
+        return report.edges
+    visible_ids = {n["document_id"] for n in report.documents}
+    return [
+        e for e in report.edges
+        if e.get("source") in visible_ids and e.get("target") in visible_ids
+    ]
+
+
+def _index_output_data(
+    report: Any,
+    root_path: Path,
+    *,
+    status_filter: str | None = None,
+    impl_state_filter: str | None = None,
+) -> dict[str, Any]:
+    display_edges = _filter_index_edges(
+        report, status_filter=status_filter, impl_state_filter=impl_state_filter
+    )
+    data: dict[str, Any] = {
+        "index_path": relative_path_string(report.index_path, root_path),
+        "node_count": report.document_count,
+        "edge_count": len(display_edges),
+        "nodes": report.documents,
+        "edges": display_edges,
+        "filtered": status_filter is not None or impl_state_filter is not None,
+        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
+    }
+    if report.catalog_path:
+        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
+    if report.kanban_path:
+        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+    return data
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    """Return a shallow copy of summary data with selected keys removed."""
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
+
+
+def _emit_items(emit: StreamEmitter, kind: str, rows: Iterable[dict[str, Any]]) -> None:
+    for row in rows:
+        emit.emit_item(kind, row)
+
+
+def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, Any]]:
+    from meminit.core.services.repo_config import load_repo_layout
+
+    if not docs_root:
+        return []
+
+    docs_dir = root_path / docs_root
+    if not docs_dir.exists():
+        return []
+
+    layout = load_repo_layout(root_path)
+    items: list[dict[str, Any]] = []
+    for path in docs_dir.rglob("*.md"):
+        owner = layout.namespace_for_path(path)
+        items.append(
+            {
+                "path": path.relative_to(root_path).as_posix(),
+                "namespace": owner.namespace if owner else None,
+                "governed": bool(owner and not owner.is_excluded(path)),
+            }
+        )
+
+    return sorted(items, key=lambda row: row["path"])
+
+
+def _scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:
+    docs_root = scan_data.get("docs_root")
+    suggestion_specs = (
+        ("ambiguous_types", "warning", docs_root or "."),
+        ("suggested_namespaces", "info", "docops.config.yaml"),
+        ("suggested_type_directories", "info", docs_root or "."),
+    )
+    suggestions: list[dict[str, Any]] = []
+    for code, severity, path in suggestion_specs:
+        value = scan_data.get(code)
+        if value:
+            suggestions.append(
+                {
+                    "severity": severity,
+                    "code": code,
+                    "path": path,
+                    "value": value,
+                }
+            )
+    return sorted(
+        suggestions,
+        key=lambda row: (row["severity"], row["code"], row["path"]),
+    )
 
 
 @contextlib.contextmanager
@@ -401,6 +557,20 @@ def validate_root_path(
             ),
             output=output,
         )
+    elif format == "ndjson":
+        _write_ndjson_error(
+            command_name=command,
+            error=MeminitError(
+                ErrorCode.INVALID_ROOT_PATH,
+                msg,
+                details=details,
+            ),
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id or get_current_run_id(),
+            root_path=root_path,
+            correlation_id=correlation_id,
+        )
     elif format == "md":
         _write_output(
             f"# Meminit Error\n\n- Code: INVALID_ROOT_PATH\n- Message: {msg}\n",
@@ -498,6 +668,20 @@ def validate_initialized(
                 correlation_id=correlation_id,
             ),
             output=output,
+        )
+    elif format == "ndjson":
+        _write_ndjson_error(
+            command_name=command,
+            error=MeminitError(
+                ErrorCode.CONFIG_MISSING,
+                msg,
+                details=details,
+            ),
+            output=output,
+            include_timestamp=include_timestamp,
+            run_id=run_id or get_current_run_id(),
+            root_path=root_path,
+            correlation_id=correlation_id,
         )
     elif format == "md":
         _write_output(
@@ -1163,14 +1347,39 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             output=output,
             correlation_id=correlation_id,
         )
+        if format == "ndjson" and plan:
+            raise unsupported_ndjson(
+                "scan",
+                "meminit scan --format ndjson does not support --plan; run scan --format json --plan for plan artifacts.",
+            )
 
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
         report = use_case.execute(generate_plan=bool(plan))
         scan_data = report.as_dict()
 
+        if format == "ndjson":
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                for item in _scan_file_items(root_path, scan_data.get("docs_root")):
+                    emit.emit_item("file", item)
+                for item in _scan_suggestion_items(scan_data):
+                    emit.emit_item("suggestion", item)
+                summary = _summary_data(scan_data)
+                return SummaryPayload(data=summary)
+
+            streaming_output_handler(
+                command="scan",
+                producer=CallableStreamingProducer(produce),
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+            return
+
         if plan and report.plan:
             plan_path = Path(plan)
-            if not _is_safe_path(plan_path):
+            if not is_safe_cli_output_path(plan_path):
                 raise MeminitError(
                     ErrorCode.PATH_ESCAPE,
                     f"Plan path is considered unsafe: {plan}",
@@ -1223,7 +1432,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 from meminit.core.services.scan_plan import MigrationPlan
 
                 plan_path = Path(plan)
-                if not _is_safe_path(plan_path):
+                if not is_safe_cli_output_path(plan_path):
                     pass  # Best-effort, skip file write for unsafe path
                 else:
                     empty_plan = MigrationPlan(
@@ -1558,6 +1767,24 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
         "(if omitted, uses config or defaults to catalogue.md)."
     ),
 )
+@click.option(
+    "--no-cache",
+    is_flag=True,
+    default=False,
+    help="Clear the repo-local index cache before rebuilding.",
+)
+@click.option(
+    "--rebuild-cache",
+    is_flag=True,
+    default=False,
+    help="Force a clean rebuild by clearing the repo-local index cache first.",
+)
+@click.option(
+    "--explain-cache",
+    is_flag=True,
+    default=False,
+    help="Describe the current index cache manifest without rebuilding.",
+)
 def index(
     root,
     format,
@@ -1569,6 +1796,9 @@ def index(
     output_catalog,
     output_kanban,
     catalog_name,
+    no_cache,
+    rebuild_cache,
+    explain_cache,
 ):
     """Build or update the repository index artifact."""
     run_id = get_current_run_id()
@@ -1587,6 +1817,52 @@ def index(
             output=output,
             correlation_id=correlation_id,
         )
+        if no_cache and rebuild_cache:
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--no-cache and --rebuild-cache are mutually exclusive.",
+                details={"flags": ["--no-cache", "--rebuild-cache"]},
+            )
+        if explain_cache and (no_cache or rebuild_cache):
+            raise MeminitError(
+                ErrorCode.INVALID_FLAG_COMBINATION,
+                "--explain-cache cannot be combined with --no-cache or --rebuild-cache.",
+                details={
+                    "flags": [
+                        "--explain-cache",
+                        *(
+                            ["--no-cache"]
+                            if no_cache
+                            else ["--rebuild-cache"]
+                        ),
+                    ]
+                },
+            )
+        if explain_cache:
+            if format == "ndjson":
+                raise unsupported_ndjson(
+                    "index",
+                    "meminit index --explain-cache does not support --format ndjson.",
+                )
+            if format != "json":
+                raise MeminitError(
+                    ErrorCode.INVALID_FLAG_COMBINATION,
+                    "meminit index --explain-cache requires --format json.",
+                    details={"format": format},
+                )
+            _write_output(
+                format_envelope(
+                    command="index",
+                    root=str(root_path),
+                    success=True,
+                    data={"cache": IndexCache(root_path).explain()},
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            return
 
         use_case = IndexRepositoryUseCase(
             root_dir=str(root_path),
@@ -1597,14 +1873,18 @@ def index(
             impl_state_filter=impl_state_filter,
         )
         try:
-            report = use_case.execute()
+            report = use_case.execute(
+                use_cache=not no_cache,
+                clear_cache=no_cache or rebuild_cache,
+            )
         except MeminitError as e:
             # Only intercept graph fatal diagnostics (details.errors present).
             # Re-raise all other MeminitErrors so command_output_handler
             # formats them consistently for text/md/json modes.
-            is_graph_fatal = isinstance(e.details, dict) and "errors" in e.details
+            details = e.details if isinstance(e.details, dict) else {}
+            is_graph_fatal = "errors" in details
             if is_graph_fatal:
-                violations = e.details["errors"]
+                violations = details["errors"]
                 if format == "json":
                     _write_output(
                         format_envelope(
@@ -1618,6 +1898,17 @@ def index(
                             correlation_id=correlation_id,
                         ),
                         output,
+                    )
+                    raise SystemExit(exit_code_for_error(e.code)) from e
+                if format == "ndjson":
+                    _write_ndjson_error(
+                        command_name="index",
+                        error=e,
+                        output=output,
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        root_path=root_path,
+                        correlation_id=correlation_id,
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "md":
@@ -1643,33 +1934,54 @@ def index(
             w.get("severity") == Severity.ERROR.value for w in warnings_list
         )
         status = "error" if has_error else ("warn" if warnings_list else "ok")
+        data = _index_output_data(
+            report,
+            root_path,
+            status_filter=status_filter,
+            impl_state_filter=impl_state_filter,
+        )
+        display_edges = data["edges"]
 
-        # Filter edges to only include those whose endpoints are in the visible
-        # node set — but only when the user requested node filtering.  On the
-        # unfiltered path we must preserve dangling edges (e.g. related_ids
-        # pointing to a non-existent document) so agents see the full graph.
-        has_filter = status_filter is not None or impl_state_filter is not None
-        if has_filter:
-            visible_ids = {n["document_id"] for n in report.documents}
-            display_edges = [
-                e for e in report.edges
-                if e.get("source") in visible_ids and e.get("target") in visible_ids
-            ]
-        else:
-            display_edges = report.edges
+        if format == "ndjson":
 
-        data: Dict[str, Any] = {
-            "index_path": relative_path_string(report.index_path, root_path),
-            "node_count": report.document_count,
-            "edge_count": len(display_edges),
-            "nodes": report.documents,
-            "edges": display_edges,
-            "filtered": has_filter,
-        }
-        if report.catalog_path:
-            data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
-        if report.kanban_path:
-            data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                _emit_items(
+                    emit,
+                    "node",
+                    sorted(data["nodes"], key=lambda n: n.get("document_id", "")),
+                )
+                _emit_items(
+                    emit,
+                    "edge",
+                    sorted(
+                        display_edges,
+                        key=lambda e: (
+                            e.get("source", ""),
+                            e.get("target", ""),
+                            e.get("type", e.get("edge_type", "")),
+                        ),
+                    ),
+                )
+                summary = _summary_data(data, "nodes", "edges")
+                return SummaryPayload(
+                    data=summary,
+                    warnings=warnings_list,
+                    advice=getattr(report, "advice", []),
+                )
+
+            streaming_output_handler(
+                command="index",
+                producer=CallableStreamingProducer(produce),
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+                success=not has_error,
+            )
+            if has_error:
+                raise SystemExit(1)
+            return
 
         if format == "json":
             _write_output(
@@ -2965,9 +3277,50 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
             output=output,
             correlation_id=correlation_id,
         )
+        if format == "ndjson" and not deep:
+            raise unsupported_ndjson(
+                "context",
+                "meminit context --format ndjson requires --deep.",
+            )
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
         result = use_case.execute(deep=deep)
+
+        if format == "ndjson":
+            def produce(emit: StreamEmitter) -> SummaryPayload:
+                namespaces = result.data.get("namespaces", [])
+                for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
+                    emit.emit_item("namespace", ns)
+                doc_type_rows = []
+                for doc_type, payload in result.data.get("document_types", {}).items():
+                    row = {"type": doc_type}
+                    if isinstance(payload, dict):
+                        row.update(payload)
+                    row["type"] = doc_type
+                    doc_type_rows.append(row)
+                _emit_items(
+                    emit,
+                    "document_type",
+                    sorted(doc_type_rows, key=lambda r: r.get("type", "")),
+                )
+                _emit_items(
+                    emit,
+                    "document",
+                    sorted(result.documents, key=lambda row: row["document_id"]),
+                )
+                summary = _summary_data(result.data, "namespaces", "documents")
+                return SummaryPayload(data=summary, warnings=result.warnings)
+
+            streaming_output_handler(
+                command="context",
+                producer=CallableStreamingProducer(produce),
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                root_path=root_path,
+                correlation_id=correlation_id,
+            )
+            return
 
         if format == "json":
             _write_output(

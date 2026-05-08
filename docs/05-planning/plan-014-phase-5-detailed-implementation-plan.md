@@ -2,9 +2,9 @@
 document_id: MEMINIT-PLAN-014
 type: PLAN
 title: Phase 5 Detailed Implementation Plan
-status: Draft
-version: '0.3'
-last_updated: '2026-04-19'
+status: Approved
+version: '1.0'
+last_updated: '2026-05-06'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -27,9 +27,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-014
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-04-19
+> **Status:** Approved
+> **Version:** 1.0
+> **Last Updated:** 2026-05-06
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Detailed implementation plan for MEMINIT-PLAN-008 Phase 5 scale and streaming work.
@@ -68,10 +68,10 @@ Definition:
   where each line is a complete, self-describing object.
 - A **record** is a single line in the stream. Every record carries the
   minimum metadata required to be interpreted in isolation (see §3.1.2).
-- The **summary record** is the terminal record of a successful stream
+- The **summary record** is the terminal record of a completed stream
   and carries the same counters, warnings, violations, and advice that
   a non-streaming envelope would carry under `data` plus the envelope
-  top-level arrays.
+  top-level arrays. Its `success` flag reflects the terminal status.
 - An **incremental rebuild** is a subsequent `meminit index` invocation
   that produces a byte-identical index artifact to a full rebuild but
   recomputes only the portion of the graph affected by changed inputs.
@@ -120,6 +120,23 @@ Memory-efficiency requirement:
   command must be refactored so its producer yields records via a
   generator or callback, and the emitter writes each record to stdout
   before producing the next.
+
+Implementation status as of version 1.0:
+
+- The shipped `index`, `scan`, and `context --deep` streaming adapters
+  still use CLI-local producer adapters for record emission. The index
+  rebuild path now avoids rereading unchanged governed document bytes by
+  reusing repo-local cached node fragments when file size and mtime
+  match the previous manifest.
+- The remaining architectural cleanup is to move producer ownership
+  fully into use-case `stream()` APIs and remove the CLI-local
+  `CallableStreamingProducer` adapter. That cleanup is no longer a
+  correctness blocker for the index cache scenarios, but it remains the
+  preferred long-term boundary. The follow-up is tracked in
+  MEMINIT-PLAN-005 as TD-003.
+- Scenario traceability follow-ups for the one-test-per-scenario
+  S05-S14 fixture matrix and external-testbed evidence are tracked in
+  MEMINIT-PLAN-005 as TD-004 and TD-005.
 
 Scale targets:
 
@@ -314,9 +331,9 @@ The stream carries exactly five record types:
 | `item`        | Per-entity payload (node, edge, action, namespace)          | 0..N                      |
 | `progress`    | Optional coarse-grained progress update                     | 0..N                      |
 | `error`       | Terminal record on operational failure                      | 0 or 1 (terminal)         |
-| `summary`     | Terminal record on successful completion                    | exactly 1 (terminal)      |
+| `summary`     | Terminal record on completion; `success` may be `true` or `false` | exactly 1 (terminal)      |
 
-Each stream ends with either a `summary` record (success) or an
+Each stream ends with either a `summary` record or an
 `error` record (failure). A stream that ends without one of those
 terminators is malformed.
 
@@ -345,13 +362,13 @@ Emitting progress records is OPTIONAL per command (see §3.3).
 `details`) mirroring the non-streaming error envelope. After an
 `error` record, no further records may be emitted.
 
-`summary`-only fields: `success` (boolean, always `true` for
-`summary`), `data` (object — the summary payload equivalent to a
-non-streaming `data`), `warnings` (array), `violations` (array),
-`advice` (array), optional `counts` (object with per-`kind` counters
-derived from the item records). The summary's `data` must contain the
-same fields that the non-streaming `data` would contain, minus any
-fields that were emitted as individual items.
+`summary`-only fields: `success` (boolean reflecting terminal status),
+`data` (object — the summary payload equivalent to a non-streaming
+`data`), `warnings` (array), `violations` (array), `advice` (array),
+optional `counts` (object with per-`kind` counters derived from the
+item records). The summary's `data` must contain the same fields that
+the non-streaming `data` would contain, minus any fields that were
+emitted as individual items.
 
 Ordering rules:
 
@@ -774,11 +791,11 @@ Cache root: `.meminit/cache/index/` under the repo root. Layout:
     index/
       manifest.json          # serialised manifest fingerprint
       nodes/<document_id>.json   # per-document parsed node payload
-      edges/<document_id>.json   # per-document extracted edge list
 ```
 
-- All writes go through `ensure_safe_write_path` and the atomic
-  temp-file-plus-`os.replace` pattern.
+- Cache directory and manifest writes go through `ensure_safe_write_path`;
+  generated node fragment writes use the atomic temp-file-plus-`os.replace`
+  pattern under the validated cache directory.
 - `.meminit/cache/` is added to the generated `.gitignore` scaffold
   written by `meminit init` so the cache never enters version
   control.
@@ -818,16 +835,15 @@ Deterministic algorithm, executed top-to-bottom:
    - `removed` \u2014 absent now, present in previous manifest.
    - `changed` \u2014 fingerprint differs.
    - `unchanged` \u2014 fingerprint matches.
-6. Reuse cached node and edge payloads for `unchanged` files.
-   Recompute for `added` and `changed` files. Drop cache entries
-   for `removed` files.
-7. Because edges can cross document boundaries, any edge whose
-   source document is in `changed` or whose target document is in
-   `added`/`removed` is recomputed. Remaining edges from
-   `unchanged` sources keep their cached payloads.
-8. Merge the recomputed and cached fragments in the canonical
+6. Reuse cached node payloads for `unchanged` files.
+   Recompute nodes for `added` and `changed` files. Drop cache
+   entries for `removed` files.
+7. Rebuild edges deterministically from the merged node set so
+   cross-document relationships stay correct without storing redundant
+   edge fragments in the cache.
+8. Merge the recomputed and cached node fragments in the canonical
    sorted order defined in \u00a73.3.1. Serialise the final artifact.
-9. Write per-document cache entries for all `added`/`changed`
+9. Write per-document node cache entries for all `added`/`changed`
    files. Rewrite `manifest.json` atomically as the last step.
 
 The algorithm is a pure function of the inputs. There is no hidden
@@ -844,7 +860,7 @@ mutable state.
   cache is suspected of corruption.
 
 Both flags are mutually exclusive; combining them raises
-`E_INVALID_FILTER_VALUE`.
+`INVALID_FLAG_COMBINATION`.
 
 #### 3.4.5 New error codes
 
@@ -865,7 +881,7 @@ The other two are error-level.
   elapsed wall time.
 - When streaming, these counters also appear in the summary
   record's `data` under a `rebuild` key:
-  `{"rebuild": {"mode": "incremental" | "full", "added": N, ...}}`.
+  `{"rebuild": {"mode": "incremental" | "full" | "disabled", "added": N, ...}}`.
 - The `meminit index --explain-cache` diagnostic flag prints the
   current manifest summary (counts and SHAs only, not the full
   file list) to stdout as a standard v3 envelope, for debugging
@@ -924,8 +940,8 @@ Problem:
 | --- | -------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | S01 | `tiny`                           | 5 docs                                                 | Smoke test the NDJSON contract against every opted-in command                |
 | S02 | `medium`                         | 50 docs, mixed types                                   | Golden-stream parity between `--format json` and `--format ndjson`           |
-| S03 | `large`                          | 1000 generated docs                                    | Incremental warm-no-change 2-second target; memory ceiling check             |
-| S04 | `scale`                          | 5000 generated docs (`@pytest.mark.slow`)              | Full-rebuild 60-second and 256 MB ceiling targets                            |
+| S03 | `large`                          | 1000 generated docs                                    | Incremental warm-no-change 2-second target                                   |
+| S04 | `scale`                          | 5000 generated docs (`@pytest.mark.slow`)              | Cache-disabled full-rebuild 60-second and 256 MB ceiling targets             |
 | S05 | `single_file_changed`            | `large` + 1 edited doc                                 | Incremental recomputes only the changed file                                 |
 | S06 | `single_file_added`              | `large` + 1 new doc                                    | Added-file bucket exercise                                                   |
 | S07 | `single_file_removed`            | `large` minus 1 doc                                    | Removed-file bucket exercise                                                 |
@@ -972,9 +988,8 @@ emits byte-identical trees across runs.
 3. Mark the 1000-doc and 5000-doc scenarios with
    `@pytest.mark.slow` and ensure they are wired into the nightly
    job via an existing or new Makefile/CI target.
-4. Add a memory-ceiling check using `tracemalloc.get_traced_memory()`
-   snapshots in the S04 test (soft assertion logging the peak, hard
-   assertion only on the 256 MB ceiling).
+4. Add a memory-ceiling check in the S04 test using process RSS so
+   the probe does not dominate the 5000-document runtime target.
 
 Acceptance criteria:
 
@@ -1109,26 +1124,30 @@ true:
    cache E2E scenarios.
 5. `meminit index --explain-cache` reports the current manifest
    summary without triggering a rebuild.
-6. The nightly slow test job runs the 1000-doc and 5000-doc scale
+6. `meminit index` rejects `--no-cache` and `--rebuild-cache`
+   together with `INVALID_FLAG_COMBINATION`, while `--explain-cache`
+   rejects either cache-clearing flag with `INVALID_FLAG_COMBINATION`
+   before any cache mutation occurs.
+7. The nightly slow test job runs the 1000-doc and 5000-doc scale
    fixtures and enforces the 2-second warm-incremental, 60-second
    full-rebuild, and 256 MB memory ceilings.
-7. All three `STREAM_*` and three `CACHE_*` error codes are
+8. All three `STREAM_*` and three `CACHE_*` error codes are
    registered in SPEC-006 with `explain` entries and wired into
    `exit_code_for_error`.
-8. Stdout isolation tests pass for every opted-in command: every
+9. Stdout isolation tests pass for every opted-in command: every
    stdout line during `--format ndjson` is a valid SPEC-011 record;
    all logs appear on stderr only.
-9. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,
+10. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,
    and the operator runbook are updated or created and pass
    `meminit check`.
-10. The external testbed has been exercised with `--format ndjson`
+11. The external testbed has been exercised with `--format ndjson`
     and with incremental rebuilds; the testbed checklist is marked
     complete on the closing PR.
-11. All code added in this phase respects the repository engineering
+12. All code added in this phase respects the repository engineering
     principles: no function exceeds the soft 40-line limit; no
     `eval`, no `shell=True`, no hidden global mutable state in the
     cache path.
-12. `meminit check --format json` reports zero new violations and
+13. `meminit check --format json` reports zero new violations and
     zero new warnings attributable to Phase 5 changes.
 
 ## 6. Version History
@@ -1138,3 +1157,7 @@ true:
 | 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
 | 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 5 workstreams, sequencing, and exit criteria |
 | 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
+| 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |
+| 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix |
+| 0.6 | 2026-05-03 | Codex | Recorded known architectural debt: current streaming command adapters still materialise use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target |
+| 1.0 | 2026-05-06 | Codex | Completed Phase 5 implementation: incremental index cache with manifest fingerprints, cache lock, changed/added/removed/corrupt scenarios, deterministic streaming fixtures, slow scale-test wiring, and aligned operator docs |

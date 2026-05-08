@@ -12,15 +12,15 @@ import click
 
 
 def format_option():
-    """Add --format option (text|json|md)."""
+    """Add --format option (text|json|md|ndjson)."""
 
     def decorator(f):
         return click.option(
             "--format",
             "format",
-            type=click.Choice(["text", "json", "md"], case_sensitive=False),
+            type=click.Choice(["text", "json", "md", "ndjson"], case_sensitive=False),
             default="text",
-            help="Output format (text|json|md).",
+            help="Output format (text|json|md|ndjson).",
         )(f)
 
     return decorator
@@ -110,7 +110,8 @@ def with_log_silence():
 
             output_value = kwargs.get("output")
             silence_logs = (
-                not verbose_value and (format_value == "json" or bool(output_value))
+                not verbose_value
+                and (format_value in {"json", "ndjson"} or bool(output_value))
             )
             changed = False
             if silence_logs and previous != "1":
@@ -175,11 +176,17 @@ def agent_repo_options():
 _CAPABILITIES_REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 
+def command_supports_ndjson(name: str) -> bool:
+    """Return whether a registered command advertises NDJSON support."""
+    return bool(_CAPABILITIES_REGISTRY.get(name, {}).get("supports_ndjson", False))
+
+
 def register_capability(
     name: str,
     description: str,
     *,
     supports_json: bool = True,
+    supports_ndjson: bool = False,
     supports_correlation_id: bool = True,
     needs_root: bool = False,
     agent_facing: bool,
@@ -189,6 +196,7 @@ def register_capability(
         "name": name,
         "description": description,
         "supports_json": supports_json,
+        "supports_ndjson": supports_ndjson,
         "supports_correlation_id": supports_correlation_id,
         "needs_root": needs_root,
         "agent_facing": agent_facing,
@@ -200,9 +208,21 @@ def register_capability(
 register_capability("check", "Run compliance checks on the repository", needs_root=True, agent_facing=True)
 register_capability("doctor", "Diagnose common configuration issues", needs_root=True, agent_facing=True)
 register_capability("fix", "Auto-fix detected violations", needs_root=True, agent_facing=True)
-register_capability("scan", "Suggest a DocOps migration plan", needs_root=True, agent_facing=True)
+register_capability(
+    "scan",
+    "Suggest a DocOps migration plan",
+    needs_root=True,
+    agent_facing=True,
+    supports_ndjson=True,
+)
 register_capability("install-precommit", "Install a pre-commit hook", needs_root=True, agent_facing=False)
-register_capability("index", "Build the document index", needs_root=True, agent_facing=True)
+register_capability(
+    "index",
+    "Build the document index",
+    needs_root=True,
+    agent_facing=True,
+    supports_ndjson=True,
+)
 register_capability("resolve", "Resolve a document_id to a file path", needs_root=True, agent_facing=True)
 register_capability("identify", "Identify a document's metadata", needs_root=True, agent_facing=True)
 register_capability("link", "Print a Markdown link for a document_id", needs_root=True, agent_facing=True)
@@ -211,7 +231,13 @@ register_capability("migrate-templates", "Migrate legacy template configs", need
 register_capability("init", "Initialize a new DocOps repository", needs_root=True, agent_facing=True)
 register_capability("new", "Create a new document", needs_root=True, agent_facing=True)
 register_capability("adr new", "Create a new ADR", needs_root=True, agent_facing=True)
-register_capability("context", "Show repository DocOps context", needs_root=True, agent_facing=True)
+register_capability(
+    "context",
+    "Show repository DocOps context",
+    needs_root=True,
+    agent_facing=True,
+    supports_ndjson=True,
+)
 register_capability("org install", "Install org profile to XDG paths", agent_facing=False)
 register_capability("org vendor", "Vendor org profile into repo", needs_root=True, agent_facing=False)
 register_capability("org status", "Show org profile status", needs_root=True, agent_facing=False)

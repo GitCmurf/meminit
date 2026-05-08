@@ -62,7 +62,7 @@ def test_index_writes_are_atomic(tmp_path):
 
 def test_index_atomic_write_failure_preserves_old_content(tmp_path):
     """BG-1: Proves a failed atomic write leaves the previous target bytes intact."""
-    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    doc_path = _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
     # Run once to create the index
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -72,8 +72,19 @@ def test_index_atomic_write_failure_preserves_old_content(tmp_path):
     assert index_path.exists()
     original_bytes = index_path.read_bytes()
 
+    doc_path.write_text(
+        doc_path.read_text(encoding="utf-8").replace(
+            "Test Document",
+            "Updated Test Document",
+        ),
+        encoding="utf-8",
+    )
+
     # Now simulate a failure during atomic_write
-    with patch("meminit.core.use_cases.index_repository.atomic_write", side_effect=RuntimeError("Atomic write failed")):
+    with patch(
+        "meminit.core.use_cases.index_repository.atomic_write",
+        side_effect=RuntimeError("Atomic write failed"),
+    ):
         with pytest.raises(RuntimeError, match="Atomic write failed"):
             use_case.execute()
 

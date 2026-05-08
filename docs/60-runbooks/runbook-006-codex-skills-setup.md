@@ -2,11 +2,11 @@
 document_id: MEMINIT-RUNBOOK-006
 type: RUNBOOK
 docops_version: 2.0
-last_updated: 2026-04-28
+last_updated: 2026-05-06
 status: Draft
 title: Codex Skills Setup for Meminit
 owner: GitCmurf
-version: "0.4"
+version: "0.6"
 ---
 
 # Runbook: Codex Skills Setup for Meminit
@@ -122,10 +122,43 @@ Does not:
 
 The `meminit-docops` skill is designed to work with the **v3 output contract** (see MEMINIT-SPEC-008). When developing or modifying skills that consume Meminit:
 
-1. **Always use `--format json`** for machine parsing.
-2. **Expect exactly one JSON object on STDOUT**.
-3. **Handle errors structuredly** via the `error` object in the envelope.
-4. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+1. **Use `--format json` by default** for machine parsing.
+2. **Expect exactly one JSON object on STDOUT** for JSON mode.
+3. **Use `--format ndjson` only for opted-in large-output commands** advertised by `meminit capabilities --format json`.
+4. **Handle errors structuredly** via the `error` object in JSON envelopes or the terminal `error` record in NDJSON streams.
+5. **Prefer `meminit context`** for discovering repository configuration instead of hardcoding paths.
+
+### JSON vs NDJSON Decision Table
+
+| Use case | Recommended format | Reason |
+| -------- | ------------------ | ------ |
+| Bootstrapping repo constraints | `meminit context --format json` | Bounded output; one envelope is simpler |
+| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace, type, and document records |
+| Building graph artifacts for agents | `meminit index --format ndjson` | Streams graph items and still writes the persisted index |
+| Brownfield migration scan | `meminit scan --format ndjson` | Streams scan inventory and suggestions |
+| CI gates and small commands | `--format json` | Stable v3 envelope and easier assertions |
+
+### Streaming Troubleshooting
+
+- A stream is valid only if the last record is `summary` or `error`.
+- `STREAM_UNSUPPORTED_FORMAT` means the command or mode does not support NDJSON; check `supports_ndjson` in `meminit capabilities`.
+- A truncated stream should be discarded and the command retried with `--format json` if a single diagnostic envelope is easier to inspect.
+- Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears and repopulates `.meminit/cache/index/` with a full rebuild.
+- If `meminit index` returns `CACHE_LOCK_HELD` after a prior crash and no Meminit process is still running, remove `.meminit/cache/index/.lock` or delete `.meminit/cache/`, then rerun `meminit index --rebuild-cache --format json`.
+- Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, run `meminit index --format json` once to initialize incremental index reuse.
+
+### Phase 5 Testbed Checklist
+
+Before closing Phase 5, exercise at least one external testbed repo with:
+
+- `meminit scan --format ndjson`
+- `meminit context --deep --format ndjson`
+- `meminit index --format ndjson`
+- two consecutive `meminit index --format json` runs proving warm-cache reuse
+- `meminit index --rebuild-cache --format json`
+- `meminit index --explain-cache --format json`
+
+Record the command outputs or CI run link in the closing PR.
 
 ## Bounded Codex Review-Remediation Loop
 

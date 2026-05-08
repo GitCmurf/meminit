@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-005
 type: PRD
 title: Agent Interface v2
 status: Draft
-version: "0.6"
-last_updated: 2026-04-30
+version: "1.0"
+last_updated: 2026-05-06
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -31,6 +31,8 @@ related_ids:
   - MEMINIT-RUNBOOK-006
   - MEMINIT-PRD-007
   - MEMINIT-PLAN-013
+  - MEMINIT-SPEC-011
+  - MEMINIT-FDD-014
   - ORG-GOV-001
   - MEMINIT-GOV-003
 ---
@@ -42,8 +44,8 @@ related_ids:
 > **Document ID:** MEMINIT-PRD-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-04-21
+> **Version:** 1.0
+> **Last Updated:** 2026-05-06
 > **Type:** PRD
 > **Area:** AGENT
 
@@ -217,16 +219,22 @@ Notes:
 
 ### FR-3 Streaming Output Mode for Large Payload Commands
 
-Requirement: Commands expected to produce large payloads (at minimum `scan`,
-`index`, and any `--deep` modes) SHOULD support `--format ndjson`.
+Requirement: Commands expected to produce large payloads MUST support the
+MEMINIT-SPEC-011 NDJSON contract where Phase 5 marks them as opted in.
+The normative Phase 5 set is `scan`, `index`, and `context --deep`.
 
 Notes:
 
-- NDJSON records MUST be self-describing and include `output_schema_version`.
-- If NDJSON is introduced, v2 MUST define:
-  - a deterministic record order,
-  - an end-of-stream summary record (or equivalent),
-  - and error behavior (how operational errors are represented mid-stream).
+- NDJSON records MUST be self-describing and include
+  `stream_schema_version: "1.0"`.
+- `meminit capabilities --format json` MUST advertise
+  `supports_ndjson` per command and `features.streaming: true` when any
+  command has opted in.
+- `--format json` remains the default machine contract and continues to emit
+  one v3 envelope. `--format ndjson` emits a header, zero or more item records,
+  and one terminal summary or error record.
+- `meminit context --format ndjson` without `--deep` MUST fail with
+  `STREAM_UNSUPPORTED_FORMAT`.
 
 ### FR-4 Structured Logging Surface (Optional)
 
@@ -373,7 +381,8 @@ The following items from MEMINIT-PLAN-008 Phase 1 are now implemented:
 
 Remaining items (future phases):
 
-- FR-3: NDJSON streaming output mode
+- FR-3 follow-on: additional commands may opt into NDJSON where their
+  payloads become large enough to justify streaming.
 - FR-4: Structured logging surface
 
 ---
@@ -462,3 +471,5 @@ This PRD is considered implemented when:
 | 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |
 | 0.5     | 2026-04-21 | Codex     | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |
 | 0.6     | 2026-04-30 | Codex     | Updated Phase 1 status to reflect graph_index is now true per MEMINIT-IMPL-001 |
+| 0.7     | 2026-05-03 | Codex     | Clarified FR-3 streaming status after Phase 5 partial delivery |
+| 1.0     | 2026-05-06 | Codex     | Recorded Phase 5 completion for NDJSON streaming and incremental index cache surfaces |

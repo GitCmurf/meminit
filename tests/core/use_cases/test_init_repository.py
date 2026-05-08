@@ -27,6 +27,7 @@ def test_init_creates_structure(empty_repo):
 
     # Check Files
     assert (empty_repo / "docops.config.yaml").exists()
+    assert (empty_repo / ".gitignore").exists()
     assert (empty_repo / "AGENTS.md").exists()
 
     # Check Config Content
@@ -46,8 +47,20 @@ def test_init_creates_structure(empty_repo):
     assert schema_path.exists()
     assert "$schema" in schema_path.read_text()
     assert "docops.config.yaml" in report.created_paths
+    assert ".gitignore" in report.created_paths
     assert "AGENTS.md" in report.created_paths
     assert "docs/00-governance" in report.created_paths
+    assert ".meminit/cache/" in (empty_repo / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_init_appends_meminit_cache_to_existing_gitignore(empty_repo):
+    (empty_repo / ".gitignore").write_text("dist/\n", encoding="utf-8")
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    gitignore = (empty_repo / ".gitignore").read_text(encoding="utf-8")
+    assert "dist/" in gitignore
+    assert ".meminit/cache/" in gitignore
+    assert ".gitignore" in report.created_paths
 
 
 def test_init_creates_12_notes_directory(empty_repo):

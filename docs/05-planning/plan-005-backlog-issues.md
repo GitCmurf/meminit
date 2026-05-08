@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-005
 type: PLAN
 title: "WIP Backlog & Issues Tracker"
 status: Draft
-version: "0.5"
-last_updated: 2026-03-07
+version: "0.6"
+last_updated: 2026-05-06
 owner: GitCmurf
 docops_version: "2.0"
 area: PLAN
@@ -15,8 +15,8 @@ area: PLAN
 > **Document ID:** MEMINIT-PLAN-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-03-07
+> **Version:** 0.6
+> **Last Updated:** 2026-05-06
 > **Type:** PLAN
 
 # WIP Backlog & Issues Tracker
@@ -149,12 +149,21 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 
 ## 4. Technical Debt
 
-| Item                       | Description                                      | Priority | Status      |
-| -------------------------- | ------------------------------------------------ | -------- | ----------- |
-| CLI test coverage          | `src/meminit/cli/main.py` has ~65% coverage      | Medium   | ✅ Complete |
-| Concurrency stress testing | N7 (locking) needs concurrent invocation testing | Medium   | ✅ Complete |
+Technical debt entries must be evidence-backed, explicitly owned, and
+closed only when the referenced implementation, tests, and governed docs
+are all updated. Each open entry includes a resolution trigger so the debt
+does not become an indefinite reminder.
 
-**See:** [Plan-006: Atomic Task List](plan-006-atomic-task-list.md) - Tasks 5.1-5.2
+| ID | Item | Evidence | Impact | Priority | Owner | Resolution Trigger | Status |
+| -- | ---- | -------- | ------ | -------- | ----- | ------------------ | ------ |
+| TD-001 | CLI test coverage | `src/meminit/cli/main.py` previously had incomplete branch coverage | Regression risk in command adapter behavior | Medium | Maintainers | CLI coverage added for the relevant command surfaces | Complete |
+| TD-002 | Concurrency stress testing | Earlier N7 locking work required contention coverage | Lock regressions could corrupt shared state | Medium | Maintainers | Locking behavior covered by the applicable command tests | Complete |
+| TD-003 | Phase 5 streaming producers still materialize use-case results before emitting | MEMINIT-PLAN-014 records that the current `index`, `scan`, and `context --deep` NDJSON adapters stream records from materialized use-case results rather than true generator-backed use-case streams | Larger repositories may exceed future constant-memory guarantees even though the current 5000-document RSS gate passes | Medium | CLI/Core maintainers | Add use-case-owned `stream()` methods for the opted-in commands, remove the closure adapter workaround, and add a regression test that fails if full result lists are built before the first emitted item | Open |
+| TD-004 | Phase 5 fixture matrix scenarios S05-S14 are not all represented as one scenario-per-test E2E cases | Core behavior is covered by use-case and CLI tests, but MEMINIT-PLAN-014 names dedicated E2E scenarios for single-file changed/added/removed, cross-doc edge recomputation, global invalidation, version invalidation, corrupt cache entry, missing manifest, and concurrent index invocation | Reviewer traceability is weaker than the fixture matrix implies; future contributors must map combined tests back to multiple scenarios manually | Low | Test maintainers | Add explicit E2E scenario tests or revise MEMINIT-PLAN-014 to mark combined lower-level coverage as the governed acceptance surface | Open |
+| TD-005 | Phase 5 external testbed closeout evidence is not stored in-repo | MEMINIT-PLAN-014 requires at least one external testbed exercise, but the repo cannot prove which external repository was used or which command outputs were observed | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts | Low | Release owner | Add a non-PII Phase 5 closeout note or release checklist entry recording the external testbed date, commands, and sanitized result summary | Open |
+| TD-006 | Streaming CLI test fixture helper duplication | `tests/adapters/test_streaming_cli.py` uses local helper setup while newer streaming test modules use shared fixture infrastructure | Minor maintainability cost and inconsistent setup style across streaming tests | Low | Test maintainers | Refactor streaming CLI tests to use the shared initialized repository fixture without reducing command-specific assertions | Open |
+
+**See:** [plan-006-atomic-task-list](plan-006-atomic-task-list.md) - Tasks 5.1-5.2; [plan-014-phase-5-detailed-implementation-plan](plan-014-phase-5-detailed-implementation-plan.md)
 
 ---
 
@@ -167,3 +176,4 @@ This document tracks work-in-progress items, known issues, and technical debt fo
 | 0.3     | 2026-03-07 | Kilo   | Add PRD-007 status; reference task list                         |
 | 0.4     | 2026-03-07 | Kilo   | Mark P1.1, P1.2, P2, P4.1, P4.2 complete; update deferred items |
 | 0.5     | 2026-03-07 | Codex  | Mark Workstream P5 complete (CLI tests and contention testing)       |
+| 0.6     | 2026-05-06 | Codex  | Add evidence-backed Phase 5 technical debt entries for streaming producer architecture, E2E scenario traceability, external testbed evidence, and fixture helper consolidation |
