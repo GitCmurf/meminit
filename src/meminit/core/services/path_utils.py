@@ -65,6 +65,9 @@ def relative_path_string(path: Path, base: Path) -> str:
         return str(path)
 
 
+_SENSITIVE_HOME_DIRS = frozenset({".ssh", ".gnupg", ".aws", ".kube"})
+
+
 def is_safe_cli_output_path(path: Path) -> bool:
     """Return whether a CLI output path avoids protected system locations."""
     forbidden = [
@@ -83,8 +86,10 @@ def is_safe_cli_output_path(path: Path) -> bool:
                 rel = abs_path.relative_to(home)
             except ValueError:
                 return True
-            for part in rel.parts:
-                if part.startswith(".") and part != ".meminit":
+            if abs_path.name.startswith(".") and abs_path.name != ".meminit":
+                return False
+            for part in rel.parts[:-1]:
+                if part in _SENSITIVE_HOME_DIRS:
                     return False
         except (RuntimeError, OSError):
             pass
