@@ -95,6 +95,7 @@ def _json_default(obj: Any) -> str:
 
 
 def _index_cache_context(root_dir: Path) -> Dict[str, Any]:
+    state_file_rel = get_state_file_rel_path(root_dir)
     return {
         "meminit_version": get_cli_version(),
         "index_version": "1.0",
@@ -102,9 +103,7 @@ def _index_cache_context(root_dir: Path) -> Dict[str, Any]:
         "schema_sha256": _optional_sha256(
             root_dir / "docs" / "00-governance" / "metadata.schema.json"
         ),
-        "state_sha256": _optional_sha256(
-            root_dir / "docs" / "01-indices" / "project-state.yaml"
-        ),
+        "state_sha256": _optional_sha256(root_dir / state_file_rel),
     }
 
 
