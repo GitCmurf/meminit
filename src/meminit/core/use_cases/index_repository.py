@@ -1710,6 +1710,24 @@ class IndexRepositoryUseCase:
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
             return None
+        for node in nodes:
+            if not isinstance(node, dict):
+                return None
+            document_id = str(node.get("document_id", "")).strip()
+            path_text = str(node.get("path", "")).strip()
+            if not document_id or not path_text:
+                return None
+            expected_ns = _namespace_for_index_path(
+                self._layout,
+                self._root_dir / path_text,
+                document_id,
+                self._root_dir,
+            )
+            if expected_ns is None:
+                return None
+            cached_ns = str(node.get("namespace", "")).strip().lower()
+            if cached_ns != expected_ns.namespace.lower():
+                return None
         payload_warnings = payload.get("warnings", [])
         if not isinstance(payload_warnings, list):
             payload_warnings = []

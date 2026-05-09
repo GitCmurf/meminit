@@ -297,6 +297,65 @@ def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path)
     assert second_report.index_path.read_bytes() == first_bytes
 
 
+def test_index_repository_rebuilds_when_persisted_namespace_is_stale(tmp_path):
+    _setup_doc(tmp_path, "AIDHA-ADR-001", title="Root", filename="adr-root.md")
+    _setup_doc(tmp_path, "PHYLA-ADR-001", title="Phyla", filename="adr-phyla.md")
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": {"type": "string"},
+    "type": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "version": {"type": "string"},
+    "last_updated": {"type": "string", "format": "date"},
+    "owner": {"type": "string"},
+    "docops_version": {"type": "string"}
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    index_path = first_report.index_path
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    payload["data"]["nodes"][0]["namespace"] = "wrong"
+    index_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild["mode"] == "incremental"
+    assert {node["namespace"] for node in second_report.documents} == {
+        "root",
+        "phyla",
+    }
+    repaired_payload = json.loads(index_path.read_text(encoding="utf-8"))
+    assert {node["namespace"] for node in repaired_payload["data"]["nodes"]} == {
+        "root",
+        "phyla",
+    }
+
+
 def test_index_repository_invalidates_cache_when_custom_docs_root_state_changes(tmp_path):
     _setup_repo_config(
         tmp_path,
