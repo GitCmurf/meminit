@@ -512,8 +512,15 @@ deterministically. Required codes:
 | `W_STATE_UNSORTED_KEYS`       | doctor, state | `documents` entries are not in alphabetical order                       |
 | `STATE_INVALID_FILTER_VALUE`      | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
 
-Codes prefixed `STATE_` are fatal errors (exit code != 0); codes prefixed
-`W_` are warnings (exit code 0, reported in envelope `warnings` array).
+Severity is listed per row. The fatal rows in this table are
+`STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
+`STATE_INVALID_FILTER_VALUE`; the `W_` rows are warnings (exit code 0,
+reported in envelope `warnings` array).
+
+Other `STATE_*` codes in the state runtime are severity-specific as defined
+in `MEMINIT-SPEC-006`; for example, `STATE_INVALID_PRIORITY` is warning-on-
+read and fatal-on-write, while `STATE_DEPENDENCY_STATUS_CONFLICT` is
+advisory in `advice[]`.
 
 #### FR-8 Output Sanitization
 

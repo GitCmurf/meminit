@@ -30,15 +30,22 @@ def _table_rows(text: str, heading: str) -> dict[str, str]:
     return rows
 
 
-def test_prd_state_error_prefix_rule_marks_state_codes_as_fatal():
+def test_prd_state_error_prefix_rule_documents_per_row_severity():
     content = (ROOT / "docs/10-prd/prd-007-project-state-dashboard.md").read_text(
         encoding="utf-8"
     )
     normalized = " ".join(content.split())
 
-    assert "Codes prefixed `STATE_` are fatal errors" in normalized
-    assert "`W_` are warnings" in normalized
-    assert "Codes prefixed `E_`" not in normalized
+    assert "Severity is listed per row." in normalized
+    assert (
+        "The fatal rows in this table are `STATE_YAML_MALFORMED`, "
+        "`STATE_SCHEMA_VIOLATION`, and `STATE_INVALID_FILTER_VALUE`"
+        in normalized
+    )
+    assert "STATE_INVALID_PRIORITY" in normalized
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in normalized
+    assert "the `W_` rows are warnings" in normalized
+    assert "Codes prefixed `STATE_` are fatal errors" not in normalized
 
 
 def test_tech_debt_register_status_model_and_td002_are_aligned():
