@@ -370,6 +370,36 @@ class IndexBuildReport:
     rebuild: Dict[str, Any] = field(default_factory=lambda: {"mode": "full"})
 
 
+@dataclass(frozen=True)
+class _IndexBuildArtifacts:
+    """Internal index build artifacts shared by JSON and streaming output."""
+
+    index_path: Path
+    document_count: int
+    catalog_path: Optional[Path] = None
+    kanban_path: Optional[Path] = None
+    kanban_css_path: Optional[Path] = None
+    warnings: List[Dict[str, Any]] = field(default_factory=list)
+    documents: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+    advice: List[Dict[str, Any]] = field(default_factory=list)
+    rebuild: Dict[str, Any] = field(default_factory=lambda: {"mode": "full"})
+
+    def to_report(self) -> IndexBuildReport:
+        return IndexBuildReport(
+            index_path=self.index_path,
+            document_count=self.document_count,
+            catalog_path=self.catalog_path,
+            kanban_path=self.kanban_path,
+            kanban_css_path=self.kanban_css_path,
+            warnings=self.warnings,
+            documents=self.documents,
+            edges=self.edges,
+            advice=self.advice,
+            rebuild=self.rebuild,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Composite grouping
 # ---------------------------------------------------------------------------
@@ -1071,6 +1101,14 @@ class IndexRepositoryUseCase:
     def execute(
         self, *, use_cache: bool = True, clear_cache: bool = False
     ) -> IndexBuildReport:
+        return self._build_index_artifacts(
+            use_cache=use_cache,
+            clear_cache=clear_cache,
+        ).to_report()
+
+    def _build_index_artifacts(
+        self, *, use_cache: bool = True, clear_cache: bool = False
+    ) -> _IndexBuildArtifacts:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
             raise FileNotFoundError(
@@ -1137,8 +1175,11 @@ class IndexRepositoryUseCase:
         summary = StreamSummary()
 
         def records():
-            report = self.execute(use_cache=use_cache, clear_cache=clear_cache)
-            warnings_list = getattr(report, "warnings", [])
+            report = self._build_index_artifacts(
+                use_cache=use_cache,
+                clear_cache=clear_cache,
+            )
+            warnings_list = report.warnings
             display_edges = _filter_index_edges(
                 report,
                 status_filter=self._status_filter,
@@ -1179,7 +1220,7 @@ class IndexRepositoryUseCase:
         use_cache: bool,
         clear_cache: bool,
         initial_warnings: List[Dict[str, Any]],
-    ) -> IndexBuildReport:
+    ) -> _IndexBuildArtifacts:
         if clear_cache:
             index_cache.clear()
         _remove_stale_artifacts(
@@ -1229,7 +1270,7 @@ class IndexRepositoryUseCase:
         catalog_out_name: Optional[str],
         warnings_list: List[Dict[str, Any]],
         doc_paths: Sequence[Path],
-    ) -> IndexBuildReport:
+    ) -> _IndexBuildArtifacts:
         # Load project state (gracefully optional).
         try:
             project_state = load_project_state(self._root_dir)
@@ -1578,7 +1619,7 @@ class IndexRepositoryUseCase:
             for e in sorted_filtered
         ]
 
-        return IndexBuildReport(
+        return _IndexBuildArtifacts(
             index_path=index_path,
             document_count=len(filtered),
             catalog_path=catalog_path,
@@ -1686,7 +1727,7 @@ class IndexRepositoryUseCase:
         index_path: Path,
         cache_plan: CachePlan,
         warnings_list: List[Dict[str, Any]],
-    ) -> IndexBuildReport | None:
+    ) -> _IndexBuildArtifacts | None:
         if (
             cache_plan.mode != "incremental"
             or cache_plan.added
@@ -1736,7 +1777,7 @@ class IndexRepositoryUseCase:
             document_count = int(raw_count)
         except (ValueError, TypeError):
             document_count = len(nodes)
-        return IndexBuildReport(
+        return _IndexBuildArtifacts(
             index_path=index_path,
             document_count=document_count,
             warnings=canonicalize_warning_list(

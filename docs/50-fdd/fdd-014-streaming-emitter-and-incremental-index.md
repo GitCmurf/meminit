@@ -3,7 +3,7 @@ document_id: MEMINIT-FDD-014
 type: FDD
 title: Streaming Emitter and Incremental Index
 status: Approved
-version: "1.1"
+version: "1.2"
 last_updated: 2026-05-09
 owner: GitCmurf
 docops_version: "2.0"
@@ -74,7 +74,9 @@ The non-deep mode remains bounded output and deliberately rejects
 first stream item before the full JSON-equivalent report is assembled. The
 `index` producer remains correctness-first: node and edge items are emitted
 only after graph validation, state derivation, cache handling, and artifact
-writes have produced a valid index result.
+writes have produced a valid index result. After that point, index streaming
+uses the shared internal build artifacts directly and emits the first node
+before constructing the public `IndexBuildReport` used by JSON output.
 
 ## 5. Cache Surface
 
@@ -131,3 +133,4 @@ Cache files must never be committed. Operators can delete
 | 0.2 | 2026-05-03 | Codex | Clarified shipped cache boundary and documented that the incremental rebuild engine remains unimplemented |
 | 1.0 | 2026-05-06 | Codex | Documented the shipped incremental index cache, manifest context, corruption recovery, and cache-control semantics |
 | 1.1 | 2026-05-09 | Codex | Documented core-owned producer first-item laziness for scan and deep context, plus the remaining index limitation. |
+| 1.2 | 2026-05-09 | Codex | Documented index streaming via shared internal build artifacts before public report assembly. |

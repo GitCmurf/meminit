@@ -68,9 +68,9 @@ updated together.
 | Source | MEMINIT-PLAN-014 Phase 5 constant-memory objective |
 | Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014` |
 | Evidence | `src/meminit/core/services/stream_events.py` owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`; `src/meminit/cli/main.py` drains `iter_stream()` results through `CoreStreamingProducer` for `index`, `scan`, and `context --deep`. |
-| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. On 2026-05-09, `scan` and `context --deep` gained first-item laziness regressions proving their first stream item is emitted before their full report builder runs. |
-| Impact | The shipped NDJSON contract is usable, but index traversal-level laziness and broader shared JSON/NDJSON item iteration still need work for large repos. |
-| Remediation | Refactor the remaining index producer internals so JSON and NDJSON share traversal iterators and add instrumentation proving the first `StreamItem` is yielded before complete result materialization. |
+| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. On 2026-05-09, `scan` and `context --deep` gained first-item laziness regressions proving their first stream item is emitted before their full report builder runs. `index` now builds internal artifacts shared by JSON and NDJSON, and the stream can emit its first node before the public `IndexBuildReport` is assembled. |
+| Impact | The shipped NDJSON contract is usable, but broader item-level iterator sharing can still improve memory behavior for very large index runs. |
+| Remediation | Refactor remaining item-list construction into shared node/edge iterators if large-repo profiling shows the internal artifact lists are still too costly. |
 | Definition of done | Shared iterator plumbing is in place for JSON and NDJSON; regression tests fail if `index`, `scan`, or `context --deep` cannot yield the first item before fully materializing the command payload; SPEC-011/FDD-014 wording is updated if the API shape changes. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_streaming_laziness.py tests/cli/test_stream_emitter.py tests/adapters/test_streaming_cli.py tests/cli/test_streaming_equivalence.py tests/cli/test_streaming_determinism.py` |
 
