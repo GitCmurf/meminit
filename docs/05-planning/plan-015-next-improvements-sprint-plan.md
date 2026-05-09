@@ -105,10 +105,10 @@ tests, and governed docs.
 | ---- | ------------------ |
 | MEMINIT-PLAN-009 | Complete; no live unsuperseded backlog found. |
 | MEMINIT-PLAN-010 | Complete for runtime surfaces; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-011 | Complete for graph artifact and helpers; multi-namespace cache correctness remains TD-001. |
+| MEMINIT-PLAN-011 | Complete for graph artifact and helpers; TD-001 is closed. |
 | MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-013 | Complete for queue surfaces; state helper cleanup and naming consistency remain TD-006 through TD-009. |
-| MEMINIT-PLAN-014 | Core implementation complete; producer architecture, cache traceability, testbed evidence, and fixture consolidation remain TD-002 through TD-005. |
+| MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, and TD-009 are closed, while TD-008 remains open. |
+| MEMINIT-PLAN-014 | Core implementation complete; TD-003 and TD-005 are closed, while producer architecture and external testbed evidence remain TD-002 and TD-004. |
 
 ### 3.1 Implementation Progress
 
