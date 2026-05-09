@@ -3,8 +3,8 @@ document_id: MEMINIT-FDD-014
 type: FDD
 title: Streaming Emitter and Incremental Index
 status: Approved
-version: "1.0"
-last_updated: 2026-05-06
+version: "1.1"
+last_updated: 2026-05-09
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -66,9 +66,15 @@ the persisted artifact path, index version, and node/edge counts.
 `scan` emits Markdown file records followed by suggestion records. The
 summary includes scan counts and a configuration preview.
 
-`context --deep` emits namespace, document type, and document metadata.
+`context --deep` emits document type, namespace, and document metadata.
 The non-deep mode remains bounded output and deliberately rejects
 `--format ndjson`.
+
+`scan` and `context --deep` use core-owned producers that can emit their
+first stream item before the full JSON-equivalent report is assembled. The
+`index` producer remains correctness-first: node and edge items are emitted
+only after graph validation, state derivation, cache handling, and artifact
+writes have produced a valid index result.
 
 ## 5. Cache Surface
 
@@ -124,3 +130,4 @@ Cache files must never be committed. Operators can delete
 | 0.1 | 2026-05-03 | Codex | Initial shared streaming emitter and cache-control surface design |
 | 0.2 | 2026-05-03 | Codex | Clarified shipped cache boundary and documented that the incremental rebuild engine remains unimplemented |
 | 1.0 | 2026-05-06 | Codex | Documented the shipped incremental index cache, manifest context, corruption recovery, and cache-control semantics |
+| 1.1 | 2026-05-09 | Codex | Documented core-owned producer first-item laziness for scan and deep context, plus the remaining index limitation. |

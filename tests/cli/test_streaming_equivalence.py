@@ -96,6 +96,16 @@ def test_context_json_and_ndjson_are_equivalent(initialized_repo):
     assert _items_by_kind(stream, "namespace") == sorted(
         envelope["data"]["namespaces"], key=lambda row: row["name"]
     )
+    expected_doc_types = []
+    for doc_type, payload in envelope["data"]["document_types"].items():
+        row = {"type": doc_type}
+        if isinstance(payload, dict):
+            row.update(payload)
+        row["type"] = doc_type
+        expected_doc_types.append(row)
+    assert _items_by_kind(stream, "document_type") == sorted(
+        expected_doc_types, key=lambda row: row["type"]
+    )
     assert _items_by_kind(stream, "document") == sorted(
         envelope["data"]["documents"],
         key=lambda row: (row["document_id"], row["path"]),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 import datetime
 import logging
 
@@ -131,7 +131,7 @@ class ScanRepositoryUseCase:
         if not docs_dir.exists():
             notes.append(f"Docs root configured but missing on disk: {docs_root}")
         else:
-            target_files = list(docs_dir.rglob("*.md"))
+            target_files = list(self._iter_markdown_paths(docs_dir))
             markdown_count = len(target_files)
 
         # Always compute namespace-aware counts when possible.
@@ -226,37 +226,39 @@ class ScanRepositoryUseCase:
         summary = StreamSummary()
 
         def records():
+            docs_root = self._resolve_docs_root(
+                self._load_config(self._root_dir / "docops.config.yaml"),
+                load_repo_layout(self._root_dir).default_namespace().docs_root,
+            )
+            for item in self._iter_stream_file_items(docs_root):
+                yield StreamItem("file", item)
             report = self.execute(generate_plan=False)
             data = report.as_dict()
-            for item in self._stream_file_items(data.get("docs_root")):
-                yield StreamItem("file", item)
             for item in scan_suggestion_items(data):
                 yield StreamItem("suggestion", item)
             summary.data = _summary_data(data)
 
         return StreamingResult(records=records(), summary=summary)
 
-    def _stream_file_items(self, docs_root: str | None) -> list[dict[str, Any]]:
+    def _iter_markdown_paths(self, docs_dir: Path) -> Iterator[Path]:
+        yield from sorted(docs_dir.rglob("*.md"), key=lambda path: path.as_posix())
+
+    def _iter_stream_file_items(self, docs_root: str | None) -> Iterator[dict[str, Any]]:
         if not docs_root:
-            return []
+            return
 
         docs_dir = self._root_dir / docs_root
         if not docs_dir.exists():
-            return []
+            return
 
         layout = load_repo_layout(self._root_dir)
-        items: list[dict[str, Any]] = []
-        for path in docs_dir.rglob("*.md"):
+        for path in self._iter_markdown_paths(docs_dir):
             owner = layout.namespace_for_path(path)
-            items.append(
-                {
-                    "path": path.relative_to(self._root_dir).as_posix(),
-                    "namespace": owner.namespace if owner else None,
-                    "governed": bool(owner and not owner.is_excluded(path)),
-                }
-            )
-
-        return sorted(items, key=lambda row: row["path"])
+            yield {
+                "path": path.relative_to(self._root_dir).as_posix(),
+                "namespace": owner.namespace if owner else None,
+                "governed": bool(owner and not owner.is_excluded(path)),
+            }
 
     def _resolve_docs_root(self, config: dict, default_root: str) -> Optional[str]:
         docs_root = config.get("docs_root")

@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-011
 type: SPEC
 title: NDJSON Streaming Contract
 status: Draft
-version: "0.2"
-last_updated: 2026-05-03
+version: "0.3"
+last_updated: 2026-05-09
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -92,7 +92,7 @@ Phase 5 defines streaming for these command shapes:
 | ------- | -------------------- | ---------- |
 | `index` | `meminit index --format ndjson` | `node`, `edge` |
 | `scan` | `meminit scan --format ndjson` | `file`, `suggestion` |
-| `context` | `meminit context --deep --format ndjson` | `namespace`, `document_type`, `document` |
+| `context` | `meminit context --deep --format ndjson` | `document_type`, `namespace`, `document` |
 
 For `scan`, each `file` item MUST correspond to one Markdown file discovered
 under the active docs root. The item payload MUST include a repo-relative
@@ -105,9 +105,24 @@ Item ordering is part of the contract:
   records sorted by `source`, `target`, and `type`.
 - `scan` emits `file` records sorted by `path`, then `suggestion`
   records sorted by `severity`, `code`, and `path`.
-- `context --deep` emits `namespace` records sorted by `name`,
-  `document_type` records sorted by `type`, and `document` records
-  sorted by `document_id`.
+- `context --deep` emits `document_type` records sorted by `type`,
+  `namespace` records sorted by `name`, and `document` records sorted by
+  `document_id`.
+
+## 4.1 Producer Laziness Guarantees
+
+The CLI owns NDJSON serialization, while core use cases own stream item
+construction. A producer SHOULD yield its first semantically valid item
+before assembling the complete JSON-equivalent result when the command can
+do so without weakening correctness.
+
+The current guarantees are:
+
+| Command | First-item guarantee |
+| ------- | -------------------- |
+| `scan --format ndjson` | The first Markdown file item is yielded before the full scan report is assembled. |
+| `context --deep --format ndjson` | The first document type item is yielded before the deep context report is assembled. |
+| `index --format ndjson` | No first-item laziness guarantee yet; graph validation, state derivation, cache handling, and artifact writes must complete before public node/edge items are emitted. |
 
 `meminit index --explain-cache --format ndjson` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
@@ -153,3 +168,4 @@ definition so agents can reject drift early.
 | ------- | ---- | ------ | ----- |
 | 0.1 | 2026-05-03 | Codex | Initial NDJSON stream shape and supported command set |
 | 0.2 | 2026-05-03 | Codex | Added deterministic serialization, progress boundaries, and command item ordering rules |
+| 0.3 | 2026-05-09 | Codex | Documented command-level producer laziness guarantees for scan, deep context, and the remaining index limitation. |

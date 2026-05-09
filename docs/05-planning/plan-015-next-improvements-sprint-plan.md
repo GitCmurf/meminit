@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.1'
+version: '1.2'
 last_updated: '2026-05-09'
 owner: GitCmurf
 docops_version: '2.0'
@@ -22,7 +22,7 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 1.1
+> **Version:** 1.2
 > **Last Updated:** 2026-05-09
 > **Type:** PLAN
 > **Area:** AGENT
@@ -121,7 +121,7 @@ the listed verification commands pass.
 | E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
-| A: Streaming Producer Architecture | TD-002 | Narrowed | Added core stream payload types, use-case `iter_stream()` producers, and production CLI `CoreStreamingProducer` drainage. Remaining work is traversal-level laziness instrumentation and shared JSON/NDJSON traversal. |
+| A: Streaming Producer Architecture | TD-002 | Narrowed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, and first-item laziness regressions for `scan` and `context --deep`. Remaining work is index traversal laziness and broader shared JSON/NDJSON traversal. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; closure remains blocked on human execution and sanitized evidence. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
@@ -207,9 +207,11 @@ Implementation steps:
    `StreamEmitter`.
 6. [x] Remove production use of `CallableStreamingProducer`; keep it only in
    tests if it remains useful for emitter unit tests.
-7. [ ] Add instrumentation-based regression tests that prove the first yielded
-   item can be produced before a complete result object is assembled.
-8. [ ] Update MEMINIT-SPEC-011 and MEMINIT-FDD-014 if the producer semantics or
+7. [~] Add instrumentation-based regression tests that prove the first yielded
+   item can be produced before a complete result object is assembled. `scan`
+   and `context --deep` are covered; `index` remains open because it still
+   needs a deeper artifact-build refactor.
+8. [x] Update MEMINIT-SPEC-011 and MEMINIT-FDD-014 if the producer semantics or
    guarantees become stricter.
 
 Status:
@@ -218,10 +220,13 @@ Status:
   owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`.
   The index, scan, and deep-context use cases expose `iter_stream()` producers,
   and production CLI adapters drain those through `CoreStreamingProducer`.
-  `CallableStreamingProducer` has been removed from production code. The
-  remaining open work is the deeper traversal refactor: JSON and NDJSON should
-  share internal item iterators, with instrumentation proving that the first
-  `StreamItem` is yielded before full result materialization.
+  `CallableStreamingProducer` has been removed from production code. On
+  2026-05-09, `scan` and `context --deep` gained first-item laziness
+  instrumentation proving their first item is yielded before the full report
+  builder runs. The remaining open work is the deeper index traversal refactor:
+  JSON and NDJSON should share internal item iterators, with instrumentation
+  proving that the first `StreamItem` is yielded before full result
+  materialization.
 
 Definition of done:
 
@@ -778,3 +783,4 @@ This plan is complete when:
 | 0.9 | 2026-05-09 | Codex | Narrowed Workstream A by introducing core stream payload types, use-case stream producers, and production CLI drainage through `CoreStreamingProducer`. |
 | 1.0 | 2026-05-09 | Codex | Prepared the Workstream C governed operator evidence template and marked TD-004 blocked on human-attested external testbed execution. |
 | 1.1 | 2026-05-09 | Codex | Closed Workstream F by normalizing state public error codes to `STATE_*`, updating runtime/docs/tests/changelog, and closing TD-008. |
+| 1.2 | 2026-05-09 | Codex | Further narrowed Workstream A by adding first-item laziness regressions for `scan` and `context --deep`; `index` remains the open traversal-refactor item. |

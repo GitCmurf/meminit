@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import yaml
 
@@ -261,20 +261,13 @@ class ContextRepositoryUseCase:
         summary = StreamSummary()
 
         def records():
+            for row in self._iter_document_type_stream_items():
+                yield StreamItem("document_type", row)
+
             result = self.execute(deep=True)
             namespaces = result.data.get("namespaces", [])
             for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
                 yield StreamItem("namespace", ns)
-
-            doc_type_rows = []
-            for doc_type, payload in result.data.get("document_types", {}).items():
-                row = {"type": doc_type}
-                if isinstance(payload, dict):
-                    row.update(payload)
-                row["type"] = doc_type
-                doc_type_rows.append(row)
-            for row in sorted(doc_type_rows, key=lambda r: r.get("type", "")):
-                yield StreamItem("document_type", row)
 
             for row in sorted(result.documents, key=lambda row: row["document_id"]):
                 yield StreamItem("document", row)
@@ -283,6 +276,27 @@ class ContextRepositoryUseCase:
             summary.warnings = result.warnings
 
         return StreamingResult(records=records(), summary=summary)
+
+    def _iter_document_type_stream_items(self) -> Iterator[dict[str, Any]]:
+        """Yield document-type stream items without running the deep scan."""
+        layout: RepoLayout = load_repo_layout(self.root_dir)
+        default_ns = layout.default_namespace()
+        document_types: Dict[str, Any] = {}
+        for doc_type, dt_config in sorted(default_ns.document_types.items()):
+            dt_dict = {"directory": dt_config.directory}
+            if dt_config.template:
+                dt_dict["template"] = dt_config.template
+            if dt_config.description:
+                dt_dict["description"] = dt_config.description
+            document_types[doc_type] = dt_dict
+        for doc_type, directory in sorted(default_ns.type_directories.items()):
+            document_types.setdefault(doc_type, {"directory": directory})
+        for doc_type, payload in sorted(document_types.items()):
+            row = {"type": doc_type}
+            if isinstance(payload, dict):
+                row.update(payload)
+            row["type"] = doc_type
+            yield row
 
 
 def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
