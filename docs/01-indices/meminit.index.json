@@ -1,730 +1,4333 @@
 {
-  "output_schema_version": "1.0",
-  "index_version": "0.1",
-  "generated_at": "2026-05-09T07:55:21.613660+00:00",
-  "namespaces": [
+  "advice": [
     {
-      "namespace": "meminit",
-      "docs_root": "docs",
-      "repo_prefix": "MEMINIT"
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-ADR-014' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-ADR-014'",
+      "source": "MEMINIT-ADR-014",
+      "target": "MEMINIT-PRD-006"
     },
     {
-      "namespace": "org",
-      "docs_root": "docs/00-governance/org",
-      "repo_prefix": "ORG"
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-ADR-014' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-ADR-014'",
+      "source": "MEMINIT-ADR-014",
+      "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-010' lists 'MEMINIT-ADR-014' in related_ids but 'MEMINIT-ADR-014' does not list 'MEMINIT-FDD-010'",
+      "source": "MEMINIT-FDD-010",
+      "target": "MEMINIT-ADR-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-010' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-FDD-010'",
+      "source": "MEMINIT-FDD-010",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-010' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-FDD-010'",
+      "source": "MEMINIT-FDD-010",
+      "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-011' lists 'MEMINIT-FDD-004' in related_ids but 'MEMINIT-FDD-004' does not list 'MEMINIT-FDD-011'",
+      "source": "MEMINIT-FDD-011",
+      "target": "MEMINIT-FDD-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-011' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-FDD-011'",
+      "source": "MEMINIT-FDD-011",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-011' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-FDD-011'",
+      "source": "MEMINIT-FDD-011",
+      "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-012' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-FDD-012'",
+      "source": "MEMINIT-FDD-012",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-012' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-FDD-012'",
+      "source": "MEMINIT-FDD-012",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-013' lists 'MEMINIT-PLAN-013' in related_ids but 'MEMINIT-PLAN-013' does not list 'MEMINIT-FDD-013'",
+      "source": "MEMINIT-FDD-013",
+      "target": "MEMINIT-PLAN-013"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-013' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-FDD-013'",
+      "source": "MEMINIT-FDD-013",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-013' lists 'MEMINIT-PRD-007' in related_ids but 'MEMINIT-PRD-007' does not list 'MEMINIT-FDD-013'",
+      "source": "MEMINIT-FDD-013",
+      "target": "MEMINIT-PRD-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-013' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-FDD-013'",
+      "source": "MEMINIT-FDD-013",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-013' lists 'MEMINIT-SPEC-008' in related_ids but 'MEMINIT-SPEC-008' does not list 'MEMINIT-FDD-013'",
+      "source": "MEMINIT-FDD-013",
+      "target": "MEMINIT-SPEC-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-PLAN-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-FDD-014' lists 'MEMINIT-SPEC-011' in related_ids but 'MEMINIT-SPEC-011' does not list 'MEMINIT-FDD-014'",
+      "source": "MEMINIT-FDD-014",
+      "target": "MEMINIT-SPEC-011"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-IMPL-001' lists 'MEMINIT-PLAN-010' in related_ids but 'MEMINIT-PLAN-010' does not list 'MEMINIT-IMPL-001'",
+      "source": "MEMINIT-IMPL-001",
+      "target": "MEMINIT-PLAN-010"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-IMPL-001' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-IMPL-001'",
+      "source": "MEMINIT-IMPL-001",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-PLAN-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-PLAN-015' in related_ids but 'MEMINIT-PLAN-015' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-PLAN-015"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-RUNBOOK-006' in related_ids but 'MEMINIT-RUNBOOK-006' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-RUNBOOK-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-004'",
+      "source": "MEMINIT-PLAN-004",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PLAN-004'",
+      "source": "MEMINIT-PLAN-004",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-SPEC-003' in related_ids but 'MEMINIT-SPEC-003' does not list 'MEMINIT-PLAN-004'",
+      "source": "MEMINIT-PLAN-004",
+      "target": "MEMINIT-SPEC-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-SPEC-004' in related_ids but 'MEMINIT-SPEC-004' does not list 'MEMINIT-PLAN-004'",
+      "source": "MEMINIT-PLAN-004",
+      "target": "MEMINIT-SPEC-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-006' lists 'MEMINIT-PLAN-005' in related_ids but 'MEMINIT-PLAN-005' does not list 'MEMINIT-PLAN-006'",
+      "source": "MEMINIT-PLAN-006",
+      "target": "MEMINIT-PLAN-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-006' lists 'MEMINIT-PRD-001' in related_ids but 'MEMINIT-PRD-001' does not list 'MEMINIT-PLAN-006'",
+      "source": "MEMINIT-PLAN-006",
+      "target": "MEMINIT-PRD-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-006' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-PLAN-006'",
+      "source": "MEMINIT-PLAN-006",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-006' lists 'MEMINIT-PRD-007' in related_ids but 'MEMINIT-PRD-007' does not list 'MEMINIT-PLAN-006'",
+      "source": "MEMINIT-PLAN-006",
+      "target": "MEMINIT-PRD-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-007' lists 'MEMINIT-PRD-001' in related_ids but 'MEMINIT-PRD-001' does not list 'MEMINIT-PLAN-007'",
+      "source": "MEMINIT-PLAN-007",
+      "target": "MEMINIT-PRD-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-008' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-008'",
+      "source": "MEMINIT-PLAN-008",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-008' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PLAN-008'",
+      "source": "MEMINIT-PLAN-008",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-008' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PLAN-008'",
+      "source": "MEMINIT-PLAN-008",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-008' lists 'MEMINIT-PRD-007' in related_ids but 'MEMINIT-PRD-007' does not list 'MEMINIT-PLAN-008'",
+      "source": "MEMINIT-PLAN-008",
+      "target": "MEMINIT-PRD-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-008' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PLAN-008'",
+      "source": "MEMINIT-PLAN-008",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-009' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-009'",
+      "source": "MEMINIT-PLAN-009",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-009' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-009'",
+      "source": "MEMINIT-PLAN-009",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-009' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PLAN-009'",
+      "source": "MEMINIT-PLAN-009",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-010' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-010'",
+      "source": "MEMINIT-PLAN-010",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-010' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-010'",
+      "source": "MEMINIT-PLAN-010",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-010' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PLAN-010'",
+      "source": "MEMINIT-PLAN-010",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-011' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-011'",
+      "source": "MEMINIT-PLAN-011",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-011' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-011'",
+      "source": "MEMINIT-PLAN-011",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-011' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PLAN-011'",
+      "source": "MEMINIT-PLAN-011",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-012' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-012'",
+      "source": "MEMINIT-PLAN-012",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-012' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-012'",
+      "source": "MEMINIT-PLAN-012",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-012' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PLAN-012'",
+      "source": "MEMINIT-PLAN-012",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-013' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-013'",
+      "source": "MEMINIT-PLAN-013",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-013' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-013'",
+      "source": "MEMINIT-PLAN-013",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-013' lists 'MEMINIT-PLAN-011' in related_ids but 'MEMINIT-PLAN-011' does not list 'MEMINIT-PLAN-013'",
+      "source": "MEMINIT-PLAN-013",
+      "target": "MEMINIT-PLAN-011"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-013' lists 'MEMINIT-RUNBOOK-006' in related_ids but 'MEMINIT-RUNBOOK-006' does not list 'MEMINIT-PLAN-013'",
+      "source": "MEMINIT-PLAN-013",
+      "target": "MEMINIT-RUNBOOK-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-PLAN-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-PLAN-011' in related_ids but 'MEMINIT-PLAN-011' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-PLAN-011"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-014' lists 'MEMINIT-SPEC-008' in related_ids but 'MEMINIT-SPEC-008' does not list 'MEMINIT-PLAN-014'",
+      "source": "MEMINIT-PLAN-014",
+      "target": "MEMINIT-SPEC-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'MEMINIT-GOV-003' in related_ids but 'MEMINIT-GOV-003' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "MEMINIT-GOV-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'MEMINIT-PRD-002' in related_ids but 'MEMINIT-PRD-002' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "MEMINIT-PRD-002"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'MEMINIT-RUNBOOK-006' in related_ids but 'MEMINIT-RUNBOOK-006' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "MEMINIT-RUNBOOK-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-003' lists 'ORG-GOV-001' in related_ids but 'ORG-GOV-001' does not list 'MEMINIT-PRD-003'",
+      "source": "MEMINIT-PRD-003",
+      "target": "ORG-GOV-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-004' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PRD-004'",
+      "source": "MEMINIT-PRD-004",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-004' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-004'",
+      "source": "MEMINIT-PRD-004",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-FDD-014' in related_ids but 'MEMINIT-FDD-014' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-FDD-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-GOV-003' in related_ids but 'MEMINIT-GOV-003' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-GOV-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-RUNBOOK-006' in related_ids but 'MEMINIT-RUNBOOK-006' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-RUNBOOK-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-SPEC-004' in related_ids but 'MEMINIT-SPEC-004' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-SPEC-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-SPEC-008' in related_ids but 'MEMINIT-SPEC-008' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-SPEC-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-005' lists 'ORG-GOV-001' in related_ids but 'ORG-GOV-001' does not list 'MEMINIT-PRD-005'",
+      "source": "MEMINIT-PRD-005",
+      "target": "ORG-GOV-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-PRD-002' in related_ids but 'MEMINIT-PRD-002' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-PRD-002"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-PRD-004' in related_ids but 'MEMINIT-PRD-004' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-PRD-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-SPEC-004' in related_ids but 'MEMINIT-SPEC-004' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-SPEC-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-006' lists 'ORG-GOV-001' in related_ids but 'ORG-GOV-001' does not list 'MEMINIT-PRD-006'",
+      "source": "MEMINIT-PRD-006",
+      "target": "ORG-GOV-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-007' lists 'MEMINIT-GOV-001' in related_ids but 'MEMINIT-GOV-001' does not list 'MEMINIT-PRD-007'",
+      "source": "MEMINIT-PRD-007",
+      "target": "MEMINIT-GOV-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-007' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PRD-007'",
+      "source": "MEMINIT-PRD-007",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-007' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PRD-007'",
+      "source": "MEMINIT-PRD-007",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-007' lists 'MEMINIT-PRD-004' in related_ids but 'MEMINIT-PRD-004' does not list 'MEMINIT-PRD-007'",
+      "source": "MEMINIT-PRD-007",
+      "target": "MEMINIT-PRD-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-007' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-007'",
+      "source": "MEMINIT-PRD-007",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-ADR-009' in related_ids but 'MEMINIT-ADR-009' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-ADR-009"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-ADR-012' in related_ids but 'MEMINIT-ADR-012' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-ADR-012"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-ADR-013' in related_ids but 'MEMINIT-ADR-013' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-ADR-013"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-FDD-003' in related_ids but 'MEMINIT-FDD-003' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-FDD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-FDD-006' in related_ids but 'MEMINIT-FDD-006' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-FDD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-FDD-012' in related_ids but 'MEMINIT-FDD-012' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-FDD-012"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-GOV-001' in related_ids but 'MEMINIT-GOV-001' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-GOV-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-GOV-003' in related_ids but 'MEMINIT-GOV-003' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-GOV-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-PRD-004' in related_ids but 'MEMINIT-PRD-004' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-PRD-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-PRD-005' in related_ids but 'MEMINIT-PRD-005' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-PRD-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-PRD-007' in related_ids but 'MEMINIT-PRD-007' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-PRD-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-SPEC-005' in related_ids but 'MEMINIT-SPEC-005' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-SPEC-005"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-SPEC-006' in related_ids but 'MEMINIT-SPEC-006' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-SPEC-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-SPEC-008' in related_ids but 'MEMINIT-SPEC-008' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-SPEC-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PRD-008' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PRD-008'",
+      "source": "MEMINIT-PRD-008",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-004' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-SPEC-004'",
+      "source": "MEMINIT-SPEC-004",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-004' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-SPEC-004'",
+      "source": "MEMINIT-SPEC-004",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-005' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-SPEC-005'",
+      "source": "MEMINIT-SPEC-005",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-005' lists 'MEMINIT-PRD-004' in related_ids but 'MEMINIT-PRD-004' does not list 'MEMINIT-SPEC-005'",
+      "source": "MEMINIT-SPEC-005",
+      "target": "MEMINIT-PRD-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-005' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-SPEC-005'",
+      "source": "MEMINIT-SPEC-005",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-006' lists 'MEMINIT-PRD-003' in related_ids but 'MEMINIT-PRD-003' does not list 'MEMINIT-SPEC-006'",
+      "source": "MEMINIT-SPEC-006",
+      "target": "MEMINIT-PRD-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-006' lists 'MEMINIT-PRD-007' in related_ids but 'MEMINIT-PRD-007' does not list 'MEMINIT-SPEC-006'",
+      "source": "MEMINIT-SPEC-006",
+      "target": "MEMINIT-PRD-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-006' lists 'MEMINIT-SPEC-008' in related_ids but 'MEMINIT-SPEC-008' does not list 'MEMINIT-SPEC-006'",
+      "source": "MEMINIT-SPEC-006",
+      "target": "MEMINIT-SPEC-008"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-007' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-SPEC-007'",
+      "source": "MEMINIT-SPEC-007",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-008' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-SPEC-008'",
+      "source": "MEMINIT-SPEC-008",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-008' lists 'MEMINIT-SPEC-004' in related_ids but 'MEMINIT-SPEC-004' does not list 'MEMINIT-SPEC-008'",
+      "source": "MEMINIT-SPEC-008",
+      "target": "MEMINIT-SPEC-004"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-010' lists 'MEMINIT-ADR-014' in related_ids but 'MEMINIT-ADR-014' does not list 'MEMINIT-SPEC-010'",
+      "source": "MEMINIT-SPEC-010",
+      "target": "MEMINIT-ADR-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-010' lists 'MEMINIT-PLAN-006' in related_ids but 'MEMINIT-PLAN-006' does not list 'MEMINIT-SPEC-010'",
+      "source": "MEMINIT-SPEC-010",
+      "target": "MEMINIT-PLAN-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-010' lists 'MEMINIT-PRD-006' in related_ids but 'MEMINIT-PRD-006' does not list 'MEMINIT-SPEC-010'",
+      "source": "MEMINIT-SPEC-010",
+      "target": "MEMINIT-PRD-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-010' lists 'MEMINIT-SPEC-007' in related_ids but 'MEMINIT-SPEC-007' does not list 'MEMINIT-SPEC-010'",
+      "source": "MEMINIT-SPEC-010",
+      "target": "MEMINIT-SPEC-007"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-SPEC-011' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-SPEC-011'",
+      "source": "MEMINIT-SPEC-011",
+      "target": "MEMINIT-PLAN-014"
     }
   ],
-  "documents": [
-    {
-      "document_id": "MEMINIT-ADR-001",
-      "path": "docs/45-adr/adr-001-use-python-for-meminit-cli.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Use Python for Meminit CLI",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-002",
-      "path": "docs/45-adr/adr-002-adopt-clean-architecture-for-core-logic.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Adopt Clean Architecture for core logic",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-003",
-      "path": "docs/45-adr/adr-003-validate-yaml-frontmatter-with-json-schema.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Validate YAML frontmatter with JSON Schema",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-004",
-      "path": "docs/45-adr/adr-004-use-immutable-repo-type-seq-document-ids.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Use immutable REPO-TYPE-SEQ document IDs",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-005",
-      "path": "docs/45-adr/adr-005-define-compliance-checking-rules-and-severities.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Define compliance checking rules and severities",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-006",
-      "path": "docs/45-adr/adr-006-design-auto-fix-workflow-dry-run-by-default.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Design auto-fix workflow (dry-run by default)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-007",
-      "path": "docs/45-adr/adr-007-define-link-checking-scope-paths-fragments.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Define link checking scope (paths, fragments)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-008",
-      "path": "docs/45-adr/adr-008-exclude-governance-templates-from-compliance-scanning.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Exclude governance templates from compliance scanning",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-009",
-      "path": "docs/45-adr/adr-009-add-minimal-repo-configuration-for-brownfield-adoption.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Add Minimal Repo Configuration For Brownfield Adoption",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-010",
-      "path": "docs/45-adr/adr-010-use-apache-20-license.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Use Apache-2.0 License",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-011",
-      "path": "docs/45-adr/adr-011-support-monorepo-namespaces.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Support Monorepo Namespaces",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-ADR-012",
-      "path": "docs/45-adr/adr-012-use-xdg-org-profiles-and-vendoring.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Use XDG Org Profiles and Vendoring",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-ADR-013",
-      "path": "docs/45-adr/adr-013-plan-driven-brownfield-adoption.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Plan-Driven Brownfield Adoption",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-ADR-014",
-      "path": "docs/45-adr/adr-014-templates-v2-architecture.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Templates v2 Architecture",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-ADR-015",
-      "path": "docs/45-adr/adr-015-test-section-markers.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Test Section Markers",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-ADR-016",
-      "path": "docs/45-adr/adr-016-test-json-output.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "ADR",
-      "title": "Test JSON Output",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-DESIGN-001",
-      "path": "docs/30-design/design-001-compliance-architecture.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "DESIGN",
-      "title": "Compliance Checker Architecture",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-001",
-      "path": "docs/50-fdd/fdd-001-compliance-checker-meminit-check.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Compliance Checker (meminit check)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-002",
-      "path": "docs/50-fdd/fdd-002-auto-remediation-meminit-fix.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Auto-Remediation (meminit fix)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-FDD-003",
-      "path": "docs/50-fdd/fdd-003-repository-scaffolding-meminit-init.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Repository Scaffolding (meminit init)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-004",
-      "path": "docs/50-fdd/fdd-004-document-factory-meminit-new.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Document Factory (meminit new)",
-      "status": "Superseded"
-    },
-    {
-      "document_id": "MEMINIT-FDD-005",
-      "path": "docs/50-fdd/fdd-005-repository-scan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Repository Scan (meminit scan)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-FDD-006",
-      "path": "docs/50-fdd/fdd-006-precommit-installer.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Pre-commit Installer (meminit install-precommit)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-007",
-      "path": "docs/50-fdd/fdd-007-index-resolution.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-008",
-      "path": "docs/50-fdd/fdd-008-id-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "ID Migration Assistant (meminit migrate-ids)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-010",
-      "path": "docs/50-fdd/fdd-010-template-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Template Migration Tool (meminit migrate-templates)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-FDD-011",
-      "path": "docs/50-fdd/fdd-011-document-factory-v2.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Document Factory (meminit new) - Templates v2",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-012",
-      "path": "docs/50-fdd/fdd-012-protocol-asset-governance.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Protocol Asset Governance",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-013",
-      "path": "docs/50-fdd/fdd-013-agent-work-queue-queries.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Agent Work Queue Queries",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-FDD-014",
-      "path": "docs/50-fdd/fdd-014-streaming-emitter-and-incremental-index.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "FDD",
-      "title": "Streaming Emitter and Incremental Index",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-GOV-001",
-      "path": "docs/00-governance/gov-001-document-standards.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "GOV",
-      "title": "Repository Document Standards",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-GOV-002",
-      "path": "docs/00-governance/gov-002-versioning-practices.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "GOV",
-      "title": "Versioning Practices (Operational Guide)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-GOV-003",
-      "path": "docs/00-governance/gov-003-security-practices.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "GOV",
-      "title": "Public Repository Security Practices",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-GOV-004",
-      "path": "docs/00-governance/gov-004-writing-style-guide.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "GOV",
-      "title": "Writing Style Guide",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-IMPL-001",
-      "path": "docs/05-planning/impl-note-001-graph-index-capabilities.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "Implementation Note",
-      "title": "Graph Index Capabilities Correction",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-LOG-001",
-      "path": "docs/58-logs/log-001-phase-5-external-testbed-evidence.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "LOG",
-      "title": "Phase 5 External Testbed Evidence",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-001",
-      "path": "docs/05-planning/plan-001-mvp-tasklist.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "MVP Tasklist",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-002",
-      "path": "docs/05-planning/plan-002-compliance-testing.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "DocOps Compliance Testing Suite",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-003",
-      "path": "docs/05-planning/plan-003-roadmap.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Project Roadmap",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-004",
-      "path": "docs/05-planning/plan-004-files-checked-output-contract.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "files_checked output contract refactor",
-      "status": "In Review"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-005",
-      "path": "docs/05-planning/plan-005-backlog-issues.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "WIP Backlog & Issues Tracker",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-006",
-      "path": "docs/05-planning/plan-006-atomic-task-list.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Atomic Worklist for Known Backlog",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-007",
-      "path": "docs/05-planning/plan-006a-org-config-scope.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "P3.1 Scope Decision: Org-Level Config",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-008",
-      "path": "docs/05-planning/plan-008-agentic-coding-vnext-programme.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Agentic Coding vNext Programme",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-009",
-      "path": "docs/05-planning/plan-009-phase-0-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 0 Detailed Implementation Plan",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-010",
-      "path": "docs/05-planning/plan-010-phase-1-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 1 Detailed Implementation Plan",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-011",
-      "path": "docs/05-planning/plan-011-phase-2-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 2 Detailed Implementation Plan",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-012",
-      "path": "docs/05-planning/plan-012-phase-3-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 3 Detailed Implementation Plan",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-013",
-      "path": "docs/05-planning/plan-013-phase-4-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 4 Detailed Implementation Plan",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-014",
-      "path": "docs/05-planning/plan-014-phase-5-detailed-implementation-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Phase 5 Detailed Implementation Plan",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PLAN-015",
-      "path": "docs/05-planning/plan-015-next-improvements-sprint-plan.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PLAN",
-      "title": "Next Improvements Sprint Plan",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PRD-001",
-      "path": "docs/10-prd/prd-001-meminit-tooling-ecosystem.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Meminit Tooling Ecosystem PRD",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PRD-002",
-      "path": "docs/10-prd/prd-002-new-file-function.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Enhanced Document Factory (meminit new)",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PRD-003",
-      "path": "docs/10-prd/prd-003-agent-interface-v1.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Agent Interface v1",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PRD-004",
-      "path": "docs/10-prd/prd-004-brownfield-adoption-hardening.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Brownfield Adoption Hardening",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-PRD-005",
-      "path": "docs/10-prd/prd-005-agent-interface-v2.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Agent Interface v2",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PRD-006",
-      "path": "docs/10-prd/prd-006-document-templates.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Document Templates v2 \u2014 Content Archetypes for Human & Machine Authoring",
-      "status": "In Review"
-    },
-    {
-      "document_id": "MEMINIT-PRD-007",
-      "path": "docs/10-prd/prd-007-project-state-dashboard.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Project State Dashboard",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-PRD-008",
-      "path": "docs/10-prd/prd-008-greenfield-init.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "PRD",
-      "title": "Greenfield Repository Bootstrap",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-001",
-      "path": "docs/60-runbooks/runbook-001-org-setup.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Organization DocOps Setup",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-002",
-      "path": "docs/60-runbooks/runbook-002-greenfield-repo.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Greenfield Repository Setup",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-003",
-      "path": "docs/60-runbooks/runbook-003-existing-repo-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Existing Repository Migration",
-      "status": "Superseded"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-004",
-      "path": "docs/60-runbooks/runbook-004-ci-cd-enforcement.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "CI/CD Enforcement for Meminit Compliance",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-005",
-      "path": "docs/60-runbooks/runbook-005-brownfield-repo-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Brownfield Repository Migration (Adopt Meminit)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-006",
-      "path": "docs/60-runbooks/runbook-006-codex-skills-setup.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Codex Skills Setup for Meminit",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-RUNBOOK-007",
-      "path": "docs/60-runbooks/runbook-007-existing-repo-migration-v2.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "RUNBOOK",
-      "title": "Existing Repository Migration (Templates v2)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-001",
-      "path": "docs/20-specs/spec-001-architecture.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Meminit Architecture",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-002",
-      "path": "docs/20-specs/spec-002-tech-stack.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Meminit Tech Stack",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-003",
-      "path": "docs/20-specs/spec-003-compliance-checker.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Compliance Checker Specification",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-004",
-      "path": "docs/20-specs/spec-004-agent-output-contract.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Agent Output Contract",
-      "status": "Superseded"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-005",
-      "path": "docs/20-specs/spec-005-scan-plan-format.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Scan Plan Format",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-006",
-      "path": "docs/20-specs/spec-006-errorcode-enum.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "ErrorCode Enum Specification",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-007",
-      "path": "docs/20-specs/spec-007-templates-v2.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Templates v2 Specification",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-008",
-      "path": "docs/20-specs/spec-008-agent-output-contract-v2.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Agent Output Contract (Templates v2 \u2192 v3)",
-      "status": "Approved"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-010",
-      "path": "docs/20-specs/spec-010-template-migration.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "Template Migration Specification",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-SPEC-011",
-      "path": "docs/20-specs/spec-011-ndjson-streaming-contract.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "SPEC",
-      "title": "NDJSON Streaming Contract",
-      "status": "Draft"
-    },
-    {
-      "document_id": "MEMINIT-STRAT-001",
-      "path": "docs/02-strategy/strat-001-project-meminit-vision.md",
-      "namespace": "meminit",
-      "repo_prefix": "MEMINIT",
-      "type": "STRAT",
-      "title": "Project Meminit Vision",
-      "status": "Draft"
-    },
-    {
-      "document_id": "ORG-GOV-001",
-      "path": "docs/00-governance/org/org-gov-001-constitution.md",
-      "namespace": "org",
-      "repo_prefix": "ORG",
-      "type": "GOV",
-      "title": "DocOps Constitution",
-      "status": "Draft"
-    },
-    {
-      "document_id": "ORG-GOV-002",
-      "path": "docs/00-governance/org/org-gov-002-metadata-schema.md",
-      "namespace": "org",
-      "repo_prefix": "ORG",
-      "type": "GOV",
-      "title": "Metadata Schema v2.0",
-      "status": "Draft"
-    }
-  ]
+  "command": "index",
+  "data": {
+    "document_count": 79,
+    "edge_count": 238,
+    "edges": [
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-ADR-014",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-ADR-014",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-FDD-004",
+        "target": "MEMINIT-FDD-011"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-FDD-004",
+        "target": "MEMINIT-PRD-002"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-010",
+        "target": "MEMINIT-ADR-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-010",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-010",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-010",
+        "target": "MEMINIT-SPEC-010"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-011",
+        "target": "MEMINIT-FDD-004"
+      },
+      {
+        "context": "frontmatter.superseded_by",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-011",
+        "target": "MEMINIT-FDD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-011",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-011",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-012",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-012",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-013",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-013",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-013",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-013",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-013",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-FDD-014",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-GOV-001",
+        "target": "MEMINIT-ADR-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-GOV-002",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-IMPL-001",
+        "target": "MEMINIT-PLAN-010"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-IMPL-001",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-PLAN-015"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-009"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-010"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-011"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-012"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-004",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-004",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-004",
+        "target": "MEMINIT-SPEC-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-004",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-005",
+        "target": "MEMINIT-PLAN-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-005",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-005",
+        "target": "MEMINIT-RUNBOOK-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-005",
+        "target": "MEMINIT-SPEC-010"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PLAN-005"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PLAN-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PLAN-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PRD-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-006",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-007",
+        "target": "MEMINIT-PLAN-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-007",
+        "target": "MEMINIT-PLAN-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-007",
+        "target": "MEMINIT-PRD-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-007",
+        "target": "MEMINIT-PRD-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-007",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-009"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-010"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-011"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-012"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-008",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-009",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-009",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-009",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-010",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-010",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-010",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-011",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-011",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-011",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-012",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-012",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-012",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-PLAN-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-013",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-PLAN-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-PLAN-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-014",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-002"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-002"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-003",
+        "target": "ORG-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-003",
+        "target": "ORG-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-004",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-004",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-004",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-FDD-014"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-RUNBOOK-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-005",
+        "target": "ORG-GOV-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-002"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-002"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-006",
+        "target": "ORG-GOV-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-007",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-009"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-009"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-012"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-012"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-ADR-013"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-012"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-FDD-012"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-GOV-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-005"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PRD-008",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-RUNBOOK-003",
+        "target": "MEMINIT-RUNBOOK-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-RUNBOOK-007",
+        "target": "MEMINIT-RUNBOOK-003"
+      },
+      {
+        "context": "frontmatter.superseded_by",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "source": "MEMINIT-RUNBOOK-007",
+        "target": "MEMINIT-RUNBOOK-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-004",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-004",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-SPEC-004",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-004",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-005",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-005",
+        "target": "MEMINIT-PRD-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-005",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-PRD-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-006",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-007",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-007",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-PLAN-013"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-PRD-007"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "frontmatter.superseded_by",
+        "edge_type": "supersedes",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-004"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-008",
+        "target": "MEMINIT-SPEC-011"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-010",
+        "target": "MEMINIT-ADR-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-010",
+        "target": "MEMINIT-FDD-010"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-010",
+        "target": "MEMINIT-PLAN-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-010",
+        "target": "MEMINIT-PRD-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-010",
+        "target": "MEMINIT-SPEC-007"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-SPEC-006"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-SPEC-011",
+        "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-STRAT-001",
+        "target": "MEMINIT-PLAN-003"
+      }
+    ],
+    "graph_schema_version": "1.0",
+    "index_version": "1.0",
+    "namespaces": [
+      {
+        "docs_root": "docs",
+        "namespace": "meminit",
+        "repo_prefix": "MEMINIT"
+      },
+      {
+        "docs_root": "docs/00-governance/org",
+        "namespace": "org",
+        "repo_prefix": "ORG"
+      }
+    ],
+    "node_count": 79,
+    "nodes": [
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-001",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-001-use-python-for-meminit-cli.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Use Python for Meminit CLI",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-002",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-002-adopt-clean-architecture-for-core-logic.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Adopt Clean Architecture for core logic",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-003",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-003-validate-yaml-frontmatter-with-json-schema.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Validate YAML frontmatter with JSON Schema",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-004",
+        "keywords": null,
+        "last_updated": "2025-12-15",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-004-use-immutable-repo-type-seq-document-ids.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Use immutable REPO-TYPE-SEQ document IDs",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-005",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-005-define-compliance-checking-rules-and-severities.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Define compliance checking rules and severities",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-006",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-006-design-auto-fix-workflow-dry-run-by-default.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Design auto-fix workflow (dry-run by default)",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-007",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-007-define-link-checking-scope-paths-fragments.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Define link checking scope (paths, fragments)",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-008",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-008-exclude-governance-templates-from-compliance-scanning.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Exclude governance templates from compliance scanning",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-009",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-009-add-minimal-repo-configuration-for-brownfield-adoption.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Add Minimal Repo Configuration For Brownfield Adoption",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-010",
+        "keywords": null,
+        "last_updated": "2025-12-18",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-010-use-apache-20-license.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Use Apache-2.0 License",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-011",
+        "keywords": null,
+        "last_updated": "2025-12-29",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-011-support-monorepo-namespaces.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Support Monorepo Namespaces",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-012",
+        "keywords": null,
+        "last_updated": "2025-12-31",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-012-use-xdg-org-profiles-and-vendoring.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Use XDG Org Profiles and Vendoring",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": "ADOPT",
+        "description": null,
+        "document_id": "MEMINIT-ADR-013",
+        "keywords": null,
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/45-adr/adr-013-plan-driven-brownfield-adoption.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Plan-Driven Brownfield Adoption",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": "CORE",
+        "description": null,
+        "document_id": "MEMINIT-ADR-014",
+        "keywords": null,
+        "last_updated": "2026-03-04",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/45-adr/adr-014-templates-v2-architecture.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-006",
+          "MEMINIT-SPEC-007"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Templates v2 Architecture",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-015",
+        "keywords": null,
+        "last_updated": "2026-03-07",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "__TBD__",
+        "path": "docs/45-adr/adr-015-test-section-markers.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Test Section Markers",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-ADR-016",
+        "keywords": null,
+        "last_updated": "2026-03-07",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "__TBD__",
+        "path": "docs/45-adr/adr-016-test-json-output.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Test JSON Output",
+        "type": "ADR",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-DESIGN-001",
+        "keywords": null,
+        "last_updated": "2025-11-20",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Architecture Team",
+        "path": "docs/30-design/design-001-compliance-architecture.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Compliance Checker Architecture",
+        "type": "DESIGN",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-001",
+        "keywords": null,
+        "last_updated": "2026-02-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-001-compliance-checker-meminit-check.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Compliance Checker (meminit check)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-002",
+        "keywords": null,
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-002-auto-remediation-meminit-fix.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Auto-Remediation (meminit fix)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-003",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-003-repository-scaffolding-meminit-init.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Repository Scaffolding (meminit init)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-004",
+        "keywords": null,
+        "last_updated": "2026-03-04",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/50-fdd/fdd-004-document-factory-meminit-new.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Superseded",
+        "superseded_by": "MEMINIT-FDD-011",
+        "title": "Document Factory (meminit new)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-005",
+        "keywords": null,
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-005-repository-scan.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Repository Scan (meminit scan)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-006",
+        "keywords": null,
+        "last_updated": "2025-12-22",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-006-precommit-installer.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Pre-commit Installer (meminit install-precommit)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-007",
+        "keywords": null,
+        "last_updated": "2026-04-18",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-007-index-resolution.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Index + Resolution Helpers (meminit index/resolve/identify/link)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-FDD-008",
+        "keywords": null,
+        "last_updated": "2025-12-26",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-008-id-migration.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "ID Migration Assistant (meminit migrate-ids)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": "CORE",
+        "description": "Functional design for the meminit migrate-templates command to convert legacy templates and configurations to Templates v2 format.",
+        "document_id": "MEMINIT-FDD-010",
+        "keywords": [
+          "migration",
+          "template",
+          "templates-v2",
+          "cli"
+        ],
+        "last_updated": "2026-03-07",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/50-fdd/fdd-010-template-migration.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-006",
+          "MEMINIT-ADR-014",
+          "MEMINIT-SPEC-007",
+          "MEMINIT-SPEC-010"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Template Migration Tool (meminit migrate-templates)",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": "CORE",
+        "description": "Functional design for the meminit new command using Templates v2 system.",
+        "document_id": "MEMINIT-FDD-011",
+        "keywords": null,
+        "last_updated": "2026-03-05",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/50-fdd/fdd-011-document-factory-v2.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-FDD-004",
+          "MEMINIT-PRD-006",
+          "MEMINIT-SPEC-007"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Document Factory (meminit new) - Templates v2",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": "GOVERNANCE",
+        "description": "Protocol asset registry, ownership model, marker grammar, drift detection (protocol check), and safe remediation (protocol sync).",
+        "document_id": "MEMINIT-FDD-012",
+        "keywords": [
+          "protocol",
+          "governance",
+          "drift",
+          "sync",
+          "agents-md"
+        ],
+        "last_updated": "2026-04-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-012-protocol-asset-governance.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Protocol Asset Governance",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": "Work queue query surface for agentic coding agents over project-state.yaml v2 schema.",
+        "document_id": "MEMINIT-FDD-013",
+        "keywords": [
+          "work-queue",
+          "state",
+          "readiness",
+          "selection",
+          "blockers"
+        ],
+        "last_updated": "2026-04-27",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-013-agent-work-queue-queries.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-013",
+          "MEMINIT-PRD-005",
+          "MEMINIT-PRD-007",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-008"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Agent Work Queue Queries",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Feature design for Phase 5 NDJSON streaming and repo-local index cache surfaces.",
+        "document_id": "MEMINIT-FDD-014",
+        "keywords": [
+          "streaming",
+          "ndjson",
+          "index",
+          "cache"
+        ],
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/50-fdd/fdd-014-streaming-emitter-and-incremental-index.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-SPEC-011",
+          "MEMINIT-SPEC-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Streaming Emitter and Incremental Index",
+        "type": "FDD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-GOV-001",
+        "keywords": null,
+        "last_updated": "2025-12-30",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Repo Maintainers",
+        "path": "docs/00-governance/gov-001-document-standards.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Repository Document Standards",
+        "type": "GOV",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-GOV-002",
+        "keywords": null,
+        "last_updated": "2025-11-12",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/00-governance/gov-002-versioning-practices.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Versioning Practices (Operational Guide)",
+        "type": "GOV",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-GOV-003",
+        "keywords": null,
+        "last_updated": "2025-12-15",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Security Team",
+        "path": "docs/00-governance/gov-003-security-practices.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Public Repository Security Practices",
+        "type": "GOV",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-GOV-004",
+        "keywords": null,
+        "last_updated": "2025-12-15",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/00-governance/gov-004-writing-style-guide.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Writing Style Guide",
+        "type": "GOV",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Corrects the graph_index capability flag status from future-only to shipped.",
+        "document_id": "MEMINIT-IMPL-001",
+        "keywords": [
+          "capabilities",
+          "graph_index"
+        ],
+        "last_updated": "2026-04-30",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Codex",
+        "path": "docs/05-planning/impl-note-001-graph-index-capabilities.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-010",
+          "MEMINIT-PRD-005"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Graph Index Capabilities Correction",
+        "type": "Implementation Note",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Operator-attested evidence template for Phase 5 NDJSON streaming and incremental cache validation in an external testbed repository.",
+        "document_id": "MEMINIT-LOG-001",
+        "keywords": [
+          "phase-5",
+          "streaming",
+          "cache",
+          "external-testbed"
+        ],
+        "last_updated": "2026-05-09",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/58-logs/log-001-phase-5-external-testbed-evidence.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-PLAN-015",
+          "MEMINIT-RUNBOOK-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Phase 5 External Testbed Evidence",
+        "type": "LOG",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-PLAN-001",
+        "keywords": null,
+        "last_updated": "2025-12-26",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/05-planning/plan-001-mvp-tasklist.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "MVP Tasklist",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-PLAN-002",
+        "keywords": null,
+        "last_updated": "2025-12-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/05-planning/plan-002-compliance-testing.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "DocOps Compliance Testing Suite",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-PLAN-003",
+        "impl_state": "In Progress",
+        "keywords": null,
+        "last_updated": "2026-04-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/05-planning/plan-003-roadmap.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Project Roadmap",
+        "type": "PLAN",
+        "unblocks": [],
+        "updated": "2026-03-07T07:38:26.110421+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "AGENT",
+        "description": "Execution plan for redefining files_checked, adding counters, and rolling output_schema_version 2.0 for check JSON outputs.",
+        "document_id": "MEMINIT-PLAN-004",
+        "keywords": [
+          "output",
+          "contract",
+          "files_checked",
+          "counters",
+          "json"
+        ],
+        "last_updated": "2026-02-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/05-planning/plan-004-files-checked-output-contract.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-003",
+          "MEMINIT-SPEC-004",
+          "MEMINIT-SPEC-003",
+          "MEMINIT-PLAN-003"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "In Review",
+        "superseded_by": null,
+        "title": "files_checked output contract refactor",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "PLAN",
+        "description": null,
+        "document_id": "MEMINIT-PLAN-005",
+        "impl_state": "In Progress",
+        "keywords": null,
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-005-backlog-issues.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "WIP Backlog &amp; Issues Tracker",
+        "type": "PLAN",
+        "unblocks": [],
+        "updated": "2026-03-07T06:34:10.931941+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "PLAN",
+        "description": "Reviewed and prioritised atomic worklist for the remaining known backlog, aligned to MEMINIT-PLAN-005 and engineering-principles-v1.1.",
+        "document_id": "MEMINIT-PLAN-006",
+        "keywords": [
+          "backlog",
+          "planning",
+          "templates",
+          "agent-interface",
+          "technical-debt"
+        ],
+        "last_updated": "2026-03-07",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-006-atomic-task-list.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-005",
+          "MEMINIT-PLAN-007",
+          "MEMINIT-PRD-001",
+          "MEMINIT-PRD-006",
+          "MEMINIT-PRD-007"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Atomic Worklist for Known Backlog",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "PLAN",
+        "description": "Scope and architecture boundary for org-level config (P3.1 from MEMINIT-PLAN-006)",
+        "document_id": "MEMINIT-PLAN-007",
+        "keywords": [
+          "org-config",
+          "scope",
+          "deferred",
+          "architecture"
+        ],
+        "last_updated": "2026-03-07",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-006a-org-config-scope.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-006",
+          "MEMINIT-PRD-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "P3.1 Scope Decision: Org-Level Config",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Phased improvement programme for Meminit as a stronger platform for agentic coding agents.",
+        "document_id": "MEMINIT-PLAN-008",
+        "keywords": [
+          "agent",
+          "roadmap",
+          "planning",
+          "orchestration"
+        ],
+        "last_updated": "2026-04-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-008-agentic-coding-vnext-programme.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-003",
+          "MEMINIT-PRD-005",
+          "MEMINIT-PRD-007"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Agentic Coding vNext Programme",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 0 foundation hardening.",
+        "document_id": "MEMINIT-PLAN-009",
+        "keywords": [
+          "phase-0",
+          "planning",
+          "testing",
+          "determinism"
+        ],
+        "last_updated": "2026-04-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-009-phase-0-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-003"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Phase 0 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 1 agent contract core.",
+        "document_id": "MEMINIT-PLAN-010",
+        "keywords": [
+          "phase-1",
+          "planning",
+          "capabilities",
+          "contract"
+        ],
+        "last_updated": "2026-04-15",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-010-phase-1-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-005"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Phase 1 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 2 repository graph work.",
+        "document_id": "MEMINIT-PLAN-011",
+        "keywords": [
+          "phase-2",
+          "planning",
+          "index",
+          "graph"
+        ],
+        "last_updated": "2026-04-17",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-011-phase-2-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Phase 2 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 3 protocol governance work.",
+        "document_id": "MEMINIT-PLAN-012",
+        "keywords": [
+          "phase-3",
+          "planning",
+          "protocol",
+          "governance"
+        ],
+        "last_updated": "2026-04-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-012-phase-3-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-005"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Phase 3 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue layer.",
+        "document_id": "MEMINIT-PLAN-013",
+        "keywords": [
+          "phase-4",
+          "planning",
+          "state",
+          "work-queue"
+        ],
+        "last_updated": "2026-04-28",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-013-phase-4-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PLAN-011",
+          "MEMINIT-PRD-005",
+          "MEMINIT-PRD-007",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-008",
+          "MEMINIT-RUNBOOK-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Phase 4 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 5 scale and streaming work.",
+        "document_id": "MEMINIT-PLAN-014",
+        "keywords": [
+          "phase-5",
+          "planning",
+          "streaming",
+          "ndjson",
+          "incremental"
+        ],
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-014-phase-5-detailed-implementation-plan.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-008",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PLAN-011",
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-008"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Phase 5 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Agent-orchestrator-ready sprint plan for closing live technical debt and hardening the post-Phase-5 Meminit agent interface.",
+        "document_id": "MEMINIT-PLAN-015",
+        "keywords": [
+          "next-steps",
+          "technical-debt",
+          "sprint-plan",
+          "streaming",
+          "state",
+          "index"
+        ],
+        "last_updated": "2026-05-08",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-015-next-improvements-sprint-plan.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Next Improvements Sprint Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-PRD-001",
+        "impl_state": "Done",
+        "keywords": null,
+        "last_updated": "2025-12-18",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-001-meminit-tooling-ecosystem.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Meminit Tooling Ecosystem PRD",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-07T12:15:43.676025+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "CLI",
+        "description": null,
+        "document_id": "MEMINIT-PRD-002",
+        "impl_state": "Done",
+        "keywords": null,
+        "last_updated": "2026-02-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-002-new-file-function.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Enhanced Document Factory (meminit new)",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-07T05:40:27.494441+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "AGENT",
+        "description": "Unified, deterministic CLI output contracts, agent bootstrap protocol, and machine-safe orchestration surface for meminit.",
+        "document_id": "MEMINIT-PRD-003",
+        "impl_state": "Done",
+        "keywords": [
+          "agent",
+          "json",
+          "output",
+          "protocol",
+          "cli",
+          "contracts",
+          "determinism",
+          "orchestration",
+          "context",
+          "monorepo"
+        ],
+        "last_updated": "2026-02-28",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-003-agent-interface-v1.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PRD-002",
+          "MEMINIT-PRD-004",
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-004",
+          "MEMINIT-RUNBOOK-006",
+          "ORG-GOV-001",
+          "MEMINIT-GOV-003"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Agent Interface v1",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-06T16:28:38.952670+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "ADOPT",
+        "description": "Harden scan and fix workflows to bring existing repos to first-green quickly and safely.",
+        "document_id": "MEMINIT-PRD-004",
+        "impl_state": "Done",
+        "keywords": [
+          "brownfield",
+          "scan",
+          "fix",
+          "migration",
+          "adoption",
+          "safety"
+        ],
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-004-brownfield-adoption-hardening.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PRD-003"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Brownfield Adoption Hardening",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-06T15:45:13.255995+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "AGENT",
+        "description": "Next-step improvements beyond Agent Interface v1: capability negotiation, streaming outputs, correlation support, stronger schemas, and better integration with agent protocol files/skills.",
+        "document_id": "MEMINIT-PRD-005",
+        "impl_state": "Not Started",
+        "keywords": [
+          "agent",
+          "interface",
+          "capabilities",
+          "streaming",
+          "ndjson",
+          "correlation",
+          "session",
+          "skills",
+          "protocol",
+          "state",
+          "queue",
+          "docops"
+        ],
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-005-agent-interface-v2.md",
+        "ready": true,
+        "related_ids": [
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-003",
+          "MEMINIT-SPEC-004",
+          "MEMINIT-SPEC-008",
+          "MEMINIT-RUNBOOK-006",
+          "MEMINIT-PRD-007",
+          "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011",
+          "MEMINIT-FDD-014",
+          "ORG-GOV-001",
+          "MEMINIT-GOV-003"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Agent Interface v2",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-06T16:27:48.224674+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "DOCS",
+        "description": "Defines a template contract for meminit new that produces deterministic, agent-friendly document bodies: stable section IDs, explicit placeholders, and embedded prompt guidance. Specifies evolution from templates v1 to a unified document_types schema (single source of truth) with built-in fallback templates, a single {{variable}} interpolation syntax, and robust section parsing for orchestrators.",
+        "document_id": "MEMINIT-PRD-006",
+        "impl_state": "Done",
+        "keywords": [
+          "templates",
+          "archetypes",
+          "document-types",
+          "standardization",
+          "content",
+          "new",
+          "agents",
+          "architext",
+          "machine-authoring",
+          "scaffolding"
+        ],
+        "last_updated": "2026-03-04",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-006-document-templates.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PRD-002",
+          "MEMINIT-PRD-003",
+          "MEMINIT-PRD-004",
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-004",
+          "ORG-GOV-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "In Review",
+        "superseded_by": null,
+        "title": "Document Templates v2 \u2014 Content Archetypes for Human &amp; Machine Authoring",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-07T12:16:01.874128+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "CLI",
+        "description": "Centralized project-state tracking and generated dashboard views (table + kanban) that surface document governance status and implementation state without violating byte-invariance of approved documents.",
+        "document_id": "MEMINIT-PRD-007",
+        "impl_state": "Done",
+        "keywords": [
+          "dashboard",
+          "kanban",
+          "project-state",
+          "implementation",
+          "status",
+          "index",
+          "catalog",
+          "mkdocs",
+          "queue",
+          "blockers"
+        ],
+        "last_updated": "2026-04-23",
+        "namespace": "meminit",
+        "notes": "Successfully implemented dashboard and kanban features",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/10-prd/prd-007-project-state-dashboard.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-PRD-003",
+          "MEMINIT-PRD-004",
+          "MEMINIT-GOV-001",
+          "MEMINIT-SPEC-008",
+          "MEMINIT-PRD-005",
+          "MEMINIT-PLAN-013"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Project State Dashboard",
+        "type": "PRD",
+        "unblocks": [],
+        "updated": "2026-03-06T15:05:33.986303+00:00",
+        "updated_by": "GitCmurf"
+      },
+      {
+        "area": "INIT",
+        "description": "Production-grade, profile-driven, idempotent greenfield bootstrap for Meminit-governed repositories. Defines a registry-backed installer architecture (DocOps tree, protocol assets, pre-commit, CI, GitHub hygiene), a persisted setup manifest, deterministic upgrade semantics, and a reusable installer contract that the planned brownfield hardening will consume.",
+        "document_id": "MEMINIT-PRD-008",
+        "keywords": [
+          "init",
+          "bootstrap",
+          "greenfield",
+          "profiles",
+          "protocol-assets",
+          "projections",
+          "pre-commit",
+          "ci",
+          "manifest",
+          "idempotency",
+          "upgrade",
+          "bootstrap-plan",
+          "installer-contract",
+          "brownfield-reuse"
+        ],
+        "last_updated": "2026-04-30",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Meminit maintainers",
+        "path": "docs/10-prd/prd-008-greenfield-init.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-STRAT-001",
+          "MEMINIT-PRD-003",
+          "MEMINIT-PRD-004",
+          "MEMINIT-PRD-005",
+          "MEMINIT-PRD-007",
+          "MEMINIT-SPEC-005",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-007",
+          "MEMINIT-SPEC-008",
+          "MEMINIT-FDD-003",
+          "MEMINIT-FDD-006",
+          "MEMINIT-FDD-012",
+          "MEMINIT-GOV-001",
+          "MEMINIT-GOV-003",
+          "MEMINIT-ADR-012",
+          "MEMINIT-ADR-009",
+          "MEMINIT-ADR-013"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Greenfield Repository Bootstrap",
+        "type": "PRD",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-001",
+        "keywords": null,
+        "last_updated": "2025-12-31",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-001-org-setup.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Organization DocOps Setup",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-002",
+        "keywords": null,
+        "last_updated": "2025-12-31",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-002-greenfield-repo.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Greenfield Repository Setup",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-003",
+        "keywords": null,
+        "last_updated": "2026-03-05",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-003-existing-repo-migration.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Superseded",
+        "superseded_by": "MEMINIT-RUNBOOK-007",
+        "title": "Existing Repository Migration",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-004",
+        "keywords": null,
+        "last_updated": "2025-12-30",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-004-ci-cd-enforcement.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "CI/CD Enforcement for Meminit Compliance",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-005",
+        "keywords": null,
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-005-brownfield-repo-migration.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Brownfield Repository Migration (Adopt Meminit)",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-006",
+        "keywords": null,
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-006-codex-skills-setup.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Codex Skills Setup for Meminit",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-RUNBOOK-007",
+        "keywords": null,
+        "last_updated": "2026-03-05",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/60-runbooks/runbook-007-existing-repo-migration-v2.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Existing Repository Migration (Templates v2)",
+        "type": "RUNBOOK",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-SPEC-001",
+        "keywords": null,
+        "last_updated": "2025-12-15",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Engineering Lead",
+        "path": "docs/20-specs/spec-001-architecture.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Meminit Architecture",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-SPEC-002",
+        "keywords": null,
+        "last_updated": "2026-01-29",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Engineering Lead",
+        "path": "docs/20-specs/spec-002-tech-stack.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Meminit Tech Stack",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-SPEC-003",
+        "keywords": null,
+        "last_updated": "2026-02-19",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/20-specs/spec-003-compliance-checker.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Compliance Checker Specification",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check).",
+        "document_id": "MEMINIT-SPEC-004",
+        "keywords": [
+          "agent",
+          "output",
+          "json",
+          "contract",
+          "cli"
+        ],
+        "last_updated": "2026-03-05",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-004-agent-output-contract.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-003",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Superseded",
+        "superseded_by": "MEMINIT-SPEC-008",
+        "title": "Agent Output Contract",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "ADOPT",
+        "description": "Normative JSON format for brownfield scan plans and plan-driven fixes.",
+        "document_id": "MEMINIT-SPEC-005",
+        "keywords": [
+          "scan",
+          "plan",
+          "fix",
+          "migration",
+          "brownfield"
+        ],
+        "last_updated": "2026-03-01",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-005-scan-plan-format.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-004",
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Scan Plan Format",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Canonical ErrorCode inventory, extensibility process, and governance rules for the meminit CLI error code enum.",
+        "document_id": "MEMINIT-SPEC-006",
+        "keywords": [
+          "error",
+          "enum",
+          "agent",
+          "contract"
+        ],
+        "last_updated": "2026-04-28",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-006-errorcode-enum.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-003",
+          "MEMINIT-SPEC-008",
+          "MEMINIT-PRD-007",
+          "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "ErrorCode Enum Specification",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "CORE",
+        "description": "Normative specification for Meminit Templates v2 system including resolution chain, interpolation syntax, section markers, and validation rules.",
+        "document_id": "MEMINIT-SPEC-007",
+        "keywords": [
+          "template",
+          "interpolation",
+          "section",
+          "marker",
+          "agent"
+        ],
+        "last_updated": "2026-03-04",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-007-templates-v2.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PRD-006",
+          "MEMINIT-SPEC-008"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Templates v2 Specification",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (including state queue surfaces).",
+        "document_id": "MEMINIT-SPEC-008",
+        "keywords": [
+          "agent",
+          "output",
+          "json",
+          "contract",
+          "cli",
+          "templates-v2"
+        ],
+        "last_updated": "2026-05-06",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-008-agent-output-contract-v2.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-SPEC-004",
+          "MEMINIT-SPEC-007",
+          "MEMINIT-PRD-006",
+          "MEMINIT-PRD-007",
+          "MEMINIT-PLAN-013",
+          "MEMINIT-SPEC-011"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Approved",
+        "superseded_by": null,
+        "title": "Agent Output Contract (Templates v2 \u2192 v3)",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "CORE",
+        "description": "Implementation specification for meminit migrate-templates command to convert legacy templates and configurations to Templates v2 format.",
+        "document_id": "MEMINIT-SPEC-010",
+        "keywords": [
+          "migration",
+          "template",
+          "templates-v2",
+          "cli"
+        ],
+        "last_updated": "2026-04-14",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Product Team",
+        "path": "docs/20-specs/spec-010-template-migration.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-FDD-010",
+          "MEMINIT-PRD-006",
+          "MEMINIT-ADR-014",
+          "MEMINIT-SPEC-007",
+          "MEMINIT-PLAN-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Template Migration Specification",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Normative NDJSON record contract for streamed Meminit CLI output.",
+        "document_id": "MEMINIT-SPEC-011",
+        "keywords": [
+          "streaming",
+          "ndjson",
+          "agent",
+          "output"
+        ],
+        "last_updated": "2026-05-03",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/20-specs/spec-011-ndjson-streaming-contract.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-PRD-005",
+          "MEMINIT-SPEC-006",
+          "MEMINIT-SPEC-008"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "NDJSON Streaming Contract",
+        "type": "SPEC",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "MEMINIT-STRAT-001",
+        "keywords": null,
+        "last_updated": "2025-12-22",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "Strategy Team",
+        "path": "docs/02-strategy/strat-001-project-meminit-vision.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Project Meminit Vision",
+        "type": "STRAT",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "ORG-GOV-001",
+        "keywords": null,
+        "last_updated": "2025-12-11",
+        "namespace": "org",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/00-governance/org/org-gov-001-constitution.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "ORG",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "DocOps Constitution",
+        "type": "GOV",
+        "unblocks": []
+      },
+      {
+        "area": null,
+        "description": null,
+        "document_id": "ORG-GOV-002",
+        "keywords": null,
+        "last_updated": "2025-12-15",
+        "namespace": "org",
+        "open_blockers": [],
+        "owner": "DocOps Working Group",
+        "path": "docs/00-governance/org/org-gov-002-metadata-schema.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "ORG",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Metadata Schema v2.0",
+        "type": "GOV",
+        "unblocks": []
+      }
+    ]
+  },
+  "output_schema_version": "2.0",
+  "success": true,
+  "violations": [],
+  "warnings": []
 }

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker
 
+from meminit.core.services.path_utils import load_index_documents
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -102,9 +103,7 @@ def test_persisted_index_allows_brownfield_nodes_with_missing_type_and_title(
 
 def test_committed_index_includes_phase_5_log_document():
     """The checked-in index must stay in sync with the governed LOG evidence doc."""
-    payload = json.loads(_COMMITTED_INDEX.read_text(encoding="utf-8"))
-
-    documents = payload["documents"]
+    documents = load_index_documents(_COMMITTED_INDEX)
     log_doc = next(
         (doc for doc in documents if doc["document_id"] == "MEMINIT-LOG-001"),
         None,
