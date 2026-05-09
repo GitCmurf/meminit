@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '0.4'
-last_updated: '2026-05-08'
+version: '1.1'
+last_updated: '2026-05-09'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -22,8 +22,8 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 1.0
-> **Last Updated:** 2026-05-08
+> **Version:** 1.1
+> **Last Updated:** 2026-05-09
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Agent-orchestrator-ready sprint plan for closing live technical debt and hardening the post-Phase-5 Meminit agent interface.
@@ -107,7 +107,7 @@ tests, and governed docs.
 | MEMINIT-PLAN-010 | Complete for runtime surfaces; no live unsuperseded backlog found. |
 | MEMINIT-PLAN-011 | Complete for graph artifact and helpers; TD-001 is closed. |
 | MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, and TD-009 are closed, while TD-008 remains open. |
+| MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, TD-008, and TD-009 are closed. |
 | MEMINIT-PLAN-014 | Core implementation complete; TD-003 and TD-005 are closed, while producer architecture and external testbed evidence remain TD-002 and TD-004. |
 
 ### 3.1 Implementation Progress
@@ -125,7 +125,7 @@ the listed verification commands pass.
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; closure remains blocked on human execution and sanitized evidence. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
-| F: Error-Code Contract Cleanup | TD-008 | Open | Blocked on GATE-003. |
+| F: Error-Code Contract Cleanup | TD-008 | Completed | Product/contract owner confirmed no external consumers depend on old names; normalized state public error codes to `STATE_*`, updated runtime mappings, tests, SPEC-006, changelog, and this register. |
 
 ## 4. Pre-Sprint Decisions and Gates
 
@@ -135,7 +135,7 @@ These gates must be resolved before dispatching the affected workstream.
 | ---- | ---------- | ------- | ---------------- |
 | GATE-001: streaming producer API shape | Workstream A | Core maintainer | Confirm the synchronous generator-based producer contract in §5.1 or approve a replacement design note before implementation. |
 | GATE-002: external testbed evidence | Workstream C | Release owner | Name the human operator who will run the external repo commands and attest to sanitized evidence. Agents may prepare templates but must not fabricate evidence. |
-| GATE-003: state error-code convention | Workstream F | Product/contract owner | Decide whether to preserve current names, add aliases, or rename public error codes before any code changes are scheduled. |
+| GATE-003: state error-code convention | Workstream F | Product/contract owner | Resolved on 2026-05-09: normalize to `STATE_*` without compatibility aliases because no external consumers depend on the old names. |
 | GATE-004: Approved-doc edit authorization | Any workstream editing Approved/Superseded docs | Repository maintainer | Authorize exact protected documents and sections, or require a Draft follow-up note instead. |
 
 ## 5. Sprint Workstreams
@@ -594,28 +594,35 @@ Goal:
 
 Size:
 
-- Decision only if names are preserved; L if public names are changed.
+- Completed as L because public names changed across code, tests, and docs.
 
 Implementation steps:
 
-1. Confirm GATE-003 before editing code.
-2. If preserving compatibility, document the inconsistency as intentional and
-   close TD-008 as `Superseded` or `Rejected`.
-3. If renaming, update `ErrorCode`, `ERROR_EXPLANATIONS`, exit-code mapping,
+1. [x] Confirm GATE-003 before editing code.
+2. [x] Record that compatibility aliases are intentionally not preserved
+   because there are no external consumers of the old names.
+3. [x] If renaming, update `ErrorCode`, `ERROR_EXPLANATIONS`, exit-code mapping,
    SPEC-006, contract matrix expectations, and every affected test.
-4. Add migration notes for agents that consume the old names.
-5. Verify `meminit explain --list --format json` covers the final set.
+4. [x] Add migration notes for agents that consume the old names.
+5. [x] Verify `meminit explain --list --format json` covers the final set.
 
 Definition of done:
 
-1. SPEC-006 and runtime enum values agree.
-2. `meminit explain` resolves every public error code.
-3. Contract matrix and state CLI tests pass.
-4. The decision is recorded in the change history of the affected governed
+1. [x] SPEC-006 and runtime enum values agree.
+2. [x] `meminit explain` resolves every public error code.
+3. [x] Contract matrix and state CLI tests pass.
+4. [x] The decision is recorded in the change history of the affected governed
    docs.
-5. TD-008 is closed, superseded, or rejected with a clear rationale.
-6. Any public rename includes a changelog/release-note entry and migration
+5. [x] TD-008 is closed, superseded, or rejected with a clear rationale.
+6. [x] Any public rename includes a changelog/release-note entry and migration
    note.
+
+Completion note:
+
+- Closed on 2026-05-09 after GATE-003 resolved in favor of `STATE_*`
+  normalization without aliases. The canonical replacements are
+  `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
+  `STATE_INVALID_FILTER_VALUE`.
 
 Suggested verification:
 
@@ -770,3 +777,4 @@ This plan is complete when:
 | 0.8 | 2026-05-09 | Codex | Closed Workstream E3 by routing state command use cases through strict config mode while preserving diagnostic fallback semantics. |
 | 0.9 | 2026-05-09 | Codex | Narrowed Workstream A by introducing core stream payload types, use-case stream producers, and production CLI drainage through `CoreStreamingProducer`. |
 | 1.0 | 2026-05-09 | Codex | Prepared the Workstream C governed operator evidence template and marked TD-004 blocked on human-attested external testbed execution. |
+| 1.1 | 2026-05-09 | Codex | Closed Workstream F by normalizing state public error codes to `STATE_*`, updating runtime/docs/tests/changelog, and closing TD-008. |

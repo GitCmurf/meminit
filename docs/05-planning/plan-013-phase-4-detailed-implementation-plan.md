@@ -425,7 +425,7 @@ exit code 0). This is consistent with SPEC-006 and the
 | Dependency with mismatched status           | `STATE_DEPENDENCY_STATUS_CONFLICT` | advice | Entry A is `Done` but lists B in `depends_on`/`blocked_by` where B is not `Done`. Advisory only; emitted through `advice[]`.   |
 | `assignee` or `next_action` exceeds bounds  | `STATE_FIELD_TOO_LONG`          | dual     | Length exceeds 120 for `assignee` or `MAX_NOTES_LENGTH` for `next_action`. Fatal on write; warning on read.                      |
 | Mixed mutation modes                        | `STATE_MIXED_MUTATION_MODE`     | fatal    | More than one mutation mode (replace/add-remove/clear) specified for the same field family.                                      |
-| Invalid filter value                        | `E_INVALID_FILTER_VALUE`        | fatal    | An invalid value was supplied for `--impl-state`, `--priority`, or `--priority-at-least` filter flags.                            |
+| Invalid filter value                        | `STATE_INVALID_FILTER_VALUE`        | fatal    | An invalid value was supplied for `--impl-state`, `--priority`, or `--priority-at-least` filter flags.                            |
 
 Cycle detection uses the same iterative-with-visited-set pattern used by
 `GRAPH_SUPERSESSION_CYCLE` in Phase 2 (see MEMINIT-PLAN-011 §3.3.2). It
@@ -437,8 +437,8 @@ All `STATE_*` codes are added to `ErrorCode` in
 actionable guidance. Fatal codes map to `EX_DATAERR` via
 `exit_code_for_error` in `src/meminit/core/services/exit_codes.py`.
 Malformed state YAML / schema violations that prevent parsing still
-raise the existing `E_STATE_YAML_MALFORMED` and
-`E_STATE_SCHEMA_VIOLATION` codes; query commands do not guess their way
+raise the existing `STATE_YAML_MALFORMED` and
+`STATE_SCHEMA_VIOLATION` codes; query commands do not guess their way
 through those cases.
 
 #### 3.2.3 Migration posture
@@ -539,7 +539,7 @@ Additional flags per command:
 | `state list`         | `--impl-state <value>` (repeatable)   | Filter by `impl_state` (union). Already partially present; this workstream finalises the set.                 |
 
 Mutually exclusive flag pairs (e.g. `--ready` with `--no-ready`) are
-rejected with an `E_INVALID_FILTER_VALUE` usage error. `--ready` and
+rejected with a `STATE_INVALID_FILTER_VALUE` usage error. `--ready` and
 `--blocked` are also mutually exclusive with each other, because a
 single entry cannot satisfy both predicates simultaneously.
 
@@ -693,7 +693,7 @@ Each ships a complete `ERROR_EXPLANATIONS` entry.
    `src/meminit/cli/main.py`, wired through `command_output_handler`.
 2. Extend the existing `state list` Click command with the new filter
    flags. Reject conflicting flag pairs with
-   `E_INVALID_FILTER_VALUE`, including contradictory ready/blocked
+   `STATE_INVALID_FILTER_VALUE`, including contradictory ready/blocked
    combinations.
 3. Add a shared repo-initialization guard to the query commands so they
    fail fast on missing or malformed repo config instead of guessing
@@ -1035,8 +1035,8 @@ Phase 4 can be considered complete when all of the following are true:
    (Workstream C).
 7. The full state/queue error-code set is registered in
    `ErrorCode`: the eleven `STATE_*` values currently implemented,
-   `E_STATE_YAML_MALFORMED`, `E_STATE_SCHEMA_VIOLATION`, and
-   `E_INVALID_FILTER_VALUE` where used by §3.3.6. Each has a complete
+   `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
+   `STATE_INVALID_FILTER_VALUE` where used by §3.3.6. Each has a complete
    `ERROR_EXPLANATIONS` entry reachable via `meminit explain` and maps
    to the correct exit code (Workstreams B and C).
 8. `meminit capabilities` lists `state next` and `state blockers`

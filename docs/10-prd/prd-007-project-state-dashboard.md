@@ -475,7 +475,7 @@ accept comma-separated lists for multi-value filtering.
 - Output MUST always use the canonical enum casing regardless of input
 - Leading/trailing whitespace in comma-separated values MUST be stripped
 - Unknown values (after canonicalization) MUST produce a structured error
-  (exit code 2, error code `E_INVALID_FILTER_VALUE` in envelope) listing
+  (exit code 2, error code `STATE_INVALID_FILTER_VALUE` in envelope) listing
   the invalid value and the valid enum
 - Duplicate values MUST be silently deduplicated
 - Output order MUST be deterministic: sorted by activity recency descending
@@ -504,13 +504,13 @@ deterministically. Required codes:
 
 | Code                          | Source        | Meaning                                                                 |
 | ----------------------------- | ------------- | ----------------------------------------------------------------------- |
-| `E_STATE_YAML_MALFORMED`      | doctor, index | `project-state.yaml` is not valid YAML                                  |
-| `E_STATE_SCHEMA_VIOLATION`    | doctor, index | Entry violates the JSON Schema                                          |
+| `STATE_YAML_MALFORMED`      | doctor, index | `project-state.yaml` is not valid YAML                                  |
+| `STATE_SCHEMA_VIOLATION`    | doctor, index | Entry violates the JSON Schema                                          |
 | `W_STATE_UNKNOWN_DOC_ID`      | doctor, index | `document_id` in state file has no governed document                    |
 | `W_STATE_UNKNOWN_IMPL_STATE`  | doctor, index | `impl_state` value not in enum                                          |
 | `W_FIELD_SANITIZATION_FAILED` | index         | A rendered field failed sanitization; omitted from output               |
 | `W_STATE_UNSORTED_KEYS`       | doctor, state | `documents` entries are not in alphabetical order                       |
-| `E_INVALID_FILTER_VALUE`      | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
+| `STATE_INVALID_FILTER_VALUE`      | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
 
 Codes prefixed `E_` are errors (exit code ≠ 0); codes prefixed `W_` are
 warnings (exit code 0, reported in envelope `warnings` array).

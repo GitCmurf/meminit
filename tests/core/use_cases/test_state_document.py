@@ -190,7 +190,7 @@ def test_set_invalid_impl_state_raises(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     with pytest.raises(MeminitError) as exc_info:
         use_case.set_state("MEMINIT-ADR-001", impl_state="Bogus")
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_set_next_action_newline_raises_invalid_format(tmp_path):
@@ -367,7 +367,7 @@ def test_list_states_invalid_priority_raises(tmp_path):
 
     with pytest.raises(MeminitError) as exc_info:
         use_case.list_states(priority=["P9"])
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_list_states_assignee_filter(tmp_path):
@@ -644,7 +644,7 @@ def test_validate_state_reports_all_schema_violations(tmp_path):
         use_case._validate_state(state)
 
     err = exc_info.value
-    assert err.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert err.code == ErrorCode.STATE_SCHEMA_VIOLATION
     assert "3 violation(s)" in err.message
     assert "bad impl_state" in err.message
     assert "bad updated" in err.message
@@ -680,7 +680,7 @@ def test_list_states_rejects_explicit_unknown_schema_version(tmp_path):
     with pytest.raises(MeminitError) as exc_info:
         use_case.list_states()
 
-    assert exc_info.value.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert exc_info.value.code == ErrorCode.STATE_SCHEMA_VIOLATION
     assert "state_schema_version" in exc_info.value.message
 
 
@@ -1057,13 +1057,13 @@ def test_list_states_preserves_per_document_invalid_priority_warnings(tmp_path):
 
 
 def test_list_states_invalid_impl_state_raises(tmp_path):
-    """Invalid impl_state filter value raises E_INVALID_FILTER_VALUE."""
+    """Invalid impl_state filter value raises STATE_INVALID_FILTER_VALUE."""
     use_case = StateDocumentUseCase(str(tmp_path))
     use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started")
 
     with pytest.raises(MeminitError) as exc_info:
         use_case.list_states(impl_state=["NonExistent"])
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_list_states_valid_impl_state_filter_succeeds(tmp_path):
@@ -1315,7 +1315,7 @@ def test_list_states_invalid_priority_raises_without_state_file(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     with pytest.raises(MeminitError) as exc_info:
         use_case.list_states(priority=["P9"])
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_list_states_invalid_impl_state_raises_without_state_file(tmp_path):
@@ -1323,7 +1323,7 @@ def test_list_states_invalid_impl_state_raises_without_state_file(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     with pytest.raises(MeminitError) as exc_info:
         use_case.list_states(impl_state=["Bogus"])
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_next_state_invalid_priority_raises_without_state_file(tmp_path):
@@ -1331,7 +1331,7 @@ def test_next_state_invalid_priority_raises_without_state_file(tmp_path):
     use_case = StateDocumentUseCase(str(tmp_path))
     with pytest.raises(MeminitError) as exc_info:
         use_case.next_state(priority_at_least="P9")
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_strict_config_use_case_rejects_missing_repo_config(tmp_path):

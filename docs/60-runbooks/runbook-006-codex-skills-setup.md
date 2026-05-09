@@ -386,7 +386,7 @@ The `state_schema_version: "2.0"` key will appear in the rewritten file.
 ### Operator recovery
 
 **Malformed `project-state.yaml`:** `meminit state` commands will raise
-`E_STATE_YAML_MALFORMED`. Fix the YAML syntax manually or delete the
+`STATE_YAML_MALFORMED`. Fix the YAML syntax manually or delete the
 file and let the queue start empty.
 
 **Dependency cycle (`STATE_DEPENDENCY_CYCLE`):** Clear one edge of the

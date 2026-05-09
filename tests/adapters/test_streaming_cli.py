@@ -508,7 +508,7 @@ def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
     assert records[-1]["record_type"] == "summary"
     assert records[-1]["success"] is False
     assert any(
-        warning.get("code") == "E_STATE_YAML_MALFORMED"
+        warning.get("code") == "STATE_YAML_MALFORMED"
         for warning in records[-1]["warnings"]
     )
 

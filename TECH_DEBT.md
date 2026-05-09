@@ -158,15 +158,16 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Open |
+| Status | Closed |
 | Owner | Contract maintainers |
 | Source | Review follow-up from Phase 4 error-code work |
-| Related plans | `MEMINIT-PLAN-010`, `MEMINIT-PLAN-013` |
-| Evidence | The public `ErrorCode` enum mixes `E_STATE_YAML_MALFORMED` and `E_STATE_SCHEMA_VIOLATION` with unprefixed `STATE_*` codes. |
+| Related plans | `MEMINIT-PLAN-010`, `MEMINIT-PLAN-013`, `MEMINIT-PLAN-015`, `MEMINIT-SPEC-006` |
+| Evidence | The public `ErrorCode` enum mixed old `E_*` state names with unprefixed `STATE_*` codes. |
 | Impact | No runtime bug, but the public contract is less regular for agents and documentation. Renaming is cross-cutting and should be deliberate. |
 | Remediation | Choose a single state-code convention, update code, docs, explain metadata, tests, and any migration notes in SPEC-006. |
 | Definition of done | SPEC-006, `ErrorCode`, `ERROR_EXPLANATIONS`, exit-code mappings, contract matrix tests, and state tests agree on the final names. If compatibility is intentionally preserved, document aliases explicitly. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/services/test_error_explainer.py tests/core/services/test_exit_codes.py tests/integration/test_contract_matrix.py tests/adapters/test_cli_state.py` |
+| Closure evidence | Closed on 2026-05-09 after product/contract owner confirmation that no external consumers depend on the old names. The runtime enum, explain metadata, exit-code mapping, contract tests, state tests, `MEMINIT-SPEC-006`, and changelog now use `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and `STATE_INVALID_FILTER_VALUE` without aliases. |
 
 ### TD-009: State-file path helper has fallback behavior where strictness is expected
 
@@ -207,15 +208,15 @@ Summary:
 | `MEMINIT-PLAN-010` | No open runtime backlog identified. Capabilities, correlation IDs, explain, contract matrix coverage, and v3 schema docs are present. |
 | `MEMINIT-PLAN-011` | No open runtime backlog identified. Graph index fields, schemas, resolve/identify/link updates, and external testbed note are present. TD-001 is closed. |
 | `MEMINIT-PLAN-012` | No open backlog identified. Protocol registry, check/sync, fixture coverage, runbook guidance, and external testbed note are present. |
-| `MEMINIT-PLAN-013` | Runtime surface appears implemented. TD-006, TD-007, and TD-009 are closed; TD-008 remains an open contract cleanup item. |
+| `MEMINIT-PLAN-013` | Runtime surface appears implemented. TD-006, TD-007, TD-008, and TD-009 are closed. |
 | `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002 and TD-004 remain open because they are planned or recorded improvements not superseded by later implementation; TD-003 and TD-005 are closed. |
 
 ## Closed, Superseded, and Rejected Items
 
 Closed items remain in the backlog table with closure evidence so their
 original context and verification commands stay near the implementation
-handoff. Current closed items: TD-001, TD-003, TD-005, TD-006, TD-007, and
-TD-009.
+handoff. Current closed items: TD-001, TD-003, TD-005, TD-006, TD-007,
+TD-008, and TD-009.
 
 ## Change History
 

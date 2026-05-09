@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Normalized state-related public error codes to the `STATE_*` convention:
+  `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
+  `STATE_INVALID_FILTER_VALUE` replace the previous mixed-prefix names. No
+  compatibility aliases are retained before the first stable release.
+
 ### Added
 
 - Initial repository setup.

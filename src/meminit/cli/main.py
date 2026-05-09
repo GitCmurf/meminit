@@ -3767,19 +3767,19 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
 def _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
     if ready and no_ready:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --ready and --no-ready.",
             details={"conflicting_flags": ["--ready", "--no-ready"]},
         )
     if blocked and no_blocked:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --blocked and --no-blocked.",
             details={"conflicting_flags": ["--blocked", "--no-blocked"]},
         )
     if ready and blocked:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --ready and --blocked (an entry cannot be both ready and blocked).",
             details={"conflicting_flags": ["--ready", "--blocked"]},
         )

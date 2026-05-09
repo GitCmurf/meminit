@@ -460,7 +460,7 @@ def _canonicalize_filter(
     """Parse and canonicalize a comma-separated filter string.
 
     Returns None if *raw_values* is None (no filter applied).
-    Raises ``MeminitError`` with ``E_INVALID_FILTER_VALUE`` for unknown values.
+    Raises ``MeminitError`` with ``STATE_INVALID_FILTER_VALUE`` for unknown values.
     """
     if not raw_values:
         return None
@@ -482,7 +482,7 @@ def _canonicalize_filter(
 
         if matched is None:
             raise MeminitError(
-                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                 message=f"Unknown {flag_name} value: '{part}'",
                 details={
                     "value": part,

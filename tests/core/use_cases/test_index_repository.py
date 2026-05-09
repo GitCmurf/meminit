@@ -938,13 +938,13 @@ def test_index_filter_by_impl_state(tmp_path):
 
 
 def test_index_filter_unknown_value_error(tmp_path):
-    """Unknown filter value raises E_INVALID_FILTER_VALUE."""
+    """Unknown filter value raises STATE_INVALID_FILTER_VALUE."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
     with pytest.raises(MeminitError) as exc_info:
         IndexRepositoryUseCase(str(tmp_path), impl_state_filter="BogusState")
 
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_index_filtered_catalog_header(tmp_path):

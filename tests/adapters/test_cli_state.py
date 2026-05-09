@@ -318,7 +318,7 @@ def test_cli_state_next_rejects_invalid_priority_at_least(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_ready_filter(repo_with_docs):
@@ -437,7 +437,7 @@ def test_cli_state_list_conflicting_ready_flags(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_conflicting_blocked_flags(repo_with_docs):
@@ -447,7 +447,7 @@ def test_cli_state_list_conflicting_blocked_flags(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_ready_and_blocked_rejected(repo_with_docs):
@@ -457,7 +457,7 @@ def test_cli_state_list_ready_and_blocked_rejected(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_impl_state_filter(repo_with_docs):

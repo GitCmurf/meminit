@@ -149,7 +149,7 @@ def _schema_violation(file: str, message: str) -> Violation:
     return Violation(
         file=file,
         line=0,
-        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+        rule=ErrorCode.STATE_SCHEMA_VIOLATION.value,
         message=message,
         severity=Severity.ERROR,
     )
@@ -351,7 +351,7 @@ def _validate_top_level_structure(
             from meminit.core.services.error_codes import MeminitError
 
             raise MeminitError(
-                code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                code=ErrorCode.STATE_SCHEMA_VIOLATION,
                 message=(
                     f"project-state.yaml has no 'documents' key but contains "
                     f"other keys: {', '.join(str(k) for k in raw.keys())}"
@@ -506,7 +506,7 @@ def load_project_state(
     """Load and parse ``project-state.yaml`` from the repo root.
 
     Returns ``None`` if the file does not exist (gracefully optional).
-    Raises ``MeminitError`` with ``E_STATE_YAML_MALFORMED`` if the file
+    Raises ``MeminitError`` with ``STATE_YAML_MALFORMED`` if the file
     exists but is not valid YAML.
     """
     state_file_rel = (
@@ -524,7 +524,7 @@ def load_project_state(
         from meminit.core.services.error_codes import MeminitError
 
         raise MeminitError(
-            code=ErrorCode.E_STATE_YAML_MALFORMED,
+            code=ErrorCode.STATE_YAML_MALFORMED,
             message=f"project-state.yaml is not valid YAML: {exc}",
             details={"path": str(state_path)},
         ) from exc
