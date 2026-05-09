@@ -50,12 +50,12 @@ updated together.
 | Owner | Core indexing maintainers |
 | Source | Review follow-up from Phase 4/5 index work |
 | Related plans | `MEMINIT-PLAN-011`, `MEMINIT-PLAN-013`, `MEMINIT-PLAN-014` |
-| Evidence | `src/meminit/core/use_cases/index_repository.py` uses a parent-directory namespace cache in the multi-namespace path. A cached negative result can be reused for another namespace when namespaces overlap. |
-| Impact | Multi-namespace repositories with overlapping docs roots can silently omit documents from the graph index. Single-namespace and non-overlapping namespace configurations are not affected. |
-| Remediation | Replace the flat parent-directory namespace cache with a key that includes namespace identity, or remove that cache from multi-namespace iteration and rely on `namespace_for_path()` per file. |
+| Evidence | `src/meminit/core/use_cases/index_repository.py` now deduplicates discovered paths across configured namespaces, resolves ambiguous ownership with `document_id` prefixes when multiple namespaces share a docs root, and invalidates cached nodes whose stored namespace no longer matches the current resolver. |
+| Impact | Multi-namespace repositories with overlapping or same-root docs roots can now be indexed deterministically instead of dropping the second namespace or reusing stale namespace ownership from cache. |
+| Remediation | Keep namespace resolution doc-id-aware for ambiguous paths, and invalidate cached index nodes whenever the resolved namespace changes. |
 | Definition of done | Add an overlapping-namespace regression fixture; prove both namespaces' files are indexed; update index behavior docs if the lookup algorithm changes; run the focused index tests and `meminit check --format json`. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py` |
-| Closure evidence | Closed on 2026-05-08 by removing multi-namespace parent-directory ownership caching and adding `test_index_repository_resolves_namespace_per_file_in_same_parent`; focused verification passed. |
+| Closure evidence | Closed on 2026-05-09 by adding document-id-aware namespace resolution for ambiguous multi-namespace paths, invalidating stale cached node namespaces, and covering same-root namespaces in `tests/core/use_cases/test_index_repository.py` and `tests/core/services/test_repo_layout.py`; focused verification passed. |
 
 ### TD-002: Streaming producers still materialize use-case results before emitting
 

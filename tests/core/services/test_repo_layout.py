@@ -173,6 +173,75 @@ namespaces:
     assert identified.document_id == "AIDHA-ADR-001"
 
 
+def test_same_root_namespaces_are_disambiguated_by_document_id_prefix(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    root_doc = tmp_path / "docs" / "45-adr" / "adr-001-root.md"
+    root_doc.parent.mkdir(parents=True)
+    root_doc.write_text(
+        "---\n"
+        "document_id: AIDHA-ADR-001\n"
+        "type: ADR\n"
+        "title: Root\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Root\n",
+        encoding="utf-8",
+    )
+
+    phyla_doc = tmp_path / "docs" / "45-adr" / "adr-002-phyla.md"
+    phyla_doc.write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Phyla\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Phyla\n",
+        encoding="utf-8",
+    )
+
+    layout = load_repo_layout(tmp_path)
+    root_ns = layout.namespace_for_path_and_document_id(root_doc, "AIDHA-ADR-001")
+    phyla_ns = layout.namespace_for_path_and_document_id(phyla_doc, "PHYLA-ADR-001")
+    assert root_ns is not None and root_ns.namespace == "root"
+    assert phyla_ns is not None and phyla_ns.namespace == "phyla"
+
+    violations = CheckRepositoryUseCase(str(tmp_path)).execute()
+    assert violations == []
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert report.document_count == 2
+    assert {node["namespace"] for node in report.documents} == {"root", "phyla"}
+
+
 def test_check_enforces_namespace_repo_prefix(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         """

@@ -1233,14 +1233,7 @@ class IndexRepositoryUseCase:
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
-        single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
         for path in doc_paths:
-            if single_ns is not None:
-                ns = single_ns
-            else:
-                ns = self._layout.namespace_for_path(path)
-                if ns is None:
-                    continue
             cached = self._cached_entry(
                 cache, cache_plan, path, warnings_list, cache_rewrites
             )
@@ -1269,6 +1262,9 @@ class IndexRepositoryUseCase:
             if not isinstance(doc_id, str) or not doc_id.strip():
                 continue
             doc_id = doc_id.strip()
+            ns = self._layout.namespace_for_path_and_document_id(path, doc_id)
+            if ns is None:
+                continue
             known_doc_ids.add(doc_id)
             rel_path = _repo_relative_path(path, self._root_dir)
             doc_id_paths.setdefault(doc_id, []).append(rel_path)
@@ -1579,22 +1575,13 @@ class IndexRepositoryUseCase:
         )
 
     def _discover_document_paths(self) -> List[Path]:
-        paths: List[Path] = []
-        single_ns = (
-            self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        )
+        paths: set[Path] = set()
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
             for path in ns.docs_dir.rglob("*.md"):
-                if single_ns is not None:
-                    owner = single_ns
-                else:
-                    owner = self._layout.namespace_for_path(path)
-                    if owner is None or owner.namespace.lower() != ns.namespace.lower():
-                        continue
                 if not _is_excluded_for_index(path, ns, self._root_dir):
-                    paths.append(path)
+                    paths.add(path)
         return sorted(paths, key=lambda path: _repo_relative_path(path, self._root_dir))
 
     def _cached_entry(
@@ -1645,6 +1632,25 @@ class IndexRepositoryUseCase:
                 }
             )
             return None
+        cached_doc_id = str(cached.get("document_id", "")).strip()
+        if cached_doc_id:
+            expected_ns = self._layout.namespace_for_path_and_document_id(
+                path, cached_doc_id
+            )
+            cached_ns = str(cached.get("namespace", "")).strip().lower()
+            if expected_ns is not None and cached_ns != expected_ns.namespace.lower():
+                cache_rewrites.add(rel_path)
+                warnings_list.append(
+                    {
+                        "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                        "message": (
+                            "Cached node namespace is stale; recomputing document."
+                        ),
+                        "severity": Severity.WARNING.value,
+                        "path": rel_path,
+                    }
+                )
+                return None
         recency = cached.get("_recency")
         if isinstance(recency, str):
             try:

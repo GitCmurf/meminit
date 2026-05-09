@@ -577,7 +577,9 @@ class CheckRepositoryUseCase:
                 v_fmt.file = rel_path
                 violations.append(v_fmt)
             else:
-                ns = self._layout.namespace_for_path(self.root_dir / rel_path)
+                ns = self._layout.namespace_for_path_and_document_id(
+                    self.root_dir / rel_path, str(doc_id)
+                )
                 if ns is not None:
                     expected_prefix = f"{ns.repo_prefix}-"
                     if not str(doc_id).startswith(expected_prefix):

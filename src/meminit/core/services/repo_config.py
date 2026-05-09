@@ -241,8 +241,7 @@ class RepoLayout:
                 return ns
         return self.namespaces[0]
 
-    def namespace_for_path(self, path: Path) -> Optional[RepoConfig]:
-        # Pick the most specific match (longest docs_root) to handle nested docs roots.
+    def namespaces_for_path(self, path: Path) -> list[RepoConfig]:
         matches: list[tuple[int, RepoConfig]] = []
         for ns in self.namespaces:
             try:
@@ -251,9 +250,44 @@ class RepoLayout:
                 continue
             matches.append((len(Path(ns.docs_root).parts), ns))
         if not matches:
+            return []
+        matches.sort(key=lambda item: item[0], reverse=True)
+        return [ns for _, ns in matches]
+
+    def namespace_for_path(self, path: Path) -> Optional[RepoConfig]:
+        # Pick the most specific match (longest docs_root) to handle nested docs roots.
+        matches = self.namespaces_for_path(path)
+        if not matches:
             return None
-        matches.sort(key=lambda t: t[0], reverse=True)
-        return matches[0][1]
+        return matches[0]
+
+    def namespace_for_document_id(self, document_id: str | None) -> Optional[RepoConfig]:
+        needle = str(document_id or "").strip().upper()
+        if not needle:
+            return None
+
+        prefix = needle.split("-", 1)[0]
+        for ns in self.namespaces:
+            if ns.repo_prefix.upper() == prefix:
+                return ns
+        return None
+
+    def namespace_for_path_and_document_id(
+        self,
+        path: Path,
+        document_id: str | None = None,
+    ) -> Optional[RepoConfig]:
+        matches = self.namespaces_for_path(path)
+        if not matches:
+            return None
+
+        doc_ns = self.namespace_for_document_id(document_id)
+        if doc_ns is not None:
+            for ns in matches:
+                if ns.namespace.lower() == doc_ns.namespace.lower():
+                    return ns
+
+        return matches[0]
 
 
 def _normalize_string_list(raw: Any) -> list[str]:

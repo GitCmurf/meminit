@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from meminit.core.services.repo_config import RepoLayout
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.index_cache import _cache_key
 from meminit.core.use_cases.index_repository import (
@@ -147,10 +146,8 @@ def test_index_repository_builds_index(tmp_path):
     assert "generated_at" not in payload["data"]
 
 
-def test_index_repository_resolves_namespace_per_file_in_same_parent(
-    monkeypatch, tmp_path
-):
-    """Multi-namespace indexing must not cache namespace ownership by parent."""
+def test_index_repository_resolves_same_root_namespaces_from_document_ids(tmp_path):
+    """Multi-namespace indexing must use document_id prefixes when docs_root is shared."""
     (tmp_path / "docops.config.yaml").write_text(
         """
 project_name: Example
@@ -166,6 +163,26 @@ namespaces:
 """.lstrip(),
         encoding="utf-8",
     )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": {"type": "string"},
+    "type": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "version": {"type": "string"},
+    "last_updated": {"type": "string", "format": "date"},
+    "owner": {"type": "string"},
+    "docops_version": {"type": "string"}
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
     _setup_doc(
         tmp_path,
         "AIDHA-ADR-001",
@@ -178,17 +195,6 @@ namespaces:
         title="Phyla",
         filename="adr-phyla.md",
     )
-
-    original_namespace_for_path = RepoLayout.namespace_for_path
-
-    def namespace_for_path(self: RepoLayout, path: Path):
-        if path.name == "adr-root.md":
-            return self.get_namespace("root")
-        if path.name == "adr-phyla.md":
-            return self.get_namespace("phyla")
-        return original_namespace_for_path(self, path)
-
-    monkeypatch.setattr(RepoLayout, "namespace_for_path", namespace_for_path)
 
     report = IndexRepositoryUseCase(str(tmp_path)).execute()
 
