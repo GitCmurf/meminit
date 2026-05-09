@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterator, List, Optional
 import datetime
 import logging
 
+import frontmatter
 import yaml
 
 from meminit.core.services.repo_config import load_repo_layout
@@ -253,12 +254,26 @@ class ScanRepositoryUseCase:
 
         layout = load_repo_layout(self._root_dir)
         for path in self._iter_markdown_paths(docs_dir):
-            owner = layout.namespace_for_path(path)
+            owner = layout.namespace_for_path_and_document_id(
+                path,
+                self._extract_document_id(path),
+            )
             yield {
                 "path": path.relative_to(self._root_dir).as_posix(),
                 "namespace": owner.namespace if owner else None,
                 "governed": bool(owner and not owner.is_excluded(path)),
             }
+
+    def _extract_document_id(self, path: Path) -> Optional[str]:
+        """Extract a document_id from frontmatter when available."""
+        try:
+            post = frontmatter.load(str(path))
+            doc_id = post.metadata.get("document_id")
+            if doc_id:
+                return str(doc_id)
+        except Exception:
+            pass
+        return None
 
     def _resolve_docs_root(self, config: dict, default_root: str) -> Optional[str]:
         docs_root = config.get("docs_root")

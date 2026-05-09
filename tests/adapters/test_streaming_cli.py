@@ -141,6 +141,64 @@ def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_pat
     )
 
 
+def test_scan_ndjson_uses_document_id_for_same_root_namespace_resolution(tmp_path):
+    create_initialized_repo(tmp_path)
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Example\n"
+        "repo_prefix: AIDHA\n"
+        "docops_version: '2.0'\n"
+        "schema_path: docs/00-governance/metadata.schema.json\n"
+        "namespaces:\n"
+        "  - name: root\n"
+        "    repo_prefix: AIDHA\n"
+        "    docs_root: docs\n"
+        "    excluded_paths:\n"
+        "      - docs/45-adr\n"
+        "  - name: phyla\n"
+        "    repo_prefix: PHYLA\n"
+        "    docs_root: docs\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
+    target.write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Test ADR\n"
+        "status: Draft\n"
+        "version: '0.1'\n"
+        "last_updated: '2026-05-03'\n"
+        "owner: Test Team\n"
+        "docops_version: '2.0'\n"
+        "area: TEST\n"
+        "description: Test document.\n"
+        "keywords: [test]\n"
+        "related_ids: []\n"
+        "---\n\n"
+        "# Test ADR\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 0, result.output
+
+    file_items = [
+        record
+        for record in parse_records(result.output)
+        if record["record_type"] == "item"
+        and record["kind"] == "file"
+        and record["data"]["path"] == "docs/45-adr/adr-001-test.md"
+    ]
+    assert file_items
+    assert file_items[0]["data"] == {
+        "path": "docs/45-adr/adr-001-test.md",
+        "namespace": "phyla",
+        "governed": True,
+    }
+
+
 def test_ndjson_header_uses_real_timestamp(tmp_path):
     create_initialized_repo(tmp_path)
     result = CliRunner().invoke(
