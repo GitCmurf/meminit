@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
+from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
 
@@ -53,6 +55,15 @@ def write_doc(
 
 def records(output: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in output.splitlines() if line.strip()]
+
+
+def stream_schema_validator() -> Draft7Validator:
+    schema = json.loads(
+        resources.files("meminit.core.assets")
+        .joinpath("agent-output.stream.schema.v1.json")
+        .read_text(encoding="utf-8")
+    )
+    return Draft7Validator(schema)
 
 
 def normalize_stream(output: str) -> list[dict[str, Any]]:

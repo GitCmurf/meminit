@@ -30,7 +30,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.6
+> **Version:** 0.7
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT
@@ -132,7 +132,7 @@ the listed verification commands pass.
 | A: Streaming Producer Architecture | TD-002 | Open | Not started; blocked on GATE-001. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Open | Operator-only; blocked on GATE-002. |
-| G: Streaming Test Fixture Consolidation | TD-005 | Open | Not started. |
+| G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
 | F: Error-Code Contract Cleanup | TD-008 | Open | Blocked on GATE-003. |
 
 ## 4. Pre-Sprint Decisions and Gates
@@ -628,14 +628,22 @@ Size:
 
 Implementation steps:
 
-1. Inventory local helper functions in `tests/adapters/test_streaming_cli.py`.
-2. Move reusable setup into shared fixtures or reuse the existing streaming
+1. [x] Inventory local helper functions in `tests/adapters/test_streaming_cli.py`.
+2. [x] Move reusable setup into shared fixtures or reuse the existing streaming
    fixture generator.
-3. Keep command-specific assertions in the CLI test file.
-4. Ensure fixture generation remains deterministic and does not slow the
+3. [x] Keep command-specific assertions in the CLI test file.
+4. [x] Ensure fixture generation remains deterministic and does not slow the
    default test suite materially.
-5. If Workstream B added cache scenario tests first, migrate only duplicated
+5. [x] If Workstream B added cache scenario tests first, migrate only duplicated
    setup and keep those scenario test names stable.
+
+Status:
+
+- Completed and verified on 2026-05-09. `tests/cli/streaming_helpers.py` now
+  owns shared NDJSON parsing and stream schema validator construction.
+  `tests/adapters/test_streaming_cli.py` retains command-specific assertions
+  while using the shared helpers. Existing slow-scale fixture tests remain
+  opt-in and no new slow marker was introduced.
 
 Definition of done:
 
@@ -745,3 +753,4 @@ This plan is complete when:
 | 0.4 | 2026-05-08 | Codex | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open. |
 | 0.5 | 2026-05-08 | Codex | Narrowed Workstream E3 by adding strict/fallback state-file path APIs and verification, leaving caller migration as the remaining behavior-changing step. |
 | 0.6 | 2026-05-08 | Codex | Closed Workstream B by adding named cache scenario regressions and recording the S05-S14 test mapping without editing protected Approved docs. |
+| 0.7 | 2026-05-09 | Codex | Closed Workstream G by consolidating reusable streaming test helpers and preserving the existing focused streaming verification suite. |

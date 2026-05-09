@@ -108,7 +108,7 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Open |
+| Status | Closed |
 | Owner | Test maintainers |
 | Source | Phase 5 test maintainability review |
 | Related plans | `MEMINIT-PLAN-014` |
@@ -117,6 +117,7 @@ updated together.
 | Remediation | Refactor the CLI streaming tests to reuse the shared initialized repository and streaming fixture helpers without weakening command-specific assertions. |
 | Definition of done | Duplicate setup is removed or explicitly justified; shared helpers remain deterministic; existing streaming CLI assertions still cover unsupported formats, stdout isolation, schema conformance, and correlation behavior. |
 | Verification commands | `./.venv/bin/pytest -q tests/adapters/test_streaming_cli.py tests/fixtures/test_streaming_fixtures.py tests/cli` |
+| Closure evidence | Closed on 2026-05-09 by moving NDJSON record parsing and stream schema validator construction into `tests/cli/streaming_helpers.py`, reusing those helpers from adapter and CLI streaming tests, and passing the focused streaming verification suite. |
 
 ### TD-006: Unused `known_ids` parameter obscures dependency semantics
 
