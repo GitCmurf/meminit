@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import datetime
 import logging
 
@@ -12,6 +12,11 @@ from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.heuristics import HeuristicsService
 from meminit.core.services.path_utils import compute_file_hash
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+)
 
 TYPE_ALIASES: Dict[str, List[str]] = {
     "ADR": ["adrs", "decisions"],
@@ -24,6 +29,38 @@ TYPE_ALIASES: Dict[str, List[str]] = {
     "RUNBOOK": ["runbooks"],
     "GUIDE": ["guides"],
 }
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
+
+
+def scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:
+    docs_root = scan_data.get("docs_root")
+    suggestion_specs = (
+        ("ambiguous_types", "warning", docs_root or "."),
+        ("suggested_namespaces", "info", "docops.config.yaml"),
+        ("suggested_type_directories", "info", docs_root or "."),
+    )
+    suggestions: list[dict[str, Any]] = []
+    for code, severity, path in suggestion_specs:
+        value = scan_data.get(code)
+        if value:
+            suggestions.append(
+                {
+                    "severity": severity,
+                    "code": code,
+                    "path": path,
+                    "value": value,
+                }
+            )
+    return sorted(
+        suggestions,
+        key=lambda row: (row["severity"], row["code"], row["path"]),
+    )
 
 
 @dataclass(frozen=True)
@@ -183,6 +220,43 @@ class ScanRepositoryUseCase:
             overlapping_namespaces=overlapping_namespaces,
             plan=plan,
         )
+
+    def iter_stream(self) -> StreamingResult:
+        """Return a core-owned streaming producer for NDJSON scan output."""
+        summary = StreamSummary()
+
+        def records():
+            report = self.execute(generate_plan=False)
+            data = report.as_dict()
+            for item in self._stream_file_items(data.get("docs_root")):
+                yield StreamItem("file", item)
+            for item in scan_suggestion_items(data):
+                yield StreamItem("suggestion", item)
+            summary.data = _summary_data(data)
+
+        return StreamingResult(records=records(), summary=summary)
+
+    def _stream_file_items(self, docs_root: str | None) -> list[dict[str, Any]]:
+        if not docs_root:
+            return []
+
+        docs_dir = self._root_dir / docs_root
+        if not docs_dir.exists():
+            return []
+
+        layout = load_repo_layout(self._root_dir)
+        items: list[dict[str, Any]] = []
+        for path in docs_dir.rglob("*.md"):
+            owner = layout.namespace_for_path(path)
+            items.append(
+                {
+                    "path": path.relative_to(self._root_dir).as_posix(),
+                    "namespace": owner.namespace if owner else None,
+                    "governed": bool(owner and not owner.is_excluded(path)),
+                }
+            )
+
+        return sorted(items, key=lambda row: row["path"])
 
     def _resolve_docs_root(self, config: dict, default_root: str) -> Optional[str]:
         docs_root = config.get("docs_root")

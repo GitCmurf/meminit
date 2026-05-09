@@ -21,6 +21,11 @@ import yaml
 
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+)
 
 
 @dataclass
@@ -250,3 +255,38 @@ class ContextRepositoryUseCase:
             warnings=warnings,
             documents=documents_sorted,
         )
+
+    def iter_stream(self) -> StreamingResult:
+        """Return a core-owned streaming producer for deep context output."""
+        summary = StreamSummary()
+
+        def records():
+            result = self.execute(deep=True)
+            namespaces = result.data.get("namespaces", [])
+            for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
+                yield StreamItem("namespace", ns)
+
+            doc_type_rows = []
+            for doc_type, payload in result.data.get("document_types", {}).items():
+                row = {"type": doc_type}
+                if isinstance(payload, dict):
+                    row.update(payload)
+                row["type"] = doc_type
+                doc_type_rows.append(row)
+            for row in sorted(doc_type_rows, key=lambda r: r.get("type", "")):
+                yield StreamItem("document_type", row)
+
+            for row in sorted(result.documents, key=lambda row: row["document_id"]):
+                yield StreamItem("document", row)
+
+            summary.data = _summary_data(result.data, "namespaces", "documents")
+            summary.warnings = result.warnings
+
+        return StreamingResult(records=records(), summary=summary)
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary

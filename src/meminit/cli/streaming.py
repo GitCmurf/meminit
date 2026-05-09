@@ -8,8 +8,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from types import FrameType
-from typing import Any, Callable, Protocol, TextIO
+from typing import Any, Protocol, TextIO
 
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamProgress,
+    StreamSummary,
+    StreamingResult,
+)
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.observability import log_operation
@@ -31,6 +37,15 @@ class SummaryPayload:
     violations: list[dict[str, Any]] = field(default_factory=list)
     advice: list[dict[str, Any]] = field(default_factory=list)
 
+    @classmethod
+    def from_core(cls, summary: StreamSummary) -> "SummaryPayload":
+        return cls(
+            data=summary.data,
+            warnings=summary.warnings,
+            violations=summary.violations,
+            advice=summary.advice,
+        )
+
 
 class StreamingProducer(Protocol):
     """Protocol implemented by streaming producers."""
@@ -39,15 +54,24 @@ class StreamingProducer(Protocol):
 
 
 @dataclass(frozen=True)
-class CallableStreamingProducer:
-    """Adapter for small CLI-local producers while use cases gain stream APIs."""
+class CoreStreamingProducer:
+    """Adapter that drains a core StreamingResult into SPEC-011 NDJSON."""
 
-    # TODO(MEMINIT-PLAN-014): remove once command use cases expose stream()
-    # producers directly and CLI closures are no longer needed.
-    func: Callable[["StreamEmitter"], SummaryPayload]
+    result: StreamingResult
 
     def produce(self, emit: "StreamEmitter") -> SummaryPayload:
-        return self.func(emit)
+        for record in self.result.records:
+            if isinstance(record, StreamItem):
+                emit.emit_item(record.kind, record.data)
+            elif isinstance(record, StreamProgress):
+                emit.emit_progress(
+                    processed=record.processed,
+                    total=record.total,
+                    stage=record.stage,
+                )
+            else:
+                raise TypeError(f"Unsupported stream record: {type(record).__name__}")
+        return SummaryPayload.from_core(self.result.summary)
 
 
 class StreamEmitter:
@@ -196,7 +220,10 @@ def streaming_output_handler(
         ) as log_ctx:
             summary = producer.produce(emitter)
             log_ctx["details"]["counts"] = emitter.counts
-        emitter.emit_summary(summary, success=success)
+        summary_success = success and not any(
+            warning.get("severity") == "error" for warning in summary.warnings
+        )
+        emitter.emit_summary(summary, success=summary_success)
     except MeminitError as exc:
         if emitter is None:
             raise

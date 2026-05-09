@@ -4,7 +4,8 @@ import json
 
 from click.testing import CliRunner
 
-from meminit.cli.main import _scan_suggestion_items, cli
+from meminit.cli.main import cli
+from meminit.core.use_cases.scan_repository import scan_suggestion_items
 from tests.cli.streaming_helpers import records
 
 
@@ -62,7 +63,7 @@ def test_scan_json_and_ndjson_summaries_are_equivalent(initialized_repo):
 
 
 def test_scan_suggestions_sort_by_severity_code_and_path():
-    suggestions = _scan_suggestion_items(
+    suggestions = scan_suggestion_items(
         {
             "docs_root": "docs",
             "suggested_type_directories": {"ADR": "adrs"},

@@ -10,6 +10,7 @@ from click.testing import CliRunner
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import exit_code_for_error
+from meminit.core.services.stream_events import StreamItem, StreamSummary, StreamingResult
 from tests.cli.streaming_helpers import (
     create_initialized_repo,
     records as parse_records,
@@ -272,35 +273,32 @@ def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_
         encoding="utf-8",
     )
     instance = mock_use_case.return_value
-    instance.execute.return_value = SimpleNamespace(
-        data={
-            "allowed_types": ["ADR"],
-            "config_path": "docops.config.yaml",
-            "default_owner": None,
-            "deep_incomplete": False,
-            "document_types": {"ADR": {"directory": "45-adr"}},
-            "index_path": "docs/.meminit/index.json",
-            "namespaces": [
+    instance.iter_stream.return_value = StreamingResult(
+        records=iter([
+            StreamItem(
+                "document",
                 {
-                    "name": "default",
-                    "docs_root": "docs",
-                    "document_types": {"ADR": {"directory": "45-adr"}},
-                }
-            ],
-            "project_name": "Example",
-            "schema_path": "docs/schema.json",
-            "repo_prefix": "EXAMPLE",
-        },
-        warnings=[],
-        documents=[
-            {
-                "document_id": "TEST-ADR-001",
-                "namespace": "default",
-                "path": "docs/45-adr/adr-001-test.md",
-                "title": "Test ADR",
-                "type": "ADR",
+                    "document_id": "TEST-ADR-001",
+                    "namespace": "default",
+                    "path": "docs/45-adr/adr-001-test.md",
+                    "title": "Test ADR",
+                    "type": "ADR",
+                },
+            )
+        ]),
+        summary=StreamSummary(
+            data={
+                "allowed_types": ["ADR"],
+                "config_path": "docops.config.yaml",
+                "default_owner": None,
+                "deep_incomplete": False,
+                "document_types": {"ADR": {"directory": "45-adr"}},
+                "index_path": "docs/.meminit/index.json",
+                "project_name": "Example",
+                "schema_path": "docs/schema.json",
+                "repo_prefix": "EXAMPLE",
             }
-        ],
+        ),
     )
 
     result = CliRunner().invoke(
@@ -472,7 +470,7 @@ def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
     assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
-def test_scan_ndjson_pre_streaming_exception_uses_command_error_handler(tmp_path):
+def test_scan_ndjson_streaming_exception_emits_producer_failure(tmp_path):
     with patch(
         "meminit.cli.main.ScanRepositoryUseCase.execute",
         side_effect=RuntimeError("boom"),
@@ -481,11 +479,11 @@ def test_scan_ndjson_pre_streaming_exception_uses_command_error_handler(tmp_path
             cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
         )
 
-    assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
+    assert result.exit_code == exit_code_for_error(ErrorCode.STREAM_PRODUCER_FAILED)
     records = parse_records("\n".join(line for line in result.output.splitlines() if line.lstrip().startswith("{")))
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
-    assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_PRODUCER_FAILED.value
 
 
 def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):

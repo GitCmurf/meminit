@@ -54,6 +54,11 @@ from meminit.core.services.sanitization import (
 from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services import graph
 from meminit.core.services.index_cache import CachePlan, IndexCache
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+)
 from meminit.core.services.versioning import get_cli_version
 
 
@@ -83,6 +88,52 @@ def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
             return True
 
     return rel in namespace.excluded_files
+
+
+def _filter_index_edges(
+    report: Any,
+    *,
+    status_filter: str | None = None,
+    impl_state_filter: str | None = None,
+) -> list[dict[str, Any]]:
+    has_filter = status_filter is not None or impl_state_filter is not None
+    if not has_filter:
+        return report.edges
+    visible_ids = {n["document_id"] for n in report.documents}
+    return [
+        e for e in report.edges
+        if e.get("source") in visible_ids and e.get("target") in visible_ids
+    ]
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
+
+
+def _index_stream_data(
+    report: Any,
+    root_path: Path,
+    display_edges: list[dict[str, Any]],
+    *,
+    filtered: bool,
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "index_path": relative_path_string(report.index_path, root_path),
+        "node_count": report.document_count,
+        "edge_count": len(display_edges),
+        "nodes": report.documents,
+        "edges": display_edges,
+        "filtered": filtered,
+        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
+    }
+    if report.catalog_path:
+        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
+    if report.kanban_path:
+        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+    return data
 
 
 def _json_default(obj: Any) -> str:
@@ -1063,6 +1114,46 @@ class IndexRepositoryUseCase:
                     }
                 ],
             )
+
+    def iter_stream(
+        self, *, use_cache: bool = True, clear_cache: bool = False
+    ) -> StreamingResult:
+        """Return a core-owned streaming producer for index output."""
+        summary = StreamSummary()
+
+        def records():
+            report = self.execute(use_cache=use_cache, clear_cache=clear_cache)
+            warnings_list = getattr(report, "warnings", [])
+            display_edges = _filter_index_edges(
+                report,
+                status_filter=self._status_filter,
+                impl_state_filter=self._impl_state_filter,
+            )
+            data = _index_stream_data(
+                report,
+                self._root_dir,
+                display_edges,
+                filtered=(
+                    self._status_filter is not None
+                    or self._impl_state_filter is not None
+                ),
+            )
+            for node in sorted(data["nodes"], key=lambda n: n.get("document_id", "")):
+                yield StreamItem("node", node)
+            for edge in sorted(
+                display_edges,
+                key=lambda e: (
+                    e.get("source", ""),
+                    e.get("target", ""),
+                    e.get("type", e.get("edge_type", "")),
+                ),
+            ):
+                yield StreamItem("edge", edge)
+            summary.data = _summary_data(data, "nodes", "edges")
+            summary.warnings = warnings_list
+            summary.advice = getattr(report, "advice", [])
+
+        return StreamingResult(records=records(), summary=summary)
 
     def _execute_locked(
         self,

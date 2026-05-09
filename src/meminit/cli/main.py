@@ -16,9 +16,7 @@ from meminit.cli.shared_flags import (
     command_supports_ndjson,
 )
 from meminit.cli.streaming import (
-    CallableStreamingProducer,
-    StreamEmitter,
-    SummaryPayload,
+    CoreStreamingProducer,
     streaming_output_handler,
     unsupported_ndjson,
     write_ndjson_error,
@@ -399,61 +397,6 @@ def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
     for key in excluded_keys:
         summary.pop(key, None)
     return summary
-
-
-def _emit_items(emit: StreamEmitter, kind: str, rows: Iterable[dict[str, Any]]) -> None:
-    for row in rows:
-        emit.emit_item(kind, row)
-
-
-def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, Any]]:
-    from meminit.core.services.repo_config import load_repo_layout
-
-    if not docs_root:
-        return []
-
-    docs_dir = root_path / docs_root
-    if not docs_dir.exists():
-        return []
-
-    layout = load_repo_layout(root_path)
-    items: list[dict[str, Any]] = []
-    for path in docs_dir.rglob("*.md"):
-        owner = layout.namespace_for_path(path)
-        items.append(
-            {
-                "path": path.relative_to(root_path).as_posix(),
-                "namespace": owner.namespace if owner else None,
-                "governed": bool(owner and not owner.is_excluded(path)),
-            }
-        )
-
-    return sorted(items, key=lambda row: row["path"])
-
-
-def _scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:
-    docs_root = scan_data.get("docs_root")
-    suggestion_specs = (
-        ("ambiguous_types", "warning", docs_root or "."),
-        ("suggested_namespaces", "info", "docops.config.yaml"),
-        ("suggested_type_directories", "info", docs_root or "."),
-    )
-    suggestions: list[dict[str, Any]] = []
-    for code, severity, path in suggestion_specs:
-        value = scan_data.get(code)
-        if value:
-            suggestions.append(
-                {
-                    "severity": severity,
-                    "code": code,
-                    "path": path,
-                    "value": value,
-                }
-            )
-    return sorted(
-        suggestions,
-        key=lambda row: (row["severity"], row["code"], row["path"]),
-    )
 
 
 @contextlib.contextmanager
@@ -1354,21 +1297,11 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             )
 
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
-        report = use_case.execute(generate_plan=bool(plan))
-        scan_data = report.as_dict()
 
         if format == "ndjson":
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                for item in _scan_file_items(root_path, scan_data.get("docs_root")):
-                    emit.emit_item("file", item)
-                for item in _scan_suggestion_items(scan_data):
-                    emit.emit_item("suggestion", item)
-                summary = _summary_data(scan_data)
-                return SummaryPayload(data=summary)
-
             streaming_output_handler(
                 command="scan",
-                producer=CallableStreamingProducer(produce),
+                producer=CoreStreamingProducer(use_case.iter_stream()),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -1376,6 +1309,9 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 correlation_id=correlation_id,
             )
             return
+
+        report = use_case.execute(generate_plan=bool(plan))
+        scan_data = report.as_dict()
 
         if plan and report.plan:
             plan_path = Path(plan)
@@ -1872,6 +1808,43 @@ def index(
             status_filter=status_filter,
             impl_state_filter=impl_state_filter,
         )
+        if format == "ndjson":
+            try:
+                stream_result = use_case.iter_stream(
+                    use_cache=not no_cache,
+                    clear_cache=no_cache or rebuild_cache,
+                )
+                streaming_output_handler(
+                    command="index",
+                    producer=CoreStreamingProducer(stream_result),
+                    output=output,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    root_path=root_path,
+                    correlation_id=correlation_id,
+                )
+            except MeminitError as e:
+                details = e.details if isinstance(e.details, dict) else {}
+                if "errors" in details:
+                    _write_ndjson_error(
+                        command_name="index",
+                        error=e,
+                        output=output,
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        root_path=root_path,
+                        correlation_id=correlation_id,
+                    )
+                    raise SystemExit(exit_code_for_error(e.code)) from e
+                raise
+            has_error = any(
+                w.get("severity") == Severity.ERROR.value
+                for w in stream_result.summary.warnings
+            )
+            if has_error:
+                raise SystemExit(1)
+            return
+
         try:
             report = use_case.execute(
                 use_cache=not no_cache,
@@ -1941,47 +1914,6 @@ def index(
             impl_state_filter=impl_state_filter,
         )
         display_edges = data["edges"]
-
-        if format == "ndjson":
-
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                _emit_items(
-                    emit,
-                    "node",
-                    sorted(data["nodes"], key=lambda n: n.get("document_id", "")),
-                )
-                _emit_items(
-                    emit,
-                    "edge",
-                    sorted(
-                        display_edges,
-                        key=lambda e: (
-                            e.get("source", ""),
-                            e.get("target", ""),
-                            e.get("type", e.get("edge_type", "")),
-                        ),
-                    ),
-                )
-                summary = _summary_data(data, "nodes", "edges")
-                return SummaryPayload(
-                    data=summary,
-                    warnings=warnings_list,
-                    advice=getattr(report, "advice", []),
-                )
-
-            streaming_output_handler(
-                command="index",
-                producer=CallableStreamingProducer(produce),
-                output=output,
-                include_timestamp=include_timestamp,
-                run_id=run_id,
-                root_path=root_path,
-                correlation_id=correlation_id,
-                success=not has_error,
-            )
-            if has_error:
-                raise SystemExit(1)
-            return
 
         if format == "json":
             _write_output(
@@ -3284,36 +3216,11 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
             )
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
-        result = use_case.execute(deep=deep)
 
         if format == "ndjson":
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                namespaces = result.data.get("namespaces", [])
-                for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
-                    emit.emit_item("namespace", ns)
-                doc_type_rows = []
-                for doc_type, payload in result.data.get("document_types", {}).items():
-                    row = {"type": doc_type}
-                    if isinstance(payload, dict):
-                        row.update(payload)
-                    row["type"] = doc_type
-                    doc_type_rows.append(row)
-                _emit_items(
-                    emit,
-                    "document_type",
-                    sorted(doc_type_rows, key=lambda r: r.get("type", "")),
-                )
-                _emit_items(
-                    emit,
-                    "document",
-                    sorted(result.documents, key=lambda row: row["document_id"]),
-                )
-                summary = _summary_data(result.data, "namespaces", "documents")
-                return SummaryPayload(data=summary, warnings=result.warnings)
-
             streaming_output_handler(
                 command="context",
-                producer=CallableStreamingProducer(produce),
+                producer=CoreStreamingProducer(use_case.iter_stream()),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -3321,6 +3228,8 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                 correlation_id=correlation_id,
             )
             return
+
+        result = use_case.execute(deep=deep)
 
         if format == "json":
             _write_output(

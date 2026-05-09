@@ -22,7 +22,7 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
+> **Version:** 0.9
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT
@@ -121,7 +121,7 @@ the listed verification commands pass.
 | E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
-| A: Streaming Producer Architecture | TD-002 | Open | Not started; blocked on GATE-001. |
+| A: Streaming Producer Architecture | TD-002 | Narrowed | Added core stream payload types, use-case `iter_stream()` producers, and production CLI `CoreStreamingProducer` drainage. Remaining work is traversal-level laziness instrumentation and shared JSON/NDJSON traversal. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Open | Operator-only; blocked on GATE-002. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
@@ -197,20 +197,31 @@ Required instrumentation:
 
 Implementation steps:
 
-1. Confirm GATE-001.
-2. Introduce the core stream payload types and generator producer API.
-3. Add producer implementations for `IndexRepositoryUseCase`,
+1. [x] Confirm GATE-001.
+2. [x] Introduce the core stream payload types and generator producer API.
+3. [x] Add producer implementations for `IndexRepositoryUseCase`,
    `ScanRepositoryUseCase`, and `ContextRepositoryUseCase`.
-4. Keep the existing JSON `execute()` methods stable unless a local refactor
+4. [x] Keep the existing JSON `execute()` methods stable unless a local refactor
    is required to share traversal logic.
-5. Update the CLI adapters to drain the use-case generators into
+5. [x] Update the CLI adapters to drain the use-case generators into
    `StreamEmitter`.
-6. Remove production use of `CallableStreamingProducer`; keep it only in
+6. [x] Remove production use of `CallableStreamingProducer`; keep it only in
    tests if it remains useful for emitter unit tests.
-7. Add instrumentation-based regression tests that prove the first yielded
+7. [ ] Add instrumentation-based regression tests that prove the first yielded
    item can be produced before a complete result object is assembled.
-8. Update MEMINIT-SPEC-011 and MEMINIT-FDD-014 if the producer semantics or
+8. [ ] Update MEMINIT-SPEC-011 and MEMINIT-FDD-014 if the producer semantics or
    guarantees become stricter.
+
+Status:
+
+- Narrowed on 2026-05-09. `src/meminit/core/services/stream_events.py` now
+  owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`.
+  The index, scan, and deep-context use cases expose `iter_stream()` producers,
+  and production CLI adapters drain those through `CoreStreamingProducer`.
+  `CallableStreamingProducer` has been removed from production code. The
+  remaining open work is the deeper traversal refactor: JSON and NDJSON should
+  share internal item iterators, with instrumentation proving that the first
+  `StreamItem` is yielded before full result materialization.
 
 Definition of done:
 
@@ -750,3 +761,4 @@ This plan is complete when:
 | 0.6 | 2026-05-08 | Codex | Closed Workstream B by adding named cache scenario regressions and recording the S05-S14 test mapping without editing protected Approved docs. |
 | 0.7 | 2026-05-09 | Codex | Closed Workstream G by consolidating reusable streaming test helpers and preserving the existing focused streaming verification suite. |
 | 0.8 | 2026-05-09 | Codex | Closed Workstream E3 by routing state command use cases through strict config mode while preserving diagnostic fallback semantics. |
+| 0.9 | 2026-05-09 | Codex | Narrowed Workstream A by introducing core stream payload types, use-case stream producers, and production CLI drainage through `CoreStreamingProducer`. |

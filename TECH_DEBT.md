@@ -62,13 +62,14 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P2 |
-| Status | Open |
+| Status | Narrowed |
 | Owner | CLI/Core maintainers |
 | Source | MEMINIT-PLAN-014 Phase 5 constant-memory objective |
 | Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014` |
 | Evidence | `src/meminit/cli/streaming.py` keeps `CallableStreamingProducer` as a temporary adapter, and `src/meminit/cli/main.py` wraps already-materialized `index`, `scan`, and `context --deep` results before emitting NDJSON. |
+| Narrowing evidence | Core-owned stream payload types now live in `src/meminit/core/services/stream_events.py`; `IndexRepositoryUseCase`, `ScanRepositoryUseCase`, and `ContextRepositoryUseCase` expose `iter_stream()` producers; production CLI adapters drain `CoreStreamingProducer`; and `rg "CallableStreamingProducer" src/meminit/cli` returns no matches. |
 | Impact | The shipped NDJSON contract is usable, but the implementation does not yet provide the strongest planned producer-side constant-memory architecture for large repos. |
-| Remediation | Add use-case-owned stream producer APIs for the opted-in commands, move item production out of CLI closures, and keep JSON and NDJSON summaries equivalent. |
+| Remediation | Refactor the producer internals so JSON and NDJSON share traversal iterators and add instrumentation proving the first `StreamItem` is yielded before complete result materialization. |
 | Definition of done | `CallableStreamingProducer` is no longer used by production command adapters; regression tests fail if `index`, `scan`, or `context --deep` builds the full command payload before the first item record; SPEC-011/FDD-014 wording is updated if the API shape changes. |
 | Verification commands | `./.venv/bin/pytest -q tests/cli/test_stream_emitter.py tests/adapters/test_streaming_cli.py tests/cli/test_streaming_equivalence.py tests/cli/test_streaming_determinism.py` |
 
