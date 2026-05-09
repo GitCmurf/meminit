@@ -42,6 +42,7 @@ class CheckRepositoryUseCase:
         existing_ids: Set[str] = set()
 
         schema_issues_seen: set[str] = set()
+        schema_validators: Dict[str, SchemaValidator] = {}
 
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
@@ -57,6 +58,7 @@ class CheckRepositoryUseCase:
                 continue
 
             schema_validator = SchemaValidator(str(ns.schema_file))
+            schema_validators[ns.schema_path] = schema_validator
             schema_issue = schema_validator.repository_violation()
             if schema_issue and ns.schema_path not in schema_issues_seen:
                 schema_issues_seen.add(ns.schema_path)
@@ -69,7 +71,9 @@ class CheckRepositoryUseCase:
                     continue
                 if ns.is_excluded(path):
                     continue
-                violations.extend(self._process_document(path, existing_ids, ns, schema_validator))
+                violations.extend(
+                    self._process_document(path, existing_ids, ns, schema_validators)
+                )
 
         return violations
 
@@ -239,11 +243,8 @@ class CheckRepositoryUseCase:
                     files_passed += 1
                 continue
 
-            schema_validator = schema_validators.get(ns.schema_path) or SchemaValidator(
-                str(ns.schema_file)
-            )
             file_violations = self._process_document(
-                canonical_path, existing_ids, ns, schema_validator
+                canonical_path, existing_ids, ns, schema_validators
             )
 
             document_id = self._extract_document_id(canonical_path)
@@ -316,6 +317,7 @@ class CheckRepositoryUseCase:
         warnings_by_file: Dict[str, Dict[str, Any]] = {}
         existing_ids: Set[str] = set()
         schema_issues_seen: set[str] = set()
+        schema_validators: Dict[str, SchemaValidator] = {}
         files_passed = 0
         files_failed = 0
         checked_paths: List[str] = []
@@ -341,6 +343,7 @@ class CheckRepositoryUseCase:
                 continue
 
             schema_validator = SchemaValidator(str(ns.schema_file))
+            schema_validators[ns.schema_path] = schema_validator
             schema_issue = schema_validator.repository_violation()
             if schema_issue and ns.schema_path not in schema_issues_seen:
                 schema_issues_seen.add(ns.schema_path)
@@ -370,7 +373,9 @@ class CheckRepositoryUseCase:
                 files_checked += 1
                 rel_path = path.relative_to(self.root_dir).as_posix()
                 checked_paths.append(rel_path)
-                file_violations = self._process_document(path, existing_ids, ns, schema_validator)
+                file_violations = self._process_document(
+                    path, existing_ids, ns, schema_validators
+                )
 
                 document_id = self._extract_document_id(path)
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
@@ -455,7 +460,7 @@ class CheckRepositoryUseCase:
         path: Path,
         existing_ids: Set[str],
         ns: RepoConfig,
-        schema_validator: SchemaValidator,
+        schema_validators: Dict[str, SchemaValidator],
     ) -> List[Violation]:
         """Process a single document and collect all validation violations.
 
@@ -471,7 +476,7 @@ class CheckRepositoryUseCase:
             path: Absolute path to the document file.
             existing_ids: Set of document IDs seen so far (for uniqueness check).
             ns: Namespace configuration for the document's location.
-            schema_validator: Validator for the namespace's JSON schema.
+            schema_validators: Cache of validators keyed by schema path.
 
         Returns:
             List of violations found for this document. Empty if fully compliant.
@@ -506,6 +511,15 @@ class CheckRepositoryUseCase:
                 return violations
 
             metadata = dict(post.metadata)
+            validation_ns = self._layout.namespace_for_path_and_document_id(
+                path, metadata.get("document_id")
+            )
+            if validation_ns is None:
+                validation_ns = ns
+
+            schema_validator = schema_validators.get(validation_ns.schema_path) or SchemaValidator(
+                str(validation_ns.schema_file)
+            )
 
             if schema_validator.is_ready():
                 normalized_for_schema = self._normalize_metadata_for_schema(metadata)
@@ -516,7 +530,7 @@ class CheckRepositoryUseCase:
 
             violations.extend(self._validate_id(post, rel_path, existing_ids))
 
-            violations.extend(self._check_directory_mapping(post, path, rel_path, ns))
+            violations.extend(self._check_directory_mapping(post, path, rel_path, validation_ns))
 
             violations.extend(self.link_checker.validate_links(rel_path, post.content))
 

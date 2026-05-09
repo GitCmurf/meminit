@@ -246,6 +246,108 @@ docops_version: 2.0
     assert not any(v.rule == "DIRECTORY_MATCH" and "adr-001.md" in v.file for v in violations)
 
 
+def test_check_uses_document_namespace_for_same_root_schema_and_directory_validation(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
+repo_prefix: AIDHA
+docops_version: '2.0'
+schema_path: docs/00-governance/default-schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+    schema_path: docs/00-governance/default-schema.json
+    document_types:
+      ADR:
+        directory: root-adrs
+  - name: pkg
+    repo_prefix: PKG
+    docs_root: docs
+    schema_path: docs/00-governance/pkg-schema.json
+    document_types:
+      ADR:
+        directory: pkg-adrs
+""",
+        encoding="utf-8",
+    )
+
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "default-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "default_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "default_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (gov / "pkg-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "package_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "package_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    pkg_docs = tmp_path / "docs" / "pkg-adrs"
+    pkg_docs.mkdir(parents=True)
+    (pkg_docs / "pkg-adr-001.md").write_text(
+        """---
+document_id: PKG-ADR-001
+type: ADR
+title: Package ADR
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: Me
+docops_version: 2.0
+package_only: pkg-only
+---
+# Package ADR
+""",
+        encoding="utf-8",
+    )
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+    violations = use_case.execute()
+    assert violations == []
+
+    summary = use_case.execute_full_summary()
+    assert summary.success is True
+    assert summary.files_checked == 1
+    assert summary.files_failed == 0
+    assert summary.schema_failures_count == 0
+    assert summary.violations_count == 0
+    assert summary.warnings_count == 0
+
+
 def test_check_repository_reports_missing_schema_once(tmp_path):
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
