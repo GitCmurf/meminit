@@ -17,20 +17,12 @@ keywords:
 - streaming
 - state
 - index
-related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-009
-- MEMINIT-PLAN-010
-- MEMINIT-PLAN-011
-- MEMINIT-PLAN-012
-- MEMINIT-PLAN-013
-- MEMINIT-PLAN-014
 ---
 
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.8
+> **Version:** 0.4
 > **Last Updated:** 2026-05-08
 > **Type:** PLAN
 > **Area:** AGENT

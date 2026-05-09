@@ -461,6 +461,38 @@ def test_get_state_file_rel_path_strict_custom_docs_root(tmp_path):
     assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
 
 
+def test_get_state_file_rel_path_strict_namespace_docs_root(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+docops_version: '2.0'
+namespaces:
+  - name: handbook
+    docs_root: handbook
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+
+
+def test_get_state_file_rel_path_strict_falls_back_when_layout_load_fails(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+docops_version: '2.0'
+docs_root: handbook
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    from unittest import mock
+
+    with mock.patch(
+        "meminit.core.services.repo_config.load_repo_layout",
+        side_effect=ValueError("broken layout"),
+    ):
+        assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+
+
 def test_get_state_file_rel_path_strict_missing_config_raises(tmp_path):
     with pytest.raises(MeminitError) as exc_info:
         get_state_file_rel_path_strict(tmp_path)

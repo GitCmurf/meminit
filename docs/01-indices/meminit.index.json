@@ -338,48 +338,6 @@
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-008' in related_ids but 'MEMINIT-PLAN-008' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-008"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-009' in related_ids but 'MEMINIT-PLAN-009' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-009"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-010' in related_ids but 'MEMINIT-PLAN-010' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-010"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-011' in related_ids but 'MEMINIT-PLAN-011' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-011"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-012' in related_ids but 'MEMINIT-PLAN-012' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-012"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-013' in related_ids but 'MEMINIT-PLAN-013' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-013"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-PLAN-015' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-PLAN-015'",
-      "source": "MEMINIT-PLAN-015",
-      "target": "MEMINIT-PLAN-014"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
       "message": "'MEMINIT-PRD-003' lists 'MEMINIT-GOV-003' in related_ids but 'MEMINIT-GOV-003' does not list 'MEMINIT-PRD-003'",
       "source": "MEMINIT-PRD-003",
       "target": "MEMINIT-GOV-003"
@@ -754,7 +712,7 @@
   "command": "index",
   "data": {
     "document_count": 78,
-    "edge_count": 242,
+    "edge_count": 235,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -1385,55 +1343,6 @@
         "guaranteed": true,
         "source": "MEMINIT-PLAN-014",
         "target": "MEMINIT-SPEC-008"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-008"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-009"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-010"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-011"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-012"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-013"
-      },
-      {
-        "context": "frontmatter.related_ids",
-        "edge_type": "related",
-        "guaranteed": true,
-        "source": "MEMINIT-PLAN-015",
-        "target": "MEMINIT-PLAN-014"
       },
       {
         "context": "body.markdown_link",
@@ -3580,15 +3489,7 @@
         "owner": "GitCmurf",
         "path": "docs/05-planning/plan-015-next-improvements-sprint-plan.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PLAN-008",
-          "MEMINIT-PLAN-009",
-          "MEMINIT-PLAN-010",
-          "MEMINIT-PLAN-011",
-          "MEMINIT-PLAN-012",
-          "MEMINIT-PLAN-013",
-          "MEMINIT-PLAN-014"
-        ],
+        "related_ids": null,
         "repo_prefix": "MEMINIT",
         "status": "Draft",
         "superseded_by": null,

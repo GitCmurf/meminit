@@ -102,8 +102,28 @@ def get_state_file_rel_path_strict(root_dir: Path) -> str:
             "missing_version",
         )
 
-    docs_root = raw.get("docs_root") if isinstance(raw.get("docs_root"), str) else "docs"
-    docs_root = docs_root.strip() or "docs"
+    from meminit.core.services.repo_config import load_repo_layout
+
+    try:
+        # Reuse the repo layout resolver so strict mode preserves namespace-driven
+        # docs_root selection and its normalization rules when the layout loads.
+        docs_root = load_repo_layout(root_dir).default_namespace().docs_root.strip() or "docs"
+    except Exception:
+        docs_root = "docs"
+        if isinstance(raw, dict):
+            raw_docs_root = raw.get("docs_root")
+            if isinstance(raw_docs_root, str) and raw_docs_root.strip():
+                docs_root = raw_docs_root.strip()
+            else:
+                raw_namespaces = raw.get("namespaces")
+                if isinstance(raw_namespaces, list):
+                    for namespace in raw_namespaces:
+                        if not isinstance(namespace, dict):
+                            continue
+                        namespace_docs_root = namespace.get("docs_root")
+                        if isinstance(namespace_docs_root, str) and namespace_docs_root.strip():
+                            docs_root = namespace_docs_root.strip()
+                            break
     return f"{docs_root}/01-indices/project-state.yaml"
 
 
