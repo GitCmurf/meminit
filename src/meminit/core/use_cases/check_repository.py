@@ -51,7 +51,10 @@ class CheckRepositoryUseCase:
                         file=f"{ns.docs_root}/",
                         line=0,
                         rule="REPO_STRUCTURE",
-                        message=f"Docs root '{ns.docs_root}/' missing for namespace '{ns.namespace}'",
+                        message=(
+                            f"Docs root '{ns.docs_root}/' missing for namespace "
+                            f"'{ns.namespace}'"
+                        ),
                         severity=Severity.ERROR,
                     )
                 )
@@ -66,13 +69,13 @@ class CheckRepositoryUseCase:
                 violations.append(schema_issue)
 
             for path in ns.docs_dir.rglob("*.md"):
-                owner = self._layout.namespace_for_path(path)
-                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                validation_ns = self._resolve_validation_namespace(path)
+                if validation_ns is None or validation_ns.namespace.lower() != ns.namespace.lower():
                     continue
-                if ns.is_excluded(path):
+                if validation_ns.is_excluded(path):
                     continue
                 violations.extend(
-                    self._process_document(path, existing_ids, ns, schema_validators)
+                    self._process_document(path, existing_ids, validation_ns, schema_validators)
                 )
 
         return violations
@@ -211,13 +214,9 @@ class CheckRepositoryUseCase:
             rel_path = canonical_path.relative_to(root_resolved).as_posix()
 
             ns = self._layout.namespace_for_path(canonical_path)
-            if ns is not None and ns.is_excluded(canonical_path):
-                continue
-
-            checked_paths.append(rel_path)
-            files_checked += 1
-
             if ns is None:
+                checked_paths.append(rel_path)
+                files_checked += 1
                 files_outside_docs_root_count += 1
                 if strict:
                     violations_by_file[rel_path] = {
@@ -243,8 +242,15 @@ class CheckRepositoryUseCase:
                     files_passed += 1
                 continue
 
+            validation_ns = self._resolve_validation_namespace(canonical_path) or ns
+            if validation_ns.is_excluded(canonical_path):
+                continue
+
+            checked_paths.append(rel_path)
+            files_checked += 1
+
             file_violations = self._process_document(
-                canonical_path, existing_ids, ns, schema_validators
+                canonical_path, existing_ids, validation_ns, schema_validators
             )
 
             document_id = self._extract_document_id(canonical_path)
@@ -334,7 +340,10 @@ class CheckRepositoryUseCase:
                     "violations": [
                         {
                             "code": "REPO_STRUCTURE",
-                            "message": f"Docs root '{ns.docs_root}/' missing for namespace '{ns.namespace}'",
+                            "message": (
+                                f"Docs root '{ns.docs_root}/' missing for namespace "
+                                f"'{ns.namespace}'"
+                            ),
                             "line": 0,
                         }
                     ],
@@ -364,17 +373,17 @@ class CheckRepositoryUseCase:
                 repo_level_failures += 1
 
             for path in ns.docs_dir.rglob("*.md"):
-                owner = self._layout.namespace_for_path(path)
-                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                validation_ns = self._resolve_validation_namespace(path)
+                if validation_ns is None or validation_ns.namespace.lower() != ns.namespace.lower():
                     continue
-                if ns.is_excluded(path):
+                if validation_ns.is_excluded(path):
                     continue
 
                 files_checked += 1
                 rel_path = path.relative_to(self.root_dir).as_posix()
                 checked_paths.append(rel_path)
                 file_violations = self._process_document(
-                    path, existing_ids, ns, schema_validators
+                    path, existing_ids, validation_ns, schema_validators
                 )
 
                 document_id = self._extract_document_id(path)
@@ -455,6 +464,17 @@ class CheckRepositoryUseCase:
             pass
         return None
 
+    def _resolve_validation_namespace(self, path: Path) -> Optional[RepoConfig]:
+        """Resolve the namespace that should validate a document at *path*.
+
+        Same-root namespaces use `document_id` as a tie-breaker. This must run
+        before exclusion checks so a valid document is not dropped by the wrong
+        namespace's path-based exclusions.
+        """
+        return self._layout.namespace_for_path_and_document_id(
+            path, self._extract_document_id(path)
+        )
+
     def _process_document(
         self,
         path: Path,
@@ -490,7 +510,10 @@ class CheckRepositoryUseCase:
                     file=rel_path,
                     line=0,
                     rule="FILENAME_CONVENTION",
-                    message=f"Filename '{path.name}' must be lowercase kebab-case (e.g., my-doc.md)",
+                    message=(
+                        f"Filename '{path.name}' must be lowercase kebab-case "
+                        f"(e.g., my-doc.md)"
+                    ),
                     severity=Severity.WARNING,
                 )
             )
@@ -603,7 +626,8 @@ class CheckRepositoryUseCase:
                                 line=0,
                                 rule="ID_PREFIX",
                                 message=(
-                                    f"document_id '{doc_id}' must start with '{ns.repo_prefix}-' for namespace "
+                                    f"document_id '{doc_id}' must start with "
+                                    f"'{ns.repo_prefix}-' for namespace "
                                     f"'{ns.namespace}' ({ns.docs_root}/)"
                                 ),
                                 severity=Severity.ERROR,
@@ -665,7 +689,10 @@ class CheckRepositoryUseCase:
                     file=rel_path,
                     line=0,
                     rule="DIRECTORY_MATCH",
-                    message=f"Document type '{doc_type}' should be in '{ns.docs_root}/{expected_subdir}'",
+                    message=(
+                        f"Document type '{doc_type}' should be in "
+                        f"'{ns.docs_root}/{expected_subdir}'"
+                    ),
                     severity=Severity.WARNING,
                 )
             )
