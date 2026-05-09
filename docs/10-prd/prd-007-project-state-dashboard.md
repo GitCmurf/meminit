@@ -512,8 +512,8 @@ deterministically. Required codes:
 | `W_STATE_UNSORTED_KEYS`       | doctor, state | `documents` entries are not in alphabetical order                       |
 | `STATE_INVALID_FILTER_VALUE`      | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
 
-Codes prefixed `E_` are errors (exit code ≠ 0); codes prefixed `W_` are
-warnings (exit code 0, reported in envelope `warnings` array).
+Codes prefixed `STATE_` are fatal errors (exit code != 0); codes prefixed
+`W_` are warnings (exit code 0, reported in envelope `warnings` array).
 
 #### FR-8 Output Sanitization
 

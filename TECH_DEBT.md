@@ -26,6 +26,7 @@ updated together.
 | `Open` | Accepted debt that is not yet being worked. |
 | `In Progress` | Assigned work is active on a branch or sprint. |
 | `Blocked` | Work is accepted but cannot proceed until a named blocker clears. |
+| `Narrowed` | Accepted debt whose scope has been reduced and re-baselined. |
 | `Closed` | Code, tests, and docs are complete and verified. |
 | `Superseded` | A later implementation or plan made the item obsolete. |
 | `Rejected` | Reassessment found the item invalid or not worth carrying. |
@@ -66,11 +67,11 @@ updated together.
 | Owner | CLI/Core maintainers |
 | Source | MEMINIT-PLAN-014 Phase 5 constant-memory objective |
 | Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014` |
-| Evidence | `src/meminit/cli/streaming.py` keeps `CallableStreamingProducer` as a temporary adapter, and `src/meminit/cli/main.py` wraps already-materialized `index`, `scan`, and `context --deep` results before emitting NDJSON. |
-| Narrowing evidence | Core-owned stream payload types now live in `src/meminit/core/services/stream_events.py`; `IndexRepositoryUseCase`, `ScanRepositoryUseCase`, and `ContextRepositoryUseCase` expose `iter_stream()` producers; production CLI adapters drain `CoreStreamingProducer`; and `rg "CallableStreamingProducer" src/meminit/cli` returns no matches. |
-| Impact | The shipped NDJSON contract is usable, but the implementation does not yet provide the strongest planned producer-side constant-memory architecture for large repos. |
+| Evidence | `src/meminit/core/services/stream_events.py` owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`; `src/meminit/cli/main.py` drains `iter_stream()` results through `CoreStreamingProducer` for `index`, `scan`, and `context --deep`. |
+| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. |
+| Impact | The shipped NDJSON contract is usable, but traversal-level laziness and shared JSON/NDJSON item iteration still need work for large repos. |
 | Remediation | Refactor the producer internals so JSON and NDJSON share traversal iterators and add instrumentation proving the first `StreamItem` is yielded before complete result materialization. |
-| Definition of done | `CallableStreamingProducer` is no longer used by production command adapters; regression tests fail if `index`, `scan`, or `context --deep` builds the full command payload before the first item record; SPEC-011/FDD-014 wording is updated if the API shape changes. |
+| Definition of done | Shared iterator plumbing is in place for JSON and NDJSON; regression tests fail if `index`, `scan`, or `context --deep` cannot yield the first item before fully materializing the command payload; SPEC-011/FDD-014 wording is updated if the API shape changes. |
 | Verification commands | `./.venv/bin/pytest -q tests/cli/test_stream_emitter.py tests/adapters/test_streaming_cli.py tests/cli/test_streaming_equivalence.py tests/cli/test_streaming_determinism.py` |
 
 ### TD-003: Phase 5 cache scenario traceability is weaker than the plan matrix
