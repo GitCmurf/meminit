@@ -330,3 +330,54 @@ namespaces:
 
     violations = CheckRepositoryUseCase(str(tmp_path)).execute()
     assert not any(v.rule == "ID_UNIQUE" for v in violations)
+
+
+def test_nested_namespace_ownership_prefers_path_specificity_over_document_id(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    org_doc = tmp_path / "docs" / "00-governance" / "org" / "org-gov-001.md"
+    org_doc.parent.mkdir(parents=True)
+    org_doc.write_text(
+        "---\n"
+        "document_id: AIDHA-GOV-001\n"
+        "type: GOV\n"
+        "title: Org\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# GOV: Org\n",
+        encoding="utf-8",
+    )
+
+    layout = load_repo_layout(tmp_path)
+    resolved = layout.namespace_for_path_and_document_id(org_doc, "AIDHA-GOV-001")
+    assert resolved is not None and resolved.namespace == "org"
+
+    violations = CheckRepositoryUseCase(str(tmp_path)).execute()
+    assert any(v.rule == "ID_PREFIX" for v in violations)
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert report.document_count == 1
+    assert report.documents[0]["namespace"] == "org"

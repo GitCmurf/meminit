@@ -283,9 +283,14 @@ class RepoLayout:
 
         doc_ns = self.namespace_for_document_id(document_id)
         if doc_ns is not None:
-            for ns in matches:
-                if ns.namespace.lower() == doc_ns.namespace.lower():
-                    return ns
+            best_specificity = len(Path(matches[0].docs_root).parts)
+            doc_specificity = len(Path(doc_ns.docs_root).parts)
+            # Only use document_id as a tie-breaker when it points to a namespace
+            # with the same path specificity as the best path match.
+            if doc_specificity == best_specificity:
+                for ns in matches:
+                    if ns.namespace.lower() == doc_ns.namespace.lower():
+                        return ns
 
         return matches[0]
 
