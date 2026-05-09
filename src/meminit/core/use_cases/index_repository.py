@@ -90,6 +90,21 @@ def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
     return rel in namespace.excluded_files
 
 
+def _namespace_for_index_path(
+    layout: Any,
+    path: Path,
+    document_id: str | None,
+    root_dir: Path,
+) -> Any | None:
+    """Resolve the owning namespace and reject namespace-specific exclusions."""
+    ns = layout.namespace_for_path_and_document_id(path, document_id)
+    if ns is None:
+        return None
+    if _is_excluded_for_index(path, ns, root_dir):
+        return None
+    return ns
+
+
 def _filter_index_edges(
     report: Any,
     *,
@@ -1262,7 +1277,9 @@ class IndexRepositoryUseCase:
             if not isinstance(doc_id, str) or not doc_id.strip():
                 continue
             doc_id = doc_id.strip()
-            ns = self._layout.namespace_for_path_and_document_id(path, doc_id)
+            ns = _namespace_for_index_path(
+                self._layout, path, doc_id, self._root_dir
+            )
             if ns is None:
                 continue
             known_doc_ids.add(doc_id)
@@ -1634,11 +1651,13 @@ class IndexRepositoryUseCase:
             return None
         cached_doc_id = str(cached.get("document_id", "")).strip()
         if cached_doc_id:
-            expected_ns = self._layout.namespace_for_path_and_document_id(
-                path, cached_doc_id
+            expected_ns = _namespace_for_index_path(
+                self._layout, path, cached_doc_id, self._root_dir
             )
+            if expected_ns is None:
+                return None
             cached_ns = str(cached.get("namespace", "")).strip().lower()
-            if expected_ns is not None and cached_ns != expected_ns.namespace.lower():
+            if cached_ns != expected_ns.namespace.lower():
                 cache_rewrites.add(rel_path)
                 warnings_list.append(
                     {
