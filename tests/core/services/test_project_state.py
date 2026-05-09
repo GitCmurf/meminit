@@ -485,6 +485,29 @@ def test_get_state_file_rel_path_fallback_preserves_default_for_diagnostics(tmp_
     assert get_state_file_rel_path_fallback(tmp_path) == "docs/01-indices/project-state.yaml"
 
 
+def test_load_project_state_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        load_project_state(tmp_path, strict_config=True)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+
+def test_load_project_state_strict_missing_state_file_remains_optional(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "docops_version: '2.0'\ndocs_root: docs\n",
+        encoding="utf-8",
+    )
+
+    assert load_project_state(tmp_path, strict_config=True) is None
+
+
+def test_save_project_state_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        save_project_state(tmp_path, ProjectState(), strict_config=True)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+
 # ---------------------------------------------------------------------------
 # v2 schema: load, save, round-trip
 # ---------------------------------------------------------------------------

@@ -3609,7 +3609,7 @@ def _state_set_execute(
 ):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.set_state(
         document_id,
         impl_state=impl_state,
@@ -3816,7 +3816,7 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             correlation_id=correlation_id,
         )
 
-        use_case = StateDocumentUseCase(str(root_path))
+        use_case = StateDocumentUseCase(str(root_path), strict_config=True)
         result = use_case.get_state(document_id)
 
         if format == "json":
@@ -3906,7 +3906,7 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
         output=output,
         correlation_id=correlation_id,
     )
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     result = use_case.list_states(
         ready=ready_filter,
         blocked=blocked_filter,
@@ -4091,7 +4091,7 @@ def state_list(root, format, output, include_timestamp, correlation_id,
 def _state_next_execute(root_path, assignee, priority_at_least):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.next_state(assignee=assignee, priority_at_least=priority_at_least)
 
 
@@ -4162,7 +4162,7 @@ def _render_state_next_text(result, fmt, output):
 def _state_blockers_execute(root_path, assignee):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.blockers_state(assignee=assignee)
 
 

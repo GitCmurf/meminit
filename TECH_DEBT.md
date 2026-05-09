@@ -171,12 +171,13 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Narrowed |
+| Status | Closed |
 | Owner | State/doctor/index maintainers |
 | Source | Review follow-up from Phase 4 configuration strictness |
 | Related plans | `MEMINIT-PLAN-013` |
 | Evidence | `get_state_file_rel_path` catches config-loading failures and returns `docs/01-indices/project-state.yaml`. State CLI paths call initialization validation first, but diagnostic/index paths can still observe the fallback. |
 | Narrowing evidence | `get_state_file_rel_path_strict()` and `get_state_file_rel_path_fallback()` now separate strict config validation from diagnostic default-path behavior. `tests/core/services/test_project_state.py` covers missing config, malformed config, custom docs roots, and fallback behavior. |
+| Closure evidence | Closed on 2026-05-09 by adding strict config plumbing to project-state load/save/validation, routing CLI state command use cases through strict mode after `validate_initialized`, and preserving fallback semantics for diagnostics and direct service use. |
 | Impact | Diagnostics can be less precise in uninitialized or malformed repos, even though mutation paths fail earlier. |
 | Remediation | Migrate command/use-case callers to the strict helper wherever repo config must be trusted. Keep fallback only for diagnostics that intentionally explain default paths. |
 | Definition of done | Missing/malformed config produces `CONFIG_MISSING` or the documented diagnostic result in every affected command; doctor behavior remains useful for uninitialized repos; tests cover both strict and fallback callers. |

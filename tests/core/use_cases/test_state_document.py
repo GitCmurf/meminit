@@ -1334,6 +1334,28 @@ def test_next_state_invalid_priority_raises_without_state_file(tmp_path):
     assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
 
 
+def test_strict_config_use_case_rejects_missing_repo_config(tmp_path):
+    use_case = StateDocumentUseCase(str(tmp_path), strict_config=True)
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.list_states()
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+
+def test_strict_config_use_case_preserves_missing_state_empty_queue(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "docops_version: '2.0'\ndocs_root: docs\n",
+        encoding="utf-8",
+    )
+    use_case = StateDocumentUseCase(str(tmp_path), strict_config=True)
+
+    result = use_case.list_states()
+
+    assert result.entries == []
+    assert result.summary == {"total": 0, "returned": 0, "ready": 0, "blocked": 0}
+
+
 def test_list_states_skips_invalid_priority_even_with_no_other_warnings(tmp_path):
     """Invalid-priority entries are excluded even when no other warnings exist."""
     use_case = StateDocumentUseCase(str(tmp_path))

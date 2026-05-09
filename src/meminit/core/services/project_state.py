@@ -64,8 +64,6 @@ def _config_missing_error(root_dir: Path, message: str, reason: str) -> MeminitE
 
 def get_state_file_rel_path_strict(root_dir: Path) -> str:
     """Resolve the state-file path, failing when repo config is unavailable."""
-    from meminit.core.services.repo_config import load_repo_config
-
     config_path = root_dir / "docops.config.yaml"
     if not config_path.exists():
         raise _config_missing_error(
@@ -104,8 +102,8 @@ def get_state_file_rel_path_strict(root_dir: Path) -> str:
             "missing_version",
         )
 
-    config = load_repo_config(root_dir)
-    docs_root = config.docs_root if config.docs_root else "docs"
+    docs_root = raw.get("docs_root") if isinstance(raw.get("docs_root"), str) else "docs"
+    docs_root = docs_root.strip() or "docs"
     return f"{docs_root}/01-indices/project-state.yaml"
 
 
@@ -480,7 +478,10 @@ def _parse_single_entry(
 
 
 def load_project_state(
-    root_dir: Path, default_now: Optional[datetime] = None
+    root_dir: Path,
+    default_now: Optional[datetime] = None,
+    *,
+    strict_config: bool = False,
 ) -> Optional[ProjectState]:
     """Load and parse ``project-state.yaml`` from the repo root.
 
@@ -488,7 +489,11 @@ def load_project_state(
     Raises ``MeminitError`` with ``E_STATE_YAML_MALFORMED`` if the file
     exists but is not valid YAML.
     """
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
     state_path = root_dir / state_file_rel
     if not state_path.exists():
         return None
@@ -524,13 +529,22 @@ def load_project_state(
     )
 
 
-def save_project_state(root_dir: Path, state: ProjectState) -> Path:
+def save_project_state(
+    root_dir: Path,
+    state: ProjectState,
+    *,
+    strict_config: bool = False,
+) -> Path:
     """Write ``project-state.yaml`` with entries sorted alphabetically.
 
     Uses atomic write with path safety validation.
     Returns the path to the written file.
     """
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
     state_path = root_dir / state_file_rel
 
     ensure_safe_write_path(root_dir=root_dir, target_path=state_path)
@@ -730,6 +744,8 @@ def validate_project_state(
     known_doc_ids: set[str],
     root_dir: Path,
     valid_impl_states: Optional[List[str]] = None,
+    *,
+    strict_config: bool = False,
 ) -> List[Violation]:
     """Validate a parsed project state against known governed document IDs.
 
@@ -737,7 +753,11 @@ def validate_project_state(
     violations (errors) captured during parsing.
     """
     issues: List[Violation] = list(state.schema_violations)
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
 
     if valid_impl_states is None:
         all_valid_states = set(ImplState.canonical_values())
