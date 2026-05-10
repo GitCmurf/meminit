@@ -1493,6 +1493,30 @@ def test_index_graph_schema_version(tmp_path):
     assert "edges" in payload["data"]
 
 
+def test_index_single_namespace_bypasses_document_id_namespace_lookup(
+    tmp_path, monkeypatch
+):
+    """Single-namespace repositories should not pay the document-id tie-breaker cost."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+
+    def fail_namespace_lookup(*args, **kwargs):
+        raise AssertionError(
+            "single-namespace index build should not call namespace_for_path_and_document_id"
+        )
+
+    monkeypatch.setattr(
+        type(use_case._layout),
+        "namespace_for_path_and_document_id",
+        fail_namespace_lookup,
+    )
+
+    report = use_case.execute(use_cache=False)
+
+    assert report.document_count == 1
+
+
 @pytest.mark.slow
 def test_index_handles_500_docs_within_phase_4_budget(tmp_path):
     """Phase 4 index build (scan + state merge + validation + derived fields)

@@ -59,9 +59,10 @@ def test_tech_debt_register_status_model_and_td002_are_aligned():
         content,
         "### TD-002: Streaming producers still materialize use-case results before emitting",
     )
-    assert td002_rows["Status"] == "Narrowed"
+    assert td002_rows["Status"] == "Closed"
     assert "stream_events.py" in td002_rows["Evidence"]
     assert "CoreStreamingProducer" in td002_rows["Evidence"]
-    assert "CallableStreamingProducer" in td002_rows["Narrowing evidence"]
-    assert "tests/cli/test_stream_emitter.py" in td002_rows["Narrowing evidence"]
-    assert "Shared iterator plumbing" in td002_rows["Definition of done"]
+    assert "Closed on 2026-05-10" in td002_rows["Closure evidence"]
+    assert "first-item emission before public result materialization" in td002_rows[
+        "Closure evidence"
+    ]

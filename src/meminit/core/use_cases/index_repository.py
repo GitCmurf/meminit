@@ -95,8 +95,19 @@ def _namespace_for_index_path(
     path: Path,
     document_id: str | None,
     root_dir: Path,
+    *,
+    single_namespace: Any | None = None,
 ) -> Any | None:
     """Resolve the owning namespace and reject namespace-specific exclusions."""
+    if single_namespace is not None:
+        try:
+            path.relative_to(single_namespace.docs_dir)
+        except ValueError:
+            return None
+        if _is_excluded_for_index(path, single_namespace, root_dir):
+            return None
+        return single_namespace
+
     ns = layout.namespace_for_path_and_document_id(path, document_id)
     if ns is None:
         return None
@@ -1289,9 +1300,19 @@ class IndexRepositoryUseCase:
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
+        single_namespace = (
+            self._layout.namespaces[0]
+            if len(self._layout.namespaces) == 1
+            else None
+        )
         for path in doc_paths:
             cached = self._cached_entry(
-                cache, cache_plan, path, warnings_list, cache_rewrites
+                cache,
+                cache_plan,
+                path,
+                warnings_list,
+                cache_rewrites,
+                single_namespace=single_namespace,
             )
             if cached is not None:
                 entries.append(cached)
@@ -1319,7 +1340,11 @@ class IndexRepositoryUseCase:
                 continue
             doc_id = doc_id.strip()
             ns = _namespace_for_index_path(
-                self._layout, path, doc_id, self._root_dir
+                self._layout,
+                path,
+                doc_id,
+                self._root_dir,
+                single_namespace=single_namespace,
             )
             if ns is None:
                 continue
@@ -1649,6 +1674,8 @@ class IndexRepositoryUseCase:
         path: Path,
         warnings_list: List[Dict[str, Any]],
         cache_rewrites: set[str],
+        *,
+        single_namespace: Any | None = None,
     ) -> Dict[str, Any] | None:
         rel_path = _repo_relative_path(path, self._root_dir)
         if rel_path not in cache_plan.unchanged:
@@ -1693,7 +1720,11 @@ class IndexRepositoryUseCase:
         cached_doc_id = str(cached.get("document_id", "")).strip()
         if cached_doc_id:
             expected_ns = _namespace_for_index_path(
-                self._layout, path, cached_doc_id, self._root_dir
+                self._layout,
+                path,
+                cached_doc_id,
+                self._root_dir,
+                single_namespace=single_namespace,
             )
             if expected_ns is None:
                 return None

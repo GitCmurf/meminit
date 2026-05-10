@@ -106,6 +106,33 @@ def test_scan_ndjson_emits_real_file_items(tmp_path):
     assert records[-1]["counts"]["file"] == len(file_items)
 
 
+def test_scan_ndjson_rejects_plan_artifact_generation(tmp_path):
+    create_initialized_repo(tmp_path)
+    plan = tmp_path / "migration-plan.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "scan",
+            "--root",
+            str(tmp_path),
+            "--plan",
+            str(plan),
+            "--format",
+            "ndjson",
+        ],
+    )
+
+    assert result.exit_code == exit_code_for_error(
+        ErrorCode.STREAM_UNSUPPORTED_FORMAT
+    )
+    assert not plan.exists()
+    records = parse_records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
+
+
 def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_path):
     (tmp_path / "docs" / "00-governance" / "org").mkdir(parents=True, exist_ok=True)
     (tmp_path / "docs" / "readme.md").write_text("# Root doc\n", encoding="utf-8")

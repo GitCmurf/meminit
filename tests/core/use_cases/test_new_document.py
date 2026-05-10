@@ -1307,8 +1307,13 @@ document_types:
             assert result.success is True
             mock_acquire.assert_not_called()
 
-    def test_concurrent_id_generation_no_duplicates(self, repo_for_locking):
+    def test_concurrent_id_generation_no_duplicates(
+        self, repo_for_locking, monkeypatch
+    ):
         """Verify no duplicate IDs are generated under concurrent access."""
+        # The use case serializes directory writers under a lock for safety, so
+        # this test only needs enough timeout budget for five queued creators.
+        monkeypatch.setenv("MEMINIT_LOCK_TIMEOUT_MS", "10000")
         use_case = NewDocumentUseCase(str(repo_for_locking))
         results = []
         errors = []
