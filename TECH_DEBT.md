@@ -63,16 +63,17 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P2 |
-| Status | Narrowed |
+| Status | Closed |
 | Owner | CLI/Core maintainers |
 | Source | MEMINIT-PLAN-014 Phase 5 constant-memory objective |
-| Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014` |
+| Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014`, `MEMINIT-PLAN-015`, `MEMINIT-SPEC-011`, `MEMINIT-FDD-014` |
 | Evidence | `src/meminit/core/services/stream_events.py` owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`; `src/meminit/cli/main.py` drains `iter_stream()` results through `CoreStreamingProducer` for `index`, `scan`, and `context --deep`. |
-| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. On 2026-05-09, `scan` and `context --deep` gained first-item laziness regressions proving their first stream item is emitted before their full report builder runs. `index` now builds internal artifacts shared by JSON and NDJSON, and the stream can emit its first node before the public `IndexBuildReport` is assembled. |
-| Impact | The shipped NDJSON contract is usable, but broader item-level iterator sharing can still improve memory behavior for very large index runs. |
-| Remediation | Refactor remaining item-list construction into shared node/edge iterators if large-repo profiling shows the internal artifact lists are still too costly. |
+| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. |
+| Impact | Closed: the production NDJSON path no longer depends on CLI-local closure adapters or public result-object materialization before the first stream item. |
+| Remediation | Completed by moving streaming payload types into core, routing production CLI streaming through `CoreStreamingProducer`, adding core `iter_stream()` producers, and sharing index build artifacts between JSON and NDJSON paths. |
 | Definition of done | Shared iterator plumbing is in place for JSON and NDJSON; regression tests fail if `index`, `scan`, or `context --deep` cannot yield the first item before fully materializing the command payload; SPEC-011/FDD-014 wording is updated if the API shape changes. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_streaming_laziness.py tests/cli/test_stream_emitter.py tests/adapters/test_streaming_cli.py tests/cli/test_streaming_equivalence.py tests/cli/test_streaming_determinism.py` |
+| Closure evidence | Closed on 2026-05-10 after `scan`, `context --deep`, and `index` gained instrumentation regressions for first-item emission before public result materialization. SPEC-011 and FDD-014 document the command-level guarantees, including the index correctness boundary that validation and artifact writes complete before public node/edge items are emitted. |
 
 ### TD-003: Phase 5 cache scenario traceability is weaker than the plan matrix
 
@@ -210,14 +211,14 @@ Summary:
 | `MEMINIT-PLAN-011` | No open runtime backlog identified. Graph index fields, schemas, resolve/identify/link updates, and external testbed note are present. TD-001 is closed. |
 | `MEMINIT-PLAN-012` | No open backlog identified. Protocol registry, check/sync, fixture coverage, runbook guidance, and external testbed note are present. |
 | `MEMINIT-PLAN-013` | Runtime surface appears implemented. TD-006, TD-007, TD-008, and TD-009 are closed. |
-| `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002 and TD-004 remain open because they are planned or recorded improvements not superseded by later implementation; TD-003 and TD-005 are closed. |
+| `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002, TD-003, and TD-005 are closed; TD-004 remains blocked on operator-owned external testbed evidence. |
 
 ## Closed, Superseded, and Rejected Items
 
 Closed items remain in the backlog table with closure evidence so their
 original context and verification commands stay near the implementation
-handoff. Current closed items: TD-001, TD-003, TD-005, TD-006, TD-007,
-TD-008, and TD-009.
+handoff. Current closed items: TD-001, TD-002, TD-003, TD-005, TD-006,
+TD-007, TD-008, and TD-009.
 
 ## Change History
 

@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.3'
-last_updated: '2026-05-09'
+version: '1.4'
+last_updated: '2026-05-10'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -22,8 +22,8 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 1.3
-> **Last Updated:** 2026-05-09
+> **Version:** 1.4
+> **Last Updated:** 2026-05-10
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Agent-orchestrator-ready sprint plan for closing live technical debt and hardening the post-Phase-5 Meminit agent interface.
@@ -108,7 +108,7 @@ tests, and governed docs.
 | MEMINIT-PLAN-011 | Complete for graph artifact and helpers; TD-001 is closed. |
 | MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found. |
 | MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, TD-008, and TD-009 are closed. |
-| MEMINIT-PLAN-014 | Core implementation complete; TD-003 and TD-005 are closed, while producer architecture and external testbed evidence remain TD-002 and TD-004. |
+| MEMINIT-PLAN-014 | Core implementation complete; TD-002, TD-003, and TD-005 are closed, while external testbed evidence remains TD-004. |
 
 ### 3.1 Implementation Progress
 
@@ -121,7 +121,7 @@ the listed verification commands pass.
 | E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
 | E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
-| A: Streaming Producer Architecture | TD-002 | Narrowed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan` and `context --deep`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. Remaining work is optional item-level iterator sharing if large-repo profiling justifies it. |
+| A: Streaming Producer Architecture | TD-002 | Completed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan`, `context --deep`, and `index`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
 | C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; closure remains blocked on human execution and sanitized evidence. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
@@ -214,7 +214,7 @@ Implementation steps:
 
 Status:
 
-- Narrowed on 2026-05-09. `src/meminit/core/services/stream_events.py` now
+- Closed on 2026-05-10. `src/meminit/core/services/stream_events.py` now
   owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`.
   The index, scan, and deep-context use cases expose `iter_stream()` producers,
   and production CLI adapters drain those through `CoreStreamingProducer`.
@@ -223,8 +223,8 @@ Status:
   instrumentation proving their first item is yielded before the full report
   builder runs. `index` now builds shared internal artifacts and can emit the
   first node before constructing the public `IndexBuildReport` used by JSON
-  output. Remaining improvement potential is item-level iterator sharing if
-  large-repo profiling shows the internal artifact lists are still too costly.
+  output. Any future item-level iterator work should be driven by large-repo
+  profiling evidence, not carried as part of TD-002.
 
 Definition of done:
 
@@ -783,3 +783,4 @@ This plan is complete when:
 | 1.1 | 2026-05-09 | Codex | Closed Workstream F by normalizing state public error codes to `STATE_*`, updating runtime/docs/tests/changelog, and closing TD-008. |
 | 1.2 | 2026-05-09 | Codex | Further narrowed Workstream A by adding first-item laziness regressions for `scan` and `context --deep`; `index` remains the open traversal-refactor item. |
 | 1.3 | 2026-05-09 | Codex | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression. |
+| 1.4 | 2026-05-10 | Codex | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented. |
