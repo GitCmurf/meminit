@@ -109,3 +109,47 @@ def test_scan_reports_configured_namespaces_and_overlaps(tmp_path):
         o.get("parent_docs_root") == "docs" and o.get("child_docs_root") == "docs/00-governance/org"
         for o in report.overlapping_namespaces
     )
+
+
+def test_scan_counts_same_root_namespace_by_document_id(tmp_path):
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    (tmp_path / "docops.config.yaml").write_text(
+        "\n".join(
+            [
+                "project_name: Example",
+                "repo_prefix: EXAMPLE",
+                "docops_version: '2.0'",
+                "namespaces:",
+                "  - name: root",
+                "    repo_prefix: EXAMPLE",
+                "    docs_root: docs",
+                "  - name: phyla",
+                "    repo_prefix: PHYLA",
+                "    docs_root: docs",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "45-adr" / "root-doc.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Root\n"
+        "---\n\n# Root\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "45-adr" / "phyla-doc.md").write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Phyla\n"
+        "---\n\n# Phyla\n",
+        encoding="utf-8",
+    )
+
+    report = ScanRepositoryUseCase(str(tmp_path)).execute()
+
+    namespaces = {ns["namespace"]: ns["governed_markdown_count"] for ns in report.configured_namespaces}
+    assert namespaces == {"root": 1, "phyla": 1}
+    assert report.governed_markdown_count == 2

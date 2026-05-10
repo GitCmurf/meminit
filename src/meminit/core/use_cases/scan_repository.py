@@ -354,7 +354,10 @@ class ScanRepositoryUseCase:
             governed = 0
             if exists:
                 for path in ns.docs_dir.rglob("*.md"):
-                    owner = layout.namespace_for_path(path)
+                    owner = layout.namespace_for_path_and_document_id(
+                        path,
+                        self._extract_document_id(path),
+                    )
                     if owner is None or owner.namespace.lower() != ns.namespace.lower():
                         continue
                     if ns.is_excluded(path):

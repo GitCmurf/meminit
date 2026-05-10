@@ -61,14 +61,17 @@ def _count_governed_markdown(
             continue
         if not path.is_file():
             continue
-        owner = layout.namespace_for_path(path)
-        if owner is None or owner.namespace != ns.namespace:
-            continue
-        if ns.is_excluded(path):
-            continue
         try:
             post = frontmatter.load(path)
         except Exception:
+            continue
+        owner = layout.namespace_for_path_and_document_id(
+            path,
+            post.metadata.get("document_id"),
+        )
+        if owner is None or owner.namespace != ns.namespace:
+            continue
+        if ns.is_excluded(path):
             continue
         count += 1
         doc_id = post.metadata.get("document_id")
