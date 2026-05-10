@@ -3,8 +3,8 @@ document_id: MEMINIT-LOG-001
 type: LOG
 title: Phase 5 External Testbed Evidence
 status: Draft
-version: "0.1"
-last_updated: 2026-05-09
+version: "0.2"
+last_updated: 2026-05-10
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -35,6 +35,7 @@ human operator completes the attestation fields and records sanitized results.
 | Attestation date | Pending |
 | Meminit version or commit | Pending |
 | External repository class | Pending |
+| Release owner reviewer | Pending |
 | Evidence status | Pending operator run |
 
 Operator statement:
@@ -51,19 +52,48 @@ Run these commands from the external testbed repository root:
 meminit scan --format ndjson
 meminit context --deep --format ndjson
 meminit index --format ndjson
-meminit index --format json
+meminit index --format json        # cold or initial cache population
+meminit index --format json        # warm-cache reuse check
+meminit index --rebuild-cache --format json
 meminit index --explain-cache --format json
 ```
 
 ## Sanitized Result Summary
 
-| Command | Exit status | Sanitized evidence |
-| ------- | ----------- | ------------------ |
-| `meminit scan --format ndjson` | Pending | Pending |
-| `meminit context --deep --format ndjson` | Pending | Pending |
-| `meminit index --format ndjson` | Pending | Pending |
-| `meminit index --format json` | Pending | Pending |
-| `meminit index --explain-cache --format json` | Pending | Pending |
+| Step | Command | Exit status | Sanitized evidence |
+| ---- | ------- | ----------- | ------------------ |
+| 1 | `meminit scan --format ndjson` | Pending | Pending |
+| 2 | `meminit context --deep --format ndjson` | Pending | Pending |
+| 3 | `meminit index --format ndjson` | Pending | Pending |
+| 4 | `meminit index --format json` | Pending | Pending |
+| 5 | `meminit index --format json` | Pending | Pending |
+| 6 | `meminit index --rebuild-cache --format json` | Pending | Pending |
+| 7 | `meminit index --explain-cache --format json` | Pending | Pending |
+
+## Evidence Capture Checklist
+
+For every NDJSON command, record:
+
+- `stream_schema_version` from the header or first record.
+- terminal record type: `summary` or `error`.
+- whether every stdout line parsed as one complete JSON object.
+- item counts by `kind`.
+- warning, violation, and advice counts.
+
+For JSON index commands, record:
+
+- `output_schema_version`.
+- `success`.
+- node and edge counts.
+- warning, violation, and advice counts.
+- whether the second JSON run reported warm-cache reuse or an unchanged
+  incremental plan.
+
+For cache explanation, record:
+
+- cache mode or manifest status.
+- whether a manifest was present.
+- warning count and any sanitized `CACHE_*` code.
 
 ## Evidence Requirements
 
@@ -82,3 +112,10 @@ meminit index --explain-cache --format json
 | External command execution | Pending | Operator action required. |
 | Secret and PII review | Pending | Required before TD-004 can close. |
 | Release-owner sign-off | Pending | Required before TD-004 can close. |
+
+## Version History
+
+| Version | Date | Author | Changes |
+| ------- | ---- | ------ | ------- |
+| 0.1 | 2026-05-09 | Codex | Initial operator-attested Phase 5 external testbed evidence template. |
+| 0.2 | 2026-05-10 | Codex | Aligned the required command list and capture checklist with MEMINIT-RUNBOOK-006, including warm-cache and rebuild-cache evidence. |

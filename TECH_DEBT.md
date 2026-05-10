@@ -101,7 +101,7 @@ updated together.
 | Source | MEMINIT-PLAN-014 exit criterion 11 and MEMINIT-RUNBOOK-006 closeout checklist |
 | Related plans | `MEMINIT-PLAN-014`, `MEMINIT-LOG-001` |
 | Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 does not have an in-repo non-PII record showing which external testbed was used, which commands ran, and what sanitized result was observed. |
-| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template and required command list. It is intentionally not closure evidence until a human operator fills it with sanitized run results. |
+| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, and required sanitation checklist. It is intentionally not closure evidence until a human operator fills it with sanitized run results. |
 | Impact | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts. |
 | Remediation | Add a governed closeout note, runbook appendix, or release checklist entry that records the external testbed date, repository class, commands, and sanitized summary. |
 | Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, and passes `meminit check --format json`. |

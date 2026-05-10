@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.4'
+version: '1.5'
 last_updated: '2026-05-10'
 owner: GitCmurf
 docops_version: '2.0'
@@ -22,7 +22,7 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 1.4
+> **Version:** 1.5
 > **Last Updated:** 2026-05-10
 > **Type:** PLAN
 > **Area:** AGENT
@@ -358,7 +358,8 @@ Implementation steps:
    `meminit scan --format ndjson`,
    `meminit context --deep --format ndjson`,
    `meminit index --format ndjson`,
-   `meminit index --format json`, and
+   two consecutive `meminit index --format json` runs,
+   `meminit index --rebuild-cache --format json`, and
    `meminit index --explain-cache --format json`.
 5. [x] Keep repository names, paths, secrets, and proprietary content out of the
    artifact unless explicitly approved.
@@ -366,10 +367,11 @@ Implementation steps:
 
 Status:
 
-- Blocked on operator execution as of 2026-05-09. `MEMINIT-LOG-001` is a
+- Blocked on operator execution as of 2026-05-10. `MEMINIT-LOG-001` is a
   governed Draft evidence template with the required command list, sanitation
-  requirements, and attestation fields. It is not closure evidence until a
-  human operator records sanitized results and a release owner signs off.
+  requirements, warm-cache and rebuild-cache evidence rows, and attestation
+  fields. It is not closure evidence until a human operator records sanitized
+  results and a release owner signs off.
 
 Definition of done:
 
@@ -784,3 +786,4 @@ This plan is complete when:
 | 1.2 | 2026-05-09 | Codex | Further narrowed Workstream A by adding first-item laziness regressions for `scan` and `context --deep`; `index` remains the open traversal-refactor item. |
 | 1.3 | 2026-05-09 | Codex | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression. |
 | 1.4 | 2026-05-10 | Codex | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented. |
+| 1.5 | 2026-05-10 | Codex | Tightened the Workstream C operator evidence template to match the complete MEMINIT-RUNBOOK-006 Phase 5 testbed checklist. |
