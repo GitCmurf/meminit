@@ -154,11 +154,13 @@ Before closing Phase 5, exercise at least one external testbed repo with:
 - `meminit scan --format ndjson`
 - `meminit context --deep --format ndjson`
 - `meminit index --format ndjson`
-- two consecutive `meminit index --format json` runs proving warm-cache reuse
-- `meminit index --rebuild-cache --format json`
-- `meminit index --explain-cache --format json`
+- two consecutive `/home/cmf/code/Meminit/.venv/bin/meminit index --format json`
+  runs proving warm-cache reuse
+- `/home/cmf/code/Meminit/.venv/bin/meminit index --rebuild-cache --format json`
+- `/home/cmf/code/Meminit/.venv/bin/meminit index --explain-cache --format json`
 
-Record the command outputs or CI run link in the closing PR.
+Record the command outputs or CI run link in the closing PR, together with the
+absolute binary path and the workspace checkout commit used for the run.
 
 ## Bounded Codex Review-Remediation Loop
 

@@ -34,6 +34,7 @@ human operator completes the attestation fields and records sanitized results.
 | Operator | Pending |
 | Attestation date | Pending |
 | Meminit version or commit | Pending |
+| Meminit binary path | Pending |
 | External repository class | Pending |
 | Release owner reviewer | Pending |
 | Evidence status | Pending operator run |
@@ -49,13 +50,13 @@ Operator statement:
 Run these commands from the external testbed repository root:
 
 ```bash
-meminit scan --format ndjson
-meminit context --deep --format ndjson
-meminit index --format ndjson
-meminit index --format json        # cold or initial cache population
-meminit index --format json        # warm-cache reuse check
-meminit index --rebuild-cache --format json
-meminit index --explain-cache --format json
+/home/cmf/code/Meminit/.venv/bin/meminit scan --format ndjson
+/home/cmf/code/Meminit/.venv/bin/meminit context --deep --format ndjson
+/home/cmf/code/Meminit/.venv/bin/meminit index --format ndjson
+/home/cmf/code/Meminit/.venv/bin/meminit index --format json        # cold or initial cache population
+/home/cmf/code/Meminit/.venv/bin/meminit index --format json        # warm-cache reuse check
+/home/cmf/code/Meminit/.venv/bin/meminit index --rebuild-cache --format json
+/home/cmf/code/Meminit/.venv/bin/meminit index --explain-cache --format json
 ```
 
 ## Sanitized Result Summary
@@ -88,6 +89,13 @@ For JSON index commands, record:
 - warning, violation, and advice counts.
 - whether the second JSON run reported warm-cache reuse or an unchanged
   incremental plan.
+
+For provenance, record:
+
+- the absolute `meminit` binary path used for the run.
+- the `Meminit version or commit` field from the workspace checkout.
+- whether `meminit --version` from the workspace binary and `meminit --version`
+  from `PATH` differed.
 
 For cache explanation, record:
 
