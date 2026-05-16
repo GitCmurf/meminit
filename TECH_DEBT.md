@@ -100,11 +100,11 @@ updated together.
 | Owner | Release owner |
 | Source | MEMINIT-PLAN-014 exit criterion 11 and MEMINIT-RUNBOOK-006 closeout checklist |
 | Related plans | `MEMINIT-PLAN-014`, `MEMINIT-LOG-001` |
-| Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 does not have an in-repo non-PII record showing which external testbed was used, which commands ran, and what sanitized result was observed. |
-| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, and required sanitation checklist. It is intentionally not closure evidence until a human operator fills it with sanitized run results. |
+| Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 still needs release-owner sign-off before the closeout can be treated as complete. The sanitized operator run is now recorded in `MEMINIT-LOG-001`. |
+| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, required sanitation checklist, and the captured sanitized run results. It is intentionally not closure evidence until a release owner signs off. |
 | Impact | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts. |
-| Remediation | Add a governed closeout note, runbook appendix, or release checklist entry that records the external testbed date, repository class, commands, and sanitized summary. |
-| Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, and passes `meminit check --format json`. |
+| Remediation | Obtain release-owner sign-off for the recorded external testbed evidence, then mark TD-004 closed. |
+| Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, records the sanitized operator summary, and passes `meminit check --format json`. |
 | Verification commands | `./.venv/bin/meminit check --format json` |
 
 ### TD-005: Streaming CLI fixture setup is duplicated

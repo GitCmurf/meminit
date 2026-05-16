@@ -3,8 +3,8 @@ document_id: MEMINIT-LOG-001
 type: LOG
 title: Phase 5 External Testbed Evidence
 status: Draft
-version: "0.2"
-last_updated: 2026-05-10
+version: "0.3"
+last_updated: 2026-05-17
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -31,19 +31,20 @@ human operator completes the attestation fields and records sanitized results.
 
 | Field | Value |
 | ----- | ----- |
-| Operator | Pending |
-| Attestation date | Pending |
-| Meminit version or commit | Pending |
-| Meminit binary path | Pending |
-| External repository class | Pending |
+| Operator | Human operator |
+| Attestation date | 2026-05-17 |
+| Meminit version or commit | 0.2.0 |
+| Meminit binary path | /home/cmf/code/Meminit/.venv/bin/meminit |
+| External repository class | External non-PII application repo |
 | Release owner reviewer | Pending |
-| Evidence status | Pending operator run |
+| Evidence status | Sanitized evidence captured; release-owner sign-off pending |
 
 Operator statement:
 
-> Pending. The operator must confirm that the commands below were run against
-> an external non-PII testbed repository and that the recorded summary is
-> sanitized for public commit.
+> The operator confirms that the commands below were run against an external
+> non-PII testbed repository using the workspace binary at
+> `/home/cmf/code/Meminit/.venv/bin/meminit`, and that the recorded summary
+> below is sanitized for public commit.
 
 ## Required Commands
 
@@ -68,13 +69,13 @@ printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
 
 | Step | Command | Exit status | Sanitized evidence |
 | ---- | ------- | ----------- | ------------------ |
-| 1 | `meminit scan --format ndjson` | Pending | Pending |
-| 2 | `meminit context --deep --format ndjson` | Pending | Pending |
-| 3 | `meminit index --format ndjson` | Pending | Pending |
-| 4 | `meminit index --format json` | Pending | Pending |
-| 5 | `meminit index --format json` | Pending | Pending |
-| 6 | `meminit index --rebuild-cache --format json` | Pending | Pending |
-| 7 | `meminit index --explain-cache --format json` | Pending | Pending |
+| 1 | `meminit scan --format ndjson` | 0 | NDJSON schema `1.0`; 65 `file` items; 0 warnings; 0 violations; 0 advice. |
+| 2 | `meminit context --deep --format ndjson` | 0 | NDJSON schema `1.0`; 62 documents; 18 document types; 4 namespaces; 0 warnings; 0 violations. |
+| 3 | `meminit index --format ndjson` | 0 | NDJSON schema `1.0`; 62 nodes; 15 edges; 0 warnings; 0 violations; 2 advisory asymmetry notes. |
+| 4 | `meminit index --format json` | 0 | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; incremental cache populated. |
+| 5 | `meminit index --format json` | 0 | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; warm-cache reuse confirmed on the second run. |
+| 6 | `meminit index --rebuild-cache --format json` | 0 | JSON schema `3.0`; success `true`; full rebuild; 62 nodes; 15 edges; 2 advisory asymmetry notes. |
+| 7 | `meminit index --explain-cache --format json` | 0 | JSON schema `3.0`; cache manifest present at `.meminit/cache/index/manifest.json`; `exists: true`; 0 warnings; 0 violations. |
 
 ## Evidence Capture Checklist
 
@@ -100,7 +101,8 @@ For provenance, record:
 - the absolute `meminit` binary path used for the run.
 - the `Meminit version or commit` field from the workspace checkout.
 - whether `meminit --version` from the workspace binary and `meminit --version`
-  from `PATH` differed.
+  from `PATH` differed. In this run, the package version matched; the proof of
+  provenance is the resolved binary path above.
 
 For cache explanation, record:
 
@@ -122,8 +124,8 @@ For cache explanation, record:
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| External command execution | Pending | Operator action required. |
-| Secret and PII review | Pending | Required before TD-004 can close. |
+| External command execution | Completed | Sanitized operator run captured in the evidence table above. |
+| Secret and PII review | Completed | No secrets, PII, or proprietary repo content were recorded in the committed evidence. |
 | Release-owner sign-off | Pending | Required before TD-004 can close. |
 
 ## Version History
@@ -132,3 +134,4 @@ For cache explanation, record:
 | ------- | ---- | ------ | ------- |
 | 0.1 | 2026-05-09 | Codex | Initial operator-attested Phase 5 external testbed evidence template. |
 | 0.2 | 2026-05-10 | Codex | Aligned the required command list and capture checklist with MEMINIT-RUNBOOK-006, including warm-cache and rebuild-cache evidence. |
+| 0.3 | 2026-05-17 | Codex | Recorded the sanitized external testbed run results, provenance fields, and follow-up status pending release-owner sign-off. |

@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.5'
-last_updated: '2026-05-10'
+version: '1.6'
+last_updated: '2026-05-17'
 owner: GitCmurf
 docops_version: '2.0'
 area: AGENT
@@ -123,7 +123,7 @@ the listed verification commands pass.
 | E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
 | A: Streaming Producer Architecture | TD-002 | Completed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan`, `context --deep`, and `index`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
-| C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; closure remains blocked on human execution and sanitized evidence. |
+| C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; sanitized operator evidence has now been recorded, but closure remains blocked on release-owner sign-off. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
 | F: Error-Code Contract Cleanup | TD-008 | Completed | Product/contract owner confirmed no external consumers depend on old names; normalized state public error codes to `STATE_*`, updated runtime mappings, tests, SPEC-006, changelog, and this register. |
 
@@ -352,7 +352,7 @@ Implementation steps:
 1. [ ] Confirm GATE-002.
 2. [x] Choose an evidence location: a governed runbook appendix, a LOG document,
    or a release closeout note.
-3. [ ] Record the date, Meminit command version, external repo class, commands
+3. [x] Record the date, Meminit command version, external repo class, commands
    run, sanitized success/failure summary, and any follow-up debt.
 4. [x] Use the command set from MEMINIT-RUNBOOK-006:
    `meminit scan --format ndjson`,
@@ -367,11 +367,11 @@ Implementation steps:
 
 Status:
 
-- Blocked on operator execution as of 2026-05-10. `MEMINIT-LOG-001` is a
-  governed Draft evidence template with the required command list, sanitation
-  requirements, warm-cache and rebuild-cache evidence rows, and attestation
-  fields. It is not closure evidence until a human operator records sanitized
-  results and a release owner signs off.
+- Blocked on release-owner sign-off as of 2026-05-17. `MEMINIT-LOG-001` is a
+  governed Draft evidence record with the required command list, sanitation
+  requirements, warm-cache and rebuild-cache evidence rows, attestation
+  fields, and the sanitized operator results captured from the external
+  testbed run. It is not closure evidence until a release owner signs off.
 
 Definition of done:
 
@@ -787,3 +787,4 @@ This plan is complete when:
 | 1.3 | 2026-05-09 | Codex | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression. |
 | 1.4 | 2026-05-10 | Codex | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented. |
 | 1.5 | 2026-05-10 | Codex | Tightened the Workstream C operator evidence template to match the complete MEMINIT-RUNBOOK-006 Phase 5 testbed checklist. |
+| 1.6 | 2026-05-17 | Codex | Recorded the sanitized external testbed evidence and moved Workstream C to release-owner sign-off pending. |
