@@ -151,13 +151,20 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 
 Before closing Phase 5, exercise at least one external testbed repo with:
 
-- `meminit scan --format ndjson`
-- `meminit context --deep --format ndjson`
-- `meminit index --format ndjson`
-- two consecutive `/home/cmf/code/Meminit/.venv/bin/meminit index --format json`
-  runs proving warm-cache reuse
-- `/home/cmf/code/Meminit/.venv/bin/meminit index --rebuild-cache --format json`
-- `/home/cmf/code/Meminit/.venv/bin/meminit index --explain-cache --format json`
+```bash
+cd /path/to/external-testbed-repo
+MEMINIT_BIN=/home/cmf/code/Meminit/.venv/bin/meminit
+
+printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
+"$MEMINIT_BIN" --version
+"$MEMINIT_BIN" scan --format ndjson
+"$MEMINIT_BIN" context --deep --format ndjson
+"$MEMINIT_BIN" index --format ndjson
+"$MEMINIT_BIN" index --format json
+"$MEMINIT_BIN" index --format json
+"$MEMINIT_BIN" index --rebuild-cache --format json
+"$MEMINIT_BIN" index --explain-cache --format json
+```
 
 Record the command outputs or CI run link in the closing PR, together with the
 absolute binary path and the workspace checkout commit used for the run.

@@ -50,13 +50,18 @@ Operator statement:
 Run these commands from the external testbed repository root:
 
 ```bash
-/home/cmf/code/Meminit/.venv/bin/meminit scan --format ndjson
-/home/cmf/code/Meminit/.venv/bin/meminit context --deep --format ndjson
-/home/cmf/code/Meminit/.venv/bin/meminit index --format ndjson
-/home/cmf/code/Meminit/.venv/bin/meminit index --format json        # cold or initial cache population
-/home/cmf/code/Meminit/.venv/bin/meminit index --format json        # warm-cache reuse check
-/home/cmf/code/Meminit/.venv/bin/meminit index --rebuild-cache --format json
-/home/cmf/code/Meminit/.venv/bin/meminit index --explain-cache --format json
+cd /path/to/external-testbed-repo
+MEMINIT_BIN=/home/cmf/code/Meminit/.venv/bin/meminit
+
+printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
+"$MEMINIT_BIN" --version
+"$MEMINIT_BIN" scan --format ndjson
+"$MEMINIT_BIN" context --deep --format ndjson
+"$MEMINIT_BIN" index --format ndjson
+"$MEMINIT_BIN" index --format json        # cold or initial cache population
+"$MEMINIT_BIN" index --format json        # warm-cache reuse check
+"$MEMINIT_BIN" index --rebuild-cache --format json
+"$MEMINIT_BIN" index --explain-cache --format json
 ```
 
 ## Sanitized Result Summary
@@ -105,8 +110,8 @@ For cache explanation, record:
 
 ## Evidence Requirements
 
-- Do not record repository names, absolute paths, secrets, customer data,
-  proprietary file names, or proprietary document content.
+- Do not record external repository names or absolute paths, secrets, customer
+  data, proprietary file names, or proprietary document content.
 - Record counts, schema versions, warning counts, cache mode, and whether every
   stdout line parsed as JSON.
 - Record any non-zero exit status with sanitized error code and category only.
