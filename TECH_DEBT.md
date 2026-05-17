@@ -96,14 +96,14 @@ updated together.
 | Field | Value |
 | ----- | ----- |
 | Priority | P3 |
-| Status | Blocked |
+| Status | Closed |
 | Owner | Repository owner |
 | Source | MEMINIT-PLAN-014 exit criterion 11 and MEMINIT-RUNBOOK-006 closeout checklist |
 | Related plans | `MEMINIT-PLAN-014`, `MEMINIT-LOG-001` |
-| Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 still needs repository-owner sign-off before the closeout can be treated as complete. The sanitized operator run is now recorded in `MEMINIT-LOG-001`. |
-| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, required sanitation checklist, and the captured sanitized run results. It is intentionally not closure evidence until the repository owner signs off. |
-| Impact | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts. |
-| Remediation | Obtain repository-owner sign-off for the recorded external testbed evidence, then mark TD-004 closed. |
+| Evidence | The sanitized external testbed run is recorded in `MEMINIT-LOG-001`, including the command list, provenance, cache evidence, and sanitized summary. |
+| Prepared artifact | `MEMINIT-LOG-001` is the governed closure evidence for TD-004. |
+| Impact | External-testbed criterion is now verifiable from committed artifacts. |
+| Remediation | None. TD-004 is closed. |
 | Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, records the sanitized operator summary, and passes `meminit check --format json`. |
 | Verification commands | `./.venv/bin/meminit check --format json` |
 
@@ -211,14 +211,14 @@ Summary:
 | `MEMINIT-PLAN-011` | No open runtime backlog identified. Graph index fields, schemas, resolve/identify/link updates, and external testbed note are present. TD-001 is closed. |
 | `MEMINIT-PLAN-012` | No open backlog identified. Protocol registry, check/sync, fixture coverage, runbook guidance, and external testbed note are present. |
 | `MEMINIT-PLAN-013` | Runtime surface appears implemented. TD-006, TD-007, TD-008, and TD-009 are closed. |
-| `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002, TD-003, and TD-005 are closed; TD-004 remains blocked on operator-owned external testbed evidence. |
+| `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002, TD-003, TD-004, and TD-005 are closed. |
 
 ## Closed, Superseded, and Rejected Items
 
 Closed items remain in the backlog table with closure evidence so their
 original context and verification commands stay near the implementation
-handoff. Current closed items: TD-001, TD-002, TD-003, TD-005, TD-006,
-TD-007, TD-008, and TD-009.
+handoff. Current closed items: TD-001, TD-002, TD-003, TD-004, TD-005,
+TD-006, TD-007, TD-008, and TD-009.
 
 ## Change History
 
@@ -226,3 +226,4 @@ TD-007, TD-008, and TD-009.
 | ------- | ---- | ------ | ------- |
 | 0.1 | 2026-04-28 | Codex | Initial standalone review-debt register. |
 | 0.2 | 2026-05-08 | Codex | Reworked into a structured professional debt register, assessed MEMINIT-PLAN-008 through MEMINIT-PLAN-014, and added live unsuperseded gaps from Phase 5 plus state/index hardening debt. |
+| 0.3 | 2026-05-17 | CMF | Closed TD-004 after approving the sanitized external testbed evidence in MEMINIT-LOG-001. |

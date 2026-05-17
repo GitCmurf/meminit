@@ -2,8 +2,8 @@
 document_id: MEMINIT-LOG-001
 type: LOG
 title: Phase 5 External Testbed Evidence
-status: Draft
-version: "0.3"
+status: Approved
+version: "0.4"
 last_updated: 2026-05-17
 owner: GitCmurf
 docops_version: "2.0"
@@ -24,8 +24,7 @@ related_ids:
 
 ## Status
 
-This document is an evidence template. It is not closure evidence until a
-human operator completes the attestation fields and records sanitized results.
+This document records the accepted Phase 5 external testbed evidence.
 
 ## Operator Attestation
 
@@ -36,8 +35,8 @@ human operator completes the attestation fields and records sanitized results.
 | Meminit version or commit | 0.2.0 |
 | Meminit binary path | /home/cmf/code/Meminit/.venv/bin/meminit |
 | External repository class | External non-PII application repo |
-| Repository owner reviewer | Pending |
-| Evidence status | Sanitized evidence captured; repository owner sign-off pending |
+| Repository owner reviewer | CMF |
+| Evidence status | Approved |
 
 Operator statement:
 
@@ -117,8 +116,8 @@ For cache explanation, record:
 - Record counts, schema versions, warning counts, cache mode, and whether every
   stdout line parsed as JSON.
 - Record any non-zero exit status with sanitized error code and category only.
-- Leave this document in Draft until the repository owner confirms the
-  evidence is suitable for public history.
+- The evidence is suitable for public history and may be used as TD-004
+  closure evidence.
 
 ## Follow-Up Debt
 
@@ -126,7 +125,7 @@ For cache explanation, record:
 | ---- | ------ | ----- |
 | External command execution | Completed | Sanitized operator run captured in the evidence table above. |
 | Secret and PII review | Completed | No secrets, PII, or proprietary repo content were recorded in the committed evidence. |
-| Repository-owner sign-off | Pending | Required before TD-004 can close. |
+| Repository-owner sign-off | Completed | Evidence approved and TD-004 may close. |
 
 ## Version History
 
@@ -135,3 +134,4 @@ For cache explanation, record:
 | 0.1 | 2026-05-09 | Codex | Initial operator-attested Phase 5 external testbed evidence template. |
 | 0.2 | 2026-05-10 | Codex | Aligned the required command list and capture checklist with MEMINIT-RUNBOOK-006, including warm-cache and rebuild-cache evidence. |
 | 0.3 | 2026-05-17 | Codex | Recorded the sanitized external testbed run results, provenance fields, and follow-up status pending repository-owner sign-off. |
+| 0.4 | 2026-05-17 | CMF | Approved the sanitized external testbed evidence and closed TD-004. |
