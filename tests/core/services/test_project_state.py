@@ -475,7 +475,7 @@ namespaces:
     assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
 
 
-def test_get_state_file_rel_path_strict_falls_back_when_layout_load_fails(tmp_path):
+def test_get_state_file_rel_path_strict_raises_when_layout_load_fails(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         """
 docops_version: '2.0'
@@ -489,8 +489,11 @@ docs_root: handbook
     with mock.patch(
         "meminit.core.services.repo_config.load_repo_layout",
         side_effect=ValueError("broken layout"),
-    ):
-        assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+    ), pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "invalid_layout"
 
 
 def test_get_state_file_rel_path_strict_missing_config_raises(tmp_path):

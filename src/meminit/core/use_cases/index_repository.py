@@ -1788,6 +1788,11 @@ class IndexRepositoryUseCase:
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
             return None, False
+        single_namespace = (
+            self._layout.namespaces[0]
+            if len(self._layout.namespaces) == 1
+            else None
+        )
         for node in nodes:
             if not isinstance(node, dict):
                 return None, False
@@ -1800,6 +1805,7 @@ class IndexRepositoryUseCase:
                 self._root_dir / path_text,
                 document_id,
                 self._root_dir,
+                single_namespace=single_namespace,
             )
             if expected_ns is None:
                 return None, False

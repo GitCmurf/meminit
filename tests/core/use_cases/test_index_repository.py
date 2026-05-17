@@ -297,6 +297,37 @@ def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path)
     assert second_report.index_path.read_bytes() == first_bytes
 
 
+def test_index_repository_warm_cache_single_namespace_skips_namespace_lookup(
+    tmp_path, monkeypatch
+):
+    """Warm cache validation should keep the single-namespace fast path."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    def fail_namespace_lookup(*args, **kwargs):
+        raise AssertionError(
+            "warm cache validation should not call namespace_for_path_and_document_id"
+        )
+
+    monkeypatch.setattr(
+        type(use_case._layout),
+        "namespace_for_path_and_document_id",
+        fail_namespace_lookup,
+    )
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild == {
+        "mode": "incremental",
+        "added": 0,
+        "changed": 0,
+        "removed": 0,
+        "unchanged": 1,
+    }
+    assert second_report.document_count == 1
+
+
 def test_index_repository_rebuilds_when_persisted_namespace_is_stale(tmp_path):
     _setup_doc(tmp_path, "AIDHA-ADR-001", title="Root", filename="adr-root.md")
     _setup_doc(tmp_path, "PHYLA-ADR-001", title="Phyla", filename="adr-phyla.md")
