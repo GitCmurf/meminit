@@ -3815,9 +3815,9 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
         output=output,
         correlation_id=correlation_id,
     )
-    # Keep state listing resilient to layout parsing issues so fallback
-    # vocabularies can still be returned to the caller.
-    use_case = StateDocumentUseCase(str(root_path), strict_config=False)
+    # State listing should fail fast on repo config issues, matching the
+    # other state subcommands. Layout vocabulary fallback remains below.
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     result = use_case.list_states(
         ready=ready_filter,
         blocked=blocked_filter,
