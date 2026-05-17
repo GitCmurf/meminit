@@ -1360,11 +1360,11 @@ def test_cli_index_non_graph_error_text_output(tmp_path):
     )
 
     runner = runner_no_mixed_stderr()
-    # Use an invalid filter value to trigger E_INVALID_FILTER_VALUE MeminitError.
+    # Use an invalid filter value to trigger STATE_INVALID_FILTER_VALUE MeminitError.
     result = runner.invoke(cli, ["index", "--status", "BogusStatus", "--root", str(tmp_path)])
     assert result.exit_code != 0
     # Text mode should show the error code in the output (not silently exit).
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_index_fatal_duplicate_id_text(tmp_path):

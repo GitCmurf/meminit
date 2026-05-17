@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 
 from meminit.core.domain.entities import Severity, Violation
-from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 from meminit.core.services.sanitization import (
     ACTOR_REGEX,
@@ -49,8 +49,77 @@ PROJECT_STATE_ENTRY_FIELDS = frozenset({
 })
 
 
-def get_state_file_rel_path(root_dir: Path) -> str:
-    """Resolve the project-state.yaml path dynamically from RepoConfig."""
+def _config_missing_error(root_dir: Path, message: str, reason: str) -> MeminitError:
+    return MeminitError(
+        code=ErrorCode.CONFIG_MISSING,
+        message=message,
+        details={
+            "reason": reason,
+            "hint": "meminit init",
+            "root": str(root_dir),
+            "file": "docops.config.yaml",
+        },
+    )
+
+
+def get_state_file_rel_path_strict(root_dir: Path) -> str:
+    """Resolve the state-file path, failing when repo config is unavailable."""
+    config_path = root_dir / "docops.config.yaml"
+    if not config_path.exists():
+        raise _config_missing_error(
+            root_dir,
+            "Repository not initialized: missing docops.config.yaml. Run 'meminit init' first.",
+            "missing",
+        )
+    if not config_path.is_file() or config_path.is_symlink():
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository not initialized: docops.config.yaml exists but is not a "
+                "regular file. Run 'meminit init' to repair."
+            ),
+            "not_regular_file",
+        )
+
+    try:
+        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository config is malformed: docops.config.yaml could not be "
+                f"parsed ({exc}). Run 'meminit init' to repair."
+            ),
+            "unparseable",
+        ) from exc
+    if not isinstance(raw, dict) or raw.get("docops_version") is None:
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository config is malformed: docops.config.yaml is missing "
+                "required fields (e.g., docops_version). Run 'meminit init' to repair."
+            ),
+            "missing_version",
+        )
+
+    from meminit.core.services.repo_config import load_repo_layout
+
+    try:
+        docs_root = load_repo_layout(root_dir).default_namespace().docs_root.strip() or "docs"
+    except Exception as exc:
+        raise _config_missing_error(
+            root_dir,
+            (
+                "Repository config is malformed: docops.config.yaml could not be "
+                "loaded into a valid repository layout. Run 'meminit init' to repair."
+            ),
+            "invalid_layout",
+        ) from exc
+    return f"{docs_root}/01-indices/project-state.yaml"
+
+
+def get_state_file_rel_path_fallback(root_dir: Path) -> str:
+    """Resolve the state-file path for diagnostics, falling back to defaults."""
     from meminit.core.services.repo_config import load_repo_config
 
     try:
@@ -61,12 +130,17 @@ def get_state_file_rel_path(root_dir: Path) -> str:
         return "docs/01-indices/project-state.yaml"
 
 
+def get_state_file_rel_path(root_dir: Path) -> str:
+    """Resolve project-state.yaml path with diagnostic fallback semantics."""
+    return get_state_file_rel_path_fallback(root_dir)
+
+
 def _schema_violation(file: str, message: str) -> Violation:
     """Build a schema violation for project-state.yaml structural issues."""
     return Violation(
         file=file,
         line=0,
-        rule=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+        rule=ErrorCode.STATE_SCHEMA_VIOLATION.value,
         message=message,
         severity=Severity.ERROR,
     )
@@ -268,7 +342,7 @@ def _validate_top_level_structure(
             from meminit.core.services.error_codes import MeminitError
 
             raise MeminitError(
-                code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                code=ErrorCode.STATE_SCHEMA_VIOLATION,
                 message=(
                     f"project-state.yaml has no 'documents' key but contains "
                     f"other keys: {', '.join(str(k) for k in raw.keys())}"
@@ -415,15 +489,22 @@ def _parse_single_entry(
 
 
 def load_project_state(
-    root_dir: Path, default_now: Optional[datetime] = None
+    root_dir: Path,
+    default_now: Optional[datetime] = None,
+    *,
+    strict_config: bool = False,
 ) -> Optional[ProjectState]:
     """Load and parse ``project-state.yaml`` from the repo root.
 
     Returns ``None`` if the file does not exist (gracefully optional).
-    Raises ``MeminitError`` with ``E_STATE_YAML_MALFORMED`` if the file
+    Raises ``MeminitError`` with ``STATE_YAML_MALFORMED`` if the file
     exists but is not valid YAML.
     """
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
     state_path = root_dir / state_file_rel
     if not state_path.exists():
         return None
@@ -434,7 +515,7 @@ def load_project_state(
         from meminit.core.services.error_codes import MeminitError
 
         raise MeminitError(
-            code=ErrorCode.E_STATE_YAML_MALFORMED,
+            code=ErrorCode.STATE_YAML_MALFORMED,
             message=f"project-state.yaml is not valid YAML: {exc}",
             details={"path": str(state_path)},
         ) from exc
@@ -459,13 +540,22 @@ def load_project_state(
     )
 
 
-def save_project_state(root_dir: Path, state: ProjectState) -> Path:
+def save_project_state(
+    root_dir: Path,
+    state: ProjectState,
+    *,
+    strict_config: bool = False,
+) -> Path:
     """Write ``project-state.yaml`` with entries sorted alphabetically.
 
     Uses atomic write with path safety validation.
     Returns the path to the written file.
     """
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
     state_path = root_dir / state_file_rel
 
     ensure_safe_write_path(root_dir=root_dir, target_path=state_path)
@@ -665,6 +755,8 @@ def validate_project_state(
     known_doc_ids: set[str],
     root_dir: Path,
     valid_impl_states: Optional[List[str]] = None,
+    *,
+    strict_config: bool = False,
 ) -> List[Violation]:
     """Validate a parsed project state against known governed document IDs.
 
@@ -672,7 +764,11 @@ def validate_project_state(
     violations (errors) captured during parsing.
     """
     issues: List[Violation] = list(state.schema_violations)
-    state_file_rel = get_state_file_rel_path(root_dir)
+    state_file_rel = (
+        get_state_file_rel_path_strict(root_dir)
+        if strict_config
+        else get_state_file_rel_path(root_dir)
+    )
 
     if valid_impl_states is None:
         all_valid_states = set(ImplState.canonical_values())

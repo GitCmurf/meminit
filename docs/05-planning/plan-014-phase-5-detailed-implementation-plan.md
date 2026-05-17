@@ -312,7 +312,7 @@ Commands that do not support streaming raise a usage error
 (`STREAM_UNSUPPORTED_FORMAT` with a specific message pointing to the
 capabilities entry) when invoked with `--format ndjson`. This is
 deterministic and matches the pattern used throughout this workstream.
-`E_INVALID_FILTER_VALUE` remains reserved for genuinely incompatible
+`INVALID_FLAG_COMBINATION` remains reserved for genuinely incompatible
 flag combinations (e.g., `--no-cache` with `--rebuild-cache`).
 
 #### 3.1.2 Record schema

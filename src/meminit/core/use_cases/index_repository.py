@@ -16,11 +16,13 @@ import logging
 import os
 import re
 import hashlib
+import threading
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from queue import Queue
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
 import yaml
@@ -54,6 +56,11 @@ from meminit.core.services.sanitization import (
 from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services import graph
 from meminit.core.services.index_cache import CachePlan, IndexCache
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+)
 from meminit.core.services.versioning import get_cli_version
 
 
@@ -83,6 +90,106 @@ def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
             return True
 
     return rel in namespace.excluded_files
+
+
+def _namespace_for_index_path(
+    layout: Any,
+    path: Path,
+    document_id: str | None,
+    root_dir: Path,
+    *,
+    single_namespace: Any | None = None,
+) -> Any | None:
+    """Resolve the owning namespace and reject namespace-specific exclusions."""
+    if single_namespace is not None:
+        try:
+            path.relative_to(single_namespace.docs_dir)
+        except ValueError:
+            return None
+        if _is_excluded_for_index(path, single_namespace, root_dir):
+            return None
+        return single_namespace
+
+    ns = layout.namespace_for_path_and_document_id(path, document_id)
+    if ns is None:
+        return None
+    if _is_excluded_for_index(path, ns, root_dir):
+        return None
+    return ns
+
+
+def _filter_index_edges(
+    report: Any,
+    *,
+    status_filter: str | None = None,
+    impl_state_filter: str | None = None,
+) -> list[dict[str, Any]]:
+    has_filter = status_filter is not None or impl_state_filter is not None
+    if not has_filter:
+        return report.edges
+    visible_ids = {n["document_id"] for n in report.documents}
+    return [
+        e for e in report.edges
+        if e.get("source") in visible_ids and e.get("target") in visible_ids
+    ]
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
+
+
+def _index_stream_data(
+    report: Any,
+    root_path: Path,
+    display_edges: list[dict[str, Any]],
+    *,
+    filtered: bool,
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "index_path": relative_path_string(report.index_path, root_path),
+        "node_count": report.document_count,
+        "edge_count": len(display_edges),
+        "nodes": report.documents,
+        "edges": display_edges,
+        "filtered": filtered,
+        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
+    }
+    if report.catalog_path:
+        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
+    if report.kanban_path:
+        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
+    return data
+
+
+def _emit_index_stream_items(
+    report: Any,
+    stream_item_emitter: Callable[[StreamItem], None],
+) -> None:
+    """Emit index nodes and edges in the same order as the JSON envelope."""
+    stream_nodes = sorted(
+        report.documents,
+        key=lambda n: n.get("document_id", ""),
+    )
+    visible_ids = {node["document_id"] for node in stream_nodes}
+    stream_edges = [
+        edge
+        for edge in report.edges
+        if edge.get("source") in visible_ids and edge.get("target") in visible_ids
+    ]
+    stream_edges.sort(
+        key=lambda e: (
+            e.get("source", ""),
+            e.get("target", ""),
+            e.get("type", e.get("edge_type", "")),
+        )
+    )
+    for node in stream_nodes:
+        stream_item_emitter(StreamItem("node", node))
+    for edge in stream_edges:
+        stream_item_emitter(StreamItem("edge", edge))
 
 
 def _json_default(obj: Any) -> str:
@@ -304,6 +411,36 @@ class IndexBuildReport:
     rebuild: Dict[str, Any] = field(default_factory=lambda: {"mode": "full"})
 
 
+@dataclass(frozen=True)
+class _IndexBuildArtifacts:
+    """Internal index build artifacts shared by JSON and streaming output."""
+
+    index_path: Path
+    document_count: int
+    catalog_path: Optional[Path] = None
+    kanban_path: Optional[Path] = None
+    kanban_css_path: Optional[Path] = None
+    warnings: List[Dict[str, Any]] = field(default_factory=list)
+    documents: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+    advice: List[Dict[str, Any]] = field(default_factory=list)
+    rebuild: Dict[str, Any] = field(default_factory=lambda: {"mode": "full"})
+
+    def to_report(self) -> IndexBuildReport:
+        return IndexBuildReport(
+            index_path=self.index_path,
+            document_count=self.document_count,
+            catalog_path=self.catalog_path,
+            kanban_path=self.kanban_path,
+            kanban_css_path=self.kanban_css_path,
+            warnings=self.warnings,
+            documents=self.documents,
+            edges=self.edges,
+            advice=self.advice,
+            rebuild=self.rebuild,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Composite grouping
 # ---------------------------------------------------------------------------
@@ -394,7 +531,7 @@ def _canonicalize_filter(
     """Parse and canonicalize a comma-separated filter string.
 
     Returns None if *raw_values* is None (no filter applied).
-    Raises ``MeminitError`` with ``E_INVALID_FILTER_VALUE`` for unknown values.
+    Raises ``MeminitError`` with ``STATE_INVALID_FILTER_VALUE`` for unknown values.
     """
     if not raw_values:
         return None
@@ -416,7 +553,7 @@ def _canonicalize_filter(
 
         if matched is None:
             raise MeminitError(
-                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                 message=f"Unknown {flag_name} value: '{part}'",
                 details={
                     "value": part,
@@ -1005,6 +1142,18 @@ class IndexRepositoryUseCase:
     def execute(
         self, *, use_cache: bool = True, clear_cache: bool = False
     ) -> IndexBuildReport:
+        return self._build_index_artifacts(
+            use_cache=use_cache,
+            clear_cache=clear_cache,
+        ).to_report()
+
+    def _build_index_artifacts(
+        self,
+        *,
+        use_cache: bool = True,
+        clear_cache: bool = False,
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
+    ) -> _IndexBuildArtifacts:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
             raise FileNotFoundError(
@@ -1031,6 +1180,7 @@ class IndexRepositoryUseCase:
                     use_cache=use_cache,
                     clear_cache=clear_cache,
                     initial_warnings=[],
+                    stream_item_emitter=stream_item_emitter,
                 )
         except MeminitError as exc:
             if (
@@ -1062,7 +1212,69 @@ class IndexRepositoryUseCase:
                         "path": fallback_path,
                     }
                 ],
+                stream_item_emitter=stream_item_emitter,
             )
+
+    def iter_stream(
+        self, *, use_cache: bool = True, clear_cache: bool = False
+    ) -> StreamingResult:
+        """Return a core-owned streaming producer for index output."""
+        summary = StreamSummary()
+        records_queue: Queue[Any] = Queue()
+        build_error: list[BaseException] = []
+        sentinel = object()
+
+        def emit_stream_item(item: StreamItem) -> None:
+            records_queue.put(item)
+
+        def build_stream_payload() -> None:
+            try:
+                report = self._build_index_artifacts(
+                    use_cache=use_cache,
+                    clear_cache=clear_cache,
+                    stream_item_emitter=emit_stream_item,
+                )
+                summary.data = _summary_data(
+                    _index_stream_data(
+                        report,
+                        self._root_dir,
+                        _filter_index_edges(
+                            report,
+                            status_filter=self._status_filter,
+                            impl_state_filter=self._impl_state_filter,
+                        ),
+                        filtered=(
+                            self._status_filter is not None
+                            or self._impl_state_filter is not None
+                        ),
+                    ),
+                    "nodes",
+                    "edges",
+                )
+                summary.warnings = report.warnings
+                summary.advice = getattr(report, "advice", [])
+            except BaseException as exc:  # pragma: no cover - propagated below
+                build_error.append(exc)
+            finally:
+                records_queue.put(sentinel)
+
+        def records():
+            thread = threading.Thread(target=build_stream_payload, daemon=True)
+            thread.start()
+            try:
+                while True:
+                    record = records_queue.get()
+                    if record is sentinel:
+                        break
+                    yield record
+                thread.join()
+                if build_error:
+                    raise build_error[0]
+            finally:
+                if thread.is_alive():
+                    thread.join()
+
+        return StreamingResult(records=records(), summary=summary)
 
     def _execute_locked(
         self,
@@ -1073,7 +1285,8 @@ class IndexRepositoryUseCase:
         use_cache: bool,
         clear_cache: bool,
         initial_warnings: List[Dict[str, Any]],
-    ) -> IndexBuildReport:
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
+    ) -> _IndexBuildArtifacts:
         if clear_cache:
             index_cache.clear()
         _remove_stale_artifacts(
@@ -1094,10 +1307,12 @@ class IndexRepositoryUseCase:
             cache_plan = CachePlan(mode="disabled")
         if cache_plan.manifest_warning:
             warnings_list.append(cache_plan.manifest_warning)
-        cached_report = self._cached_no_change_report(
+        cached_report, force_full_rebuild = self._cached_no_change_report(
             index_path, cache_plan, warnings_list
         )
         if cached_report is not None:
+            if stream_item_emitter is not None:
+                _emit_index_stream_items(cached_report, stream_item_emitter)
             return cached_report
         return self._execute_with_cache_plan(
             cache=index_cache,
@@ -1105,10 +1320,12 @@ class IndexRepositoryUseCase:
             cache_plan=cache_plan,
             cache_rewrites=set(cache_plan.added | cache_plan.changed),
             use_cache=use_cache,
+            rebuild_mode="full" if force_full_rebuild else None,
             index_path=index_path,
             catalog_out_name=catalog_out_name,
             warnings_list=warnings_list,
             doc_paths=doc_paths,
+            stream_item_emitter=stream_item_emitter,
         )
 
     def _execute_with_cache_plan(
@@ -1119,11 +1336,13 @@ class IndexRepositoryUseCase:
         cache_plan: CachePlan,
         cache_rewrites: set[str],
         use_cache: bool,
+        rebuild_mode: str | None,
         index_path: Path,
         catalog_out_name: Optional[str],
         warnings_list: List[Dict[str, Any]],
         doc_paths: Sequence[Path],
-    ) -> IndexBuildReport:
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
+    ) -> _IndexBuildArtifacts:
         # Load project state (gracefully optional).
         try:
             project_state = load_project_state(self._root_dir)
@@ -1142,21 +1361,19 @@ class IndexRepositoryUseCase:
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
-        single_ns = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        ns_cache: Dict[Path, Optional[Any]] = {}
+        single_namespace = (
+            self._layout.namespaces[0]
+            if len(self._layout.namespaces) == 1
+            else None
+        )
         for path in doc_paths:
-            if single_ns is not None:
-                ns = single_ns
-            else:
-                parent_key = path.parent
-                ns = ns_cache.get(parent_key)
-                if parent_key not in ns_cache:
-                    ns = self._layout.namespace_for_path(path)
-                    ns_cache[parent_key] = ns
-                if ns is None:
-                    continue
             cached = self._cached_entry(
-                cache, cache_plan, path, warnings_list, cache_rewrites
+                cache,
+                cache_plan,
+                path,
+                warnings_list,
+                cache_rewrites,
+                single_namespace=single_namespace,
             )
             if cached is not None:
                 entries.append(cached)
@@ -1183,6 +1400,15 @@ class IndexRepositoryUseCase:
             if not isinstance(doc_id, str) or not doc_id.strip():
                 continue
             doc_id = doc_id.strip()
+            ns = _namespace_for_index_path(
+                self._layout,
+                path,
+                doc_id,
+                self._root_dir,
+                single_namespace=single_namespace,
+            )
+            if ns is None:
+                continue
             known_doc_ids.add(doc_id)
             rel_path = _repo_relative_path(path, self._root_dir)
             doc_id_paths.setdefault(doc_id, []).append(rel_path)
@@ -1479,7 +1705,11 @@ class IndexRepositoryUseCase:
             for e in sorted_filtered
         ]
 
-        return IndexBuildReport(
+        rebuild = cache_plan.summary()
+        if rebuild_mode is not None:
+            rebuild["mode"] = rebuild_mode
+
+        report = _IndexBuildArtifacts(
             index_path=index_path,
             document_count=len(filtered),
             catalog_path=catalog_path,
@@ -1489,31 +1719,22 @@ class IndexRepositoryUseCase:
             documents=json_filtered,
             edges=json_edges,
             advice=canonical_advice,
-            rebuild=cache_plan.summary(),
+            rebuild=rebuild,
         )
 
+        if stream_item_emitter is not None:
+            _emit_index_stream_items(report, stream_item_emitter)
+
+        return report
+
     def _discover_document_paths(self) -> List[Path]:
-        paths: List[Path] = []
-        single_ns = (
-            self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
-        )
-        ns_cache: Dict[Path, Optional[Any]] = {}
+        paths: set[Path] = set()
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
             for path in ns.docs_dir.rglob("*.md"):
-                if single_ns is not None:
-                    owner = single_ns
-                else:
-                    parent_key = path.parent
-                    owner = ns_cache.get(parent_key)
-                    if parent_key not in ns_cache:
-                        owner = self._layout.namespace_for_path(path)
-                        ns_cache[parent_key] = owner
-                    if owner is None or owner.namespace.lower() != ns.namespace.lower():
-                        continue
                 if not _is_excluded_for_index(path, ns, self._root_dir):
-                    paths.append(path)
+                    paths.add(path)
         return sorted(paths, key=lambda path: _repo_relative_path(path, self._root_dir))
 
     def _cached_entry(
@@ -1523,6 +1744,8 @@ class IndexRepositoryUseCase:
         path: Path,
         warnings_list: List[Dict[str, Any]],
         cache_rewrites: set[str],
+        *,
+        single_namespace: Any | None = None,
     ) -> Dict[str, Any] | None:
         rel_path = _repo_relative_path(path, self._root_dir)
         if rel_path not in cache_plan.unchanged:
@@ -1564,6 +1787,31 @@ class IndexRepositoryUseCase:
                 }
             )
             return None
+        cached_doc_id = str(cached.get("document_id", "")).strip()
+        if cached_doc_id:
+            expected_ns = _namespace_for_index_path(
+                self._layout,
+                path,
+                cached_doc_id,
+                self._root_dir,
+                single_namespace=single_namespace,
+            )
+            if expected_ns is None:
+                return None
+            cached_ns = str(cached.get("namespace", "")).strip().lower()
+            if cached_ns != expected_ns.namespace.lower():
+                cache_rewrites.add(rel_path)
+                warnings_list.append(
+                    {
+                        "code": ErrorCode.CACHE_ENTRY_INVALID.value,
+                        "message": (
+                            "Cached node namespace is stale; recomputing document."
+                        ),
+                        "severity": Severity.WARNING.value,
+                        "path": rel_path,
+                    }
+                )
+                return None
         recency = cached.get("_recency")
         if isinstance(recency, str):
             try:
@@ -1580,7 +1828,7 @@ class IndexRepositoryUseCase:
         index_path: Path,
         cache_plan: CachePlan,
         warnings_list: List[Dict[str, Any]],
-    ) -> IndexBuildReport | None:
+    ) -> tuple[_IndexBuildArtifacts | None, bool]:
         if (
             cache_plan.mode != "incremental"
             or cache_plan.added
@@ -1592,18 +1840,42 @@ class IndexRepositoryUseCase:
             or self._impl_state_filter is not None
             or not index_path.is_file()
         ):
-            return None
+            return None, False
         try:
             payload = json.loads(index_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return None
+            return None, False
         data = payload.get("data")
         if not isinstance(data, dict):
-            return None
+            return None, False
         nodes = data.get("nodes")
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
-            return None
+            return None, False
+        single_namespace = (
+            self._layout.namespaces[0]
+            if len(self._layout.namespaces) == 1
+            else None
+        )
+        for node in nodes:
+            if not isinstance(node, dict):
+                return None, False
+            document_id = str(node.get("document_id", "")).strip()
+            path_text = str(node.get("path", "")).strip()
+            if not document_id or not path_text:
+                return None, False
+            expected_ns = _namespace_for_index_path(
+                self._layout,
+                self._root_dir / path_text,
+                document_id,
+                self._root_dir,
+                single_namespace=single_namespace,
+            )
+            if expected_ns is None:
+                return None, False
+            cached_ns = str(node.get("namespace", "")).strip().lower()
+            if cached_ns != expected_ns.namespace.lower():
+                return None, True
         payload_warnings = payload.get("warnings", [])
         if not isinstance(payload_warnings, list):
             payload_warnings = []
@@ -1612,7 +1884,7 @@ class IndexRepositoryUseCase:
             document_count = int(raw_count)
         except (ValueError, TypeError):
             document_count = len(nodes)
-        return IndexBuildReport(
+        return _IndexBuildArtifacts(
             index_path=index_path,
             document_count=document_count,
             warnings=canonicalize_warning_list(
@@ -1622,4 +1894,4 @@ class IndexRepositoryUseCase:
             edges=edges,
             advice=payload.get("advice", []),
             rebuild=cache_plan.summary(),
-        )
+        ), False

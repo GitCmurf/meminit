@@ -56,9 +56,9 @@ class ErrorCode(str, Enum):
     AMBIGUOUS_SECTION_BOUNDARY = "AMBIGUOUS_SECTION_BOUNDARY"
 
     # Project State Dashboard error codes
-    E_STATE_YAML_MALFORMED = "E_STATE_YAML_MALFORMED"
-    E_STATE_SCHEMA_VIOLATION = "E_STATE_SCHEMA_VIOLATION"
-    E_INVALID_FILTER_VALUE = "E_INVALID_FILTER_VALUE"
+    STATE_YAML_MALFORMED = "STATE_YAML_MALFORMED"
+    STATE_SCHEMA_VIOLATION = "STATE_SCHEMA_VIOLATION"
+    STATE_INVALID_FILTER_VALUE = "STATE_INVALID_FILTER_VALUE"
     STATE_INVALID_PRIORITY = "STATE_INVALID_PRIORITY"
     STATE_INVALID_DEPENDENCY_ID = "STATE_INVALID_DEPENDENCY_ID"
     STATE_SELF_DEPENDENCY = "STATE_SELF_DEPENDENCY"
@@ -505,8 +505,8 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         spec_reference="MEMINIT-SPEC-007",
     ),
     # -- Project State Dashboard error codes --
-    ErrorCode.E_STATE_YAML_MALFORMED.value: ErrorExplanation(
-        code=ErrorCode.E_STATE_YAML_MALFORMED.value,
+    ErrorCode.STATE_YAML_MALFORMED.value: ErrorExplanation(
+        code=ErrorCode.STATE_YAML_MALFORMED.value,
         category="state",
         summary="The project-state.yaml file contains malformed YAML.",
         cause="The YAML syntax is invalid, preventing parsing.",
@@ -518,8 +518,8 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         ),
         spec_reference="MEMINIT-SPEC-006",
     ),
-    ErrorCode.E_STATE_SCHEMA_VIOLATION.value: ErrorExplanation(
-        code=ErrorCode.E_STATE_SCHEMA_VIOLATION.value,
+    ErrorCode.STATE_SCHEMA_VIOLATION.value: ErrorExplanation(
+        code=ErrorCode.STATE_SCHEMA_VIOLATION.value,
         category="state",
         summary="The project-state.yaml violates the expected schema.",
         cause="A field has the wrong type, is missing, or contains an invalid value.",
@@ -531,8 +531,8 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         ),
         spec_reference="MEMINIT-SPEC-006",
     ),
-    ErrorCode.E_INVALID_FILTER_VALUE.value: ErrorExplanation(
-        code=ErrorCode.E_INVALID_FILTER_VALUE.value,
+    ErrorCode.STATE_INVALID_FILTER_VALUE.value: ErrorExplanation(
+        code=ErrorCode.STATE_INVALID_FILTER_VALUE.value,
         category="state",
         summary="An invalid state-related value was provided.",
         cause=(

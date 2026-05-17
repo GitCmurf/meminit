@@ -40,6 +40,7 @@ except ImportError:  # pragma: no cover - Windows or unsupported platforms
 ALLOWED_STATUSES = ["Draft", "In Review", "Approved", "Superseded"]
 RELATED_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+LOCK_RETRY_DELAY_SECONDS = 0.01
 
 
 class NewDocumentUseCase:
@@ -821,7 +822,7 @@ class NewDocumentUseCase:
                             "timeout_ms": timeout_ms,
                         },
                     )
-                time.sleep(0.05)
+                time.sleep(LOCK_RETRY_DELAY_SECONDS)
 
     def _open_lock_file(self, lock_path: Path):
         """Open a lock file without following symlinks when supported."""

@@ -6,25 +6,16 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from click.testing import CliRunner
-from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import exit_code_for_error
-from tests.cli.streaming_helpers import create_initialized_repo
-
-
-def _records(output: str) -> list[dict]:
-    return [json.loads(line) for line in output.splitlines() if line.strip()]
-
-
-def _validator() -> Draft7Validator:
-    schema = json.loads(
-        resources.files("meminit.core.assets")
-        .joinpath("agent-output.stream.schema.v1.json")
-        .read_text(encoding="utf-8")
-    )
-    return Draft7Validator(schema)
+from meminit.core.services.stream_events import StreamItem, StreamSummary, StreamingResult
+from tests.cli.streaming_helpers import (
+    create_initialized_repo,
+    records as parse_records,
+    stream_schema_validator,
+)
 
 
 def test_stream_schema_copies_are_identical():
@@ -45,14 +36,15 @@ def test_index_ndjson_outputs_header_items_and_summary(tmp_path):
         cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code == 0, result.output
-    records = _records(result.output)
-    assert [r["sequence"] for r in records] == list(range(len(records)))
-    assert records[0]["record_type"] == "header"
-    assert records[-1]["record_type"] == "summary"
-    assert records[-1]["data"]["rebuild"]["mode"] == "full"
-    assert {r.get("kind") for r in records if r["record_type"] == "item"} >= {"node"}
-    for record in records:
-        assert not list(_validator().iter_errors(record))
+    parsed = parse_records(result.output)
+    assert [r["sequence"] for r in parsed] == list(range(len(parsed)))
+    assert parsed[0]["record_type"] == "header"
+    assert parsed[-1]["record_type"] == "summary"
+    assert parsed[-1]["data"]["rebuild"]["mode"] == "full"
+    assert {r.get("kind") for r in parsed if r["record_type"] == "item"} >= {"node"}
+    validator = stream_schema_validator()
+    for record in parsed:
+        assert not list(validator.iter_errors(record))
 
 
 def test_index_ndjson_reports_incremental_on_second_run(tmp_path):
@@ -68,7 +60,7 @@ def test_index_ndjson_reports_incremental_on_second_run(tmp_path):
 
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
-    summary = _records(second.output)[-1]
+    summary = parse_records(second.output)[-1]
     assert summary["record_type"] == "summary"
     assert summary["data"]["rebuild"]["mode"] == "incremental"
 
@@ -78,7 +70,7 @@ def test_scan_ndjson_summary_preserves_diagnostics(tmp_path):
         cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code == 0, result.output
-    records = _records(result.output)
+    records = parse_records(result.output)
     summary = records[-1]["data"]
     assert summary["docs_root"] is None
     assert summary["governed_markdown_count"] == 0
@@ -98,7 +90,7 @@ def test_scan_ndjson_emits_real_file_items(tmp_path):
     )
     assert result.exit_code == 0, result.output
 
-    records = _records(result.output)
+    records = parse_records(result.output)
     file_items = [
         record
         for record in records
@@ -112,6 +104,33 @@ def test_scan_ndjson_emits_real_file_items(tmp_path):
     assert "docs/20-specs/spec-001-test.md" in paths
     assert "docs/45-adr/adr-001-test.md" in paths
     assert records[-1]["counts"]["file"] == len(file_items)
+
+
+def test_scan_ndjson_rejects_plan_artifact_generation(tmp_path):
+    create_initialized_repo(tmp_path)
+    plan = tmp_path / "migration-plan.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "scan",
+            "--root",
+            str(tmp_path),
+            "--plan",
+            str(plan),
+            "--format",
+            "ndjson",
+        ],
+    )
+
+    assert result.exit_code == exit_code_for_error(
+        ErrorCode.STREAM_UNSUPPORTED_FORMAT
+    )
+    assert not plan.exists()
+    records = parse_records(result.output)
+    assert records[0]["record_type"] == "header"
+    assert records[-1]["record_type"] == "error"
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
 
 
 def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_path):
@@ -138,7 +157,7 @@ def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_pat
         cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code == 0, result.output
-    summary = _records(result.output)[-1]["data"]
+    summary = parse_records(result.output)[-1]["data"]
     assert summary["docs_root"] == "docs"
     assert summary["governed_markdown_count"] >= 1
     assert summary["configured_namespaces"]
@@ -147,6 +166,64 @@ def test_scan_ndjson_summary_preserves_overlapping_namespace_diagnostics(tmp_pat
         overlap.get("child_docs_root") == "docs/00-governance/org"
         for overlap in summary["overlapping_namespaces"]
     )
+
+
+def test_scan_ndjson_uses_document_id_for_same_root_namespace_resolution(tmp_path):
+    create_initialized_repo(tmp_path)
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: Example\n"
+        "repo_prefix: AIDHA\n"
+        "docops_version: '2.0'\n"
+        "schema_path: docs/00-governance/metadata.schema.json\n"
+        "namespaces:\n"
+        "  - name: root\n"
+        "    repo_prefix: AIDHA\n"
+        "    docs_root: docs\n"
+        "    excluded_paths:\n"
+        "      - docs/45-adr\n"
+        "  - name: phyla\n"
+        "    repo_prefix: PHYLA\n"
+        "    docs_root: docs\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
+    target.write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Test ADR\n"
+        "status: Draft\n"
+        "version: '0.1'\n"
+        "last_updated: '2026-05-03'\n"
+        "owner: Test Team\n"
+        "docops_version: '2.0'\n"
+        "area: TEST\n"
+        "description: Test document.\n"
+        "keywords: [test]\n"
+        "related_ids: []\n"
+        "---\n\n"
+        "# Test ADR\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
+    )
+    assert result.exit_code == 0, result.output
+
+    file_items = [
+        record
+        for record in parse_records(result.output)
+        if record["record_type"] == "item"
+        and record["kind"] == "file"
+        and record["data"]["path"] == "docs/45-adr/adr-001-test.md"
+    ]
+    assert file_items
+    assert file_items[0]["data"] == {
+        "path": "docs/45-adr/adr-001-test.md",
+        "namespace": "phyla",
+        "governed": True,
+    }
 
 
 def test_ndjson_header_uses_real_timestamp(tmp_path):
@@ -164,7 +241,7 @@ def test_ndjson_header_uses_real_timestamp(tmp_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    header = _records(result.output)[0]
+    header = parse_records(result.output)[0]
     assert header["record_type"] == "header"
     started_at = datetime.fromisoformat(header["started_at"].replace("Z", "+00:00"))
     delta_seconds = abs((datetime.now(timezone.utc) - started_at).total_seconds())
@@ -195,7 +272,7 @@ def test_index_ndjson_graph_fatal_emits_terminal_error(tmp_path):
         cli, ["index", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code != 0
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.GRAPH_DUPLICATE_DOCUMENT_ID.value
@@ -207,7 +284,7 @@ def test_context_ndjson_requires_deep(tmp_path):
         cli, ["context", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code == 64
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
 
@@ -228,7 +305,7 @@ def test_context_ndjson_requires_deep_respects_output_path(tmp_path):
         ],
     )
     assert result.exit_code == 64
-    records = _records(output.read_text(encoding="utf-8"))
+    records = parse_records(output.read_text(encoding="utf-8"))
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
@@ -239,7 +316,7 @@ def test_check_ndjson_emits_structured_unsupported_error(tmp_path):
         cli, ["check", "--root", str(tmp_path), "--format", "ndjson"]
     )
     assert result.exit_code == 64
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
@@ -251,7 +328,7 @@ def test_context_deep_ndjson_includes_documents(tmp_path):
         cli, ["context", "--root", str(tmp_path), "--deep", "--format", "ndjson"]
     )
     assert result.exit_code == 0, result.output
-    records = _records(result.output)
+    records = parse_records(result.output)
     documents = [
         r["data"]
         for r in records
@@ -281,35 +358,32 @@ def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_
         encoding="utf-8",
     )
     instance = mock_use_case.return_value
-    instance.execute.return_value = SimpleNamespace(
-        data={
-            "allowed_types": ["ADR"],
-            "config_path": "docops.config.yaml",
-            "default_owner": None,
-            "deep_incomplete": False,
-            "document_types": {"ADR": {"directory": "45-adr"}},
-            "index_path": "docs/.meminit/index.json",
-            "namespaces": [
+    instance.iter_stream.return_value = StreamingResult(
+        records=iter([
+            StreamItem(
+                "document",
                 {
-                    "name": "default",
-                    "docs_root": "docs",
-                    "document_types": {"ADR": {"directory": "45-adr"}},
-                }
-            ],
-            "project_name": "Example",
-            "schema_path": "docs/schema.json",
-            "repo_prefix": "EXAMPLE",
-        },
-        warnings=[],
-        documents=[
-            {
-                "document_id": "TEST-ADR-001",
-                "namespace": "default",
-                "path": "docs/45-adr/adr-001-test.md",
-                "title": "Test ADR",
-                "type": "ADR",
+                    "document_id": "TEST-ADR-001",
+                    "namespace": "default",
+                    "path": "docs/45-adr/adr-001-test.md",
+                    "title": "Test ADR",
+                    "type": "ADR",
+                },
+            )
+        ]),
+        summary=StreamSummary(
+            data={
+                "allowed_types": ["ADR"],
+                "config_path": "docops.config.yaml",
+                "default_owner": None,
+                "deep_incomplete": False,
+                "document_types": {"ADR": {"directory": "45-adr"}},
+                "index_path": "docs/.meminit/index.json",
+                "project_name": "Example",
+                "schema_path": "docs/schema.json",
+                "repo_prefix": "EXAMPLE",
             }
-        ],
+        ),
     )
 
     result = CliRunner().invoke(
@@ -317,7 +391,7 @@ def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_
     )
 
     assert result.exit_code == 0, result.output
-    records = _records(result.output)
+    records = parse_records(result.output)
     documents = [
         record["data"]
         for record in records
@@ -352,7 +426,7 @@ def test_index_ndjson_allows_external_output_path(tmp_path):
     )
     assert result.exit_code == 0, result.output
     assert output.exists()
-    records = _records(output.read_text(encoding="utf-8"))
+    records = parse_records(output.read_text(encoding="utf-8"))
     assert records[-1]["record_type"] == "summary"
     assert records[-1]["success"] is True
 
@@ -374,7 +448,7 @@ def test_index_ndjson_summary_preserves_metadata_for_artifacts(tmp_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    summary = _records(result.output)[-1]["data"]
+    summary = parse_records(result.output)[-1]["data"]
     assert summary["index_path"] == "docs/01-indices/meminit.index.json"
     assert summary["filtered"] is True
     assert summary["catalog_path"]
@@ -403,7 +477,7 @@ def test_index_ndjson_rejects_unsafe_output_path(tmp_path):
 
     assert result.exit_code == exit_code_for_error(ErrorCode.PATH_ESCAPE)
     assert not output.exists()
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.PATH_ESCAPE.value
@@ -426,7 +500,7 @@ def test_index_explain_cache_ndjson_is_rejected(tmp_path):
     assert result.exit_code == exit_code_for_error(
         ErrorCode.STREAM_UNSUPPORTED_FORMAT
     )
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.STREAM_UNSUPPORTED_FORMAT.value
@@ -450,7 +524,7 @@ def test_check_ndjson_invalid_correlation_id_is_structured(tmp_path):
     assert result.exit_code == exit_code_for_error(
         ErrorCode.INVALID_FLAG_COMBINATION
     )
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.INVALID_FLAG_COMBINATION.value
@@ -475,26 +549,26 @@ def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
         )
 
     assert result.exit_code == 73
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
     assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
-def test_scan_ndjson_pre_streaming_exception_uses_command_error_handler(tmp_path):
+def test_scan_ndjson_streaming_exception_emits_producer_failure(tmp_path):
     with patch(
-        "meminit.cli.main.ScanRepositoryUseCase.execute",
+        "meminit.cli.main.ScanRepositoryUseCase._build_report",
         side_effect=RuntimeError("boom"),
     ):
         result = CliRunner().invoke(
             cli, ["scan", "--root", str(tmp_path), "--format", "ndjson"]
         )
 
-    assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
-    records = _records("\n".join(line for line in result.output.splitlines() if line.lstrip().startswith("{")))
+    assert result.exit_code == exit_code_for_error(ErrorCode.STREAM_PRODUCER_FAILED)
+    records = parse_records("\n".join(line for line in result.output.splitlines() if line.lstrip().startswith("{")))
     assert records[0]["record_type"] == "header"
     assert records[-1]["record_type"] == "error"
-    assert records[-1]["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+    assert records[-1]["error"]["code"] == ErrorCode.STREAM_PRODUCER_FAILED.value
 
 
 def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
@@ -515,11 +589,11 @@ def test_index_ndjson_emits_failed_summary_for_error_severity_state(tmp_path):
         cli, ["index", "--root", str(root), "--format", "ndjson"]
     )
     assert result.exit_code == 1, result.output
-    records = _records(result.output)
+    records = parse_records(result.output)
     assert records[-1]["record_type"] == "summary"
     assert records[-1]["success"] is False
     assert any(
-        warning.get("code") == "E_STATE_YAML_MALFORMED"
+        warning.get("code") == "STATE_YAML_MALFORMED"
         for warning in records[-1]["warnings"]
     )
 

@@ -151,14 +151,23 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 
 Before closing Phase 5, exercise at least one external testbed repo with:
 
-- `meminit scan --format ndjson`
-- `meminit context --deep --format ndjson`
-- `meminit index --format ndjson`
-- two consecutive `meminit index --format json` runs proving warm-cache reuse
-- `meminit index --rebuild-cache --format json`
-- `meminit index --explain-cache --format json`
+```bash
+cd /path/to/external-testbed-repo
+MEMINIT_BIN=/home/cmf/code/Meminit/.venv/bin/meminit
 
-Record the command outputs or CI run link in the closing PR.
+printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
+"$MEMINIT_BIN" --version
+"$MEMINIT_BIN" scan --format ndjson
+"$MEMINIT_BIN" context --deep --format ndjson
+"$MEMINIT_BIN" index --format ndjson
+"$MEMINIT_BIN" index --format json
+"$MEMINIT_BIN" index --format json
+"$MEMINIT_BIN" index --rebuild-cache --format json
+"$MEMINIT_BIN" index --explain-cache --format json
+```
+
+Record the command outputs or CI run link in the closing PR, together with the
+absolute binary path and the workspace checkout commit used for the run.
 
 ## Bounded Codex Review-Remediation Loop
 
@@ -386,7 +395,7 @@ The `state_schema_version: "2.0"` key will appear in the rewritten file.
 ### Operator recovery
 
 **Malformed `project-state.yaml`:** `meminit state` commands will raise
-`E_STATE_YAML_MALFORMED`. Fix the YAML syntax manually or delete the
+`STATE_YAML_MALFORMED`. Fix the YAML syntax manually or delete the
 file and let the queue start empty.
 
 **Dependency cycle (`STATE_DEPENDENCY_CYCLE`):** Clear one edge of the

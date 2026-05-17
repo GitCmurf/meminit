@@ -1,6 +1,7 @@
 
 import json
 from pathlib import Path
+from unittest import mock
 
 import pytest
 import yaml
@@ -318,7 +319,7 @@ def test_cli_state_next_rejects_invalid_priority_at_least(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_ready_filter(repo_with_docs):
@@ -437,7 +438,7 @@ def test_cli_state_list_conflicting_ready_flags(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_conflicting_blocked_flags(repo_with_docs):
@@ -447,7 +448,7 @@ def test_cli_state_list_conflicting_blocked_flags(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_ready_and_blocked_rejected(repo_with_docs):
@@ -457,7 +458,7 @@ def test_cli_state_list_ready_and_blocked_rejected(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code != 0
-    assert "E_INVALID_FILTER_VALUE" in result.output
+    assert "STATE_INVALID_FILTER_VALUE" in result.output
 
 
 def test_cli_state_list_impl_state_filter(repo_with_docs):
@@ -976,10 +977,8 @@ def test_cli_state_set_md_escapes_assignee(repo_with_docs):
     assert "\\*\\*bold\\*\\*" in result.output
 
 
-def test_cli_state_list_tolerates_broken_repo_layout(repo_with_docs):
-    """state list succeeds with canonical fallback vocabularies when layout fails."""
-    from unittest import mock
-
+def test_cli_state_list_fails_fast_on_broken_repo_layout(repo_with_docs):
+    """state list fails fast when repo layout loading is broken."""
     runner = runner_no_mixed_stderr()
     with mock.patch(
         "meminit.core.services.repo_config.load_repo_layout",
@@ -988,10 +987,34 @@ def test_cli_state_list_tolerates_broken_repo_layout(repo_with_docs):
         result = runner.invoke(cli, [
             "state", "list", "--root", str(repo_with_docs), "--format", "json",
         ])
-    assert result.exit_code == 0
+    assert result.exit_code == 66
     data = json.loads(result.output.strip().splitlines()[-1])
-    assert data["success"] is True
-    assert "Not Started" in data["data"]["valid_impl_states"]
+    assert data["success"] is False
+    assert data["error"]["code"] == "CONFIG_MISSING"
+
+
+def test_cli_state_list_uses_strict_config_for_state_resolution(repo_with_docs):
+    """state list must resolve project-state.yaml through the strict config path."""
+    runner = runner_no_mixed_stderr()
+
+    fake_result = mock.Mock()
+    fake_result.entries = []
+    fake_result.summary = {"total": 0, "returned": 0, "ready": 0, "blocked": 0}
+    fake_result.warnings = []
+    fake_result.advice = []
+
+    with mock.patch(
+        "meminit.core.use_cases.state_document.StateDocumentUseCase"
+    ) as mock_use_case:
+        mock_use_case.return_value.list_states.return_value = fake_result
+
+        result = runner.invoke(
+            cli,
+            ["state", "list", "--root", str(repo_with_docs), "--format", "json"],
+        )
+
+    assert result.exit_code == 0
+    mock_use_case.assert_called_once_with(str(repo_with_docs), strict_config=True)
 
 
 def test_cli_state_set_clears_notes_with_empty_string(repo_with_docs):

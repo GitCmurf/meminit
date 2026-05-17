@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     Dict,
     List,
     Mapping,
@@ -241,8 +242,7 @@ class RepoLayout:
                 return ns
         return self.namespaces[0]
 
-    def namespace_for_path(self, path: Path) -> Optional[RepoConfig]:
-        # Pick the most specific match (longest docs_root) to handle nested docs roots.
+    def namespaces_for_path(self, path: Path) -> list[RepoConfig]:
         matches: list[tuple[int, RepoConfig]] = []
         for ns in self.namespaces:
             try:
@@ -251,9 +251,99 @@ class RepoLayout:
                 continue
             matches.append((len(Path(ns.docs_root).parts), ns))
         if not matches:
+            return []
+        matches.sort(key=lambda item: item[0], reverse=True)
+        return [ns for _, ns in matches]
+
+    def namespace_for_path(self, path: Path) -> Optional[RepoConfig]:
+        # Pick the most specific match (longest docs_root) to handle nested docs roots.
+        matches = self.namespaces_for_path(path)
+        if not matches:
             return None
-        matches.sort(key=lambda t: t[0], reverse=True)
-        return matches[0][1]
+        return matches[0]
+
+    def namespace_for_document_id(self, document_id: str | None) -> Optional[RepoConfig]:
+        needle = str(document_id or "").strip().upper()
+        if not needle:
+            return None
+
+        best_match: tuple[int, RepoConfig] | None = None
+        empty_prefix_match: RepoConfig | None = None
+        for ns in self.namespaces:
+            prefix = ns.repo_prefix.strip().upper()
+            if not prefix:
+                if empty_prefix_match is None:
+                    empty_prefix_match = ns
+                continue
+
+            # Match the configured namespace prefix as a leading token boundary.
+            # This keeps `ADR-001` from being truncated to `ADR` when the repo
+            # prefix is empty and also supports prefixes that themselves contain
+            # hyphens.
+            if needle == prefix or needle.startswith(f"{prefix}-"):
+                score = len(prefix)
+                if best_match is None or score > best_match[0]:
+                    best_match = (score, ns)
+
+        if best_match is not None:
+            return best_match[1]
+        return empty_prefix_match
+
+    def namespace_for_path_and_document_id(
+        self,
+        path: Path,
+        document_id: str | None = None,
+    ) -> Optional[RepoConfig]:
+        matches = self.namespaces_for_path(path)
+        if not matches:
+            return None
+
+        doc_ns = self.namespace_for_document_id(document_id)
+        if doc_ns is not None:
+            best_specificity = len(Path(matches[0].docs_root).parts)
+            doc_specificity = len(Path(doc_ns.docs_root).parts)
+            # Only use document_id as a tie-breaker when it points to a namespace
+            # with the same path specificity as the best path match.
+            if doc_specificity == best_specificity:
+                for ns in matches:
+                    if ns.namespace.lower() == doc_ns.namespace.lower():
+                        return ns
+
+        return matches[0]
+
+    def namespace_for_path_with_document_id_loader(
+        self,
+        path: Path,
+        document_id_loader: Callable[[], str | None] | None = None,
+    ) -> Optional[RepoConfig]:
+        """Resolve a namespace from path and load document metadata lazily.
+
+        The path match is authoritative when it is unique. When a path matches
+        multiple namespaces, the loader is invoked only then to provide a
+        document_id tie-breaker.
+        """
+        matches = self.namespaces_for_path(path)
+        if not matches:
+            return None
+        if len(matches) == 1 or document_id_loader is None:
+            return matches[0]
+
+        document_id = document_id_loader()
+        if document_id is None:
+            return matches[0]
+
+        doc_ns = self.namespace_for_document_id(document_id)
+        if doc_ns is not None:
+            best_specificity = len(Path(matches[0].docs_root).parts)
+            doc_specificity = len(Path(doc_ns.docs_root).parts)
+            # Only use document_id as a tie-breaker when it points to a
+            # namespace with the same path specificity as the best path match.
+            if doc_specificity == best_specificity:
+                for ns in matches:
+                    if ns.namespace.lower() == doc_ns.namespace.lower():
+                        return ns
+
+        return matches[0]
 
 
 def _normalize_string_list(raw: Any) -> list[str]:

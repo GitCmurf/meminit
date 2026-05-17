@@ -125,7 +125,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
             return matched_ids.pop()
         elif len(matched_ids) > 1:
             raise MeminitError(
-                code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+                code=ErrorCode.STATE_SCHEMA_VIOLATION,
                 message=f"Ambiguous shorthand document ID '{document_id}'. "
                 f"Multiple existing documents match this shorthand ({', '.join(sorted(matched_ids))}). "
                 "Please provide the full document ID.",
@@ -137,7 +137,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
             return f"{prefix}-{document_id}"
 
         raise MeminitError(
-            code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+            code=ErrorCode.STATE_SCHEMA_VIOLATION,
             message=f"Ambiguous shorthand document ID '{document_id}' in multi-namespace repository. "
             "Please provide the full document ID or run 'meminit index' to enable shorthand resolution.",
         )
@@ -271,7 +271,7 @@ def _resolve_impl_state(root_dir: Path, impl_state: str) -> str:
 
     if resolved is None and impl_state.lower() not in [v.lower() for v in all_valid]:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message=f"Unknown impl_state: '{impl_state}'",
             details={"value": impl_state, "valid_values": all_valid},
         )
@@ -397,7 +397,7 @@ def _resolve_actor_for_set(actor: Optional[str], root_dir: Path) -> str:
     if actor:
         if not validate_actor(actor):
             raise MeminitError(
-                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                 message=f"Invalid actor override: '{actor}'. Must match ^[a-zA-Z0-9._-]+$",
             )
         return actor
@@ -407,8 +407,22 @@ def _resolve_actor_for_set(actor: Optional[str], root_dir: Path) -> str:
 class StateDocumentUseCase:
     """Use case for managing project-state.yaml entries."""
 
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, *, strict_config: bool = False):
         self._root_dir = Path(root_dir).resolve()
+        self._strict_config = strict_config
+
+    def _load_project_state(self) -> Optional[ProjectState]:
+        return load_project_state(
+            self._root_dir,
+            strict_config=self._strict_config,
+        )
+
+    def _save_project_state(self, state: ProjectState) -> Path:
+        return save_project_state(
+            self._root_dir,
+            state,
+            strict_config=self._strict_config,
+        )
 
     def _validate_state(self, state: Optional[ProjectState]) -> None:
         """Raise MeminitError if state has schema violations.
@@ -426,7 +440,7 @@ class StateDocumentUseCase:
             for v in violations
         ]
         raise MeminitError(
-            code=ErrorCode.E_STATE_SCHEMA_VIOLATION,
+            code=ErrorCode.STATE_SCHEMA_VIOLATION,
             message=(
                 f"Invalid project-state.yaml schema " f"({len(violations)} violation(s)): {summary}"
             ),
@@ -455,7 +469,7 @@ class StateDocumentUseCase:
     ) -> StateResult:
         """Set or update a document's implementation state."""
         document_id = _resolve_document_id(self._root_dir, document_id)
-        state = load_project_state(self._root_dir)
+        state = self._load_project_state()
         self._validate_state(state)
 
         if state is None:
@@ -486,7 +500,7 @@ class StateDocumentUseCase:
                 )
             if document_id in state.entries:
                 del state.entries[document_id]
-                save_project_state(self._root_dir, state)
+                self._save_project_state(state)
             return StateResult(
                 document_id=document_id,
                 action="clear",
@@ -583,7 +597,7 @@ class StateDocumentUseCase:
             try:
                 error_code = ErrorCode(fatal_issues[0].code)
             except ValueError:
-                error_code = ErrorCode.E_STATE_SCHEMA_VIOLATION
+                error_code = ErrorCode.STATE_SCHEMA_VIOLATION
             raise MeminitError(
                 code=error_code,
                 message=f"({len(fatal_issues)} violation(s)): {summary}",
@@ -615,7 +629,7 @@ class StateDocumentUseCase:
 
         if existing and _entry_is_idempotent(existing, entry):
             if state.schema_version != STATE_SCHEMA_VERSION:
-                save_project_state(self._root_dir, state)
+                self._save_project_state(state)
             result_warnings = _build_result_warnings(validation_issues, self._root_dir)
             return StateResult(
                 document_id=document_id,
@@ -625,7 +639,7 @@ class StateDocumentUseCase:
             )
 
         state.set_entry(entry)
-        save_project_state(self._root_dir, state)
+        self._save_project_state(state)
 
         # Recompute derived from post-mutation state for non-idempotent path
         post_derivation_state = _state_excluding_entries(state, set())
@@ -644,7 +658,7 @@ class StateDocumentUseCase:
     def get_state(self, document_id: str) -> StateResult:
         """Get a document's implementation state."""
         document_id = _resolve_document_id(self._root_dir, document_id)
-        state = load_project_state(self._root_dir)
+        state = self._load_project_state()
         self._validate_state(state)
 
         if state is None:
@@ -699,7 +713,7 @@ class StateDocumentUseCase:
             invalid = [p for p in priority if p not in VALID_PRIORITIES]
             if invalid:
                 raise MeminitError(
-                    code=ErrorCode.E_INVALID_FILTER_VALUE,
+                    code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                     message=(
                         f"Priority filter value(s) {invalid!r} not valid. "
                         f"Must be one of: {', '.join(VALID_PRIORITIES)}."
@@ -730,7 +744,7 @@ class StateDocumentUseCase:
             if invalid_impl:
                 all_valid_display = canonical_values + extra_states
                 raise MeminitError(
-                    code=ErrorCode.E_INVALID_FILTER_VALUE,
+                    code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                     message=(
                         f"Impl-state filter value(s) {invalid_impl!r} not valid. "
                         f"Must be one of: {', '.join(all_valid_display)}."
@@ -738,7 +752,7 @@ class StateDocumentUseCase:
                     details={"value": invalid_impl, "valid_values": all_valid_display},
                 )
 
-        state = load_project_state(self._root_dir)
+        state = self._load_project_state()
         self._validate_state(state)
 
         if state is None:
@@ -790,7 +804,7 @@ class StateDocumentUseCase:
         """Return the deterministically-selected next work item."""
         if priority_at_least is not None and priority_at_least not in VALID_PRIORITIES:
             raise MeminitError(
-                code=ErrorCode.E_INVALID_FILTER_VALUE,
+                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
                 message=(
                     f"Priority filter '{priority_at_least}' is not valid. "
                     f"Must be one of: {', '.join(VALID_PRIORITIES)}."
@@ -798,7 +812,7 @@ class StateDocumentUseCase:
                 details={"value": priority_at_least, "valid_values": list(VALID_PRIORITIES)},
             )
 
-        state = load_project_state(self._root_dir)
+        state = self._load_project_state()
         self._validate_state(state)
 
         if state is None:
@@ -843,7 +857,7 @@ class StateDocumentUseCase:
         assignee: Optional[str] = None,
     ) -> StateResult:
         """Return entries with open blockers and one-level-deep resolution."""
-        state = load_project_state(self._root_dir)
+        state = self._load_project_state()
         self._validate_state(state)
 
         if state is None:

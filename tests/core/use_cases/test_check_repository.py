@@ -1,11 +1,14 @@
 import tempfile
 from pathlib import Path
 
+import frontmatter
 import pytest
 
 from meminit.core.domain.entities import Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
+
+from tests.cli.streaming_helpers import create_initialized_repo
 
 
 @pytest.fixture
@@ -21,9 +24,9 @@ def repo_with_docs():
         # Setup schema (required by validator)
         gov = repo / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        # Require string fields so we can catch YAML scalar coercions (date/float) that should be normalized.
-        (gov / "metadata.schema.json").write_text(
-            """
+        # Require string fields so we can catch YAML scalar coercions
+        # (date/float) that should be normalized.
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -39,8 +42,7 @@ def repo_with_docs():
   },
   "additionalProperties": true
 }
-""".strip()
-        )
+""".strip())
         # Templates are not governed docs and should be excluded from checks
         templates_dir = gov / "templates"
         templates_dir.mkdir(parents=True)
@@ -52,8 +54,7 @@ def repo_with_docs():
         docs.mkdir(parents=True)
 
         # Valid Doc
-        (docs / "adr-001.md").write_text(
-            """---
+        (docs / "adr-001.md").write_text("""---
 document_id: MEMINIT-ADR-001
 type: ADR
 title: Valid
@@ -64,12 +65,10 @@ owner: Me
 docops_version: 2.0
 ---
 # Valid Doc
-"""
-        )
+""")
 
         # Invalid Doc (Bad ID)
-        (docs / "adr-002.md").write_text(
-            """---
+        (docs / "adr-002.md").write_text("""---
 document_id: BAD-ID
 type: ADR
 title: Invalid
@@ -80,8 +79,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Invalid Doc
-"""
-        )
+""")
         yield repo
 
 
@@ -107,13 +105,11 @@ def test_check_repository_schema_type_errors_include_field(tmp_path):
     )
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 title: 123
 ---
 # Doc
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -127,8 +123,7 @@ def test_check_directory_and_filename(repo_with_docs):
 
     # 1. Filename violation (spaces, uppercase)
     bad_name_file = repo_with_docs / "docs" / "45-adr" / "Bad Name.md"
-    bad_name_file.write_text(
-        """---
+    bad_name_file.write_text("""---
 document_id: MEMINIT-ADR-003
 type: ADR
 title: Bad Name
@@ -139,8 +134,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Content
-"""
-    )
+""")
 
     # 1b. Missing frontmatter should not drop filename violation
     no_frontmatter_file = repo_with_docs / "docs" / "45-adr" / "No Frontmatter.md"
@@ -150,8 +144,7 @@ docops_version: 2.0
     wrong_dir = repo_with_docs / "docs" / "10-prd"
     wrong_dir.mkdir()
     wrong_loc_file = wrong_dir / "adr-004.md"
-    wrong_loc_file.write_text(
-        """---
+    wrong_loc_file.write_text("""---
 document_id: MEMINIT-ADR-004
 type: ADR
 title: Wrong Location
@@ -162,8 +155,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Content
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(repo_with_docs))
     violations = use_case.execute()
@@ -186,8 +178,7 @@ docops_version: 2.0
 
 
 def test_check_respects_configured_exclusions_and_type_directories(tmp_path):
-    (tmp_path / "docops.config.yaml").write_text(
-        """project_name: Example
+    (tmp_path / "docops.config.yaml").write_text("""project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 docs_root: docs
@@ -196,13 +187,11 @@ excluded_paths:
 document_types:
   ADR:
     directory: adrs
-"""
-    )
+""")
 
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text(
-        """
+    (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -217,16 +206,14 @@ document_types:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-    )
+""".strip())
 
     (tmp_path / "docs" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "templates" / "ignored.md").write_text("# Not governed\n")
 
     adrs = tmp_path / "docs" / "adrs"
     adrs.mkdir(parents=True)
-    (adrs / "adr-001.md").write_text(
-        """---
+    (adrs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -237,8 +224,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -246,11 +232,363 @@ docops_version: 2.0
     assert not any(v.rule == "DIRECTORY_MATCH" and "adr-001.md" in v.file for v in violations)
 
 
+def test_check_uses_document_namespace_for_same_root_schema_and_directory_validation(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
+repo_prefix: AIDHA
+docops_version: '2.0'
+schema_path: docs/00-governance/default-schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+    schema_path: docs/00-governance/default-schema.json
+    document_types:
+      ADR:
+        directory: root-adrs
+  - name: pkg
+    repo_prefix: PKG
+    docs_root: docs
+    schema_path: docs/00-governance/pkg-schema.json
+    document_types:
+      ADR:
+        directory: pkg-adrs
+""",
+        encoding="utf-8",
+    )
+
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "default-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "default_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "default_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (gov / "pkg-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "package_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "package_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    pkg_docs = tmp_path / "docs" / "pkg-adrs"
+    pkg_docs.mkdir(parents=True)
+    (pkg_docs / "pkg-adr-001.md").write_text(
+        """---
+document_id: PKG-ADR-001
+type: ADR
+title: Package ADR
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: Me
+docops_version: 2.0
+package_only: pkg-only
+---
+# Package ADR
+""",
+        encoding="utf-8",
+    )
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+    violations = use_case.execute()
+    assert violations == []
+
+    summary = use_case.execute_full_summary()
+    assert summary.success is True
+    assert summary.files_checked == 1
+    assert summary.files_failed == 0
+    assert summary.schema_failures_count == 0
+    assert summary.violations_count == 0
+    assert summary.warnings_count == 0
+
+
+def test_check_resolves_same_root_namespace_before_exclusions(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/root-schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+    excluded_paths:
+      - docs/pkg-adrs
+    schema_path: docs/00-governance/root-schema.json
+  - name: pkg
+    repo_prefix: PKG
+    docs_root: docs
+    schema_path: docs/00-governance/pkg-schema.json
+    document_types:
+      ADR:
+        directory: pkg-adrs
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "root-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "default_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "default_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (gov / "pkg-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version", "package_only"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" },
+    "package_only": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    pkg_docs = tmp_path / "docs" / "pkg-adrs"
+    pkg_docs.mkdir(parents=True)
+    pkg_doc = pkg_docs / "pkg-adr-001.md"
+    pkg_doc.write_text(
+        """---
+document_id: PKG-ADR-001
+type: ADR
+title: Package ADR
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: Me
+docops_version: 2.0
+---
+# Package ADR
+""",
+        encoding="utf-8",
+    )
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+
+    violations = use_case.execute()
+    assert len(violations) == 1
+    assert violations[0].file == "docs/pkg-adrs/pkg-adr-001.md"
+    assert "package_only" in violations[0].message
+    assert "default_only" not in violations[0].message
+
+    summary = use_case.execute_full_summary()
+    assert summary.success is False
+    assert summary.files_checked == 1
+    assert summary.files_failed == 1
+    assert summary.checked_paths == ["docs/pkg-adrs/pkg-adr-001.md"]
+    assert len(summary.violations) == 1
+    assert summary.violations[0]["path"] == "docs/pkg-adrs/pkg-adr-001.md"
+    assert "package_only" in summary.violations[0]["violations"][0]["message"]
+    assert all("default_only" not in v["violations"][0]["message"] for v in summary.violations)
+
+    targeted = use_case.execute_targeted(["docs/pkg-adrs/pkg-adr-001.md"])
+    assert targeted.success is False
+    assert targeted.files_checked == 1
+    assert targeted.files_failed == 1
+    assert targeted.checked_paths == ["docs/pkg-adrs/pkg-adr-001.md"]
+    assert len(targeted.violations) == 1
+    assert targeted.violations[0]["path"] == "docs/pkg-adrs/pkg-adr-001.md"
+    assert "package_only" in targeted.violations[0]["violations"][0]["message"]
+    assert all("default_only" not in v["violations"][0]["message"] for v in targeted.violations)
+
+
+def test_check_reuses_parsed_frontmatter_for_same_root_namespaces(tmp_path, monkeypatch):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/default-schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+    schema_path: docs/00-governance/default-schema.json
+  - name: pkg
+    repo_prefix: PKG
+    docs_root: docs
+    schema_path: docs/00-governance/pkg-schema.json
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "default-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (gov / "pkg-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    pkg_doc = tmp_path / "docs" / "45-adr" / "pkg-001.md"
+    pkg_doc.write_text(
+        """---
+document_id: PKG-ADR-001
+type: ADR
+title: Package ADR
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: Me
+docops_version: 2.0
+---
+# Package ADR
+""",
+        encoding="utf-8",
+    )
+
+    load_calls: list[str] = []
+    real_load = frontmatter.load
+
+    def counting_load(path: str, *args, **kwargs):
+        load_calls.append(path)
+        return real_load(path, *args, **kwargs)
+
+    monkeypatch.setattr("meminit.core.use_cases.check_repository.frontmatter.load", counting_load)
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+
+    violations = use_case.execute()
+    assert violations == []
+    assert load_calls.count(str(pkg_doc)) == 1
+
+    load_calls.clear()
+
+    summary = use_case.execute_full_summary()
+    assert summary.success is True
+    assert summary.files_checked == 1
+    assert summary.files_failed == 0
+    assert summary.violations_count == 0
+    assert summary.warnings_count == 0
+    assert load_calls.count(str(pkg_doc)) == 1
+
+    load_calls.clear()
+
+    targeted = use_case.execute_targeted(["docs/45-adr/pkg-001.md"])
+    assert targeted.success is True
+    assert targeted.files_checked == 1
+    assert targeted.files_failed == 0
+    assert targeted.violations_count == 0
+    assert targeted.warnings_count == 0
+    assert load_calls.count(str(pkg_doc)) == 1
+
+
+def test_check_resolve_validation_namespace_does_not_parse_frontmatter_for_unique_path(
+    tmp_path, monkeypatch
+):
+    create_initialized_repo(tmp_path)
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+    doc_path = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
+
+    def fail_load(*args, **kwargs):
+        raise AssertionError("frontmatter.load should not run for unique namespace matches")
+
+    monkeypatch.setattr("meminit.core.use_cases.check_repository.frontmatter.load", fail_load)
+
+    namespace = use_case._resolve_validation_namespace(doc_path)
+
+    assert namespace is not None
+    assert namespace.namespace == "default"
+
+
 def test_check_repository_reports_missing_schema_once(tmp_path):
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -261,8 +599,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -277,8 +614,7 @@ def test_check_repository_reports_invalid_schema_once(tmp_path):
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -289,10 +625,8 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
-    (docs / "adr-002.md").write_text(
-        """---
+""")
+    (docs / "adr-002.md").write_text("""---
 document_id: EXAMPLE-ADR-002
 type: ADR
 title: Example ADR 2
@@ -303,8 +637,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -315,8 +648,7 @@ docops_version: 2.0
 def test_check_excludes_wip_prefix_by_default(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text(
-        """
+    (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -331,8 +663,7 @@ def test_check_excludes_wip_prefix_by_default(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-    )
+""".strip())
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
@@ -346,8 +677,7 @@ def test_check_excludes_wip_prefix_by_default(tmp_path):
 def test_check_excludes_wip_directories_by_default(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text(
-        """
+    (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -362,8 +692,7 @@ def test_check_excludes_wip_directories_by_default(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-    )
+""".strip())
 
     wip_dir = tmp_path / "docs" / "45-adr" / "WIP-screenshots"
     wip_dir.mkdir(parents=True)
@@ -381,8 +710,7 @@ class TestTargetedCheck:
     def repo_for_targeted_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -398,11 +726,9 @@ class TestTargetedCheck:
   },
   "additionalProperties": true
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
@@ -410,14 +736,12 @@ document_types:
     directory: 45-adr
   PRD:
     directory: 10-prd
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid Doc
@@ -428,11 +752,9 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
 
-        (adr_dir / "adr-002-invalid.md").write_text(
-            """---
+        (adr_dir / "adr-002-invalid.md").write_text("""---
 document_id: BAD-ID
 type: ADR
 title: Invalid Doc
@@ -443,14 +765,12 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Invalid
-"""
-        )
+""")
 
         prd_dir = tmp_path / "docs" / "10-prd"
         prd_dir.mkdir(parents=True)
 
-        (prd_dir / "prd-001-valid.md").write_text(
-            """---
+        (prd_dir / "prd-001-valid.md").write_text("""---
 document_id: TEST-PRD-001
 type: PRD
 title: Valid PRD
@@ -461,8 +781,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid PRD
-"""
-        )
+""")
 
         return tmp_path
 
@@ -552,20 +871,17 @@ docops_version: 2.0
         assert "OUTSIDE_DOCS_ROOT" in result.warnings[0]["warnings"][0]["code"]
 
     def test_execute_targeted_reports_schema_missing(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid Doc
@@ -576,8 +892,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
 
         use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
         result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])

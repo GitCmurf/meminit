@@ -146,6 +146,140 @@ def test_index_repository_builds_index(tmp_path):
     assert "generated_at" not in payload["data"]
 
 
+def test_index_repository_resolves_same_root_namespaces_from_document_ids(tmp_path):
+    """Multi-namespace indexing must use document_id prefixes when docs_root is shared."""
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": {"type": "string"},
+    "type": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "version": {"type": "string"},
+    "last_updated": {"type": "string", "format": "date"},
+    "owner": {"type": "string"},
+    "docops_version": {"type": "string"}
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    _setup_doc(
+        tmp_path,
+        "AIDHA-ADR-001",
+        title="Root",
+        filename="adr-root.md",
+    )
+    _setup_doc(
+        tmp_path,
+        "PHYLA-ADR-001",
+        title="Phyla",
+        filename="adr-phyla.md",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.document_count == 2
+    assert {node["document_id"] for node in report.documents} == {
+        "AIDHA-ADR-001",
+        "PHYLA-ADR-001",
+    }
+    assert {node["namespace"] for node in report.documents} == {"root", "phyla"}
+
+
+def test_index_repository_respects_exclusions_for_resolved_owner_namespace(tmp_path):
+    """An overlapping parent scan must not index files the owning namespace excludes."""
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: nested
+    repo_prefix: NEST
+    docs_root: docs/nested
+    excluded_paths:
+      - docs/nested/private
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": {"type": "string"},
+    "type": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "version": {"type": "string"},
+    "last_updated": {"type": "string"},
+    "owner": {"type": "string"},
+    "docops_version": {"type": "string"}
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    _setup_doc(
+        tmp_path,
+        "AIDHA-ADR-001",
+        title="Root",
+        filename="adr-root.md",
+    )
+    _setup_doc(
+        tmp_path,
+        "NEST-ADR-001",
+        title="Nested Public",
+        filename="adr-public.md",
+        docs_root="docs",
+        subdir="nested/45-adr",
+    )
+    _setup_doc(
+        tmp_path,
+        "NEST-ADR-002",
+        title="Nested Private",
+        filename="adr-private.md",
+        docs_root="docs",
+        subdir="nested/private/45-adr",
+    )
+
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    expected_ids = {"AIDHA-ADR-001", "NEST-ADR-001"}
+    assert first_report.document_count == 2
+    assert {node["document_id"] for node in first_report.documents} == expected_ids
+    assert {node["namespace"] for node in first_report.documents} == {"root", "nested"}
+    assert second_report.rebuild["mode"] == "incremental"
+    assert second_report.document_count == 2
+    assert {node["document_id"] for node in second_report.documents} == expected_ids
+
+
 def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path):
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
@@ -161,6 +295,96 @@ def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path)
         "unchanged": 1,
     }
     assert second_report.index_path.read_bytes() == first_bytes
+
+
+def test_index_repository_warm_cache_single_namespace_skips_namespace_lookup(
+    tmp_path, monkeypatch
+):
+    """Warm cache validation should keep the single-namespace fast path."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    def fail_namespace_lookup(*args, **kwargs):
+        raise AssertionError(
+            "warm cache validation should not call namespace_for_path_and_document_id"
+        )
+
+    monkeypatch.setattr(
+        type(use_case._layout),
+        "namespace_for_path_and_document_id",
+        fail_namespace_lookup,
+    )
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild == {
+        "mode": "incremental",
+        "added": 0,
+        "changed": 0,
+        "removed": 0,
+        "unchanged": 1,
+    }
+    assert second_report.document_count == 1
+
+
+def test_index_repository_rebuilds_when_persisted_namespace_is_stale(tmp_path):
+    _setup_doc(tmp_path, "AIDHA-ADR-001", title="Root", filename="adr-root.md")
+    _setup_doc(tmp_path, "PHYLA-ADR-001", title="Phyla", filename="adr-phyla.md")
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": {"type": "string"},
+    "type": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "version": {"type": "string"},
+    "last_updated": {"type": "string", "format": "date"},
+    "owner": {"type": "string"},
+    "docops_version": {"type": "string"}
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    first_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    index_path = first_report.index_path
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    payload["data"]["nodes"][0]["namespace"] = "wrong"
+    index_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert second_report.rebuild["mode"] == "full"
+    assert {node["namespace"] for node in second_report.documents} == {
+        "root",
+        "phyla",
+    }
+    repaired_payload = json.loads(index_path.read_text(encoding="utf-8"))
+    assert {node["namespace"] for node in repaired_payload["data"]["nodes"]} == {
+        "root",
+        "phyla",
+    }
 
 
 def test_index_repository_invalidates_cache_when_custom_docs_root_state_changes(tmp_path):
@@ -254,6 +478,44 @@ def test_index_repository_incremental_detects_changed_added_and_removed(tmp_path
         / "EXAMPLE-ADR-002.json"
     )
     assert not removed_node.exists()
+
+
+def test_s08_index_repository_incremental_recomputes_changed_related_edges(tmp_path):
+    source_path = _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Source")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", title="Target")
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+    use_case.execute()
+
+    source_path.write_text(
+        source_path.read_text(encoding="utf-8").replace(
+            "docops_version: 2.0\n---",
+            "docops_version: 2.0\nrelated_ids:\n  - EXAMPLE-ADR-002\n---",
+        ),
+        encoding="utf-8",
+    )
+    stat = source_path.stat()
+    os.utime(
+        source_path,
+        ns=(stat.st_atime_ns + 1_000_000_000, stat.st_mtime_ns + 1_000_000_000),
+    )
+
+    report = use_case.execute()
+    payload = json.loads(report.index_path.read_text(encoding="utf-8"))
+    related_edges = [
+        edge for edge in payload["data"]["edges"] if edge["edge_type"] == "related"
+    ]
+
+    assert report.rebuild["mode"] == "incremental"
+    assert report.rebuild["changed"] == 1
+    assert related_edges == [
+        {
+            "source": "EXAMPLE-ADR-001",
+            "target": "EXAMPLE-ADR-002",
+            "edge_type": "related",
+            "context": "frontmatter.related_ids",
+            "guaranteed": True,
+        }
+    ]
 
 
 def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
@@ -707,13 +969,13 @@ def test_index_filter_by_impl_state(tmp_path):
 
 
 def test_index_filter_unknown_value_error(tmp_path):
-    """Unknown filter value raises E_INVALID_FILTER_VALUE."""
+    """Unknown filter value raises STATE_INVALID_FILTER_VALUE."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
     with pytest.raises(MeminitError) as exc_info:
         IndexRepositoryUseCase(str(tmp_path), impl_state_filter="BogusState")
 
-    assert exc_info.value.code == ErrorCode.E_INVALID_FILTER_VALUE
+    assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
 
 
 def test_index_filtered_catalog_header(tmp_path):
@@ -1260,6 +1522,30 @@ def test_index_graph_schema_version(tmp_path):
     assert payload["data"]["edge_count"] == 0
     assert "nodes" in payload["data"]
     assert "edges" in payload["data"]
+
+
+def test_index_single_namespace_bypasses_document_id_namespace_lookup(
+    tmp_path, monkeypatch
+):
+    """Single-namespace repositories should not pay the document-id tie-breaker cost."""
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001")
+
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+
+    def fail_namespace_lookup(*args, **kwargs):
+        raise AssertionError(
+            "single-namespace index build should not call namespace_for_path_and_document_id"
+        )
+
+    monkeypatch.setattr(
+        type(use_case._layout),
+        "namespace_for_path_and_document_id",
+        fail_namespace_lookup,
+    )
+
+    report = use_case.execute(use_cache=False)
+
+    assert report.document_count == 1
 
 
 @pytest.mark.slow

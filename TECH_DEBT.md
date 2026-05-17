@@ -1,163 +1,229 @@
 # Technical Debt Register
 
-This file tracks known technical debt items that were identified during code
-review but deliberately deferred from the current implementation phase.
-Each entry includes a remediation sketch so a future contributor can pick
-it up without re-discovering the context.
+This register tracks known technical debt and open implementation gaps that
+are intentionally deferred from the current delivery slice. It is not a place
+for vague ideas or feature wishes: each entry must be evidence-backed,
+owned, prioritized, and closed only when code, tests, and documentation are
+updated together.
 
-Items are ordered by priority (highest first). When picking up an item,
-create a dedicated branch, update this file to mark it in-progress, and
-link the resulting PR.
+## Governance
 
----
+- **Canonical register:** `TECH_DEBT.md`
+- **Scope:** Cross-cutting implementation debt, plan closeout gaps, and
+  maintainability work that should survive beyond a single PR.
+- **Out of scope:** New product ideas, speculative refactors, duplicate issue
+  tracker content, or work already completed by a later implementation.
+- **Closure rule:** An item can move to `Closed` only when its definition of
+  done is satisfied and verification evidence is recorded.
+- **Update rule:** When a debt item is implemented, update this file in the
+  same PR as the code, tests, and governed docs.
+- **Ordering:** Open items are ordered by priority, then by delivery sequence.
 
-## TD-001 — `_ns_cache` produces wrong results for multi-namespace repos with overlapping `docs_dir`
+## Status Model
 
-**Priority:** Medium
-**Origin:** Gemini + Macroscope code review (PR-V)
-**Status:** Open
+| Status | Meaning |
+| ------ | ------- |
+| `Open` | Accepted debt that is not yet being worked. |
+| `In Progress` | Assigned work is active on a branch or sprint. |
+| `Blocked` | Work is accepted but cannot proceed until a named blocker clears. |
+| `Narrowed` | Accepted debt whose scope has been reduced and re-baselined. |
+| `Closed` | Code, tests, and docs are complete and verified. |
+| `Superseded` | A later implementation or plan made the item obsolete. |
+| `Rejected` | Reassessment found the item invalid or not worth carrying. |
 
-**Description:**
-The per-parent-directory namespace cache in `index_repository.py:912-929`
-caches `_SENTINEL_NONE` when a file belongs to a different namespace than
-the one currently being iterated. If the same directory contains files
-from multiple namespaces (overlapping `docs_dir`), files belonging to the
-other namespace are permanently skipped. The single-namespace fast path
-(`single_ns` at line 917) bypasses this cache entirely, so single-namespace
-repos are unaffected.
+## Priority Model
 
-**Impact:**
-Multi-namespace repos with overlapping `docs_dir` configurations will
-silently miss files in the index. Current deployments use single-namespace
-or non-overlapping configurations, so no production impact today.
+| Priority | Meaning |
+| -------- | ------- |
+| `P0` | Blocks correctness, security, release readiness, or data integrity. |
+| `P1` | Significant user-facing, agent-facing, or architectural risk. |
+| `P2` | Maintainability, scalability, or traceability issue with bounded impact. |
+| `P3` | Cleanup or polish that should not distract from higher-priority work. |
 
-**Remediation sketch:**
-Replace the flat `_ns_cache[parent_key] = owner|_SENTINEL_NONE` with a
-per-parent map keyed by `(parent_key, namespace)` or remove the cache
-entirely for multi-namespace repos and rely on `namespace_for_path()`
-per-file (slower but correct).
+## Open Backlog
 
-**References:**
-- `src/meminit/core/use_cases/index_repository.py:912-929`
-- `src/meminit/core/services/repo_config.py` (`namespace_for_path`)
+### TD-001: Multi-namespace index cache can skip files in overlapping docs roots
 
----
+| Field | Value |
+| ----- | ----- |
+| Priority | P2 |
+| Status | Closed |
+| Owner | Core indexing maintainers |
+| Source | Review follow-up from Phase 4/5 index work |
+| Related plans | `MEMINIT-PLAN-011`, `MEMINIT-PLAN-013`, `MEMINIT-PLAN-014` |
+| Evidence | `src/meminit/core/use_cases/index_repository.py` now deduplicates discovered paths across configured namespaces, resolves ambiguous ownership with `document_id` prefixes when multiple namespaces share a docs root, and invalidates cached nodes whose stored namespace no longer matches the current resolver. |
+| Impact | Multi-namespace repositories with overlapping or same-root docs roots can now be indexed deterministically instead of dropping the second namespace or reusing stale namespace ownership from cache. |
+| Remediation | Keep namespace resolution doc-id-aware for ambiguous paths, and invalidate cached index nodes whenever the resolved namespace changes. |
+| Definition of done | Add an overlapping-namespace regression fixture; prove both namespaces' files are indexed; update index behavior docs if the lookup algorithm changes; run the focused index tests and `meminit check --format json`. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py` |
+| Closure evidence | Closed on 2026-05-09 by adding document-id-aware namespace resolution for ambiguous multi-namespace paths, invalidating stale cached node namespaces, and covering same-root namespaces in `tests/core/use_cases/test_index_repository.py` and `tests/core/services/test_repo_layout.py`; focused verification passed. |
 
-## TD-002 — Unused `known_ids` parameter in `_is_dep_resolved`
+### TD-002: Streaming producers still materialize use-case results before emitting
 
-**Priority:** Low
-**Origin:** Greptile code review (PR-V)
-**Status:** Open
+| Field | Value |
+| ----- | ----- |
+| Priority | P2 |
+| Status | Closed |
+| Owner | CLI/Core maintainers |
+| Source | MEMINIT-PLAN-014 Phase 5 constant-memory objective |
+| Related plans | `MEMINIT-PLAN-008`, `MEMINIT-PLAN-014`, `MEMINIT-PLAN-015`, `MEMINIT-SPEC-011`, `MEMINIT-FDD-014` |
+| Evidence | `src/meminit/core/services/stream_events.py` owns `StreamItem`, `StreamProgress`, `StreamSummary`, and `StreamingResult`; `src/meminit/cli/main.py` drains `iter_stream()` results through `CoreStreamingProducer` for `index`, `scan`, and `context --deep`. |
+| Narrowing evidence | `rg "CallableStreamingProducer" src/meminit/cli` returns no matches; the remaining `CallableStreamingProducer` helper is confined to `tests/cli/test_stream_emitter.py` for test coverage. |
+| Impact | Closed: the production NDJSON path no longer depends on CLI-local closure adapters or public result-object materialization before the first stream item. |
+| Remediation | Completed by moving streaming payload types into core, routing production CLI streaming through `CoreStreamingProducer`, adding core `iter_stream()` producers, and sharing index build artifacts between JSON and NDJSON paths. |
+| Definition of done | Shared iterator plumbing is in place for JSON and NDJSON; regression tests fail if `index`, `scan`, or `context --deep` cannot yield the first item before fully materializing the command payload; SPEC-011/FDD-014 wording is updated if the API shape changes. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_streaming_laziness.py tests/cli/test_stream_emitter.py tests/adapters/test_streaming_cli.py tests/cli/test_streaming_equivalence.py tests/cli/test_streaming_determinism.py` |
+| Closure evidence | Closed on 2026-05-10 after `scan`, `context --deep`, and `index` gained instrumentation regressions for first-item emission before public result materialization. SPEC-011 and FDD-014 document the command-level guarantees, including the index correctness boundary that validation and artifact writes complete before public node/edge items are emitted. |
 
-**Description:**
-`_is_dep_resolved(dep_id, state, known_ids)` accepts `known_ids` but
-never reads it. A dependency that exists in the index (`known_ids`) but
-not in `project-state.yaml` is unconditionally treated as unresolved.
-This is the intended semantics (a dependency must have an explicit state
-entry with `impl_state: Done` to count as resolved), but the unused
-parameter misleads future maintainers into thinking `known_ids` participates
-in the resolution logic.
+### TD-003: Phase 5 cache scenario traceability is weaker than the plan matrix
 
-**Impact:**
-No functional impact. Maintenance confusion risk.
+| Field | Value |
+| ----- | ----- |
+| Priority | P2 |
+| Status | Closed |
+| Owner | Test maintainers |
+| Source | MEMINIT-PLAN-014 fixture matrix S05-S14 |
+| Related plans | `MEMINIT-PLAN-014` |
+| Evidence | Cache behavior has unit and CLI coverage, but the plan names one scenario per cache case for changed, added, removed, cross-doc edge recomputation, global invalidation, version invalidation, corrupt node entry, missing manifest, and concurrent invocation. The current tests combine several concerns across lower-level tests. |
+| Impact | Reviewers must manually map implementation coverage back to the plan matrix, increasing closeout ambiguity and future regression risk. |
+| Remediation | Either add explicit scenario tests matching S05-S14 or revise MEMINIT-PLAN-014 to state that combined lower-level coverage is the accepted verification surface. |
+| Definition of done | Every S05-S14 row has a named test or a documented supersession note; the plan/FDD/test names agree; cache and streaming tests remain green. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_index_cache.py tests/adapters/test_cli.py tests/adapters/test_streaming_cli.py` |
+| Closure evidence | Closed on 2026-05-08 by adding named S08, S09/S10/S11, S13, and S14 regressions, preserving existing S05-S07 and S12 coverage, and recording the scenario-to-test mapping in `MEMINIT-PLAN-015`. |
 
-**Remediation sketch:**
-Remove `known_ids` from `_is_dep_resolved`, `_is_ready`, and
-`_open_blockers_for` signatures. Update `compute_derived_fields` to not
-pass it through. Update all callers and tests.
+### TD-004: Phase 5 external testbed closeout evidence is not committed
 
-**References:**
-- `src/meminit/core/services/state_derived.py:48-53`
-- `src/meminit/core/services/state_derived.py:60-73`
-- `src/meminit/core/services/state_derived.py:76-90`
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | Repository owner |
+| Source | MEMINIT-PLAN-014 exit criterion 11 and MEMINIT-RUNBOOK-006 closeout checklist |
+| Related plans | `MEMINIT-PLAN-014`, `MEMINIT-LOG-001` |
+| Evidence | The sanitized external testbed run is recorded in `MEMINIT-LOG-001`, including the command list, provenance, cache evidence, and sanitized summary. |
+| Prepared artifact | `MEMINIT-LOG-001` is the governed closure evidence for TD-004. |
+| Impact | External-testbed criterion is now verifiable from committed artifacts. |
+| Remediation | None. TD-004 is closed. |
+| Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, records the sanitized operator summary, and passes `meminit check --format json`. |
+| Verification commands | `./.venv/bin/meminit check --format json` |
 
----
+### TD-005: Streaming CLI fixture setup is duplicated
 
-## TD-003 — O(N^2) complexity in `compute_derived_fields`
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | Test maintainers |
+| Source | Phase 5 test maintainability review |
+| Related plans | `MEMINIT-PLAN-014` |
+| Evidence | `tests/adapters/test_streaming_cli.py` has local setup helpers while newer streaming tests use shared fixture infrastructure under `tests/fixtures/streaming`. |
+| Impact | Minor maintainability cost and higher risk of fixture drift between CLI-level and equivalence/determinism tests. |
+| Remediation | Refactor the CLI streaming tests to reuse the shared initialized repository and streaming fixture helpers without weakening command-specific assertions. |
+| Definition of done | Duplicate setup is removed or explicitly justified; shared helpers remain deterministic; existing streaming CLI assertions still cover unsupported formats, stdout isolation, schema conformance, and correlation behavior. |
+| Verification commands | `./.venv/bin/pytest -q tests/adapters/test_streaming_cli.py tests/fixtures/test_streaming_fixtures.py tests/cli` |
+| Closure evidence | Closed on 2026-05-09 by moving NDJSON record parsing and stream schema validator construction into `tests/cli/streaming_helpers.py`, reusing those helpers from adapter and CLI streaming tests, and passing the focused streaming verification suite. |
 
-**Priority:** Low
-**Origin:** Gemini code review (PR-V); pre-existing
-**Status:** Open
+### TD-006: Unused `known_ids` parameter obscures dependency semantics
 
-**Description:**
-`_unblocks_for` performs a full scan of `state.entries` for every entry,
-producing O(N^2) total work in `compute_derived_fields`. For repos with
-hundreds of state entries this becomes measurable.
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | State/queue maintainers |
+| Source | Review follow-up from Phase 4 state derivation |
+| Related plans | `MEMINIT-PLAN-013` |
+| Evidence | `_is_dep_resolved(dep_id, state, known_ids)` and related helpers accept `known_ids`, but dependency readiness is intentionally based on explicit `project-state.yaml` entries with `impl_state: Done`. |
+| Impact | No functional bug, but the unused parameter suggests that indexed-but-untracked documents may count as resolved dependencies. |
+| Remediation | Remove `known_ids` from helper signatures and update callers/tests to make the explicit-state semantics obvious. |
+| Definition of done | Helper signatures match the actual algorithm; state derivation tests still cover known, unknown, missing-state, and explicit-done dependencies; FDD-013 remains accurate. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py` |
+| Closure evidence | Closed on 2026-05-08 after verifying `src/meminit/core/services/state_derived.py` helper signatures no longer carry unused `known_ids`; focused verification passed. |
 
-**Impact:**
-Performance degrades quadratically with state entry count. Acceptable at
-current scale (<100 entries). The 500-doc benchmark budget (30s) already
-accounts for this.
+### TD-007: `compute_derived_fields` uses quadratic unblocks derivation
 
-**Remediation sketch:**
-Build an inverse adjacency map once at the start of
-`compute_derived_fields`: for each entry, record which other entries
-reference it in `depends_on`/`blocked_by`. Then `_unblocks_for` becomes
-a constant-time lookup. Total complexity drops to O(N).
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | State/queue maintainers |
+| Source | Review follow-up from Phase 4 state derivation |
+| Related plans | `MEMINIT-PLAN-013` |
+| Evidence | `_unblocks_for` scans all state entries for each entry when calculating derived fields. |
+| Impact | Acceptable at current scale, but queue derivation cost grows quadratically as state entries increase. |
+| Remediation | Build a dependency inverse adjacency map once per `compute_derived_fields` call and answer `unblocks` from that map. |
+| Definition of done | Derived output is byte-identical for existing fixtures; a scale-oriented unit test demonstrates linear-style behavior or at least prevents accidental extra full scans; docs do not need updating unless payload semantics change. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py` |
+| Closure evidence | Closed on 2026-05-08 after verifying `_build_incoming_references` is used once per derivation and adding a 1000-entry reverse-lookup regression; focused verification passed. |
 
-**References:**
-- `src/meminit/core/services/state_derived.py:100-113` (`_unblocks_for`)
-- `src/meminit/core/services/state_derived.py:122-137` (`compute_derived_fields`)
+### TD-008: State error-code prefix convention is inconsistent
 
----
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | Contract maintainers |
+| Source | Review follow-up from Phase 4 error-code work |
+| Related plans | `MEMINIT-PLAN-010`, `MEMINIT-PLAN-013`, `MEMINIT-PLAN-015`, `MEMINIT-SPEC-006` |
+| Evidence | The public `ErrorCode` enum mixed old `E_*` state names with unprefixed `STATE_*` codes. |
+| Impact | No runtime bug, but the public contract is less regular for agents and documentation. Renaming is cross-cutting and should be deliberate. |
+| Remediation | Choose a single state-code convention, update code, docs, explain metadata, tests, and any migration notes in SPEC-006. |
+| Definition of done | SPEC-006, `ErrorCode`, `ERROR_EXPLANATIONS`, exit-code mappings, contract matrix tests, and state tests agree on the final names. If compatibility is intentionally preserved, document aliases explicitly. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/services/test_error_explainer.py tests/core/services/test_exit_codes.py tests/integration/test_contract_matrix.py tests/adapters/test_cli_state.py` |
+| Closure evidence | Closed on 2026-05-09 after product/contract owner confirmation that no external consumers depend on the old names. The runtime enum, explain metadata, exit-code mapping, contract tests, state tests, `MEMINIT-SPEC-006`, and changelog now use `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and `STATE_INVALID_FILTER_VALUE` without aliases. |
 
-## TD-004 — Inconsistent `E_` prefix on `STATE_*` error codes
+### TD-009: State-file path helper has fallback behavior where strictness is expected
 
-**Priority:** Low
-**Origin:** CodeRabbit nitpick (PR-V)
-**Status:** Open
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Closed |
+| Owner | State/doctor/index maintainers |
+| Source | Review follow-up from Phase 4 configuration strictness |
+| Related plans | `MEMINIT-PLAN-013` |
+| Evidence | `get_state_file_rel_path` catches config-loading failures and returns `docs/01-indices/project-state.yaml`. State CLI paths call initialization validation first, but diagnostic/index paths can still observe the fallback. |
+| Narrowing evidence | `get_state_file_rel_path_strict()` and `get_state_file_rel_path_fallback()` now separate strict config validation from diagnostic default-path behavior. `tests/core/services/test_project_state.py` covers missing config, malformed config, custom docs roots, and fallback behavior. |
+| Closure evidence | Closed on 2026-05-09 by adding strict config plumbing to project-state load/save/validation, routing CLI state command use cases through strict mode after `validate_initialized`, and preserving fallback semantics for diagnostics and direct service use. |
+| Impact | Diagnostics can be less precise in uninitialized or malformed repos, even though mutation paths fail earlier. |
+| Remediation | Migrate command/use-case callers to the strict helper wherever repo config must be trusted. Keep fallback only for diagnostics that intentionally explain default paths. |
+| Definition of done | Missing/malformed config produces `CONFIG_MISSING` or the documented diagnostic result in every affected command; doctor behavior remains useful for uninitialized repos; tests cover both strict and fallback callers. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/services/test_project_state.py tests/core/use_cases/test_doctor_repository.py tests/core/use_cases/test_index_repository.py tests/adapters/test_cli_state.py` |
 
-**Description:**
-The `ErrorCode` enum mixes `E_STATE_YAML_MALFORMED` / `E_STATE_SCHEMA_VIOLATION`
-(with `E_` prefix) alongside `STATE_INVALID_PRIORITY`,
-`STATE_FIELD_TOO_LONG`, etc. (without prefix). The convention is
-inconsistent. Renaming would be a cross-cutting change affecting
-SPEC-006, PLAN-013, FDD-013, all tests, CLI error messages, and
-`ERROR_EXPLANATIONS`.
+## Recent Plan Assessment
 
-**Impact:**
-No functional impact. Cosmetic inconsistency in the public error code
-contract.
+Assessment date: 2026-05-08.
 
-**Remediation sketch:**
-Choose one convention (preferably keeping the `STATE_` prefix without `E_`
-since the majority of codes already use it). Rename the two `E_STATE_*`
-codes, update all references in docs and code, add migration notes to
-SPEC-006 changelog.
+Reviewed source plans:
 
-**References:**
-- `src/meminit/core/services/error_codes.py:59-70`
-- `docs/20-specs/spec-006-errorcode-enum.md`
+- `MEMINIT-PLAN-008` - Agentic Coding vNext Programme
+- `MEMINIT-PLAN-009` - Phase 0 Detailed Implementation Plan
+- `MEMINIT-PLAN-010` - Phase 1 Detailed Implementation Plan
+- `MEMINIT-PLAN-011` - Phase 2 Detailed Implementation Plan
+- `MEMINIT-PLAN-012` - Phase 3 Detailed Implementation Plan
+- `MEMINIT-PLAN-013` - Phase 4 Detailed Implementation Plan
+- `MEMINIT-PLAN-014` - Phase 5 Detailed Implementation Plan
 
----
+Summary:
 
-## TD-005 — `get_state_file_rel_path` silently returns default on missing config
+| Plan | Assessment |
+| ---- | ---------- |
+| `MEMINIT-PLAN-009` | No open backlog identified. The plan records completion, and the corresponding Phase 0 tests/docs are present. |
+| `MEMINIT-PLAN-010` | No open runtime backlog identified. Capabilities, correlation IDs, explain, contract matrix coverage, and v3 schema docs are present. |
+| `MEMINIT-PLAN-011` | No open runtime backlog identified. Graph index fields, schemas, resolve/identify/link updates, and external testbed note are present. TD-001 is closed. |
+| `MEMINIT-PLAN-012` | No open backlog identified. Protocol registry, check/sync, fixture coverage, runbook guidance, and external testbed note are present. |
+| `MEMINIT-PLAN-013` | Runtime surface appears implemented. TD-006, TD-007, TD-008, and TD-009 are closed. |
+| `MEMINIT-PLAN-014` | Core Phase 5 features are present. TD-002, TD-003, TD-004, and TD-005 are closed. |
 
-**Priority:** Low
-**Origin:** Greptile code review (PR-V)
-**Status:** Open
+## Closed, Superseded, and Rejected Items
 
-**Description:**
-`get_state_file_rel_path` catches all exceptions from `load_repo_config`
-and returns the hardcoded fallback `"docs/01-indices/project-state.yaml"`.
-This means code paths that call this function without first checking
-config validity will silently operate against a default path. All `state *`
-CLI commands already call `validate_initialized()` before reaching this
-function, so the fail-fast happens earlier. However, `meminit doctor` and
-`meminit index` may reach this function with missing config and silently
-use the default.
+Closed items remain in the backlog table with closure evidence so their
+original context and verification commands stay near the implementation
+handoff. Current closed items: TD-001, TD-002, TD-003, TD-004, TD-005,
+TD-006, TD-007, TD-008, and TD-009.
 
-**Impact:**
-`meminit doctor` on an uninitialized repo will try to read from the
-default path instead of reporting a config error. Low severity since
-doctor's purpose is diagnostics.
+## Change History
 
-**Remediation sketch:**
-Split into two functions: `get_state_file_rel_path` (current, with
-fallback) and `get_state_file_rel_path_strict` (raises `CONFIG_MISSING`
-on failure). Use the strict variant in `index_repository.py` and keep
-the fallback for `doctor`.
-
-**References:**
-- `src/meminit/core/services/project_state.py:41-50`
-- `src/meminit/core/use_cases/doctor_repository.py`
+| Version | Date | Author | Changes |
+| ------- | ---- | ------ | ------- |
+| 0.1 | 2026-04-28 | Codex | Initial standalone review-debt register. |
+| 0.2 | 2026-05-08 | Codex | Reworked into a structured professional debt register, assessed MEMINIT-PLAN-008 through MEMINIT-PLAN-014, and added live unsuperseded gaps from Phase 5 plus state/index hardening debt. |
+| 0.3 | 2026-05-17 | CMF | Closed TD-004 after approving the sanitized external testbed evidence in MEMINIT-LOG-001. |

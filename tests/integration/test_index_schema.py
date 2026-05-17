@@ -3,11 +3,13 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker
 
+from meminit.core.services.path_utils import load_index_documents
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUNDLED_SCHEMA = _REPO_ROOT / "src" / "meminit" / "core" / "assets" / "index-artifact.schema.json"
 _DOCS_SCHEMA = _REPO_ROOT / "docs" / "20-specs" / "index-artifact.schema.json"
+_COMMITTED_INDEX = _REPO_ROOT / "docs" / "01-indices" / "meminit.index.json"
 
 
 @pytest.fixture(scope="module")
@@ -97,6 +99,20 @@ def test_persisted_index_allows_brownfield_nodes_with_missing_type_and_title(
 
     if errors:
         pytest.fail(f"Brownfield index artifact failed schema validation: {errors[0].message}")
+
+
+def test_committed_index_includes_phase_5_log_document():
+    """The checked-in index must stay in sync with the governed LOG evidence doc."""
+    documents = load_index_documents(_COMMITTED_INDEX)
+    log_doc = next(
+        (doc for doc in documents if doc["document_id"] == "MEMINIT-LOG-001"),
+        None,
+    )
+
+    assert log_doc is not None, "Committed index is missing MEMINIT-LOG-001"
+    assert log_doc["path"] == "docs/58-logs/log-001-phase-5-external-testbed-evidence.md"
+    assert log_doc["type"] == "LOG"
+    assert log_doc["status"] == "Draft"
 
 
 def test_index_schema_fails_on_malformed_payload(index_artifact_schema):

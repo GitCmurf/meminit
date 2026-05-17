@@ -15,12 +15,17 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import yaml
 
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+)
 
 
 @dataclass
@@ -56,14 +61,17 @@ def _count_governed_markdown(
             continue
         if not path.is_file():
             continue
-        owner = layout.namespace_for_path(path)
-        if owner is None or owner.namespace != ns.namespace:
-            continue
-        if ns.is_excluded(path):
-            continue
         try:
             post = frontmatter.load(path)
         except Exception:
+            continue
+        owner = layout.namespace_for_path_and_document_id(
+            path,
+            post.metadata.get("document_id"),
+        )
+        if owner is None or owner.namespace != ns.namespace:
+            continue
+        if ns.is_excluded(path):
             continue
         count += 1
         doc_id = post.metadata.get("document_id")
@@ -250,3 +258,53 @@ class ContextRepositoryUseCase:
             warnings=warnings,
             documents=documents_sorted,
         )
+
+    def iter_stream(self, *, deep: bool = True) -> StreamingResult:
+        """Return a core-owned streaming producer for deep context output."""
+        summary = StreamSummary()
+
+        def records():
+            for row in self._iter_document_type_stream_items():
+                yield StreamItem("document_type", row)
+
+            result = self.execute(deep=deep)
+            namespaces = result.data.get("namespaces", [])
+            for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
+                yield StreamItem("namespace", ns)
+
+            if deep:
+                for row in sorted(result.documents, key=lambda row: row["document_id"]):
+                    yield StreamItem("document", row)
+
+            summary.data = _summary_data(result.data, "namespaces", "documents")
+            summary.warnings = result.warnings
+
+        return StreamingResult(records=records(), summary=summary)
+
+    def _iter_document_type_stream_items(self) -> Iterator[dict[str, Any]]:
+        """Yield document-type stream items without running the deep scan."""
+        layout: RepoLayout = load_repo_layout(self.root_dir)
+        default_ns = layout.default_namespace()
+        document_types: Dict[str, Any] = {}
+        for doc_type, dt_config in sorted(default_ns.document_types.items()):
+            dt_dict = {"directory": dt_config.directory}
+            if dt_config.template:
+                dt_dict["template"] = dt_config.template
+            if dt_config.description:
+                dt_dict["description"] = dt_config.description
+            document_types[doc_type] = dt_dict
+        for doc_type, directory in sorted(default_ns.type_directories.items()):
+            document_types.setdefault(doc_type, {"directory": directory})
+        for doc_type, payload in sorted(document_types.items()):
+            row = {"type": doc_type}
+            if isinstance(payload, dict):
+                row.update(payload)
+            row["type"] = doc_type
+            yield row
+
+
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary

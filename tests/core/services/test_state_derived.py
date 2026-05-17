@@ -144,6 +144,23 @@ class TestComputeDerivedFields:
         derived = compute_derived_fields(state, {"A"})
         assert derived["A"].ready is False
 
+    def test_large_reverse_lookup_fixture_preserves_deterministic_unblocks(self):
+        entries = []
+        known = set()
+        for idx in range(1000):
+            doc_id = f"TEST-ADR-{idx:03d}"
+            known.add(doc_id)
+            depends_on = (f"TEST-ADR-{idx - 1:03d}",) if idx else ()
+            entries.append(_entry(doc_id, "Not Started", depends_on=depends_on))
+        state = _state(*entries)
+
+        derived = compute_derived_fields(state, known)
+
+        assert derived["TEST-ADR-000"].unblocks == ("TEST-ADR-001",)
+        assert derived["TEST-ADR-500"].unblocks == ("TEST-ADR-501",)
+        assert derived["TEST-ADR-999"].unblocks == ()
+        assert list(derived) == sorted(known)
+
 
 # ---------------------------------------------------------------------------
 # validate_planning_fields

@@ -1,6 +1,7 @@
 import json
+from pathlib import Path
 
-from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.identify_document import IdentifyDocumentUseCase
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
@@ -173,6 +174,185 @@ namespaces:
     assert identified.document_id == "AIDHA-ADR-001"
 
 
+def test_same_root_namespaces_are_disambiguated_by_document_id_prefix(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    root_doc = tmp_path / "docs" / "45-adr" / "adr-001-root.md"
+    root_doc.parent.mkdir(parents=True)
+    root_doc.write_text(
+        "---\n"
+        "document_id: AIDHA-ADR-001\n"
+        "type: ADR\n"
+        "title: Root\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Root\n",
+        encoding="utf-8",
+    )
+
+    phyla_doc = tmp_path / "docs" / "45-adr" / "adr-002-phyla.md"
+    phyla_doc.write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Phyla\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# ADR: Phyla\n",
+        encoding="utf-8",
+    )
+
+    layout = load_repo_layout(tmp_path)
+    root_ns = layout.namespace_for_path_and_document_id(root_doc, "AIDHA-ADR-001")
+    phyla_ns = layout.namespace_for_path_and_document_id(phyla_doc, "PHYLA-ADR-001")
+    assert root_ns is not None and root_ns.namespace == "root"
+    assert phyla_ns is not None and phyla_ns.namespace == "phyla"
+
+    violations = CheckRepositoryUseCase(str(tmp_path)).execute()
+    assert violations == []
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert report.document_count == 2
+    assert {node["namespace"] for node in report.documents} == {"root", "phyla"}
+
+
+def test_namespace_for_document_id_prefers_anchored_prefix_matches(tmp_path):
+    root_dir = tmp_path
+    docs_dir = root_dir / "docs"
+    layout = RepoLayout(
+        root_dir=root_dir,
+        project_name="Example",
+        namespaces=(
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="root",
+                project_name="Example",
+                repo_prefix="AIDHA",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="shared",
+                project_name="Example",
+                repo_prefix="",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+        ),
+        index_path="docs/01-indices/meminit.index.json",
+        catalog_name="catalogue.md",
+    )
+
+    target = docs_dir / "45-adr" / "adr-001.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    resolved = layout.namespace_for_path_and_document_id(target, "ADR-001")
+
+    assert resolved is not None
+    assert resolved.namespace == "shared"
+
+
+def test_namespace_for_document_id_prefers_longest_anchored_prefix():
+    root_dir = Path("/tmp/meminit-test-root")
+    layout = RepoLayout(
+        root_dir=root_dir,
+        project_name="Example",
+        namespaces=(
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="base",
+                project_name="Example",
+                repo_prefix="MEMINIT",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="nested",
+                project_name="Example",
+                repo_prefix="MEMINIT-ADR",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+        ),
+        index_path="docs/01-indices/meminit.index.json",
+        catalog_name="catalogue.md",
+    )
+
+    resolved = layout.namespace_for_document_id("MEMINIT-ADR-001")
+
+    assert resolved is not None
+    assert resolved.namespace == "nested"
+
+
 def test_check_enforces_namespace_repo_prefix(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         """
@@ -261,3 +441,54 @@ namespaces:
 
     violations = CheckRepositoryUseCase(str(tmp_path)).execute()
     assert not any(v.rule == "ID_UNIQUE" for v in violations)
+
+
+def test_nested_namespace_ownership_prefers_path_specificity_over_document_id(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: org
+    repo_prefix: ORG
+    docs_root: docs/00-governance/org
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    org_doc = tmp_path / "docs" / "00-governance" / "org" / "org-gov-001.md"
+    org_doc.parent.mkdir(parents=True)
+    org_doc.write_text(
+        "---\n"
+        "document_id: AIDHA-GOV-001\n"
+        "type: GOV\n"
+        "title: Org\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-28\n"
+        "owner: GitCmurf\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "# GOV: Org\n",
+        encoding="utf-8",
+    )
+
+    layout = load_repo_layout(tmp_path)
+    resolved = layout.namespace_for_path_and_document_id(org_doc, "AIDHA-GOV-001")
+    assert resolved is not None and resolved.namespace == "org"
+
+    violations = CheckRepositoryUseCase(str(tmp_path)).execute()
+    assert any(v.rule == "ID_PREFIX" for v in violations)
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+    assert report.document_count == 1
+    assert report.documents[0]["namespace"] == "org"
