@@ -16,11 +16,13 @@ import logging
 import os
 import re
 import hashlib
+import threading
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from queue import Queue
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
 import yaml
@@ -160,6 +162,34 @@ def _index_stream_data(
     if report.kanban_path:
         data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
     return data
+
+
+def _emit_index_stream_items(
+    report: Any,
+    stream_item_emitter: Callable[[StreamItem], None],
+) -> None:
+    """Emit index nodes and edges in the same order as the JSON envelope."""
+    stream_nodes = sorted(
+        report.documents,
+        key=lambda n: n.get("document_id", ""),
+    )
+    visible_ids = {node["document_id"] for node in stream_nodes}
+    stream_edges = [
+        edge
+        for edge in report.edges
+        if edge.get("source") in visible_ids and edge.get("target") in visible_ids
+    ]
+    stream_edges.sort(
+        key=lambda e: (
+            e.get("source", ""),
+            e.get("target", ""),
+            e.get("type", e.get("edge_type", "")),
+        )
+    )
+    for node in stream_nodes:
+        stream_item_emitter(StreamItem("node", node))
+    for edge in stream_edges:
+        stream_item_emitter(StreamItem("edge", edge))
 
 
 def _json_default(obj: Any) -> str:
@@ -1118,7 +1148,11 @@ class IndexRepositoryUseCase:
         ).to_report()
 
     def _build_index_artifacts(
-        self, *, use_cache: bool = True, clear_cache: bool = False
+        self,
+        *,
+        use_cache: bool = True,
+        clear_cache: bool = False,
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
     ) -> _IndexBuildArtifacts:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
@@ -1146,6 +1180,7 @@ class IndexRepositoryUseCase:
                     use_cache=use_cache,
                     clear_cache=clear_cache,
                     initial_warnings=[],
+                    stream_item_emitter=stream_item_emitter,
                 )
         except MeminitError as exc:
             if (
@@ -1177,6 +1212,7 @@ class IndexRepositoryUseCase:
                         "path": fallback_path,
                     }
                 ],
+                stream_item_emitter=stream_item_emitter,
             )
 
     def iter_stream(
@@ -1184,41 +1220,59 @@ class IndexRepositoryUseCase:
     ) -> StreamingResult:
         """Return a core-owned streaming producer for index output."""
         summary = StreamSummary()
+        records_queue: Queue[Any] = Queue()
+        build_error: list[BaseException] = []
+        sentinel = object()
+
+        def emit_stream_item(item: StreamItem) -> None:
+            records_queue.put(item)
+
+        def build_stream_payload() -> None:
+            try:
+                report = self._build_index_artifacts(
+                    use_cache=use_cache,
+                    clear_cache=clear_cache,
+                    stream_item_emitter=emit_stream_item,
+                )
+                summary.data = _summary_data(
+                    _index_stream_data(
+                        report,
+                        self._root_dir,
+                        _filter_index_edges(
+                            report,
+                            status_filter=self._status_filter,
+                            impl_state_filter=self._impl_state_filter,
+                        ),
+                        filtered=(
+                            self._status_filter is not None
+                            or self._impl_state_filter is not None
+                        ),
+                    ),
+                    "nodes",
+                    "edges",
+                )
+                summary.warnings = report.warnings
+                summary.advice = getattr(report, "advice", [])
+            except BaseException as exc:  # pragma: no cover - propagated below
+                build_error.append(exc)
+            finally:
+                records_queue.put(sentinel)
 
         def records():
-            report = self._build_index_artifacts(
-                use_cache=use_cache,
-                clear_cache=clear_cache,
-            )
-            warnings_list = report.warnings
-            display_edges = _filter_index_edges(
-                report,
-                status_filter=self._status_filter,
-                impl_state_filter=self._impl_state_filter,
-            )
-            data = _index_stream_data(
-                report,
-                self._root_dir,
-                display_edges,
-                filtered=(
-                    self._status_filter is not None
-                    or self._impl_state_filter is not None
-                ),
-            )
-            for node in sorted(data["nodes"], key=lambda n: n.get("document_id", "")):
-                yield StreamItem("node", node)
-            for edge in sorted(
-                display_edges,
-                key=lambda e: (
-                    e.get("source", ""),
-                    e.get("target", ""),
-                    e.get("type", e.get("edge_type", "")),
-                ),
-            ):
-                yield StreamItem("edge", edge)
-            summary.data = _summary_data(data, "nodes", "edges")
-            summary.warnings = warnings_list
-            summary.advice = getattr(report, "advice", [])
+            thread = threading.Thread(target=build_stream_payload, daemon=True)
+            thread.start()
+            try:
+                while True:
+                    record = records_queue.get()
+                    if record is sentinel:
+                        break
+                    yield record
+                thread.join()
+                if build_error:
+                    raise build_error[0]
+            finally:
+                if thread.is_alive():
+                    thread.join()
 
         return StreamingResult(records=records(), summary=summary)
 
@@ -1231,6 +1285,7 @@ class IndexRepositoryUseCase:
         use_cache: bool,
         clear_cache: bool,
         initial_warnings: List[Dict[str, Any]],
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
     ) -> _IndexBuildArtifacts:
         if clear_cache:
             index_cache.clear()
@@ -1256,6 +1311,8 @@ class IndexRepositoryUseCase:
             index_path, cache_plan, warnings_list
         )
         if cached_report is not None:
+            if stream_item_emitter is not None:
+                _emit_index_stream_items(cached_report, stream_item_emitter)
             return cached_report
         return self._execute_with_cache_plan(
             cache=index_cache,
@@ -1268,6 +1325,7 @@ class IndexRepositoryUseCase:
             catalog_out_name=catalog_out_name,
             warnings_list=warnings_list,
             doc_paths=doc_paths,
+            stream_item_emitter=stream_item_emitter,
         )
 
     def _execute_with_cache_plan(
@@ -1283,6 +1341,7 @@ class IndexRepositoryUseCase:
         catalog_out_name: Optional[str],
         warnings_list: List[Dict[str, Any]],
         doc_paths: Sequence[Path],
+        stream_item_emitter: Callable[[StreamItem], None] | None = None,
     ) -> _IndexBuildArtifacts:
         # Load project state (gracefully optional).
         try:
@@ -1650,7 +1709,7 @@ class IndexRepositoryUseCase:
         if rebuild_mode is not None:
             rebuild["mode"] = rebuild_mode
 
-        return _IndexBuildArtifacts(
+        report = _IndexBuildArtifacts(
             index_path=index_path,
             document_count=len(filtered),
             catalog_path=catalog_path,
@@ -1662,6 +1721,11 @@ class IndexRepositoryUseCase:
             advice=canonical_advice,
             rebuild=rebuild,
         )
+
+        if stream_item_emitter is not None:
+            _emit_index_stream_items(report, stream_item_emitter)
+
+        return report
 
     def _discover_document_paths(self) -> List[Path]:
         paths: set[Path] = set()

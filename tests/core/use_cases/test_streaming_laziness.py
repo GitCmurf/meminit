@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import queue
+import threading
+
 from meminit.core.services.stream_events import StreamItem
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase, ContextResult
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
@@ -133,22 +136,93 @@ def test_context_stream_shallow_does_not_emit_documents(tmp_path, monkeypatch):
     assert "documents" not in result.summary.data
 
 
-def test_index_stream_yields_node_before_public_report_materialization(
+def test_index_stream_emits_first_node_while_build_is_still_running(
     tmp_path, monkeypatch
 ):
     create_initialized_repo(tmp_path)
     use_case = IndexRepositoryUseCase(str(tmp_path))
-    sentinel = FirstYieldSentinel()
+    stream_started = threading.Event()
+    release_build = threading.Event()
+    first_record_queue: queue.Queue[object] = queue.Queue()
+    sentinel = object()
 
-    def report_after_first_yield(*args, **kwargs):
-        sentinel.record("report")
-        raise AssertionError("index stream assembled IndexBuildReport before first item")
+    def build_with_stream(*args, **kwargs):
+        emitter = kwargs["stream_item_emitter"]
+        assert emitter is not None
+        emitter(
+            StreamItem(
+                "node",
+                {
+                    "document_id": "EXAMPLE-ADR-001",
+                    "path": "docs/45-adr/adr-001-test.md",
+                },
+            )
+        )
+        stream_started.set()
+        assert release_build.wait(timeout=5), "test did not release build in time"
+        return index_repository._IndexBuildArtifacts(
+            index_path=tmp_path / "docs" / "01-indices" / "meminit.index.json",
+            document_count=1,
+            documents=[
+                {
+                    "document_id": "EXAMPLE-ADR-001",
+                    "path": "docs/45-adr/adr-001-test.md",
+                }
+            ],
+            edges=[],
+            warnings=[],
+            advice=[],
+            rebuild={"mode": "full"},
+        )
 
-    monkeypatch.setattr(index_repository, "IndexBuildReport", report_after_first_yield)
+    monkeypatch.setattr(use_case, "_build_index_artifacts", build_with_stream)
 
-    first = next(use_case.iter_stream(use_cache=False).records)
-    sentinel.record("yield")
+    result = use_case.iter_stream(use_cache=False)
+    iterator = result.records
 
+    def consume_first_record() -> None:
+        try:
+            first_record_queue.put(next(iterator))
+            release_build.wait(timeout=5)
+            for record in iterator:
+                first_record_queue.put(record)
+        except BaseException as exc:  # pragma: no cover - surfaced in test thread
+            first_record_queue.put(exc)
+        finally:
+            first_record_queue.put(sentinel)
+
+    consumer = threading.Thread(target=consume_first_record, daemon=True)
+    consumer.start()
+
+    first = first_record_queue.get(timeout=1)
     assert isinstance(first, StreamItem)
     assert first.kind == "node"
-    assert sentinel.first_yield_after == ["yield"]
+    assert stream_started.wait(timeout=1)
+
+    release_build.set()
+
+    remaining: list[object] = []
+    while True:
+        item = first_record_queue.get(timeout=1)
+        if item is sentinel:
+            break
+        remaining.append(item)
+
+    consumer.join(timeout=1)
+
+    assert not any(isinstance(item, BaseException) for item in remaining)
+    assert result.summary.data["node_count"] == 1
+
+
+def test_index_stream_emits_cached_nodes_on_no_change_reuse(tmp_path):
+    create_initialized_repo(tmp_path)
+    use_case = IndexRepositoryUseCase(str(tmp_path))
+
+    use_case.execute()
+    result = use_case.iter_stream()
+    records = list(result.records)
+    node_kinds = [record.kind for record in records if isinstance(record, StreamItem)]
+
+    assert node_kinds[:2] == ["node", "node"]
+    assert result.summary.data["node_count"] == 2
+    assert result.summary.data["rebuild"]["mode"] == "incremental"
