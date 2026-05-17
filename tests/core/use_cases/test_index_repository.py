@@ -344,7 +344,7 @@ namespaces:
 
     second_report = IndexRepositoryUseCase(str(tmp_path)).execute()
 
-    assert second_report.rebuild["mode"] == "incremental"
+    assert second_report.rebuild["mode"] == "full"
     assert {node["namespace"] for node in second_report.documents} == {
         "root",
         "phyla",

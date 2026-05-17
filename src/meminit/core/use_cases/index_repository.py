@@ -1252,7 +1252,7 @@ class IndexRepositoryUseCase:
             cache_plan = CachePlan(mode="disabled")
         if cache_plan.manifest_warning:
             warnings_list.append(cache_plan.manifest_warning)
-        cached_report = self._cached_no_change_report(
+        cached_report, force_full_rebuild = self._cached_no_change_report(
             index_path, cache_plan, warnings_list
         )
         if cached_report is not None:
@@ -1263,6 +1263,7 @@ class IndexRepositoryUseCase:
             cache_plan=cache_plan,
             cache_rewrites=set(cache_plan.added | cache_plan.changed),
             use_cache=use_cache,
+            rebuild_mode="full" if force_full_rebuild else None,
             index_path=index_path,
             catalog_out_name=catalog_out_name,
             warnings_list=warnings_list,
@@ -1277,6 +1278,7 @@ class IndexRepositoryUseCase:
         cache_plan: CachePlan,
         cache_rewrites: set[str],
         use_cache: bool,
+        rebuild_mode: str | None,
         index_path: Path,
         catalog_out_name: Optional[str],
         warnings_list: List[Dict[str, Any]],
@@ -1644,6 +1646,10 @@ class IndexRepositoryUseCase:
             for e in sorted_filtered
         ]
 
+        rebuild = cache_plan.summary()
+        if rebuild_mode is not None:
+            rebuild["mode"] = rebuild_mode
+
         return _IndexBuildArtifacts(
             index_path=index_path,
             document_count=len(filtered),
@@ -1654,7 +1660,7 @@ class IndexRepositoryUseCase:
             documents=json_filtered,
             edges=json_edges,
             advice=canonical_advice,
-            rebuild=cache_plan.summary(),
+            rebuild=rebuild,
         )
 
     def _discover_document_paths(self) -> List[Path]:
@@ -1758,7 +1764,7 @@ class IndexRepositoryUseCase:
         index_path: Path,
         cache_plan: CachePlan,
         warnings_list: List[Dict[str, Any]],
-    ) -> _IndexBuildArtifacts | None:
+    ) -> tuple[_IndexBuildArtifacts | None, bool]:
         if (
             cache_plan.mode != "incremental"
             or cache_plan.added
@@ -1770,25 +1776,25 @@ class IndexRepositoryUseCase:
             or self._impl_state_filter is not None
             or not index_path.is_file()
         ):
-            return None
+            return None, False
         try:
             payload = json.loads(index_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return None
+            return None, False
         data = payload.get("data")
         if not isinstance(data, dict):
-            return None
+            return None, False
         nodes = data.get("nodes")
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
-            return None
+            return None, False
         for node in nodes:
             if not isinstance(node, dict):
-                return None
+                return None, False
             document_id = str(node.get("document_id", "")).strip()
             path_text = str(node.get("path", "")).strip()
             if not document_id or not path_text:
-                return None
+                return None, False
             expected_ns = _namespace_for_index_path(
                 self._layout,
                 self._root_dir / path_text,
@@ -1796,10 +1802,10 @@ class IndexRepositoryUseCase:
                 self._root_dir,
             )
             if expected_ns is None:
-                return None
+                return None, False
             cached_ns = str(node.get("namespace", "")).strip().lower()
             if cached_ns != expected_ns.namespace.lower():
-                return None
+                return None, True
         payload_warnings = payload.get("warnings", [])
         if not isinstance(payload_warnings, list):
             payload_warnings = []
@@ -1818,4 +1824,4 @@ class IndexRepositoryUseCase:
             edges=edges,
             advice=payload.get("advice", []),
             rebuild=cache_plan.summary(),
-        )
+        ), False
