@@ -222,7 +222,7 @@ class ScanRepositoryUseCase:
             plan=plan,
         )
 
-    def iter_stream(self) -> StreamingResult:
+    def iter_stream(self, *, generate_plan: bool = False) -> StreamingResult:
         """Return a core-owned streaming producer for NDJSON scan output."""
         summary = StreamSummary()
 
@@ -233,7 +233,7 @@ class ScanRepositoryUseCase:
             )
             for item in self._iter_stream_file_items(docs_root):
                 yield StreamItem("file", item)
-            report = self.execute(generate_plan=False)
+            report = self.execute(generate_plan=generate_plan)
             data = report.as_dict()
             for item in scan_suggestion_items(data):
                 yield StreamItem("suggestion", item)

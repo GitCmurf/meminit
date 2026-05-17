@@ -259,7 +259,7 @@ class ContextRepositoryUseCase:
             documents=documents_sorted,
         )
 
-    def iter_stream(self) -> StreamingResult:
+    def iter_stream(self, *, deep: bool = True) -> StreamingResult:
         """Return a core-owned streaming producer for deep context output."""
         summary = StreamSummary()
 
@@ -267,13 +267,14 @@ class ContextRepositoryUseCase:
             for row in self._iter_document_type_stream_items():
                 yield StreamItem("document_type", row)
 
-            result = self.execute(deep=True)
+            result = self.execute(deep=deep)
             namespaces = result.data.get("namespaces", [])
             for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
                 yield StreamItem("namespace", ns)
 
-            for row in sorted(result.documents, key=lambda row: row["document_id"]):
-                yield StreamItem("document", row)
+            if deep:
+                for row in sorted(result.documents, key=lambda row: row["document_id"]):
+                    yield StreamItem("document", row)
 
             summary.data = _summary_data(result.data, "namespaces", "documents")
             summary.warnings = result.warnings
