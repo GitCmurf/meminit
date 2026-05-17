@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+import frontmatter
 import pytest
 
 from meminit.core.domain.entities import Violation
@@ -448,6 +449,122 @@ docops_version: 2.0
     assert targeted.violations[0]["path"] == "docs/pkg-adrs/pkg-adr-001.md"
     assert "package_only" in targeted.violations[0]["violations"][0]["message"]
     assert all("default_only" not in v["violations"][0]["message"] for v in targeted.violations)
+
+
+def test_check_reuses_parsed_frontmatter_for_same_root_namespaces(tmp_path, monkeypatch):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/default-schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+    schema_path: docs/00-governance/default-schema.json
+  - name: pkg
+    repo_prefix: PKG
+    docs_root: docs
+    schema_path: docs/00-governance/pkg-schema.json
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "default-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (gov / "pkg-schema.json").write_text(
+        """
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    pkg_doc = tmp_path / "docs" / "45-adr" / "pkg-001.md"
+    pkg_doc.write_text(
+        """---
+document_id: PKG-ADR-001
+type: ADR
+title: Package ADR
+status: Draft
+version: 0.1
+last_updated: 2025-01-01
+owner: Me
+docops_version: 2.0
+---
+# Package ADR
+""",
+        encoding="utf-8",
+    )
+
+    load_calls: list[str] = []
+    real_load = frontmatter.load
+
+    def counting_load(path: str, *args, **kwargs):
+        load_calls.append(path)
+        return real_load(path, *args, **kwargs)
+
+    monkeypatch.setattr("meminit.core.use_cases.check_repository.frontmatter.load", counting_load)
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+
+    violations = use_case.execute()
+    assert violations == []
+    assert load_calls.count(str(pkg_doc)) == 1
+
+    load_calls.clear()
+
+    summary = use_case.execute_full_summary()
+    assert summary.success is True
+    assert summary.files_checked == 1
+    assert summary.files_failed == 0
+    assert summary.violations_count == 0
+    assert summary.warnings_count == 0
+    assert load_calls.count(str(pkg_doc)) == 1
+
+    load_calls.clear()
+
+    targeted = use_case.execute_targeted(["docs/45-adr/pkg-001.md"])
+    assert targeted.success is True
+    assert targeted.files_checked == 1
+    assert targeted.files_failed == 0
+    assert targeted.violations_count == 0
+    assert targeted.warnings_count == 0
+    assert load_calls.count(str(pkg_doc)) == 1
 
 
 def test_check_resolve_validation_namespace_does_not_parse_frontmatter_for_unique_path(

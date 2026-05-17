@@ -557,7 +557,7 @@ def test_index_ndjson_open_failure_emits_terminal_error(tmp_path):
 
 def test_scan_ndjson_streaming_exception_emits_producer_failure(tmp_path):
     with patch(
-        "meminit.cli.main.ScanRepositoryUseCase.execute",
+        "meminit.cli.main.ScanRepositoryUseCase._build_report",
         side_effect=RuntimeError("boom"),
     ):
         result = CliRunner().invoke(

@@ -171,3 +171,30 @@ def test_scan_stream_does_not_load_frontmatter_for_unique_namespace(tmp_path, mo
     assert first.kind == "file"
     assert first.data["namespace"] == "default"
     assert first.data["governed"] is True
+
+
+def test_scan_stream_reuses_single_markdown_snapshot(tmp_path, monkeypatch):
+    create_initialized_repo(tmp_path)
+    use_case = ScanRepositoryUseCase(str(tmp_path))
+
+    call_count = 0
+    real_iter_markdown_paths = ScanRepositoryUseCase._iter_markdown_paths
+
+    def counting_iter_markdown_paths(self, docs_dir):
+        nonlocal call_count
+        call_count += 1
+        yield from real_iter_markdown_paths(self, docs_dir)
+
+    monkeypatch.setattr(
+        ScanRepositoryUseCase,
+        "_iter_markdown_paths",
+        counting_iter_markdown_paths,
+    )
+
+    stream = use_case.iter_stream()
+    records = list(stream.records)
+
+    assert call_count == 1
+    assert stream.summary.data["markdown_count"] == sum(
+        1 for record in records if record.kind == "file"
+    )

@@ -24,11 +24,11 @@ def test_scan_stream_yields_file_before_full_report_materialization(tmp_path, mo
     use_case = ScanRepositoryUseCase(str(tmp_path))
     sentinel = FirstYieldSentinel()
 
-    def execute_after_first_yield(*args, **kwargs):
-        sentinel.record("execute")
+    def build_report_after_first_yield(*args, **kwargs):
+        sentinel.record("build_report")
         raise AssertionError("scan stream materialized the full report before first item")
 
-    monkeypatch.setattr(use_case, "execute", execute_after_first_yield)
+    monkeypatch.setattr(use_case, "_build_report", build_report_after_first_yield)
 
     first = next(use_case.iter_stream().records)
     sentinel.record("yield")
@@ -38,7 +38,7 @@ def test_scan_stream_yields_file_before_full_report_materialization(tmp_path, mo
     assert sentinel.first_yield_after == ["yield"]
 
 
-def test_scan_stream_forwards_generate_plan_to_execute(tmp_path, monkeypatch):
+def test_scan_stream_forwards_generate_plan_to_build_report(tmp_path, monkeypatch):
     create_initialized_repo(tmp_path)
     use_case = ScanRepositoryUseCase(str(tmp_path))
     captured: dict[str, bool] = {}
@@ -58,11 +58,11 @@ def test_scan_stream_forwards_generate_plan_to_execute(tmp_path, monkeypatch):
                 "plan": {"plan_version": "1.0", "actions": []},
             }
 
-    def execute_with_plan(*args, **kwargs):
+    def build_report_with_plan(*args, **kwargs):
         captured["generate_plan"] = kwargs["generate_plan"]
-        return DummyReport()
+        return DummyReport(), []
 
-    monkeypatch.setattr(use_case, "execute", execute_with_plan)
+    monkeypatch.setattr(use_case, "_build_report", build_report_with_plan)
 
     result = use_case.iter_stream(generate_plan=True)
     assert next(result.records).kind == "file"

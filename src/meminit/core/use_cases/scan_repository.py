@@ -102,8 +102,59 @@ class ScanRepositoryUseCase:
         layout = load_repo_layout(self._root_dir)
         config_path = self._root_dir / "docops.config.yaml"
         existing_config = self._load_config(config_path)
+        report, _ = self._build_report(
+            layout=layout,
+            existing_config=existing_config,
+            config_path=config_path,
+            generate_plan=generate_plan,
+        )
+        return report
 
-        docs_root = self._resolve_docs_root(existing_config, layout.default_namespace().docs_root)
+    def iter_stream(self, *, generate_plan: bool = False) -> StreamingResult:
+        """Return a core-owned streaming producer for NDJSON scan output."""
+        summary = StreamSummary()
+
+        def records():
+            layout = load_repo_layout(self._root_dir)
+            config_path = self._root_dir / "docops.config.yaml"
+            existing_config = self._load_config(config_path)
+            docs_root = self._resolve_docs_root(existing_config, layout.default_namespace().docs_root)
+            target_files: list[Path] = []
+            if docs_root is not None:
+                docs_dir = self._root_dir / docs_root
+                if docs_dir.exists():
+                    target_files = list(self._iter_markdown_paths(docs_dir))
+            for item in self._iter_stream_file_items(target_files, layout):
+                yield StreamItem("file", item)
+            report, _ = self._build_report(
+                layout=layout,
+                existing_config=existing_config,
+                config_path=config_path,
+                generate_plan=generate_plan,
+                docs_root=docs_root,
+                target_files=target_files,
+            )
+            data = report.as_dict()
+            for item in scan_suggestion_items(data):
+                yield StreamItem("suggestion", item)
+            summary.data = _summary_data(data)
+
+        return StreamingResult(records=records(), summary=summary)
+
+    def _build_report(
+        self,
+        *,
+        layout,
+        existing_config: dict[str, Any],
+        config_path: Path,
+        generate_plan: bool,
+        docs_root: str | None = None,
+        target_files: list[Path] | None = None,
+    ) -> tuple[ScanReport, list[Path]]:
+        if docs_root is None:
+            docs_root = self._resolve_docs_root(
+                existing_config, layout.default_namespace().docs_root
+            )
         notes: List[str] = []
         suggested_type_directories: Dict[str, str] = {}
         ambiguous_types: Dict[str, List[str]] = {}
@@ -112,28 +163,31 @@ class ScanRepositoryUseCase:
         suggested_namespaces: List[Dict[str, str]] = []
         configured_namespaces: List[Dict[str, object]] = []
         overlapping_namespaces: List[Dict[str, str]] = []
+        target_files = list(target_files or [])
 
         if docs_root is None:
             notes.append("No docs root detected (expected `docs/` or docs_root in config).")
-            return ScanReport(
-                docs_root=None,
-                suggested_type_directories={},
-                markdown_count=0,
-                governed_markdown_count=0,
-                notes=notes,
-                ambiguous_types={},
-                suggested_namespaces=[],
-                configured_namespaces=[],
-                overlapping_namespaces=[],
+            return (
+                ScanReport(
+                    docs_root=None,
+                    suggested_type_directories={},
+                    markdown_count=0,
+                    governed_markdown_count=0,
+                    notes=notes,
+                    ambiguous_types={},
+                    suggested_namespaces=[],
+                    configured_namespaces=[],
+                    overlapping_namespaces=[],
+                ),
+                target_files,
             )
 
         docs_dir = self._root_dir / docs_root
-        target_files = []
         if not docs_dir.exists():
             notes.append(f"Docs root configured but missing on disk: {docs_root}")
-        else:
+        elif not target_files:
             target_files = list(self._iter_markdown_paths(docs_dir))
-            markdown_count = len(target_files)
+        markdown_count = len(target_files)
 
         # Always compute namespace-aware counts when possible.
         configured_namespaces = self._configured_namespaces(layout)
@@ -201,59 +255,37 @@ class ScanRepositoryUseCase:
                         config_fingerprint_str = compute_file_hash(config_path)
                     except (OSError, IOError) as e:
                         logging.debug("Failed to hash config fingerprint: %s", e)
-                
+
                 plan = MigrationPlan(
                     plan_version="1.0",
                     generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     config_fingerprint=config_fingerprint_str,
-                    actions=actions
+                    actions=actions,
                 )
 
-        return ScanReport(
-            docs_root=docs_root,
-            suggested_type_directories=suggested_type_directories,
-            markdown_count=markdown_count,
-            governed_markdown_count=governed_markdown_count,
-            notes=notes,
-            ambiguous_types=ambiguous_types,
-            suggested_namespaces=suggested_namespaces,
-            configured_namespaces=configured_namespaces,
-            overlapping_namespaces=overlapping_namespaces,
-            plan=plan,
+        return (
+            ScanReport(
+                docs_root=docs_root,
+                suggested_type_directories=suggested_type_directories,
+                markdown_count=markdown_count,
+                governed_markdown_count=governed_markdown_count,
+                notes=notes,
+                ambiguous_types=ambiguous_types,
+                suggested_namespaces=suggested_namespaces,
+                configured_namespaces=configured_namespaces,
+                overlapping_namespaces=overlapping_namespaces,
+                plan=plan,
+            ),
+            target_files,
         )
-
-    def iter_stream(self, *, generate_plan: bool = False) -> StreamingResult:
-        """Return a core-owned streaming producer for NDJSON scan output."""
-        summary = StreamSummary()
-
-        def records():
-            docs_root = self._resolve_docs_root(
-                self._load_config(self._root_dir / "docops.config.yaml"),
-                load_repo_layout(self._root_dir).default_namespace().docs_root,
-            )
-            for item in self._iter_stream_file_items(docs_root):
-                yield StreamItem("file", item)
-            report = self.execute(generate_plan=generate_plan)
-            data = report.as_dict()
-            for item in scan_suggestion_items(data):
-                yield StreamItem("suggestion", item)
-            summary.data = _summary_data(data)
-
-        return StreamingResult(records=records(), summary=summary)
 
     def _iter_markdown_paths(self, docs_dir: Path) -> Iterator[Path]:
         yield from sorted(docs_dir.rglob("*.md"), key=lambda path: path.as_posix())
 
-    def _iter_stream_file_items(self, docs_root: str | None) -> Iterator[dict[str, Any]]:
-        if not docs_root:
-            return
-
-        docs_dir = self._root_dir / docs_root
-        if not docs_dir.exists():
-            return
-
-        layout = load_repo_layout(self._root_dir)
-        for path in self._iter_markdown_paths(docs_dir):
+    def _iter_stream_file_items(
+        self, target_files: list[Path], layout
+    ) -> Iterator[dict[str, Any]]:
+        for path in target_files:
             owner = layout.namespace_for_path_with_document_id_loader(
                 path,
                 lambda path=path: self._extract_document_id(path),

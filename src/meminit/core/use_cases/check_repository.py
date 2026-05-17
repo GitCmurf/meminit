@@ -1,7 +1,7 @@
 import glob
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 import frontmatter
 
@@ -43,6 +43,7 @@ class CheckRepositoryUseCase:
 
         schema_issues_seen: set[str] = set()
         schema_validators: Dict[str, SchemaValidator] = {}
+        document_load_cache: Dict[str, tuple[Any | None, Exception | None]] = {}
 
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
@@ -69,14 +70,28 @@ class CheckRepositoryUseCase:
                 violations.append(schema_issue)
 
             for path in ns.docs_dir.rglob("*.md"):
-                validation_ns = self._resolve_validation_namespace(path)
+                document_post: Any | None = None
+
+                def load_document_id() -> Optional[str]:
+                    nonlocal document_post
+                    if document_post is None:
+                        document_post, _ = self._load_document_post(path, document_load_cache)
+                    return self._document_id_from_post(document_post)
+
+                validation_ns = self._resolve_validation_namespace(path, load_document_id)
                 if validation_ns is None or validation_ns.namespace.lower() != ns.namespace.lower():
                     continue
                 if validation_ns.is_excluded(path):
                     continue
-                violations.extend(
-                    self._process_document(path, existing_ids, validation_ns, schema_validators)
+                file_violations, document_post = self._process_document(
+                    path,
+                    existing_ids,
+                    validation_ns,
+                    schema_validators,
+                    post=document_post,
+                    document_load_cache=document_load_cache,
                 )
+                violations.extend(file_violations)
 
         return violations
 
@@ -98,6 +113,7 @@ class CheckRepositoryUseCase:
         not_found_patterns: List[str] = []
         schema_issues_seen: Set[str] = set()
         schema_validators: Dict[str, SchemaValidator] = {}
+        document_load_cache: Dict[str, tuple[Any | None, Exception | None]] = {}
 
         root_resolved = self.root_dir.resolve()
 
@@ -242,18 +258,33 @@ class CheckRepositoryUseCase:
                     files_passed += 1
                 continue
 
-            validation_ns = self._resolve_validation_namespace(canonical_path) or ns
+            document_post: Any | None = None
+
+            def load_document_id() -> Optional[str]:
+                nonlocal document_post
+                if document_post is None:
+                    document_post, _ = self._load_document_post(
+                        canonical_path, document_load_cache
+                    )
+                return self._document_id_from_post(document_post)
+
+            validation_ns = self._resolve_validation_namespace(
+                canonical_path, load_document_id
+            ) or ns
             if validation_ns.is_excluded(canonical_path):
                 continue
 
             checked_paths.append(rel_path)
             files_checked += 1
 
-            file_violations = self._process_document(
-                canonical_path, existing_ids, validation_ns, schema_validators
+            file_violations, document_post = self._process_document(
+                canonical_path,
+                existing_ids,
+                validation_ns,
+                schema_validators,
+                post=document_post,
+                document_load_cache=document_load_cache,
             )
-
-            document_id = self._extract_document_id(canonical_path)
 
             if file_violations:
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
@@ -271,6 +302,7 @@ class CheckRepositoryUseCase:
                             {"code": v.rule, "message": v.message, "line": v.line} for v in errors
                         ],
                     }
+                    document_id = self._document_id_from_post(document_post)
                     if document_id:
                         file_entry["document_id"] = document_id
                     violations_by_file[rel_path] = file_entry
@@ -324,6 +356,7 @@ class CheckRepositoryUseCase:
         existing_ids: Set[str] = set()
         schema_issues_seen: set[str] = set()
         schema_validators: Dict[str, SchemaValidator] = {}
+        document_load_cache: Dict[str, tuple[Any | None, Exception | None]] = {}
         files_passed = 0
         files_failed = 0
         checked_paths: List[str] = []
@@ -373,7 +406,15 @@ class CheckRepositoryUseCase:
                 repo_level_failures += 1
 
             for path in ns.docs_dir.rglob("*.md"):
-                validation_ns = self._resolve_validation_namespace(path)
+                document_post: Any | None = None
+
+                def load_document_id() -> Optional[str]:
+                    nonlocal document_post
+                    if document_post is None:
+                        document_post, _ = self._load_document_post(path, document_load_cache)
+                    return self._document_id_from_post(document_post)
+
+                validation_ns = self._resolve_validation_namespace(path, load_document_id)
                 if validation_ns is None or validation_ns.namespace.lower() != ns.namespace.lower():
                     continue
                 if validation_ns.is_excluded(path):
@@ -382,11 +423,15 @@ class CheckRepositoryUseCase:
                 files_checked += 1
                 rel_path = path.relative_to(self.root_dir).as_posix()
                 checked_paths.append(rel_path)
-                file_violations = self._process_document(
-                    path, existing_ids, validation_ns, schema_validators
+                file_violations, document_post = self._process_document(
+                    path,
+                    existing_ids,
+                    validation_ns,
+                    schema_validators,
+                    post=document_post,
+                    document_load_cache=document_load_cache,
                 )
 
-                document_id = self._extract_document_id(path)
                 errors = [v for v in file_violations if v.severity == Severity.ERROR]
                 warnings = [v for v in file_violations if v.severity == Severity.WARNING]
                 if strict and warnings:
@@ -401,6 +446,7 @@ class CheckRepositoryUseCase:
                             {"code": v.rule, "message": v.message, "line": v.line} for v in errors
                         ],
                     }
+                    document_id = self._document_id_from_post(document_post)
                     if document_id:
                         entry["document_id"] = document_id
                     violations_by_file[rel_path] = entry
@@ -445,6 +491,36 @@ class CheckRepositoryUseCase:
     def _count_grouped_issues(self, grouped: List[Dict[str, Any]], key: str) -> int:
         return sum(len(item.get(key, [])) for item in grouped)
 
+    def _load_document_post(
+        self,
+        path: Path,
+        cache: Dict[str, tuple[Any | None, Exception | None]],
+    ) -> tuple[Any | None, Exception | None]:
+        cache_key = str(path.resolve())
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            post = frontmatter.load(str(path))
+            result: tuple[Any | None, Exception | None] = (post, None)
+        except Exception as exc:
+            result = (None, exc)
+
+        cache[cache_key] = result
+        return result
+
+    def _document_id_from_post(self, post: Any | None) -> Optional[str]:
+        if post is None:
+            return None
+        metadata = getattr(post, "metadata", None)
+        if not metadata:
+            return None
+        doc_id = metadata.get("document_id")
+        if doc_id:
+            return str(doc_id)
+        return None
+
     def _extract_document_id(self, path: Path) -> Optional[str]:
         """Extract document_id from a file's frontmatter.
 
@@ -456,15 +532,16 @@ class CheckRepositoryUseCase:
         """
         try:
             post = frontmatter.load(str(path))
-            if post.metadata:
-                doc_id = post.metadata.get("document_id")
-                if doc_id:
-                    return str(doc_id)
+            return self._document_id_from_post(post)
         except Exception:
             pass
         return None
 
-    def _resolve_validation_namespace(self, path: Path) -> Optional[RepoConfig]:
+    def _resolve_validation_namespace(
+        self,
+        path: Path,
+        document_id_loader: Callable[[], str | None] | None = None,
+    ) -> Optional[RepoConfig]:
         """Resolve the namespace that should validate a document at *path*.
 
         Same-root namespaces use `document_id` as a tie-breaker. This must run
@@ -473,7 +550,7 @@ class CheckRepositoryUseCase:
         """
         return self._layout.namespace_for_path_with_document_id_loader(
             path,
-            lambda path=path: self._extract_document_id(path),
+            document_id_loader,
         )
 
     def _process_document(
@@ -482,7 +559,9 @@ class CheckRepositoryUseCase:
         existing_ids: Set[str],
         ns: RepoConfig,
         schema_validators: Dict[str, SchemaValidator],
-    ) -> List[Violation]:
+        post: Any | None = None,
+        document_load_cache: Dict[str, tuple[Any | None, Exception | None]] | None = None,
+    ) -> tuple[List[Violation], Any | None]:
         """Process a single document and collect all validation violations.
 
         Validation steps performed:
@@ -500,7 +579,8 @@ class CheckRepositoryUseCase:
             schema_validators: Cache of validators keyed by schema path.
 
         Returns:
-            List of violations found for this document. Empty if fully compliant.
+            Tuple of (violations, loaded post). The post is returned so callers
+            can reuse parsed frontmatter for document_id reporting.
         """
         violations: List[Violation] = []
         rel_path = path.relative_to(self.root_dir).as_posix()
@@ -520,7 +600,13 @@ class CheckRepositoryUseCase:
             )
 
         try:
-            post = frontmatter.load(str(path))
+            if post is None:
+                if document_load_cache is not None:
+                    post, load_error = self._load_document_post(path, document_load_cache)
+                    if load_error is not None:
+                        raise load_error
+                else:
+                    post = frontmatter.load(str(path))
 
             if not post.metadata:
                 violations.append(
@@ -532,7 +618,7 @@ class CheckRepositoryUseCase:
                         severity=Severity.ERROR,
                     )
                 )
-                return violations
+                return violations, post
 
             metadata = dict(post.metadata)
             validation_ns = self._layout.namespace_for_path_and_document_id(
@@ -569,7 +655,7 @@ class CheckRepositoryUseCase:
                 )
             )
 
-        return violations
+        return violations, post
 
     def _normalize_metadata_for_schema(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize metadata values to match JSON Schema expectations.
