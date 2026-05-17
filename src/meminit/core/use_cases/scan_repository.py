@@ -254,9 +254,9 @@ class ScanRepositoryUseCase:
 
         layout = load_repo_layout(self._root_dir)
         for path in self._iter_markdown_paths(docs_dir):
-            owner = layout.namespace_for_path_and_document_id(
+            owner = layout.namespace_for_path_with_document_id_loader(
                 path,
-                self._extract_document_id(path),
+                lambda path=path: self._extract_document_id(path),
             )
             yield {
                 "path": path.relative_to(self._root_dir).as_posix(),

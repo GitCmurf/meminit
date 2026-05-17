@@ -7,6 +7,8 @@ from meminit.core.domain.entities import Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 
+from tests.cli.streaming_helpers import create_initialized_repo
+
 
 @pytest.fixture
 def repo_with_docs():
@@ -446,6 +448,24 @@ docops_version: 2.0
     assert targeted.violations[0]["path"] == "docs/pkg-adrs/pkg-adr-001.md"
     assert "package_only" in targeted.violations[0]["violations"][0]["message"]
     assert all("default_only" not in v["violations"][0]["message"] for v in targeted.violations)
+
+
+def test_check_resolve_validation_namespace_does_not_parse_frontmatter_for_unique_path(
+    tmp_path, monkeypatch
+):
+    create_initialized_repo(tmp_path)
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+    doc_path = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
+
+    def fail_load(*args, **kwargs):
+        raise AssertionError("frontmatter.load should not run for unique namespace matches")
+
+    monkeypatch.setattr("meminit.core.use_cases.check_repository.frontmatter.load", fail_load)
+
+    namespace = use_case._resolve_validation_namespace(doc_path)
+
+    assert namespace is not None
+    assert namespace.namespace == "default"
 
 
 def test_check_repository_reports_missing_schema_once(tmp_path):

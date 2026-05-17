@@ -1,5 +1,7 @@
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 
+from tests.cli.streaming_helpers import create_initialized_repo
+
 
 def test_scan_suggests_type_directory_for_adr(tmp_path):
     docs_root = tmp_path / "docs"
@@ -153,3 +155,19 @@ def test_scan_counts_same_root_namespace_by_document_id(tmp_path):
     namespaces = {ns["namespace"]: ns["governed_markdown_count"] for ns in report.configured_namespaces}
     assert namespaces == {"root": 1, "phyla": 1}
     assert report.governed_markdown_count == 2
+
+
+def test_scan_stream_does_not_load_frontmatter_for_unique_namespace(tmp_path, monkeypatch):
+    create_initialized_repo(tmp_path)
+    use_case = ScanRepositoryUseCase(str(tmp_path))
+
+    def fail_load(*args, **kwargs):
+        raise AssertionError("frontmatter.load should not run for unique namespace matches")
+
+    monkeypatch.setattr("meminit.core.use_cases.scan_repository.frontmatter.load", fail_load)
+
+    first = next(use_case.iter_stream().records)
+
+    assert first.kind == "file"
+    assert first.data["namespace"] == "default"
+    assert first.data["governed"] is True

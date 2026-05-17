@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     Dict,
     List,
     Mapping,
@@ -303,6 +304,40 @@ class RepoLayout:
             doc_specificity = len(Path(doc_ns.docs_root).parts)
             # Only use document_id as a tie-breaker when it points to a namespace
             # with the same path specificity as the best path match.
+            if doc_specificity == best_specificity:
+                for ns in matches:
+                    if ns.namespace.lower() == doc_ns.namespace.lower():
+                        return ns
+
+        return matches[0]
+
+    def namespace_for_path_with_document_id_loader(
+        self,
+        path: Path,
+        document_id_loader: Callable[[], str | None] | None = None,
+    ) -> Optional[RepoConfig]:
+        """Resolve a namespace from path and load document metadata lazily.
+
+        The path match is authoritative when it is unique. When a path matches
+        multiple namespaces, the loader is invoked only then to provide a
+        document_id tie-breaker.
+        """
+        matches = self.namespaces_for_path(path)
+        if not matches:
+            return None
+        if len(matches) == 1 or document_id_loader is None:
+            return matches[0]
+
+        document_id = document_id_loader()
+        if document_id is None:
+            return matches[0]
+
+        doc_ns = self.namespace_for_document_id(document_id)
+        if doc_ns is not None:
+            best_specificity = len(Path(matches[0].docs_root).parts)
+            doc_specificity = len(Path(doc_ns.docs_root).parts)
+            # Only use document_id as a tie-breaker when it points to a
+            # namespace with the same path specificity as the best path match.
             if doc_specificity == best_specificity:
                 for ns in matches:
                     if ns.namespace.lower() == doc_ns.namespace.lower():

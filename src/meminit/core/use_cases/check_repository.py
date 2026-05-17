@@ -471,8 +471,9 @@ class CheckRepositoryUseCase:
         before exclusion checks so a valid document is not dropped by the wrong
         namespace's path-based exclusions.
         """
-        return self._layout.namespace_for_path_and_document_id(
-            path, self._extract_document_id(path)
+        return self._layout.namespace_for_path_with_document_id_loader(
+            path,
+            lambda path=path: self._extract_document_id(path),
         )
 
     def _process_document(
