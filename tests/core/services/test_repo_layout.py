@@ -1,6 +1,7 @@
 import json
+from pathlib import Path
 
-from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.identify_document import IdentifyDocumentUseCase
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
@@ -240,6 +241,116 @@ namespaces:
     report = IndexRepositoryUseCase(str(tmp_path)).execute()
     assert report.document_count == 2
     assert {node["namespace"] for node in report.documents} == {"root", "phyla"}
+
+
+def test_namespace_for_document_id_prefers_anchored_prefix_matches(tmp_path):
+    root_dir = tmp_path
+    docs_dir = root_dir / "docs"
+    layout = RepoLayout(
+        root_dir=root_dir,
+        project_name="Example",
+        namespaces=(
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="root",
+                project_name="Example",
+                repo_prefix="AIDHA",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="shared",
+                project_name="Example",
+                repo_prefix="",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+        ),
+        index_path="docs/01-indices/meminit.index.json",
+        catalog_name="catalogue.md",
+    )
+
+    target = docs_dir / "45-adr" / "adr-001.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    resolved = layout.namespace_for_path_and_document_id(target, "ADR-001")
+
+    assert resolved is not None
+    assert resolved.namespace == "shared"
+
+
+def test_namespace_for_document_id_prefers_longest_anchored_prefix():
+    root_dir = Path("/tmp/meminit-test-root")
+    layout = RepoLayout(
+        root_dir=root_dir,
+        project_name="Example",
+        namespaces=(
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="base",
+                project_name="Example",
+                repo_prefix="MEMINIT",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+            RepoConfig(
+                root_dir=root_dir,
+                namespace="nested",
+                project_name="Example",
+                repo_prefix="MEMINIT-ADR",
+                docops_version="2.0",
+                docs_root="docs",
+                schema_path="docs/00-governance/metadata.schema.json",
+                excluded_paths=(),
+                excluded_filename_prefixes=(),
+                excluded_files=(),
+                type_directories={},
+                templates={},
+                document_types={},
+                valid_impl_states=(),
+                valid_doc_statuses=(),
+                catalog_name="catalogue.md",
+            ),
+        ),
+        index_path="docs/01-indices/meminit.index.json",
+        catalog_name="catalogue.md",
+    )
+
+    resolved = layout.namespace_for_document_id("MEMINIT-ADR-001")
+
+    assert resolved is not None
+    assert resolved.namespace == "nested"
 
 
 def test_check_enforces_namespace_repo_prefix(tmp_path):

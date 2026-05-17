@@ -266,11 +266,27 @@ class RepoLayout:
         if not needle:
             return None
 
-        prefix = needle.split("-", 1)[0]
+        best_match: tuple[int, RepoConfig] | None = None
+        empty_prefix_match: RepoConfig | None = None
         for ns in self.namespaces:
-            if ns.repo_prefix.upper() == prefix:
-                return ns
-        return None
+            prefix = ns.repo_prefix.strip().upper()
+            if not prefix:
+                if empty_prefix_match is None:
+                    empty_prefix_match = ns
+                continue
+
+            # Match the configured namespace prefix as a leading token boundary.
+            # This keeps `ADR-001` from being truncated to `ADR` when the repo
+            # prefix is empty and also supports prefixes that themselves contain
+            # hyphens.
+            if needle == prefix or needle.startswith(f"{prefix}-"):
+                score = len(prefix)
+                if best_match is None or score > best_match[0]:
+                    best_match = (score, ns)
+
+        if best_match is not None:
+            return best_match[1]
+        return empty_prefix_match
 
     def namespace_for_path_and_document_id(
         self,
