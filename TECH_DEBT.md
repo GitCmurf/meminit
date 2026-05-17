@@ -97,13 +97,13 @@ updated together.
 | ----- | ----- |
 | Priority | P3 |
 | Status | Blocked |
-| Owner | Release owner |
+| Owner | Repository owner |
 | Source | MEMINIT-PLAN-014 exit criterion 11 and MEMINIT-RUNBOOK-006 closeout checklist |
 | Related plans | `MEMINIT-PLAN-014`, `MEMINIT-LOG-001` |
-| Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 still needs release-owner sign-off before the closeout can be treated as complete. The sanitized operator run is now recorded in `MEMINIT-LOG-001`. |
-| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, required sanitation checklist, and the captured sanitized run results. It is intentionally not closure evidence until a release owner signs off. |
+| Evidence | Earlier phases record external testbed evidence in governed FDDs, but Phase 5 still needs repository-owner sign-off before the closeout can be treated as complete. The sanitized operator run is now recorded in `MEMINIT-LOG-001`. |
+| Prepared artifact | `MEMINIT-LOG-001` provides the governed attestation template, complete MEMINIT-RUNBOOK-006 command list, warm-cache/rebuild-cache evidence rows, required sanitation checklist, and the captured sanitized run results. It is intentionally not closure evidence until the repository owner signs off. |
 | Impact | Release reviewers cannot independently verify the external-testbed criterion from committed artifacts. |
-| Remediation | Obtain release-owner sign-off for the recorded external testbed evidence, then mark TD-004 closed. |
+| Remediation | Obtain repository-owner sign-off for the recorded external testbed evidence, then mark TD-004 closed. |
 | Definition of done | The evidence artifact contains no secrets or PII, references the exact commands from MEMINIT-RUNBOOK-006, records the sanitized operator summary, and passes `meminit check --format json`. |
 | Verification commands | `./.venv/bin/meminit check --format json` |
 

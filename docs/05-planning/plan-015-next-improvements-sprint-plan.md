@@ -123,7 +123,7 @@ the listed verification commands pass.
 | E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
 | A: Streaming Producer Architecture | TD-002 | Completed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan`, `context --deep`, and `index`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. |
 | B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
-| C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; sanitized operator evidence has now been recorded, but closure remains blocked on release-owner sign-off. |
+| C: Phase 5 External Testbed Evidence | TD-004 | Blocked | Prepared `MEMINIT-LOG-001` as the governed operator attestation template; sanitized operator evidence has now been recorded, but closure remains blocked on repository-owner sign-off. |
 | G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
 | F: Error-Code Contract Cleanup | TD-008 | Completed | Product/contract owner confirmed no external consumers depend on old names; normalized state public error codes to `STATE_*`, updated runtime mappings, tests, SPEC-006, changelog, and this register. |
 
@@ -134,7 +134,7 @@ These gates must be resolved before dispatching the affected workstream.
 | Gate | Applies to | Decider | Required outcome |
 | ---- | ---------- | ------- | ---------------- |
 | GATE-001: streaming producer API shape | Workstream A | Core maintainer | Confirm the synchronous generator-based producer contract in §5.1 or approve a replacement design note before implementation. |
-| GATE-002: external testbed evidence | Workstream C | Release owner | Name the human operator who will run the external repo commands and attest to sanitized evidence. Agents may prepare templates but must not fabricate evidence. |
+| GATE-002: external testbed evidence | Workstream C | Repository owner | Confirm that the human operator evidence is acceptable for public history. Agents may prepare templates but must not fabricate evidence. |
 | GATE-003: state error-code convention | Workstream F | Product/contract owner | Resolved on 2026-05-09: normalize to `STATE_*` without compatibility aliases because no external consumers depend on the old names. |
 | GATE-004: Approved-doc edit authorization | Any workstream editing Approved/Superseded docs | Repository maintainer | Authorize exact protected documents and sections, or require a Draft follow-up note instead. |
 
@@ -367,11 +367,12 @@ Implementation steps:
 
 Status:
 
-- Blocked on release-owner sign-off as of 2026-05-17. `MEMINIT-LOG-001` is a
+- Blocked on repository-owner sign-off as of 2026-05-17. `MEMINIT-LOG-001` is a
   governed Draft evidence record with the required command list, sanitation
   requirements, warm-cache and rebuild-cache evidence rows, attestation
   fields, and the sanitized operator results captured from the external
-  testbed run. It is not closure evidence until a release owner signs off.
+  testbed run. It is not closure evidence until the repository owner signs
+  off.
 
 Definition of done:
 
@@ -787,4 +788,4 @@ This plan is complete when:
 | 1.3 | 2026-05-09 | Codex | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression. |
 | 1.4 | 2026-05-10 | Codex | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented. |
 | 1.5 | 2026-05-10 | Codex | Tightened the Workstream C operator evidence template to match the complete MEMINIT-RUNBOOK-006 Phase 5 testbed checklist. |
-| 1.6 | 2026-05-17 | Codex | Recorded the sanitized external testbed evidence and moved Workstream C to release-owner sign-off pending. |
+| 1.6 | 2026-05-17 | Codex | Recorded the sanitized external testbed evidence and moved Workstream C to repository-owner sign-off pending. |
