@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -198,3 +199,44 @@ def test_s14_index_cache_concurrent_lock_reports_cache_lock_held(tmp_path):
                 pass
 
     assert exc_info.value.code is ErrorCode.CACHE_LOCK_HELD
+
+
+def test_s15_index_cache_clear_symlink_safety(tmp_path):
+    """Clear does not follow symlinks outside cache dir (Finding #3)."""
+    cache = IndexCache(tmp_path)
+    cache_dir = cache.cache_dir
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target_dir = tmp_path / "outside-target"
+    target_dir.mkdir()
+    (target_dir / "important.txt").write_text("keep me", encoding="utf-8")
+
+    symlink = cache_dir / "evil_link"
+    os.symlink(str(target_dir), str(symlink), target_is_directory=True)
+
+    (cache_dir / "normal_file.txt").write_text("delete me", encoding="utf-8")
+
+    cache.clear()
+
+    # The symlink itself should be removed
+    assert not symlink.exists()
+    # The external target and its files must be untouched
+    assert target_dir.exists()
+    assert (target_dir / "important.txt").exists()
+    assert (target_dir / "important.txt").read_text(encoding="utf-8") == "keep me"
+    # Normal files in cache should be cleared
+    assert not (cache_dir / "normal_file.txt").exists()
+
+
+def test_s16_index_cache_normal_clear_unchanged_by_fix(tmp_path):
+    """Normal clear behavior is unaffected by symlink safety changes."""
+    cache = IndexCache(tmp_path)
+    cache_dir = cache.cache_dir
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    (cache_dir / "file1.txt").write_text("a", encoding="utf-8")
+    (cache_dir / "file2.txt").write_text("b", encoding="utf-8")
+
+    cache.clear()
+
+    assert not cache_dir.exists()

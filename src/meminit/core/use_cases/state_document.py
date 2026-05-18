@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -103,7 +104,19 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
 
     for prefix in prefixes:
         if document_id.startswith(f"{prefix}-"):
-            return document_id
+            # Validate full canonical shape: REPO-TYPE-NNN
+            if re.match(rf"^{re.escape(prefix)}-[A-Z]{{1,10}}-\d{{3,}}$", document_id):
+                return document_id
+            # Malformed prefixed ID — raise instead of silently persisting
+            raise MeminitError(
+                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
+                message=(
+                    f"Malformed document ID '{document_id}': "
+                    f"must match pattern '{prefix}-TYPE-NNN' "
+                    f"(e.g. '{prefix}-ADR-001')"
+                ),
+                details={"document_id": document_id},
+            )
 
     if document_id.count("-") > 1:
         return document_id

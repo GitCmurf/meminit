@@ -74,3 +74,43 @@ def test_migration_plan_sorting():
     assert plan.actions[0].id == "3"
     assert plan.actions[1].id == "2"
     assert plan.actions[2].id == "1"
+
+
+def test_from_dict_rejects_non_dict_data():
+    """Non-dict data raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="MigrationPlan data must be a dict"):
+        MigrationPlan.from_dict([])  # type: ignore
+
+
+def test_from_dict_rejects_non_dict_action():
+    """Non-dict action raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="must be a dict"):
+        MigrationPlan.from_dict({"actions": ["string"]})
+
+
+def test_from_dict_rejects_non_dict_preconditions():
+    """Non-dict preconditions raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="preconditions.*must be a dict"):
+        MigrationPlan.from_dict({
+            "actions": [{
+                "action": "rename_file",
+                "preconditions": [],
+                "safety": {}
+            }]
+        })
+
+
+def test_from_dict_rejects_non_dict_safety():
+    """Non-dict safety raises ValueError."""
+    import pytest
+    with pytest.raises(ValueError, match="safety.*must be a dict"):
+        MigrationPlan.from_dict({
+            "actions": [{
+                "action": "rename_file",
+                "preconditions": {},
+                "safety": []
+            }]
+        })

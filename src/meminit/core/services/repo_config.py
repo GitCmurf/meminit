@@ -102,6 +102,11 @@ def _normalize_type_directories(docs_root: str, raw: Any) -> Dict[str, str]:
         if value.startswith("./"):
             value = value[2:]
 
+        # Reject parent-directory traversal for consistency with
+        # _normalize_document_type_directory safety behavior.
+        if "/../" in f"/{value}/" or value.startswith("../"):
+            continue
+
         normalized[key] = value
 
     return normalized

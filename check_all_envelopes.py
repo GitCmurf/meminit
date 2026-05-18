@@ -1,18 +1,32 @@
 import json
+import shutil
 import subprocess
 import os
+import tempfile
 from pathlib import Path
 
-REPO_ROOT = os.getcwd()
-VENV_PYTHON = REPO_ROOT + "/.venv/bin/python3"
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
+
+REPO_ROOT = Path(os.getcwd())
+VENV_PYTHON = str(REPO_ROOT / ".venv" / "bin" / "python3")
+
+MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
+
 
 def check_command(cmd_args, expected_data_keys=None):
     print(f"Checking: {' '.join(cmd_args)}")
     env = os.environ.copy()
-    env["PYTHONPATH"] = REPO_ROOT + "/src"
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
     
     full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
     result = subprocess.run(full_cmd, env=env, capture_output=True, text=True)
+    
+    # Check command exit status (Finding #2)
+    if result.returncode != 0:
+        print(f"  FAILED: command exited with code {result.returncode}")
+        print(f"  STDOUT: {result.stdout}")
+        print(f"  STDERR: {result.stderr}")
+        return False
     
     # Try to parse JSON from stdout
     try:
@@ -29,8 +43,15 @@ def check_command(cmd_args, expected_data_keys=None):
         print(f"  FAILED: missing fields: {missing}")
         return False
     
-    if envelope["output_schema_version"] != "2.0":
-        print(f"  FAILED: wrong schema version: {envelope['output_schema_version']}")
+    # Check success field (Finding #2)
+    if not envelope.get("success", False):
+        print(f"  FAILED: envelope indicates failure (success=false)")
+        print(f"  DATA: {envelope}")
+        return False
+    
+    # Use min supported version instead of hardcoded literal (Finding #11)
+    if envelope["output_schema_version"] < MIN_SUPPORTED_SCHEMA_VERSION:
+        print(f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}")
         return False
 
     if expected_data_keys:
@@ -43,12 +64,9 @@ def check_command(cmd_args, expected_data_keys=None):
     print("  OK")
     return True
 
-# Setup test repo
-test_dir = Path("/tmp/meminit_test_envelope")
-if test_dir.exists():
-    import shutil
-    shutil.rmtree(test_dir)
-test_dir.mkdir()
+# Setup test repo with unique temp directory (Finding #12)
+_test_dir_ctx = tempfile.TemporaryDirectory(prefix="meminit_test_envelope_")
+test_dir = Path(_test_dir_ctx.name)
 os.chdir(test_dir)
 
 # Initialize
@@ -86,6 +104,9 @@ all_ok = True
 for cmd, keys in commands:
     if not check_command(cmd, keys):
         all_ok = False
+
+# Clean up test directory (Finding #12)
+_test_dir_ctx.cleanup()
 
 if all_ok:
     print("\nALL COMMANDS CONFORM TO ENVELOPE")

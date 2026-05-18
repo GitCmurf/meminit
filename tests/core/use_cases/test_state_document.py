@@ -1501,3 +1501,46 @@ def test_get_state_consistent_with_list_states(tmp_path):
     # Verify get_state works for valid ADR-001
     get_result = use_case.get_state("MEMINIT-ADR-001")
     assert get_result.document_id == "MEMINIT-ADR-001"
+
+
+class TestMalformedDocumentId:
+    """Test malformed document ID rejection (Finding #13)."""
+
+    def test_set_state_rejects_extra_suffix(self, tmp_path):
+        """Malformed ID with extra suffix raises STATE_INVALID_FILTER_VALUE."""
+        (tmp_path / "docops.config.yaml").write_text(
+            "repo_prefix: TST\ndocs_root: docs\n"
+        )
+        use_case = StateDocumentUseCase(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.set_state("TST-ADR-001-EXTRA", impl_state="Done")
+        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+
+    def test_set_state_rejects_no_sequence(self, tmp_path):
+        """Prefixed ID without sequence number raises error."""
+        (tmp_path / "docops.config.yaml").write_text(
+            "repo_prefix: TST\ndocs_root: docs\n"
+        )
+        use_case = StateDocumentUseCase(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.set_state("TST-ADR", impl_state="Done")
+        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+
+    def test_get_state_rejects_extra_suffix(self, tmp_path):
+        """Malformed ID on get also raises error."""
+        (tmp_path / "docops.config.yaml").write_text(
+            "repo_prefix: TST\ndocs_root: docs\n"
+        )
+        use_case = StateDocumentUseCase(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.get_state("TST-ADR-001-EXTRA")
+        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+
+    def test_shorthand_still_works(self, tmp_path):
+        """Shorthand resolution (ADR-001) still works unaffected."""
+        (tmp_path / "docops.config.yaml").write_text(
+            "repo_prefix: TSTPRE\ndocs_root: docs\n"
+        )
+        use_case = StateDocumentUseCase(str(tmp_path))
+        result = use_case.set_state("ADR-005", impl_state="Done")
+        assert result.document_id == "TSTPRE-ADR-005"

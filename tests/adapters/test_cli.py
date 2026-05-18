@@ -11,6 +11,7 @@ from meminit.cli.main import cli
 from meminit.core.services.versioning import get_cli_version
 from meminit.core.domain.entities import CheckResult, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from tests.helpers import parse_json_envelope
 from meminit.core.services.exit_codes import exit_code_for_error
 
 
@@ -67,7 +68,7 @@ def test_cli_init_json_outputs_created_and_skipped_paths(tmp_path):
     result = runner.invoke(cli, ["init", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     payload = data["data"]
     assert "created_paths" in payload

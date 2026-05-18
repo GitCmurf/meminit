@@ -8,6 +8,7 @@ import yaml
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
+from tests.helpers import parse_json_envelope
 
 def runner_no_mixed_stderr() -> CliRunner:
     import inspect

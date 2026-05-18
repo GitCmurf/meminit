@@ -889,13 +889,13 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--max-remediation-input-chars",
         type=int,
         default=200_000,
-        help="Maximum review/check text characters passed into each remediation prompt.",
+        help="Maximum review/check text characters passed into each remediation prompt (must be >= 1).",
     )
     parser.add_argument(
         "--terminal-excerpt-chars",
         type=int,
         default=4_000,
-        help="Maximum latest-review characters shown in terminal text summaries.",
+        help="Maximum latest-review characters shown in terminal text summaries (must be >= 1).",
     )
     parser.add_argument(
         "--timeout-seconds",
@@ -934,12 +934,21 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=None,
         help="Start by remediating a previous review artifact. Use 'latest' for newest review-final.txt.",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+
+    if args.max_remediation_input_chars < 1:
+        parser.error("--max-remediation-input-chars must be >= 1")
+    if args.terminal_excerpt_chars < 1:
+        parser.error("--terminal-excerpt-chars must be >= 1")
+
+    return args
 
 
 def default_artifact_dir() -> Path:
+    from uuid import uuid4
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    return Path("tmp") / "codex-review-remediation-loop" / timestamp
+    unique = uuid4().hex[:8]
+    return Path("tmp") / "codex-review-remediation-loop" / f"{timestamp}-{unique}"
 
 
 def resolve_timeout_seconds(value: float) -> float | None:
