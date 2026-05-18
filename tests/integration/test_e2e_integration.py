@@ -13,9 +13,17 @@ import pytest
 from scripts.e2e_integration_test import run_e2e
 
 
+def test_e2e_functional():
+    """Functional E2E test: init, generate 500 docs, index, verify correctness."""
+    with tempfile.TemporaryDirectory(prefix="meminit_e2e_") as temp_dir:
+        results = run_e2e(Path(temp_dir))
+        assert results["success"] is True
+
+
 @pytest.mark.slow
+@pytest.mark.benchmark
 def test_e2e_performance_sla():
-    """Full E2E integration test: init, generate 500 docs, index, verify."""
+    """Performance SLA: index generation must complete within 10 seconds."""
     with tempfile.TemporaryDirectory(prefix="meminit_e2e_") as temp_dir:
         results = run_e2e(Path(temp_dir))
         assert results["success"] is True

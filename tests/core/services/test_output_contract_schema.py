@@ -294,6 +294,7 @@ docops_version: 2.0
     payload2.pop("timestamp", None)
     assert payload1 == payload2
 
+
 def test_operational_error_envelope_conforms_to_agent_schema(tmp_path):
     schema_path = (
         Path(__file__).resolve().parents[3] / "docs" / "20-specs" / "agent-output.schema.v3.json"
@@ -323,12 +324,30 @@ def test_operational_error_envelope_conforms_to_agent_schema(tmp_path):
     assert not errors
 
 
+import uuid
+
+
 def test_non_error_payload_requires_check_counters():
     schema_path = (
         Path(__file__).resolve().parents[3] / "docs" / "20-specs" / "agent-output.schema.v3.json"
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
-    payload = {"output_schema_version": "3.0", "success": True, "run_id": "test-run"}
+    payload = {
+        "output_schema_version": "3.0",
+        "success": True,
+        "command": "check",
+        "run_id": str(uuid.uuid4()),
+        "root": "/tmp/test",
+        "data": {
+            "files_checked": 5,
+        },
+        "warnings": [],
+        "violations": [],
+        "advice": [],
+    }
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)
     assert errors
+    error_messages = " ".join(str(e) for e in errors)
+    for expected in ("files_passed", "files_failed", "schema_failures_count"):
+        assert expected in error_messages, f"Expected schema error about missing '{expected}'"

@@ -48,7 +48,9 @@ def test_document_creation():
 
 
 def test_violation_creation():
-    v = Violation(file="docs/bad.md", line=1, rule="ID_REGEX", message="Bad ID", severity=Severity.ERROR)
+    v = Violation(
+        file="docs/bad.md", line=1, rule="ID_REGEX", message="Bad ID", severity=Severity.ERROR
+    )
     assert v.severity == Severity.ERROR
     assert v.line == 1
 
@@ -84,10 +86,10 @@ class TestNewDocumentParamsValidation:
             params = NewDocumentParams(doc_type="ADR", title="Test", status=status)
             assert params.status == status
 
-    def test_accepts_any_status_at_construction(self):
-        """Status validation is deferred to execute_with_params for structured error response."""
-        params = NewDocumentParams(doc_type="ADR", title="Test", status="Published")
-        assert params.status == "Published"
+    def test_rejects_invalid_status_at_construction(self):
+        """Invalid status raises ValueError at construction time."""
+        with pytest.raises(ValueError, match="Invalid status"):
+            NewDocumentParams(doc_type="ADR", title="Test", status="Published")
 
     def test_valid_related_ids(self):
         """Valid related_ids pass validation."""
@@ -98,25 +100,21 @@ class TestNewDocumentParamsValidation:
         )
         assert params.related_ids == ["MEMINIT-ADR-001", "MEMINIT-RFC-042"]
 
-    def test_accepts_any_related_id_at_construction(self):
-        """related_ids validation is deferred to execute_with_params."""
-        params = NewDocumentParams(
-            doc_type="ADR",
-            title="Test",
-            related_ids=["MEMINIT-ADR-001", "bad-id"],
-        )
-        assert params.related_ids == ["MEMINIT-ADR-001", "bad-id"]
+    def test_rejects_invalid_related_id_at_construction(self):
+        """Invalid related_id raises ValueError at construction time."""
+        with pytest.raises(ValueError, match="Invalid related_id"):
+            NewDocumentParams(
+                doc_type="ADR",
+                title="Test",
+                related_ids=["MEMINIT-ADR-001", "bad-id"],
+            )
 
     def test_valid_superseded_by(self):
         """Valid superseded_by passes validation."""
-        params = NewDocumentParams(
-            doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-099"
-        )
+        params = NewDocumentParams(doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-099")
         assert params.superseded_by == "MEMINIT-ADR-099"
 
-    def test_accepts_any_superseded_by_at_construction(self):
-        """superseded_by validation is deferred to execute_with_params."""
-        params = NewDocumentParams(
-            doc_type="ADR", title="Test", superseded_by="bad"
-        )
-        assert params.superseded_by == "bad"
+    def test_rejects_invalid_superseded_by_at_construction(self):
+        """Invalid superseded_by raises ValueError at construction time."""
+        with pytest.raises(ValueError, match="Invalid superseded_by"):
+            NewDocumentParams(doc_type="ADR", title="Test", superseded_by="bad")

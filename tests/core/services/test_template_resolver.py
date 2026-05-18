@@ -23,9 +23,7 @@ class TestTemplateResolution:
     def test_template_resolution_fields(self):
         """Test that TemplateResolution has all required fields."""
         resolution = TemplateResolution(
-            source=SOURCE_CONFIG,
-            path=Path("/test/template.md"),
-            content="# Test\n\nContent here."
+            source=SOURCE_CONFIG, path=Path("/test/template.md"), content="# Test\n\nContent here."
         )
         assert resolution.source == SOURCE_CONFIG
         assert resolution.path == Path("/test/template.md")
@@ -157,12 +155,19 @@ class TestTemplateResolverSecurity:
     """Test template validation and security."""
 
     def test_path_traversal_rejected(self, tmp_path):
-        """Path traversal via .. in template path is rejected."""
+        """Path traversal via .. in template path is rejected.
+
+        The path is filtered at config parse time by _safe_repo_relative_path,
+        which returns None for paths outside the repo root. The resolver
+        therefore never sees the config template and falls through.
+        """
         docs_dir = tmp_path / "docs"
         docs_dir.mkdir()
 
+        outside_template = tmp_path.parent / "outside.template.md"
+        outside_template.write_text("# Outside template\n")
+
         config_file = tmp_path / "docops.config.yaml"
-        # Use ../ to attempt escape
         config_file.write_text(f"""
 project_name: Test
 repo_prefix: TEST
@@ -170,16 +175,19 @@ docops_version: "2.0"
 document_types:
   PRD:
     directory: "10-prd"
-    template: ../../etc/passwd
+    template: ../outside.template.md
 """)
 
         repo_config = load_repo_config(str(tmp_path))
-        resolver = TemplateResolver(repo_config)
+        assert (
+            repo_config.get_template_for_type("PRD") is None
+        ), "Traversal template path should be rejected at config parse time"
 
-        # Should not resolve (path validation prevents escape)
+        resolver = TemplateResolver(repo_config)
         resolution = resolver.resolve("PRD")
-        # Falls through to builtin since config path doesn't exist
-        assert resolution.source != SOURCE_CONFIG
+        assert (
+            resolution.source != SOURCE_CONFIG
+        ), "Resolver should not pick up a rejected traversing config template"
 
     def test_symlink_rejected(self, tmp_path):
         """Symlink template files are rejected."""

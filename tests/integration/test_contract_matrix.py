@@ -4,6 +4,7 @@ Tests derive the command list from the capabilities output, making them
 self-maintaining. Adding a new JSON-supporting command automatically includes
 it in the parametrization.
 """
+
 import json
 import os
 from pathlib import Path
@@ -33,10 +34,7 @@ def agent_output_schema():
         / "agent-output.schema.v3.json"
     )
     docs_path = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "20-specs"
-        / "agent-output.schema.v3.json"
+        Path(__file__).resolve().parents[2] / "docs" / "20-specs" / "agent-output.schema.v3.json"
     )
     bundled_text = bundled_path.read_text(encoding="utf-8")
     assert bundled_text == docs_path.read_text(
@@ -63,10 +61,60 @@ _REQUIRED_FIELDS = {
 }
 
 
+_KNOWN_REPO_AWARE_COMMANDS = {
+    "check",
+    "new",
+    "fix",
+    "index",
+    "scan",
+    "context",
+    "init",
+    "doctor",
+    "adr new",
+    "state set",
+    "state get",
+    "state list",
+    "state next",
+    "state blockers",
+    "resolve",
+    "identify",
+    "link",
+    "protocol check",
+    "protocol sync",
+    "org vendor",
+    "org status",
+    "migrate-templates",
+    "migrate-ids",
+    "install-precommit",
+}
+
+_KNOWN_REPO_AGNOSTIC_COMMANDS = {
+    "capabilities",
+    "explain",
+    "org install",
+}
+
+
 def _repo_agnostic_commands() -> set[str]:
     """Derive repo-agnostic command names from the capabilities registry."""
     caps = CapabilitiesUseCase().execute()
     return {c["name"] for c in caps["commands"] if not c.get("needs_root")}
+
+
+def _assert_root_metadata_matches_oracle():
+    """Assert the capabilities metadata matches the independent oracle."""
+    caps = CapabilitiesUseCase().execute()
+    metadata_agnostic = {c["name"] for c in caps["commands"] if not c.get("needs_root")}
+    metadata_aware = {c["name"] for c in caps["commands"] if c.get("needs_root")}
+
+    for cmd in _KNOWN_REPO_AGNOSTIC_COMMANDS:
+        assert (
+            cmd in metadata_agnostic
+        ), f"Expected {cmd} to be repo-agnostic per oracle, but capabilities says needs_root=true"
+    for cmd in _KNOWN_REPO_AWARE_COMMANDS:
+        assert (
+            cmd in metadata_aware
+        ), f"Expected {cmd} to be repo-aware per oracle, but capabilities says needs_root=false"
 
 
 def _setup_initialized_repo(tmp_path: Path) -> None:
@@ -164,15 +212,19 @@ def _invoke_and_assert_output(name: str, tmp_path: Path, extra_args: list[str] |
     runner = CliRunner()
     result = runner.invoke(cli, args, env=env)
 
-    assert result.exit_code != 2, (
-        f"Command {name} hit usage error — check _build_args fixture: {result.output}"
-    )
+    assert (
+        result.exit_code != 2
+    ), f"Command {name} hit usage error — check _build_args fixture: {result.output}"
     assert result.output.strip(), f"Command {name} produced no output"
     return result
 
 
 class TestEnvelopeValidity:
     """Every JSON-supporting command must produce a valid v3 envelope."""
+
+    def test_root_awareness_metadata_matches_oracle(self):
+        """Capabilities metadata must match the independent root-awareness oracle."""
+        _assert_root_metadata_matches_oracle()
 
     @pytest.mark.parametrize(
         "cmd_info",
@@ -235,9 +287,9 @@ class TestEnvelopeValidity:
 
         result = _invoke_and_assert_output(name, tmp_path)
         non_empty_lines = [line for line in stdout_text(result).splitlines() if line.strip()]
-        assert len(non_empty_lines) == 1, (
-            f"Expected exactly one non-empty stdout line, got {len(non_empty_lines)}: {non_empty_lines!r}"
-        )
+        assert (
+            len(non_empty_lines) == 1
+        ), f"Expected exactly one non-empty stdout line, got {len(non_empty_lines)}: {non_empty_lines!r}"
         json.loads(non_empty_lines[0])
 
     @pytest.mark.parametrize(
@@ -253,9 +305,8 @@ class TestEnvelopeValidity:
         result = _invoke_and_assert_output(name, tmp_path)
         payload = parse_first_json_line(result.output)
         errors = sorted(Draft7Validator(agent_output_schema).iter_errors(payload), key=str)
-        assert not errors, (
-            f"Schema validation errors for '{name}':\n"
-            + "\n".join(f"  - {e.message}" for e in errors)
+        assert not errors, f"Schema validation errors for '{name}':\n" + "\n".join(
+            f"  - {e.message}" for e in errors
         )
 
 
@@ -300,7 +351,7 @@ class TestPayloadContracts:
         doc_path = tmp_path / "docs" / "45-adr" / "adr-001.md"
         doc_path.write_text(
             "---\ndocument_id: TEST-ADR-001\ntype: ADR\ntitle: Test\nstatus: Draft\ndocops_version: '2.0'\n---\n# Test",
-            encoding="utf-8"
+            encoding="utf-8",
         )
         # We need an index for resolve/identify/link to work
         index_result = CliRunner().invoke(cli, ["index", "--root", str(tmp_path)])
@@ -395,6 +446,7 @@ class TestPayloadContracts:
         summary = data["summary"]
         for field in ["total", "aligned", "drifted", "unparseable"]:
             assert field in summary, f"Missing {field} in protocol check summary"
+
 
 class TestCapabilitiesSelfConsistency:
     """Capabilities output must be internally consistent."""

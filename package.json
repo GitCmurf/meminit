@@ -1,9 +1,10 @@
 {
+  "private": true,
   "name": "meminit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DocOps for the Agentic Age: governed docs, compliance checks, and automation.",
   "scripts": {
-    "test": "python -m pytest"
+    "test": "uv run python -m pytest"
   },
   "keywords": [
     "docops",

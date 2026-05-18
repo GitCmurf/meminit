@@ -136,9 +136,7 @@ def test_context_stream_shallow_does_not_emit_documents(tmp_path, monkeypatch):
     assert "documents" not in result.summary.data
 
 
-def test_index_stream_emits_first_node_while_build_is_still_running(
-    tmp_path, monkeypatch
-):
+def test_index_stream_emits_first_node_while_build_is_still_running(tmp_path, monkeypatch):
     create_initialized_repo(tmp_path)
     use_case = IndexRepositoryUseCase(str(tmp_path))
     stream_started = threading.Event()
@@ -201,14 +199,18 @@ def test_index_stream_emits_first_node_while_build_is_still_running(
 
     release_build.set()
 
-    remaining: list[object] = []
-    while True:
-        item = first_record_queue.get(timeout=1)
-        if item is sentinel:
-            break
-        remaining.append(item)
+    consumer.join(timeout=10)
+    assert not consumer.is_alive(), "Consumer thread did not finish in time"
 
-    consumer.join(timeout=5)
+    remaining: list[object] = []
+    while not first_record_queue.empty():
+        try:
+            item = first_record_queue.get_nowait()
+        except queue.Empty:
+            break
+        if item is sentinel:
+            continue
+        remaining.append(item)
 
     assert not any(isinstance(item, Exception) for item in remaining)
     assert result.summary.data["node_count"] == 1
