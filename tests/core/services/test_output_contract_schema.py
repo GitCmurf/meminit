@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
+from tests.helpers import parse_json_envelope
 from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
@@ -91,7 +92,7 @@ docops_version: 2.0
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)
     assert not errors
 
@@ -179,7 +180,7 @@ docops_version: 2.0
     )
 
     assert result.exit_code != 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert "error" not in payload
     assert "violations" in payload
@@ -281,8 +282,8 @@ docops_version: 2.0
     assert result1.exit_code == 0
     assert result2.exit_code == 0
 
-    payload1 = json.loads(result1.output.strip().splitlines()[-1])
-    payload2 = json.loads(result2.output.strip().splitlines()[-1])
+    payload1 = parse_json_envelope(result1.output)
+    payload2 = parse_json_envelope(result2.output)
     assert "run_id" in payload1
     assert "run_id" in payload2
     assert "timestamp" in payload1
@@ -315,7 +316,7 @@ def test_operational_error_envelope_conforms_to_agent_schema(tmp_path):
     )
 
     assert result.exit_code != 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert "error" in payload
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)

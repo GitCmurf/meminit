@@ -62,7 +62,7 @@ def test_cli_state_list_accepts_templates_v2_list_namespaces(tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["entries"] == []
 
@@ -77,7 +77,7 @@ def test_cli_state_set_notes_only(repo_with_docs):
     result = runner.invoke(cli, ["state", "set", "TEST-ADR-001", "--notes", "Updated notes", "--root", str(repo_with_docs), "--format", "json"])
     
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["impl_state"] == "In Progress"
     assert data["data"]["notes"] == "Updated notes"
@@ -97,7 +97,7 @@ def test_cli_index_filtering_does_not_persist(repo_with_docs):
     assert result.exit_code == 0
 
     # Check JSON output in stdout (should be filtered)
-    stdout_data = json.loads(result.output.strip().splitlines()[-1])
+    stdout_data = parse_json_envelope(result.output)
     assert stdout_data["data"]["node_count"] == 1
     assert stdout_data["data"]["filtered"] is True
     assert stdout_data["data"]["nodes"][0]["document_id"] == "TEST-ADR-002"
@@ -131,7 +131,7 @@ def test_cli_state_list_json(repo_with_docs):
     
     result = runner.invoke(cli, ["state", "list", "--root", str(repo_with_docs), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-001"
@@ -142,7 +142,7 @@ def test_cli_state_get_json(repo_with_docs):
     
     result = runner.invoke(cli, ["state", "get", "TEST-ADR-001", "--root", str(repo_with_docs), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["impl_state"] == "Blocked"
     assert data["data"]["ready"] is False
@@ -165,7 +165,7 @@ def test_cli_state_get_json_propagates_warnings(repo_with_docs):
 
     result = runner.invoke(cli, ["state", "get", "TEST-ADR-001", "--root", str(repo_with_docs), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["warnings"]
     assert any(w["code"] == "STATE_DEPENDENCY_CYCLE" for w in data["warnings"])
@@ -176,12 +176,12 @@ def test_cli_state_clear_json(repo_with_docs):
     
     result = runner.invoke(cli, ["state", "set", "TEST-ADR-001", "--clear", "--root", str(repo_with_docs), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["action"] == "clear"
     assert data["data"]["document_id"] == "TEST-ADR-001"
     
     list_result = runner.invoke(cli, ["state", "list", "--root", str(repo_with_docs), "--format", "json"])
-    list_data = json.loads(list_result.output.strip().splitlines()[-1])
+    list_data = parse_json_envelope(list_result.output)
     assert len(list_data["data"]["entries"]) == 0
 
 
@@ -192,7 +192,7 @@ def test_cli_state_set_priority(repo_with_docs):
         "--priority", "P0", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["priority"] == "P0"
 
@@ -228,7 +228,7 @@ def test_cli_state_set_assignee_and_next_action(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["assignee"] == "agent:codex"
     assert data["data"]["next_action"] == "Implement schema"
 
@@ -239,7 +239,7 @@ def test_cli_state_next_empty_queue(repo_with_docs):
         "state", "next", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["entry"] is None
     assert data["data"]["reason"] == "state_missing"
@@ -255,7 +255,7 @@ def test_cli_state_next_with_ready_item(repo_with_docs):
         "state", "next", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["entry"] is not None
     assert data["data"]["entry"]["document_id"] == "TEST-ADR-001"
     assert data["data"]["selection"]["rule"] == "priority > unblocks > updated > document_id"
@@ -272,7 +272,7 @@ def test_cli_state_blockers_empty(repo_with_docs):
         "state", "blockers", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["blocked"] == []
     assert data["data"]["summary"]["ready"] >= 1
 
@@ -287,7 +287,7 @@ def test_cli_state_blockers_with_blocked_entry(repo_with_docs):
         "state", "blockers", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["blocked"]) == 1
     assert data["data"]["blocked"][0]["document_id"] == "TEST-ADR-001"
 
@@ -304,7 +304,7 @@ def test_cli_state_set_depends_on_additive(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert "TEST-ADR-002" in data["data"]["depends_on"]
     assert "TEST-ADR-003" in data["data"]["depends_on"]
 
@@ -337,7 +337,7 @@ def test_cli_state_list_ready_filter(repo_with_docs):
         "state", "list", "--ready", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     ready_ids = [e["document_id"] for e in data["data"]["entries"]]
     assert "TEST-ADR-001" in ready_ids
@@ -354,7 +354,7 @@ def test_cli_state_list_blocked_filter(repo_with_docs):
         "state", "list", "--blocked", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-001"
 
@@ -374,7 +374,7 @@ def test_cli_state_list_priority_filter(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-001"
 
@@ -394,7 +394,7 @@ def test_cli_state_list_assignee_filter(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["assignee"] == "agent:codex"
 
@@ -409,7 +409,7 @@ def test_cli_state_list_includes_derived_fields(repo_with_docs):
         "state", "list", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     entry = data["data"]["entries"][0]
     assert "ready" in entry
     assert "open_blockers" in entry
@@ -426,7 +426,7 @@ def test_cli_state_list_includes_summary(repo_with_docs):
         "state", "list", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert "summary" in data["data"]
     assert data["data"]["summary"]["total"] == 1
     assert data["data"]["summary"]["returned"] == 1
@@ -477,7 +477,7 @@ def test_cli_state_list_impl_state_filter(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-001"
     assert data["data"]["entries"][0]["impl_state"] == "In Progress"
@@ -498,7 +498,7 @@ def test_cli_state_list_impl_state_repeatable(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 2
 
 
@@ -533,7 +533,7 @@ class TestCliStateSetMixedMutationModeRejection:
             "--root", str(repo_with_docs), "--format", "json",
         ])
         assert result.exit_code == 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is True
 
     def test_cli_single_additive_mode_succeeds(self, repo_with_docs):
@@ -566,7 +566,7 @@ def test_cli_state_next_invalid_priority_warning_has_path(repo_with_docs):
         "state", "next", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    envelope = json.loads(result.output.strip().splitlines()[-1])
+    envelope = parse_json_envelope(result.output)
     assert envelope["success"] is True
     assert envelope["warnings"] is not None
     pip_w = [w for w in envelope["warnings"] if w["code"] == "STATE_INVALID_PRIORITY"]
@@ -617,7 +617,7 @@ def test_cli_state_next_invalid_priority_uses_dynamic_path(tmp_path):
         "state", "next", "--root", str(tmp_path), "--format", "json",
     ])
     assert result.exit_code == 0
-    envelope = json.loads(result.output.strip().splitlines()[-1])
+    envelope = parse_json_envelope(result.output)
     warning = envelope["warnings"][0]
     assert warning["path"] == "documentation/01-indices/project-state.yaml"
 
@@ -668,7 +668,7 @@ def test_cli_state_set_clear_alone_succeeds(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["action"] == "clear"
     assert data["data"]["document_id"] == "TEST-ADR-001"
 
@@ -849,7 +849,7 @@ def test_cli_state_list_json_includes_validation_warnings(repo_with_docs):
         "state", "list", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert "warnings" in data
     codes = [w["code"] for w in data["warnings"]]
@@ -868,7 +868,7 @@ def test_cli_state_blockers_json_includes_validation_warnings(repo_with_docs):
         "state", "blockers", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert "warnings" in data
     codes = [w["code"] for w in data["warnings"]]
@@ -989,7 +989,7 @@ def test_cli_state_list_fails_fast_on_broken_repo_layout(repo_with_docs):
             "state", "list", "--root", str(repo_with_docs), "--format", "json",
         ])
     assert result.exit_code == 66
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
 
@@ -1031,7 +1031,7 @@ def test_cli_state_set_clears_notes_with_empty_string(repo_with_docs):
         "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["notes"] == ""
 
@@ -1078,7 +1078,7 @@ def test_cli_state_list_json_puts_advisories_in_envelope(repo_with_docs):
         "state", "list", "--root", str(repo_with_docs), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     advice_codes = [a["code"] for a in data["advice"]]
     assert "STATE_DEPENDENCY_STATUS_CONFLICT" in advice_codes
     assert "advice" not in data["data"]
@@ -1143,7 +1143,7 @@ def test_cli_state_list_accepts_initialized_top_level_templates_v2_config(tmp_pa
         "state", "list", "--root", str(tmp_path), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is True
     assert data["data"]["entries"] == []
 
@@ -1166,7 +1166,7 @@ def test_cli_state_list_summary_counts_respect_filters(repo_with_docs):
     result = runner.invoke(cli, [
         "state", "list", "--root", str(repo_with_docs), "--format", "json",
     ])
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["summary"]["ready"] == 2
 
     # Filtered by Bob: 1 ready (TEST-ADR-002 only)
@@ -1174,7 +1174,7 @@ def test_cli_state_list_summary_counts_respect_filters(repo_with_docs):
     result = runner.invoke(cli, [
         "state", "list", "--assignee", "Bob", "--root", str(repo_with_docs), "--format", "json",
     ])
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert len(data["data"]["entries"]) == 1
     assert data["data"]["entries"][0]["document_id"] == "TEST-ADR-002"
     assert data["data"]["summary"]["ready"] == 1

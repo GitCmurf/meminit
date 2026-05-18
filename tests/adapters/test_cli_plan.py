@@ -1,5 +1,6 @@
 import json
 from click.testing import CliRunner
+from tests.helpers import parse_json_envelope
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import exit_code_for_error
@@ -37,7 +38,7 @@ def test_scan_plan_writes_empty_plan_for_no_action_repo(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    scan_envelope = json.loads(result.output.strip().splitlines()[-1])
+    scan_envelope = parse_json_envelope(result.output)
     assert scan_envelope["success"] is True
     assert plan_path.exists()
     plan_envelope = json.loads(plan_path.read_text(encoding="utf-8"))
@@ -55,7 +56,7 @@ def test_scan_empty_plan_rejects_unsafe_path(tmp_path):
     )
 
     assert result.exit_code == exit_code_for_error(ErrorCode.PATH_ESCAPE)
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
     assert payload["error"]["details"]["plan_path"] == "/etc/meminit-plan.json"
@@ -72,7 +73,7 @@ def test_scan_empty_plan_write_failure_returns_structured_error(tmp_path):
     )
 
     assert result.exit_code == 1
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
     assert payload["error"]["details"]["plan_path"] == str(plan_path)
@@ -112,7 +113,7 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     result = runner.invoke(cli, ["scan", "--plan", str(plan_path), "--format", "json", "--root", str(tmp_path)])
     assert result.exit_code == 0, f"Scan failed: {result.output}"
     
-    scan_envelope = json.loads(result.output.strip().splitlines()[-1])
+    scan_envelope = parse_json_envelope(result.output)
     assert scan_envelope["success"] is True
     
     # Verify the plan file was written separately and correctly
@@ -138,7 +139,7 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     # Actually wait, fix outputs exit code 0 or >0 based on remaining violations
     # But since it's dry run, it didn't fix them.
     # Let's just check the envelope
-    fix_dry_env = json.loads(fix_dry_result.output.strip().splitlines()[-1])
+    fix_dry_env = parse_json_envelope(fix_dry_result.output)
     assert fix_dry_env["output_schema_version"] == "3.0"
     
     # The file should NOT be moved yet
@@ -149,7 +150,7 @@ def test_cli_plan_driven_migration_e2e(tmp_path):
     fix_apply_result = runner.invoke(cli, ["fix", "--plan", str(plan_path), "--no-dry-run", "--format", "json", "--root", str(tmp_path)])
     # The command might exit with 77 due to other structural violations (like missing 00-governance in the minimal test repo)
     # But it should successfully fix the ADR
-    fix_apply_env = json.loads(fix_apply_result.output.strip().splitlines()[-1])
+    fix_apply_env = parse_json_envelope(fix_apply_result.output)
     assert fix_apply_env["data"]["fixed"] > 0
     # remaining defaults to >0 because of the repo layout check failures
     

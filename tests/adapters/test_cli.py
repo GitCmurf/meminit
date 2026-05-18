@@ -190,7 +190,7 @@ def test_cli_check_violations_json(mock_use_case):
 
     assert result.exit_code == 1
     try:
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
     except json.JSONDecodeError:
         pytest.fail(f"Output is not valid JSON: {result.output}")
 
@@ -239,7 +239,7 @@ def test_cli_check_json_output_write_failure_returns_json_error(
     )
 
     assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert payload["output_schema_version"] == "3.0"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
@@ -284,7 +284,7 @@ def test_cli_check_json_output_write_failure_preserves_correlation_id(
     )
 
     assert result.exit_code == getattr(os, "EX_CANTCREAT", 73)
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["correlation_id"] == "write-fail-trace"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
@@ -323,7 +323,7 @@ def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp
     )
 
     assert result.exit_code == getattr(os, "EX_NOPERM", 77)
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert payload["output_schema_version"] == "3.0"
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
@@ -368,7 +368,7 @@ def test_cli_check_json_unsafe_output_path_preserves_correlation_id(
     )
 
     assert result.exit_code == getattr(os, "EX_NOPERM", 77)
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["correlation_id"] == "unsafe-path-trace"
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
 
@@ -399,7 +399,7 @@ def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp
 
     assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
     assert secret not in result.stdout
-    payload = json.loads(result.stdout.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.stdout)
     assert payload["correlation_id"] == "redaction-json"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
     assert payload["error"]["message"] == "An unexpected internal error occurred."
@@ -797,7 +797,7 @@ def test_cli_context_json_output(tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["output_schema_version"] == "3.0"
     assert data["success"] is True
     assert data["data"]["project_name"] == "TestProject"
@@ -820,7 +820,7 @@ def test_cli_context_deep_counts_documents(tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["data"]["deep_incomplete"] is False
     namespaces = data["data"]["namespaces"]
     default_ns = next(ns for ns in namespaces if ns.get("name") == "default")
@@ -1776,7 +1776,7 @@ document_types:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
 
         assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
@@ -2038,7 +2038,7 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
 
         assert data["output_schema_version"] == "3.0"
         assert data["success"] is True
@@ -2084,7 +2084,7 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 1
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
 
         assert data["success"] is False
         assert data["files_checked"] == 2
@@ -2106,7 +2106,7 @@ docops_version: 2.0
             ],
         )
 
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["files_checked"] == 2
         assert data["files_failed"] == 1
         assert data["missing_paths_count"] == 0
@@ -2126,7 +2126,7 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 1
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert data["files_checked"] == 2
         assert data["files_failed"] == 1
@@ -2154,7 +2154,7 @@ docops_version: 2.0
         )
 
         assert result.exit_code == 1
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["files_checked"] == 2
         assert all(
             "docs/00-governance/templates" not in entry["path"]
@@ -2511,7 +2511,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "FILE_NOT_FOUND"
@@ -2604,7 +2604,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert "error" in data
         assert data["error"]["code"] == "PATH_ESCAPE"
@@ -2749,7 +2749,7 @@ def test_cli_doctor_json_output(mock_use_case, tmp_path):
     result = runner.invoke(cli, ["doctor", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code == 1
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "doctor"
     assert payload["success"] is False
     assert len(payload["warnings"]) == 1
@@ -2777,7 +2777,7 @@ def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 1
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "doctor"
     assert payload["success"] is False
     assert payload["data"]["status"] == "warn"
@@ -2808,7 +2808,7 @@ def test_cli_fix_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 1
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "fix"
     assert payload["success"] is False
     assert payload["data"]["fixed"] == 2
@@ -2830,7 +2830,7 @@ def test_cli_migrate_ids_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "migrate-ids"
     assert payload["data"]["report"]["actions"] == []
 
@@ -2856,7 +2856,7 @@ def test_cli_identify_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "identify"
     assert payload["data"]["document_id"] == "TEST-ADR-001"
 
@@ -2874,7 +2874,7 @@ def test_cli_resolve_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "resolve"
     assert payload["data"]["document_id"] == "TEST-ADR-001"
 
@@ -2892,7 +2892,7 @@ def test_cli_link_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "link"
     assert payload["data"]["document_id"] == "TEST-ADR-001"
     assert payload["data"]["link"].startswith("[TEST-ADR-001]")
@@ -2907,7 +2907,7 @@ def test_cli_org_install_json_output(mock_use_case):
     result = runner.invoke(cli, ["org", "install", "--format", "json"])
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "org install"
     assert payload["data"]["profile"] == "default"
 
@@ -2924,7 +2924,7 @@ def test_cli_org_vendor_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "org vendor"
     assert payload["data"]["profile"] == "default"
 
@@ -2941,7 +2941,7 @@ def test_cli_org_status_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "org status"
     assert payload["data"]["status"] == "ok"
 
@@ -3062,7 +3062,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert "error" in data
         assert data["output_schema_version"] == "3.0"
@@ -3085,7 +3085,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert "error" in data
         assert data["output_schema_version"] == "3.0"
@@ -3100,7 +3100,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        data = json.loads(result.output.strip().splitlines()[-1])
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
         assert "error" in data
         assert "code" in data["error"]
@@ -3138,9 +3138,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        json_line = result.output.strip().splitlines()[-1]
-        assert "\n" not in json_line
-        data = json.loads(json_line)
+        data = parse_json_envelope(result.output)
         assert data["success"] is False
 
 
@@ -3249,7 +3247,7 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["command"] == "migrate-templates"
     assert data["data"]["dry_run"] is True
 
@@ -3311,7 +3309,7 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "migrate-templates"
     assert payload["success"] is True
     assert payload["output_schema_version"] == "3.0"
@@ -3378,7 +3376,7 @@ def test_cli_migrate_templates_missing_config_json(tmp_path):
     )
 
     assert result.exit_code != 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     assert data["success"] is False
     assert "error" in data
     assert data["error"]["code"] == "CONFIG_MISSING"
@@ -3479,7 +3477,7 @@ def test_cli_migrate_templates_json_failure_returns_error_envelope(
     )
 
     assert result.exit_code == 1
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["command"] == "migrate-templates"
     assert payload["success"] is False
     assert payload["error"]["code"] == ErrorCode.VALIDATION_ERROR.value
@@ -3569,7 +3567,7 @@ def test_cli_migrate_templates_e2e_real_execution(tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
 
     assert data["success"] is True
     assert data["command"] == "migrate-templates"
@@ -3616,7 +3614,7 @@ def test_cli_migrate_templates_e2e_real_execution(tmp_path):
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
 
     assert data["data"]["dry_run"] is False
 

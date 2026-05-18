@@ -17,7 +17,7 @@ from click.testing import CliRunner
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.use_cases.state_document import StateDocumentUseCase
-from tests.helpers import parse_first_json_line
+from tests.helpers import parse_first_json_line, parse_json_envelope
 
 
 def _runner() -> CliRunner:
@@ -97,7 +97,7 @@ def _invoke_state_next(tmp_path: Path, *flags, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
@@ -109,7 +109,7 @@ def _invoke_state_blockers(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
@@ -123,7 +123,7 @@ def _invoke_state_list(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
@@ -544,7 +544,7 @@ def test_index_v2_integration_q20(tmp_path: Path):
         "index", "--root", str(tmp_path), "--format", "json",
     ])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
 
     nodes = data["data"]["nodes"]
     assert len(nodes) == 1
@@ -644,7 +644,7 @@ def test_index_p2_round_trips_and_none_is_absent(tmp_path):
     runner = _runner()
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     nodes = {n["document_id"]: n for n in data["data"]["nodes"]}
     assert nodes["FIX-ADR-001"].get("priority") == "P2", "Explicit P2 must round-trip"
     assert "priority" not in nodes["FIX-ADR-002"], "No-priority entry must not have priority key"
