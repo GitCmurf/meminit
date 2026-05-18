@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-005
 type: SPEC
 title: Scan Plan Format
 status: Approved
-version: "1.0"
-last_updated: 2026-03-01
+version: "1.1"
+last_updated: 2026-05-18
 owner: Product Team
 docops_version: "2.0"
 area: ADOPT
@@ -26,8 +26,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-005
 > **Owner:** Product Team
 > **Status:** Approved
-> **Version:** 1.0
-> **Last Updated:** 2026-03-01
+> **Version:** 1.1
+> **Last Updated:** 2026-05-18
 > **Type:** SPEC
 > **Area:** Adoption
 
@@ -43,12 +43,18 @@ Plain English: This spec describes the exact structure of the plan file that tel
 
 The migration plan is a JSON document wrapped in the canonical Meminit JSON envelope:
 
-- `output_schema_version`: "2.0"
+- `output_schema_version`: "3.0"
 - `success`: boolean
 - `command`: "scan"
 - `run_id`: string
 - `root`: string (repository root)
 - `data.plan`: the core MigrationPlan payload
+
+When `--plan <path>` is supplied, `meminit scan` MUST either write this
+artifact successfully or fail the command with a structured error. Unsafe plan
+paths MUST fail with `PATH_ESCAPE`; ordinary write failures MUST fail non-zero
+and MUST NOT be treated as best-effort. A scan with no generated actions MUST
+still write a valid plan envelope with `data.plan.actions: []`.
 
 ## 3. MigrationPlan Model (`data.plan`)
 

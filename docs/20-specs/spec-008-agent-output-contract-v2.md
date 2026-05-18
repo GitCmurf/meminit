@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-008
 type: SPEC
 title: Agent Output Contract (Templates v2 → v3)
 status: Approved
-version: "1.5"
-last_updated: 2026-05-06
+version: "1.6"
+last_updated: 2026-05-18
 owner: Product Team
 docops_version: "2.0"
 area: AGENT
@@ -30,8 +30,8 @@ related_ids:
 > **Document ID:** MEMINIT-SPEC-008
 > **Owner:** Product Team
 > **Status:** Approved
-> **Version:** 1.4
-> **Last Updated:** 2026-04-30
+> **Version:** 1.6
+> **Last Updated:** 2026-05-18
 > **Type:** SPEC
 > **Area:** Agentic Integration
 
@@ -103,6 +103,16 @@ All v3 JSON outputs MUST include the following top-level fields:
 - `timestamp` (string, ISO 8601) — present only when `--include-timestamp` is set.
 
 For `command: check`, additional required fields include counters (see [MEMINIT-SPEC-004](spec-004-agent-output-contract.md)).
+
+### 4.2 Error Detail Safety
+
+Structured error details are part of the public machine-readable API. For
+unexpected internal exceptions (`UNKNOWN_ERROR`), JSON and NDJSON stdout MUST
+NOT include raw exception strings, tracebacks, environment values, repository
+contents, absolute sensitive paths, or token-like substrings. Public details
+MAY include non-sensitive diagnostics such as the exception class name and the
+envelope `run_id`/`correlation_id`; full operator diagnostics belong on stderr
+or in structured logs.
 
 ### 5. Command Payload Profiles
 
@@ -355,3 +365,4 @@ The normative schema is `docs/20-specs/agent-output.schema.v3.json`.
 | 1.3     | 2026-04-30 | Codex    | Added payload profiles for all Phase 1-3 commands and clarified protocol sync dry-run/apply semantics. |
 | 1.4     | 2026-04-30 | Codex    | Remediation: Updated index command CLI payload fields, corrected resolve/identify/link to remove 'found', and documented protocol sync 'dry_run'. |
 | 1.5     | 2026-05-06 | Codex    | Added Section 3.1 streaming/envelope semantics and the MEMINIT-SPEC-011 cross-reference. |
+| 1.6     | 2026-05-18 | Codex    | Clarified that unexpected internal exception details in JSON and NDJSON stdout must be redacted. |

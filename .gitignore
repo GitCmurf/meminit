@@ -73,6 +73,7 @@ yarn-error.log*
 .qodo/
 #.specify/
 .meminit/cache/
+.clawpatch/
 
 # Temporary files and directories
 temp-*

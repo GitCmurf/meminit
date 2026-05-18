@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -49,3 +50,13 @@ def test_pytest_runs_without_implicit_coverage_plugin(tmp_path: Path):
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "1 passed" in result.stdout
+
+
+def test_package_json_test_script_delegates_to_pytest():
+    repo_root = Path(__file__).resolve().parents[3]
+    package_json = json.loads((repo_root / "package.json").read_text(encoding="utf-8"))
+
+    test_script = package_json["scripts"]["test"]
+
+    assert "no test specified" not in test_script.lower()
+    assert "pytest" in test_script

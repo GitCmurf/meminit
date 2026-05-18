@@ -185,7 +185,7 @@ def command_output_handler(
                     root=root_path,
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=safe_msg,
-                    details={"internal_error": str(e)},
+                    details=_unexpected_error_details(e),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,
@@ -198,7 +198,7 @@ def command_output_handler(
                 error=MeminitError(
                     ErrorCode.UNKNOWN_ERROR,
                     safe_msg,
-                    details={"internal_error": str(e)},
+                    details=_unexpected_error_details(e),
                 ),
                 output=output,
                 include_timestamp=include_timestamp,
@@ -282,6 +282,11 @@ def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _unexpected_error_details(exc: Exception) -> Dict[str, Any]:
+    """Return public, non-sensitive details for an unexpected exception."""
+    return {"exception": exc.__class__.__name__}
+
+
 def _write_output(
     output_str: str,
     output: Optional[str] = None,
@@ -350,6 +355,63 @@ def _write_output(
                 click.echo(f"Error writing output file '{output}': {exc}", err=True)
             raise SystemExit(EX_CANTCREAT)
     click.echo(output_str, nl=add_newline)
+
+
+def _write_scan_plan_artifact(
+    *,
+    plan: str,
+    root_path: Path,
+    migration_plan: Any,
+    format: str,
+    output: Optional[str],
+    include_timestamp: bool,
+    run_id: str,
+    correlation_id: Optional[str],
+    empty: bool = False,
+) -> None:
+    plan_path = Path(plan)
+    if not is_safe_cli_output_path(plan_path):
+        raise MeminitError(
+            ErrorCode.PATH_ESCAPE,
+            f"Plan path is considered unsafe: {plan}",
+            details={"plan_path": plan},
+        )
+
+    plan_json = format_envelope(
+        command="scan",
+        root=str(root_path),
+        success=True,
+        data={"plan": migration_plan.as_dict()},
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        correlation_id=correlation_id,
+    )
+    try:
+        with open(plan_path, "w", encoding="utf-8") as f:
+            f.write(plan_json + "\n")
+    except OSError as e:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="scan",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=f"Failed to save plan: {plan}",
+                    details={"plan_path": plan, "reason": str(e)},
+                    run_id=run_id,
+                    include_timestamp=include_timestamp,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            raise SystemExit(1) from e
+        get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
+        raise SystemExit(1) from e
+
+    if format != "json":
+        adjective = "empty " if empty else ""
+        style = "dim" if empty else "bold green"
+        get_console().print(f"[{style}]Saved {adjective}migration plan to {plan}[/{style}]")
 
 
 def _filter_index_edges(
@@ -1306,49 +1368,16 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
         scan_data = report.as_dict()
 
         if plan and report.plan:
-            plan_path = Path(plan)
-            if not is_safe_cli_output_path(plan_path):
-                raise MeminitError(
-                    ErrorCode.PATH_ESCAPE,
-                    f"Plan path is considered unsafe: {plan}",
-                    details={"plan_path": plan},
-                )
-            try:
-                plan_json = format_envelope(
-                    command="scan",
-                    root=str(root_path),
-                    success=True,
-                    data={"plan": report.plan.as_dict()},
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                )
-                with open(plan_path, "w", encoding="utf-8") as f:
-                    f.write(plan_json + "\n")
-                if format != "json":
-                    get_console().print(
-                        f"[bold green]Saved migration plan to {plan}[/bold green]"
-                    )
-            except Exception as e:
-                if format == "json":
-                    _write_output(
-                        format_error_envelope(
-                            command="scan",
-                            root=str(root_path),
-                            error_code=ErrorCode.UNKNOWN_ERROR,
-                            message=f"Failed to save plan: {e}",
-                            run_id=run_id,
-                            include_timestamp=include_timestamp,
-                            correlation_id=correlation_id,
-                        ),
-                        output,
-                    )
-                    raise SystemExit(1) from e
-                else:
-                    get_console().print(
-                        f"[bold red]Failed to save plan: {e}[/bold red]"
-                    )
-                    raise SystemExit(1) from e
+            _write_scan_plan_artifact(
+                plan=plan,
+                root_path=root_path,
+                migration_plan=report.plan,
+                format=format,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                correlation_id=correlation_id,
+            )
         elif plan:
             # Plan was requested but no actions were generated
             if format != "json":
@@ -1356,34 +1385,22 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     "[yellow]No plan actions generated — repository may already be compliant.[/yellow]"
                 )
             # Write an empty plan envelope so downstream tooling gets a stable artifact
-            try:
-                from meminit.core.services.scan_plan import MigrationPlan
-
-                plan_path = Path(plan)
-                if not is_safe_cli_output_path(plan_path):
-                    pass  # Best-effort, skip file write for unsafe path
-                else:
-                    empty_plan = MigrationPlan(
-                        plan_version="1.0",
-                        generated_at="1970-01-01T00:00:00Z",
-                        config_fingerprint="",
-                        actions=[],
-                    )
-                    empty_plan_json = format_envelope(
-                        command="scan",
-                        root=str(root_path),
-                        success=True,
-                        data={"plan": empty_plan.as_dict()},
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                        correlation_id=correlation_id,
-                    )
-                    with open(plan_path, "w", encoding="utf-8") as f:
-                        f.write(empty_plan_json + "\n")
-                    if format != "json":
-                        get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
-            except Exception:
-                pass  # Best-effort write, don't fail on empty plan
+            _write_scan_plan_artifact(
+                plan=plan,
+                root_path=root_path,
+                migration_plan=MigrationPlan(
+                    plan_version="1.0",
+                    generated_at="1970-01-01T00:00:00Z",
+                    config_fingerprint="",
+                    actions=[],
+                ),
+                format=format,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                correlation_id=correlation_id,
+                empty=True,
+            )
 
         if format == "json":
             _write_output(

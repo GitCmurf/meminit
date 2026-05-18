@@ -1,7 +1,10 @@
 import json
 from click.testing import CliRunner
 from meminit.cli.main import cli
+from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.exit_codes import exit_code_for_error
 import frontmatter
+
 
 def runner_no_mixed_stderr() -> CliRunner:
     # Small helper for click > 8.0 compatibility
@@ -10,6 +13,70 @@ def runner_no_mixed_stderr() -> CliRunner:
     if "mix_stderr" in inspect.signature(CliRunner).parameters:
         kwargs["mix_stderr"] = False
     return CliRunner(**kwargs)
+
+
+def create_no_action_repo(root):
+    (root / "docs").mkdir()
+    (root / "docops.config.yaml").write_text(
+        "project_name: TestProject\n"
+        "repo_prefix: TEST\n"
+        "docops_version: '2.0'\n"
+        "default_owner: TestTeam\n",
+        encoding="utf-8",
+    )
+
+
+def test_scan_plan_writes_empty_plan_for_no_action_repo(tmp_path):
+    create_no_action_repo(tmp_path)
+    plan_path = tmp_path / "empty-migration.plan.json"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["scan", "--plan", str(plan_path), "--format", "json", "--root", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    scan_envelope = json.loads(result.output.strip().splitlines()[-1])
+    assert scan_envelope["success"] is True
+    assert plan_path.exists()
+    plan_envelope = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert plan_envelope["success"] is True
+    assert plan_envelope["data"]["plan"]["actions"] == []
+
+
+def test_scan_empty_plan_rejects_unsafe_path(tmp_path):
+    create_no_action_repo(tmp_path)
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["scan", "--plan", "/etc/meminit-plan.json", "--format", "json", "--root", str(tmp_path)],
+    )
+
+    assert result.exit_code == exit_code_for_error(ErrorCode.PATH_ESCAPE)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
+    assert payload["error"]["details"]["plan_path"] == "/etc/meminit-plan.json"
+
+
+def test_scan_empty_plan_write_failure_returns_structured_error(tmp_path):
+    create_no_action_repo(tmp_path)
+    plan_path = tmp_path / "missing-parent" / "migration.plan.json"
+
+    runner = runner_no_mixed_stderr()
+    result = runner.invoke(
+        cli,
+        ["scan", "--plan", str(plan_path), "--format", "json", "--root", str(tmp_path)],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
+    assert payload["error"]["details"]["plan_path"] == str(plan_path)
+    assert not plan_path.exists()
 
 
 def test_cli_plan_driven_migration_e2e(tmp_path):
