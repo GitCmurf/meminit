@@ -300,8 +300,8 @@ def test_namespace_for_document_id_prefers_anchored_prefix_matches(tmp_path):
     assert resolved.namespace == "shared"
 
 
-def test_namespace_for_document_id_prefers_longest_anchored_prefix():
-    root_dir = Path("/tmp/meminit-test-root")
+def test_namespace_for_document_id_prefers_longest_anchored_prefix(tmp_path: Path):
+    root_dir = tmp_path / "meminit-test-root"
     layout = RepoLayout(
         root_dir=root_dir,
         project_name="Example",

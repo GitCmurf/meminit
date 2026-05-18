@@ -72,10 +72,10 @@ class CheckRepositoryUseCase:
             for path in ns.docs_dir.rglob("*.md"):
                 document_post: Any | None = None
 
-                def load_document_id() -> Optional[str]:
+                def load_document_id(current_path: Path = path) -> Optional[str]:
                     nonlocal document_post
                     if document_post is None:
-                        document_post, _ = self._load_document_post(path, document_load_cache)
+                        document_post, _ = self._load_document_post(current_path, document_load_cache)
                     return self._document_id_from_post(document_post)
 
                 validation_ns = self._resolve_validation_namespace(path, load_document_id)
@@ -408,10 +408,10 @@ class CheckRepositoryUseCase:
             for path in ns.docs_dir.rglob("*.md"):
                 document_post: Any | None = None
 
-                def load_document_id() -> Optional[str]:
+                def load_document_id(current_path: Path = path) -> Optional[str]:
                     nonlocal document_post
                     if document_post is None:
-                        document_post, _ = self._load_document_post(path, document_load_cache)
+                        document_post, _ = self._load_document_post(current_path, document_load_cache)
                     return self._document_id_from_post(document_post)
 
                 validation_ns = self._resolve_validation_namespace(path, load_document_id)
@@ -627,9 +627,10 @@ class CheckRepositoryUseCase:
             if validation_ns is None:
                 validation_ns = ns
 
-            schema_validator = schema_validators.get(validation_ns.schema_path) or SchemaValidator(
-                str(validation_ns.schema_file)
-            )
+            schema_validator = schema_validators.get(validation_ns.schema_path)
+            if schema_validator is None:
+                schema_validator = SchemaValidator(str(validation_ns.schema_file))
+                schema_validators[validation_ns.schema_path] = schema_validator
 
             if schema_validator.is_ready():
                 normalized_for_schema = self._normalize_metadata_for_schema(metadata)

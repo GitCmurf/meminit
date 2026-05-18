@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.6'
+version: '1.7'
 last_updated: '2026-05-17'
 owner: GitCmurf
 docops_version: '2.0'
@@ -22,8 +22,8 @@ keywords:
 > **Document ID:** MEMINIT-PLAN-015
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 1.5
-> **Last Updated:** 2026-05-10
+> **Version:** 1.7
+> **Last Updated:** 2026-05-17
 > **Type:** PLAN
 > **Area:** AGENT
 > **Description:** Agent-orchestrator-ready sprint plan for closing live technical debt and hardening the post-Phase-5 Meminit agent interface.

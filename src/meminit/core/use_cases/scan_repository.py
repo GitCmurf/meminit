@@ -17,6 +17,7 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
+    _summary_data,
 )
 
 TYPE_ALIASES: Dict[str, List[str]] = {
@@ -30,13 +31,6 @@ TYPE_ALIASES: Dict[str, List[str]] = {
     "RUNBOOK": ["runbooks"],
     "GUIDE": ["guides"],
 }
-
-
-def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
-    summary = dict(data)
-    for key in excluded_keys:
-        summary.pop(key, None)
-    return summary
 
 
 def scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:

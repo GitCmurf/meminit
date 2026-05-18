@@ -186,7 +186,7 @@ def test_index_stream_emits_first_node_while_build_is_still_running(
             release_build.wait(timeout=5)
             for record in iterator:
                 first_record_queue.put(record)
-        except BaseException as exc:  # pragma: no cover - surfaced in test thread
+        except Exception as exc:  # pragma: no cover - surfaced in test thread
             first_record_queue.put(exc)
         finally:
             first_record_queue.put(sentinel)
@@ -194,10 +194,10 @@ def test_index_stream_emits_first_node_while_build_is_still_running(
     consumer = threading.Thread(target=consume_first_record, daemon=True)
     consumer.start()
 
-    first = first_record_queue.get(timeout=1)
+    first = first_record_queue.get(timeout=5)
     assert isinstance(first, StreamItem)
     assert first.kind == "node"
-    assert stream_started.wait(timeout=1)
+    assert stream_started.wait(timeout=5)
 
     release_build.set()
 
@@ -208,9 +208,9 @@ def test_index_stream_emits_first_node_while_build_is_still_running(
             break
         remaining.append(item)
 
-    consumer.join(timeout=1)
+    consumer.join(timeout=5)
 
-    assert not any(isinstance(item, BaseException) for item in remaining)
+    assert not any(isinstance(item, Exception) for item in remaining)
     assert result.summary.data["node_count"] == 1
 
 

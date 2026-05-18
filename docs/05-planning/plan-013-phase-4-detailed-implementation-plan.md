@@ -522,7 +522,7 @@ initialized repository config and fail fast with `CONFIG_MISSING` when
 `project-state.yaml` is reported through `data` (not as an error) so
 agents can distinguish "file missing" from "file present but empty".
 Malformed YAML or schema violations in `project-state.yaml` remain
-fatal and use the existing `E_STATE_*` codes rather than being guessed
+fatal and use the existing `STATE_*` codes rather than being guessed
 through.
 
 Additional flags per command:

@@ -511,12 +511,12 @@ def load_project_state(
 
     try:
         raw = yaml.safe_load(state_path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
+    except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
         from meminit.core.services.error_codes import MeminitError
 
         raise MeminitError(
             code=ErrorCode.STATE_YAML_MALFORMED,
-            message=f"project-state.yaml is not valid YAML: {exc}",
+            message=f"project-state.yaml cannot be read or is not valid YAML: {exc}",
             details={"path": str(state_path)},
         ) from exc
 

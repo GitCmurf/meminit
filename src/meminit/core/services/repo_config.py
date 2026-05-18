@@ -289,6 +289,23 @@ class RepoLayout:
             return best_match[1]
         return empty_prefix_match
 
+    def _apply_document_id_tiebreaker(
+        self, matches: list[RepoConfig], document_id: str | None
+    ) -> RepoConfig:
+        """When a document_id resolves to a namespace with equal path specificity
+        as the best path match, prefer that namespace."""
+        if document_id is None:
+            return matches[0]
+        doc_ns = self.namespace_for_document_id(document_id)
+        if doc_ns is not None:
+            best_specificity = len(Path(matches[0].docs_root).parts)
+            doc_specificity = len(Path(doc_ns.docs_root).parts)
+            if doc_specificity == best_specificity:
+                for ns in matches:
+                    if ns.namespace.lower() == doc_ns.namespace.lower():
+                        return ns
+        return matches[0]
+
     def namespace_for_path_and_document_id(
         self,
         path: Path,
@@ -297,19 +314,7 @@ class RepoLayout:
         matches = self.namespaces_for_path(path)
         if not matches:
             return None
-
-        doc_ns = self.namespace_for_document_id(document_id)
-        if doc_ns is not None:
-            best_specificity = len(Path(matches[0].docs_root).parts)
-            doc_specificity = len(Path(doc_ns.docs_root).parts)
-            # Only use document_id as a tie-breaker when it points to a namespace
-            # with the same path specificity as the best path match.
-            if doc_specificity == best_specificity:
-                for ns in matches:
-                    if ns.namespace.lower() == doc_ns.namespace.lower():
-                        return ns
-
-        return matches[0]
+        return self._apply_document_id_tiebreaker(matches, document_id)
 
     def namespace_for_path_with_document_id_loader(
         self,
@@ -332,18 +337,7 @@ class RepoLayout:
         if document_id is None:
             return matches[0]
 
-        doc_ns = self.namespace_for_document_id(document_id)
-        if doc_ns is not None:
-            best_specificity = len(Path(matches[0].docs_root).parts)
-            doc_specificity = len(Path(doc_ns.docs_root).parts)
-            # Only use document_id as a tie-breaker when it points to a
-            # namespace with the same path specificity as the best path match.
-            if doc_specificity == best_specificity:
-                for ns in matches:
-                    if ns.namespace.lower() == doc_ns.namespace.lower():
-                        return ns
-
-        return matches[0]
+        return self._apply_document_id_tiebreaker(matches, document_id)
 
 
 def _normalize_string_list(raw: Any) -> list[str]:
@@ -354,6 +348,22 @@ def _normalize_string_list(raw: Any) -> list[str]:
         if isinstance(item, str) and item.strip():
             out.append(item.strip())
     return out
+
+
+def _normalize_document_type_directory(
+    root: Path, docs_root: str, raw: Any,
+) -> Optional[str]:
+    """Normalize a document type directory path for use in RepoConfig."""
+    if not isinstance(raw, str):
+        return None
+    value = raw.strip().replace("\\\\", "/")
+    if not value:
+        return None
+    if value.startswith(f"{docs_root}/"):
+        value = value[len(docs_root) + 1 :]
+    if value.startswith("./"):
+        value = value[2:]
+    return _safe_repo_relative_path(root, value)
 
 
 def _build_namespace_config(
@@ -447,18 +457,6 @@ def _build_namespace_config(
                 doc_type = _normalize_type_key(k)
                 if not isinstance(v, Mapping):
                     continue
-                def _normalize_document_type_directory(root: Path, docs_root: str, raw: Any) -> Optional[str]:
-                    if not isinstance(raw, str):
-                        return None
-                    value = raw.strip().replace("\\", "/")
-                    if not value:
-                        return None
-                    if value.startswith(f"{docs_root}/"):
-                        value = value[len(docs_root) + 1 :]
-                    if value.startswith("./"):
-                        value = value[2:]
-                    return _safe_repo_relative_path(root, value)
-
                 directory_norm = _normalize_document_type_directory(root, docs_root_norm, v.get("directory"))
                 if not directory_norm:
                     continue

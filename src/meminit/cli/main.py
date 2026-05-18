@@ -391,14 +391,6 @@ def _index_output_data(
     return data
 
 
-def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
-    """Return a shallow copy of summary data with selected keys removed."""
-    summary = dict(data)
-    for key in excluded_keys:
-        summary.pop(key, None)
-    return summary
-
-
 @contextlib.contextmanager
 def maybe_capture(output: Optional[str], format: str):
     """Capture console output if output file is specified and format is text."""

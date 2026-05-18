@@ -153,7 +153,7 @@ Before closing Phase 5, exercise at least one external testbed repo with:
 
 ```bash
 cd /path/to/external-testbed-repo
-MEMINIT_BIN=/home/cmf/code/Meminit/.venv/bin/meminit
+MEMINIT_BIN="${MEMINIT_BIN:-$(command -v meminit 2>/dev/null || echo './.venv/bin/meminit')}"
 
 printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
 "$MEMINIT_BIN" --version

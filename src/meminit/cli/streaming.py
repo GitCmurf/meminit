@@ -220,8 +220,10 @@ def streaming_output_handler(
         ) as log_ctx:
             summary = producer.produce(emitter)
             log_ctx["details"]["counts"] = emitter.counts
-        summary_success = success and not any(
-            warning.get("severity") == "error" for warning in summary.warnings
+        summary_success = (
+            success
+            and not any(warning.get("severity") == "error" for warning in summary.warnings)
+            and not summary.violations
         )
         emitter.emit_summary(summary, success=summary_success)
     except MeminitError as exc:

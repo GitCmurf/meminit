@@ -25,6 +25,7 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
+    _summary_data,
 )
 
 
@@ -35,6 +36,44 @@ class ContextResult:
     data: Dict[str, Any]
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     documents: List[Dict[str, Any]] = field(default_factory=list)
+
+
+def _iter_ns_documents(
+    layout: RepoLayout, ns: RepoConfig,
+) -> Iterator[Dict[str, Any]]:
+    """Yield documents from a namespace as they are discovered."""
+    import frontmatter
+
+    docs_dir = ns.docs_dir
+    if not docs_dir.is_dir():
+        return
+    for path in docs_dir.rglob("*"):
+        if path.suffix.lower() != ".md":
+            continue
+        if not path.is_file():
+            continue
+        try:
+            post = frontmatter.load(path)
+        except Exception:
+            continue
+        owner = layout.namespace_for_path_and_document_id(
+            path,
+            post.metadata.get("document_id"),
+        )
+        if owner is None or owner.namespace != ns.namespace:
+            continue
+        if ns.is_excluded(path):
+            continue
+        doc_id = post.metadata.get("document_id")
+        if not isinstance(doc_id, str) or not doc_id.strip():
+            continue
+        yield {
+            "document_id": doc_id.strip(),
+            "path": relative_path_string(path, layout.root_dir),
+            "type": post.metadata.get("type"),
+            "title": post.metadata.get("title"),
+            "namespace": ns.namespace,
+        }
 
 
 def _count_governed_markdown(
@@ -273,8 +312,10 @@ class ContextRepositoryUseCase:
                 yield StreamItem("namespace", ns)
 
             if deep:
-                for row in sorted(result.documents, key=lambda row: row["document_id"]):
-                    yield StreamItem("document", row)
+                layout = load_repo_layout(self.root_dir)
+                for ns in sorted(layout.namespaces, key=lambda n: n.namespace):
+                    for row in _iter_ns_documents(layout, ns):
+                        yield StreamItem("document", row)
 
             summary.data = _summary_data(result.data, "namespaces", "documents")
             summary.warnings = result.warnings
@@ -301,10 +342,3 @@ class ContextRepositoryUseCase:
                 row.update(payload)
             row["type"] = doc_type
             yield row
-
-
-def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
-    summary = dict(data)
-    for key in excluded_keys:
-        summary.pop(key, None)
-    return summary

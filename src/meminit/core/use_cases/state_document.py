@@ -142,8 +142,6 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
             "Please provide the full document ID or run 'meminit index' to enable shorthand resolution.",
         )
 
-    return matched_ids.pop()
-
 
 def _get_known_ids(root_dir: Path) -> Set[str]:
     """Get the set of known document IDs from the index."""

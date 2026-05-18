@@ -6,6 +6,18 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 
+def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
+    """Create a summary dict by copying data and removing excluded keys.
+
+    This helper is used by streaming producers to build summary payloads
+    without the large per-item collections.
+    """
+    summary = dict(data)
+    for key in excluded_keys:
+        summary.pop(key, None)
+    return summary
+
+
 @dataclass(frozen=True)
 class StreamItem:
     """A structured item emitted by a core streaming producer."""

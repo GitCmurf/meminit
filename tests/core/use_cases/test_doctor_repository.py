@@ -62,7 +62,7 @@ def test_doctor_validates_project_state_ok(tmp_path: Path):
     )
     issues = DoctorRepositoryUseCase(str(tmp_path)).execute()
     # We only care about state issues here
-    assert not any(i.rule.startswith("E_STATE_") for i in issues)
+    assert not any(i.rule.startswith("STATE_") for i in issues)
     assert not any(i.rule.startswith("W_STATE_") for i in issues)
 
 

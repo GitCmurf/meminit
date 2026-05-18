@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from queue import Queue
+
+MAX_STREAM_QUEUE_SIZE = 500
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
@@ -60,6 +62,7 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
+    _summary_data,
 )
 from meminit.core.services.versioning import get_cli_version
 
@@ -129,16 +132,9 @@ def _filter_index_edges(
         return report.edges
     visible_ids = {n["document_id"] for n in report.documents}
     return [
-        e for e in report.edges
-        if e.get("source") in visible_ids and e.get("target") in visible_ids
-    ]
-
-
-def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
-    summary = dict(data)
-    for key in excluded_keys:
-        summary.pop(key, None)
-    return summary
+e for e in report.edges
+         if e.get("source") in visible_ids and e.get("target") in visible_ids
+     ]
 
 
 def _index_stream_data(
@@ -169,24 +165,13 @@ def _emit_index_stream_items(
     stream_item_emitter: Callable[[StreamItem], None],
 ) -> None:
     """Emit index nodes and edges in the same order as the JSON envelope."""
-    stream_nodes = sorted(
-        report.documents,
-        key=lambda n: n.get("document_id", ""),
-    )
-    visible_ids = {node["document_id"] for node in stream_nodes}
+    visible_ids = {node["document_id"] for node in report.documents}
     stream_edges = [
         edge
         for edge in report.edges
         if edge.get("source") in visible_ids and edge.get("target") in visible_ids
     ]
-    stream_edges.sort(
-        key=lambda e: (
-            e.get("source", ""),
-            e.get("target", ""),
-            e.get("type", e.get("edge_type", "")),
-        )
-    )
-    for node in stream_nodes:
+    for node in report.documents:
         stream_item_emitter(StreamItem("node", node))
     for edge in stream_edges:
         stream_item_emitter(StreamItem("edge", edge))
@@ -1220,7 +1205,7 @@ class IndexRepositoryUseCase:
     ) -> StreamingResult:
         """Return a core-owned streaming producer for index output."""
         summary = StreamSummary()
-        records_queue: Queue[Any] = Queue()
+        records_queue: Queue[Any] = Queue(maxsize=MAX_STREAM_QUEUE_SIZE)
         build_error: list[BaseException] = []
         sentinel = object()
 
@@ -1253,7 +1238,7 @@ class IndexRepositoryUseCase:
                 )
                 summary.warnings = report.warnings
                 summary.advice = getattr(report, "advice", [])
-            except BaseException as exc:  # pragma: no cover - propagated below
+            except Exception as exc:  # pragma: no cover - propagated below
                 build_error.append(exc)
             finally:
                 records_queue.put(sentinel)
