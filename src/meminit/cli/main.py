@@ -108,7 +108,7 @@ def command_output_handler(
                     output,
                 )
             elif format == "ndjson":
-                _write_ndjson_error(
+                write_ndjson_error(
                     command_name=command_name,
                     error=MeminitError(
                         ErrorCode.INVALID_FLAG_COMBINATION, error_msg
@@ -127,7 +127,7 @@ def command_output_handler(
             command_name,
             f"meminit {command_name} does not support --format ndjson.",
         )
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command_name,
             error=error,
             output=output,
@@ -141,7 +141,7 @@ def command_output_handler(
         yield
     except MeminitError as e:
         if format == "ndjson":
-            _write_ndjson_error(
+            write_ndjson_error(
                 command_name=command_name,
                 error=e,
                 output=output,
@@ -193,7 +193,7 @@ def command_output_handler(
                 output,
             )
         elif format == "ndjson":
-            _write_ndjson_error(
+            write_ndjson_error(
                 command_name=command_name,
                 error=MeminitError(
                     ErrorCode.UNKNOWN_ERROR,
@@ -221,27 +221,6 @@ def command_output_handler(
         click.echo(f"INTERNAL ERROR: {e}", err=True)
         raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
-
-def _write_ndjson_error(
-    *,
-    command_name: str,
-    error: MeminitError,
-    output: Optional[str],
-    include_timestamp: bool,
-    run_id: str,
-    root_path: Optional[Path] = None,
-    correlation_id: Optional[str] = None,
-) -> None:
-    """Emit a terminal NDJSON error record to stdout or the requested file."""
-    write_ndjson_error(
-        command_name=command_name,
-        error=error,
-        output=output,
-        include_timestamp=include_timestamp,
-        run_id=run_id,
-        root_path=root_path,
-        correlation_id=correlation_id,
-    )
 
 
 def complete_document_types(ctx, param, incomplete: str):
@@ -555,7 +534,7 @@ def validate_root_path(
             output=output,
         )
     elif format == "ndjson":
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command,
             error=MeminitError(
                 ErrorCode.INVALID_ROOT_PATH,
@@ -667,7 +646,7 @@ def validate_initialized(
             output=output,
         )
     elif format == "ndjson":
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command,
             error=MeminitError(
                 ErrorCode.CONFIG_MISSING,
@@ -1835,7 +1814,7 @@ def index(
             except MeminitError as e:
                 details = e.details if isinstance(e.details, dict) else {}
                 if "errors" in details:
-                    _write_ndjson_error(
+                    write_ndjson_error(
                         command_name="index",
                         error=e,
                         output=output,
@@ -1883,7 +1862,7 @@ def index(
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "ndjson":
-                    _write_ndjson_error(
+                    write_ndjson_error(
                         command_name="index",
                         error=e,
                         output=output,
@@ -3824,8 +3803,6 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
         output=output,
         correlation_id=correlation_id,
     )
-    # State listing should fail fast on repo config issues, matching the
-    # other state subcommands. Layout vocabulary fallback remains below.
     use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     result = use_case.list_states(
         ready=ready_filter,

@@ -25,7 +25,7 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
-    _summary_data,
+    summary_data,
 )
 
 
@@ -317,7 +317,7 @@ class ContextRepositoryUseCase:
                     for row in _iter_ns_documents(layout, ns):
                         yield StreamItem("document", row)
 
-            summary.data = _summary_data(result.data, "namespaces", "documents")
+            summary.data = summary_data(result.data, "namespaces", "documents")
             summary.warnings = result.warnings
 
         return StreamingResult(records=records(), summary=summary)
@@ -340,5 +340,4 @@ class ContextRepositoryUseCase:
             row = {"type": doc_type}
             if isinstance(payload, dict):
                 row.update(payload)
-            row["type"] = doc_type
             yield row

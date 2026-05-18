@@ -13,7 +13,7 @@ import frontmatter
 import yaml
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
 
-from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult
+from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult, VALID_STATUSES
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
 from meminit.core.services.observability import (
@@ -37,7 +37,7 @@ try:
 except ImportError:  # pragma: no cover - Windows or unsupported platforms
     fcntl = None
 
-ALLOWED_STATUSES = ["Draft", "In Review", "Approved", "Superseded"]
+ALLOWED_STATUSES = sorted(VALID_STATUSES)
 RELATED_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 LOCK_RETRY_DELAY_SECONDS = 0.01

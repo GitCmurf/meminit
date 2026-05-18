@@ -22,8 +22,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from queue import Queue
-
-MAX_STREAM_QUEUE_SIZE = 500
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
@@ -62,9 +60,11 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
-    _summary_data,
+    summary_data,
 )
 from meminit.core.services.versioning import get_cli_version
+
+MAX_STREAM_QUEUE_SIZE = 500
 
 
 def _repo_relative_path(path: Path, root_dir: Path) -> str:
@@ -1219,7 +1219,7 @@ class IndexRepositoryUseCase:
                     clear_cache=clear_cache,
                     stream_item_emitter=emit_stream_item,
                 )
-                summary.data = _summary_data(
+                summary.data = summary_data(
                     _index_stream_data(
                         report,
                         self._root_dir,

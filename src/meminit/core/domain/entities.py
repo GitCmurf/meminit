@@ -11,7 +11,7 @@ class Severity(str, Enum):
     WARNING = "warning"
 
 
-_VALID_STATUSES = frozenset({"Draft", "In Review", "Approved", "Superseded"})
+VALID_STATUSES = frozenset({"Draft", "In Review", "Approved", "Superseded"})
 _DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{1,10}-\d{3,}$")
 
 
@@ -123,9 +123,9 @@ class NewDocumentParams:
     verbose: bool = False
 
     def __post_init__(self) -> None:
-        if self.status not in _VALID_STATUSES:
+        if self.status not in VALID_STATUSES:
             raise ValueError(
-                f"Invalid status '{self.status}': must be one of {sorted(_VALID_STATUSES)}"
+                f"Invalid status '{self.status}': must be one of {sorted(VALID_STATUSES)}"
             )
         if self.related_ids:
             for rid in self.related_ids:

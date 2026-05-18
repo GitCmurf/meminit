@@ -17,7 +17,7 @@ from meminit.core.services.stream_events import (
     StreamItem,
     StreamSummary,
     StreamingResult,
-    _summary_data,
+    summary_data,
 )
 
 TYPE_ALIASES: Dict[str, List[str]] = {
@@ -131,7 +131,7 @@ class ScanRepositoryUseCase:
             data = report.as_dict()
             for item in scan_suggestion_items(data):
                 yield StreamItem("suggestion", item)
-            summary.data = _summary_data(data)
+            summary.data = summary_data(data)
 
         return StreamingResult(records=records(), summary=summary)
 
