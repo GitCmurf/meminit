@@ -1514,7 +1514,7 @@ class TestMalformedDocumentId:
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.set_state("TST-ADR-001-EXTRA", impl_state="Done")
-        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+        assert exc_info.value.code == ErrorCode.INVALID_ID_FORMAT
 
     def test_set_state_rejects_no_sequence(self, tmp_path):
         """Prefixed ID without sequence number raises error."""
@@ -1524,7 +1524,7 @@ class TestMalformedDocumentId:
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.set_state("TST-ADR", impl_state="Done")
-        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+        assert exc_info.value.code == ErrorCode.INVALID_ID_FORMAT
 
     def test_get_state_rejects_extra_suffix(self, tmp_path):
         """Malformed ID on get also raises error."""
@@ -1534,7 +1534,7 @@ class TestMalformedDocumentId:
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.get_state("TST-ADR-001-EXTRA")
-        assert exc_info.value.code == ErrorCode.STATE_INVALID_FILTER_VALUE
+        assert exc_info.value.code == ErrorCode.INVALID_ID_FORMAT
 
     def test_shorthand_still_works(self, tmp_path):
         """Shorthand resolution (ADR-001) still works unaffected."""

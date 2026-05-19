@@ -109,7 +109,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
                 return document_id
             # Malformed prefixed ID — raise instead of silently persisting
             raise MeminitError(
-                code=ErrorCode.STATE_INVALID_FILTER_VALUE,
+                code=ErrorCode.INVALID_ID_FORMAT,
                 message=(
                     f"Malformed document ID '{document_id}': "
                     f"must match pattern '{prefix}-TYPE-NNN' "

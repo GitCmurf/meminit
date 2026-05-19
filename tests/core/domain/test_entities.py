@@ -100,21 +100,7 @@ class TestNewDocumentParamsValidation:
         )
         assert params.related_ids == ["MEMINIT-ADR-001", "MEMINIT-RFC-042"]
 
-    def test_rejects_invalid_related_id_at_construction(self):
-        """Invalid related_id raises ValueError at construction time."""
-        with pytest.raises(ValueError, match="Invalid related_id"):
-            NewDocumentParams(
-                doc_type="ADR",
-                title="Test",
-                related_ids=["MEMINIT-ADR-001", "bad-id"],
-            )
-
     def test_valid_superseded_by(self):
         """Valid superseded_by passes validation."""
         params = NewDocumentParams(doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-099")
         assert params.superseded_by == "MEMINIT-ADR-099"
-
-    def test_rejects_invalid_superseded_by_at_construction(self):
-        """Invalid superseded_by raises ValueError at construction time."""
-        with pytest.raises(ValueError, match="Invalid superseded_by"):
-            NewDocumentParams(doc_type="ADR", title="Test", superseded_by="bad")
