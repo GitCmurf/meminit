@@ -53,7 +53,7 @@ def check_command(cmd_args, expected_data_keys=None):
     
     # Check success field (Finding #2)
     if not envelope.get("success", False):
-        print(f"  FAILED: envelope indicates failure (success=false)")
+        print("  FAILED: envelope indicates failure (success=false)")
         print(f"  DATA: {envelope}")
         return False
     
