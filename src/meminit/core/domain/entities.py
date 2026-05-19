@@ -127,16 +127,6 @@ class NewDocumentParams:
             raise ValueError(
                 f"Invalid status '{self.status}': must be one of {sorted(VALID_STATUSES)}"
             )
-        if self.related_ids:
-            for rid in self.related_ids:
-                if not _DOCUMENT_ID_PATTERN.match(rid):
-                    raise ValueError(
-                        f"Invalid related_id '{rid}': must match pattern {_DOCUMENT_ID_PATTERN.pattern}"
-                    )
-        if self.superseded_by is not None and not _DOCUMENT_ID_PATTERN.match(self.superseded_by):
-            raise ValueError(
-                f"Invalid superseded_by '{self.superseded_by}': must match pattern {_DOCUMENT_ID_PATTERN.pattern}"
-            )
 
 
 @dataclass
