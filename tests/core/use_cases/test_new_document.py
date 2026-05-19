@@ -1,4 +1,5 @@
 import errno
+import os
 import re
 import sys
 import threading
@@ -421,7 +422,9 @@ docops_version: 2.0
         assert result.success is False
         assert isinstance(result.error, MeminitError)
         assert result.error.code == ErrorCode.DUPLICATE_ID
-        assert "docs/45-adr/adr-777-existing.md" in str(result.error.details["existing_path"])
+        expected = os.path.normpath("docs/45-adr/adr-777-existing.md")
+        actual = os.path.normpath(str(result.error.details["existing_path"]))
+        assert actual.endswith(expected)
 
     def test_id_flag_with_existing_id_allows_idempotent_create(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
