@@ -21,7 +21,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
@@ -1208,9 +1208,15 @@ class IndexRepositoryUseCase:
         records_queue: Queue[Any] = Queue(maxsize=MAX_STREAM_QUEUE_SIZE)
         build_error: list[BaseException] = []
         sentinel = object()
+        cancel_event = threading.Event()
 
         def emit_stream_item(item: StreamItem) -> None:
-            records_queue.put(item)
+            if cancel_event.is_set():
+                return
+            try:
+                records_queue.put_nowait(item)
+            except Full:
+                pass
 
         def build_stream_payload() -> None:
             try:
@@ -1241,7 +1247,10 @@ class IndexRepositoryUseCase:
             except Exception as exc:  # pragma: no cover - propagated below
                 build_error.append(exc)
             finally:
-                records_queue.put(sentinel)
+                try:
+                    records_queue.put_nowait(sentinel)
+                except Full:
+                    pass
 
         def records():
             thread = threading.Thread(target=build_stream_payload, daemon=True)
@@ -1256,6 +1265,7 @@ class IndexRepositoryUseCase:
                 if build_error:
                     raise build_error[0]
             finally:
+                cancel_event.set()
                 if thread.is_alive():
                     try:
                         while True:

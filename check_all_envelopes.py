@@ -2,14 +2,16 @@ import json
 import shutil
 import subprocess
 import os
+import sys
 import tempfile
 from pathlib import Path
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
 REPO_ROOT = Path(os.getcwd())
+TIMEOUT = 300
 VENV_PYTHON = str(REPO_ROOT / ".venv" / "bin" / "python3")
 
 MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
@@ -21,7 +23,11 @@ def check_command(cmd_args, expected_data_keys=None):
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
     
     full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
-    result = subprocess.run(full_cmd, env=env, capture_output=True, text=True)
+    try:
+        result = subprocess.run(full_cmd, env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"  FAILED: command timed out after {TIMEOUT}s")
+        return False
     
     # Check command exit status (Finding #2)
     if result.returncode != 0:
@@ -51,8 +57,12 @@ def check_command(cmd_args, expected_data_keys=None):
         print(f"  DATA: {envelope}")
         return False
     
-    # Use min supported version instead of hardcoded literal (Finding #11)
-    if Version(envelope["output_schema_version"]) < Version(MIN_SUPPORTED_SCHEMA_VERSION):
+    try:
+        ver_current = Version(envelope["output_schema_version"])
+    except InvalidVersion:
+        print(f"  FAILED: invalid schema version '{envelope['output_schema_version']}'")
+        return False
+    if ver_current < Version(MIN_SUPPORTED_SCHEMA_VERSION):
         print(f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}")
         return False
 
@@ -74,14 +84,22 @@ os.chdir(test_dir)
 # Initialize
 env = os.environ.copy()
 env["PYTHONPATH"] = str(REPO_ROOT / "src")
-subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"], env=env)
+result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+                        env=env, capture_output=True, text=True, timeout=TIMEOUT)
+if result.returncode != 0:
+    print(f"init failed (exit {result.returncode}): {result.stderr}")
+    sys.exit(1)
 
 # Create index directory to avoid early error
 (test_dir / "docs" / "01-indices").mkdir(parents=True, exist_ok=True)
 (test_dir / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
 
 # Run index to create index file
-subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"], env=env)
+result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+                        env=env, capture_output=True, text=True, timeout=TIMEOUT)
+if result.returncode != 0:
+    print(f"index failed (exit {result.returncode}): {result.stderr}")
+    sys.exit(1)
 
 # List of commands to test
 commands = [
