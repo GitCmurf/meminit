@@ -5,6 +5,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from packaging.version import Version
+
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
 REPO_ROOT = Path(os.getcwd())
@@ -50,7 +52,7 @@ def check_command(cmd_args, expected_data_keys=None):
         return False
     
     # Use min supported version instead of hardcoded literal (Finding #11)
-    if envelope["output_schema_version"] < MIN_SUPPORTED_SCHEMA_VERSION:
+    if Version(envelope["output_schema_version"]) < Version(MIN_SUPPORTED_SCHEMA_VERSION):
         print(f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}")
         return False
 
@@ -71,7 +73,7 @@ os.chdir(test_dir)
 
 # Initialize
 env = os.environ.copy()
-env["PYTHONPATH"] = REPO_ROOT + "/src"
+env["PYTHONPATH"] = str(REPO_ROOT / "src")
 subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"], env=env)
 
 # Create index directory to avoid early error

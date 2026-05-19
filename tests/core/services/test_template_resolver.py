@@ -53,7 +53,7 @@ class TestTemplateResolverPrecedence:
 
         # Create config file with document_types pointing to config template
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text(f"""
+        config_file.write_text("""
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -168,7 +168,7 @@ class TestTemplateResolverSecurity:
         outside_template.write_text("# Outside template\n")
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text(f"""
+        config_file.write_text("""
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -233,7 +233,7 @@ document_types:
         large_template.write_text("x" * (256 * 1024 + 1))
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text(f"""
+        config_file.write_text("""
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -262,7 +262,7 @@ document_types:
         bad_template.write_text("# Bad Template")
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text(f"""
+        config_file.write_text("""
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"

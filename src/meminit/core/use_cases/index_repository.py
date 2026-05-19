@@ -21,7 +21,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import frontmatter
@@ -1257,6 +1257,11 @@ class IndexRepositoryUseCase:
                     raise build_error[0]
             finally:
                 if thread.is_alive():
+                    try:
+                        while True:
+                            records_queue.get_nowait()
+                    except Empty:
+                        pass
                     thread.join()
 
         return StreamingResult(records=records(), summary=summary)

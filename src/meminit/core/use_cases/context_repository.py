@@ -312,10 +312,8 @@ class ContextRepositoryUseCase:
                 yield StreamItem("namespace", ns)
 
             if deep:
-                layout = load_repo_layout(self.root_dir)
-                for ns in sorted(layout.namespaces, key=lambda n: n.namespace):
-                    for row in _iter_ns_documents(layout, ns):
-                        yield StreamItem("document", row)
+                for row in result.data.get("documents", []):
+                    yield StreamItem("document", row)
 
             summary.data = summary_data(result.data, "namespaces", "documents")
             summary.warnings = result.warnings

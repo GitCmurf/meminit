@@ -13,6 +13,7 @@ import pytest
 from scripts.e2e_integration_test import run_e2e
 
 
+@pytest.mark.slow
 def test_e2e_functional():
     """Functional E2E test: init, generate 500 docs, index, verify correctness."""
     with tempfile.TemporaryDirectory(prefix="meminit_e2e_") as temp_dir:

@@ -260,7 +260,7 @@ class CheckRepositoryUseCase:
 
             document_post: Any | None = None
 
-            def load_document_id() -> Optional[str]:
+            def load_document_id(canonical_path=canonical_path) -> Optional[str]:
                 nonlocal document_post
                 if document_post is None:
                     document_post, _ = self._load_document_post(

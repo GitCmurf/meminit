@@ -1861,17 +1861,6 @@ def index(
                         output,
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
-                if format == "ndjson":
-                    write_ndjson_error(
-                        command_name="index",
-                        error=e,
-                        output=output,
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                        root_path=root_path,
-                        correlation_id=correlation_id,
-                    )
-                    raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "md":
                     lines = ["# Meminit Index\n", "- Status: error", ""]
                     lines.extend(["## Graph Violations", ""])

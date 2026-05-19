@@ -375,9 +375,9 @@ def test_cli_check_json_unsafe_output_path_preserves_correlation_id(
 
 @patch("meminit.cli.main.ContextRepositoryUseCase")
 def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp_path):
-    secret = "secret-token=abc123 path=/private/repo/file"
+    probe_text = "probe-token=XXXX path=/private/repo/file"
     instance = mock_use_case.return_value
-    instance.execute.side_effect = RuntimeError(secret)
+    instance.execute.side_effect = RuntimeError(probe_text)
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
         encoding="utf-8",
@@ -398,7 +398,7 @@ def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp
     )
 
     assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
-    assert secret not in result.stdout
+    assert probe_text not in result.stdout
     payload = parse_json_envelope(result.stdout)
     assert payload["correlation_id"] == "redaction-json"
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
@@ -408,8 +408,8 @@ def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp
 
 @patch("meminit.cli.main.ContextRepositoryUseCase")
 def test_unexpected_ndjson_exception_redacts_raw_exception_text(mock_use_case, tmp_path):
-    secret = "secret-token=abc123 path=/private/repo/file"
-    mock_use_case.side_effect = RuntimeError(secret)
+    probe_text = "probe-token=XXXX path=/private/repo/file"
+    mock_use_case.side_effect = RuntimeError(probe_text)
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: Test\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
         encoding="utf-8",
@@ -431,7 +431,7 @@ def test_unexpected_ndjson_exception_redacts_raw_exception_text(mock_use_case, t
     )
 
     assert result.exit_code == exit_code_for_error(ErrorCode.UNKNOWN_ERROR)
-    assert secret not in result.stdout
+    assert probe_text not in result.stdout
     records = [json.loads(line) for line in result.stdout.strip().splitlines()]
     assert records[0]["correlation_id"] == "redaction-ndjson"
     assert records[-1]["record_type"] == "error"

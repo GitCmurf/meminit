@@ -1603,11 +1603,11 @@ def test_cli_state_blockers_md_escapes_document_id_heading(repo_with_docs):
     )
     assert result.exit_code == 0
     heading_line = [
-        l
-        for l in result.output.splitlines()
-        if l.startswith("## ") and "Blocked" not in l and "Warnings" not in l
+        line
+        for line in result.output.splitlines()
+        if line.startswith("## ") and "Blocked" not in line and "Warnings" not in line
     ]
-    assert any("TEST-ADR-001" in l for l in heading_line)
+    assert any("TEST-ADR-001" in line for line in heading_line)
 
 
 def test_cli_state_blockers_md_escapes_impl_state_in_blocker_detail(repo_with_docs):

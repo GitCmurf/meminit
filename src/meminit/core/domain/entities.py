@@ -12,7 +12,7 @@ class Severity(str, Enum):
 
 
 VALID_STATUSES = frozenset({"Draft", "In Review", "Approved", "Superseded"})
-_DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{1,10}-\d{3,}$")
+_DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 
 
 @dataclass

@@ -361,7 +361,7 @@ def _normalize_document_type_directory(
     """Normalize a document type directory path for use in RepoConfig."""
     if not isinstance(raw, str):
         return None
-    value = raw.strip().replace("\\\\", "/")
+    value = raw.strip().replace("\\", "/")
     if not value:
         return None
     if value.startswith(f"{docs_root}/"):
