@@ -106,6 +106,25 @@ def test_init_installs_gov_001_constitution(empty_repo):
     assert f"{repo_prefix}-GOV-001" in content
 
 
+def test_init_migrates_legacy_constitution_filename(empty_repo):
+    use_case = InitRepositoryUseCase(str(empty_repo))
+    use_case.execute()
+
+    constitution_path = empty_repo / "docs/00-governance/docops-constitution.md"
+    legacy_path = empty_repo / "docs/00-governance/DocOps_Constitution.md"
+    constitution_path.rename(legacy_path)
+
+    report = use_case.execute()
+
+    assert constitution_path.exists()
+    assert not legacy_path.exists()
+    assert "docs/00-governance/docops-constitution.md" in report.created_paths
+
+    result = CheckRepositoryUseCase(root_dir=str(empty_repo)).execute_full_summary()
+    assert result.violations_count == 0, result.violations
+    assert result.warnings_count == 0, result.warnings
+
+
 def test_init_idempotent(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
     use_case.execute()

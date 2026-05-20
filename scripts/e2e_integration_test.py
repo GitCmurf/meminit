@@ -68,12 +68,12 @@ def run_e2e(root_dir: Path) -> dict:
     docs_dir = root_dir / "docs" / "99-test"
     docs_dir.mkdir(parents=True)
 
-    start_gen = time.time()
+    start_gen = time.perf_counter()
     for i in range(1, 501):
         doc_id = f"TST-TST-{i:03d}"
         content = f"---\ndocument_id: {doc_id}\ntype: TEST\ntitle: Doc {i}\nstatus: Draft\n---\n# Doc {i}\n"
         (docs_dir / f"{doc_id}.md").write_text(content)
-    print(f"Generated 500 docs in {time.time() - start_gen:.2f}s")
+    print(f"Generated 500 docs in {time.perf_counter() - start_gen:.2f}s")
 
     # Add project state entries for half of them
     state_dir = root_dir / "docs" / "01-indices"
@@ -91,9 +91,9 @@ def run_e2e(root_dir: Path) -> dict:
 
     # 4. Test Performance (Index SLA)
     print("Running `meminit index` SLA test...")
-    start_index = time.time()
+    start_index = time.perf_counter()
     run([*cli_cmd, "index", "--output-catalog", "--output-kanban"], root_dir, env=env)
-    index_duration = time.time() - start_index
+    index_duration = time.perf_counter() - start_index
     print(f"Index generated in {index_duration:.2f}s")
 
     # 5. Check outputs

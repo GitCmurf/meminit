@@ -294,12 +294,9 @@ class InitRepositoryUseCase:
                 record(target, created=False)
 
         # 6. Install gov-001 constitution document
-        self._install_optional_asset(
-            target_path=self.docs_dir / "00-governance" / "docops-constitution.md",
-            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+        self._install_gov_001_constitution(
             record_fn=record,
-            error_context="gov-001 constitution",
-            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+            repo_prefix=repo_prefix,
         )
 
         created_paths_sorted = sorted(set(created_paths))
@@ -377,6 +374,37 @@ class InitRepositoryUseCase:
         except (OSError, FileNotFoundError) as e:
             logging.warning(f"Failed to install {error_context}: {e}")
             record_fn(target_path, created=False)
+
+    def _install_gov_001_constitution(self, record_fn, repo_prefix: str) -> None:
+        """Install or migrate the repo constitution without duplicating GOV-001."""
+        gov_dir = self.docs_dir / "00-governance"
+        target_path = gov_dir / "docops-constitution.md"
+        legacy_path = gov_dir / "DocOps_Constitution.md"
+
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=legacy_path)
+
+        if target_path.exists():
+            if not target_path.is_file():
+                raise FileExistsError(f"{target_path} exists and is not a file")
+            record_fn(target_path, created=False)
+            return
+
+        if legacy_path.exists():
+            if not legacy_path.is_file():
+                raise FileExistsError(f"{legacy_path} exists and is not a file")
+            _record_created_ancestors(target_path, record_fn, self.root_dir)
+            legacy_path.replace(target_path)
+            record_fn(target_path, created=True)
+            return
+
+        self._install_optional_asset(
+            target_path=target_path,
+            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+            record_fn=record_fn,
+            error_context="gov-001 constitution",
+            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+        )
 
     def _load_agents_template(self) -> str:
         """Load the bundled AGENTS.md template from package resources (legacy fallback)."""
