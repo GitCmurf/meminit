@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from meminit.core.services.error_codes import MeminitError
 from meminit.core.services.protocol_assets import ProtocolAsset, ProtocolAssetRegistry
+from meminit.core.services.repo_config import derive_repo_prefix
+from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.init_repository import InitRepositoryUseCase
 
 
@@ -94,7 +97,7 @@ def test_init_installs_gov_001_constitution(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
     use_case.execute()
 
-    constitution_path = empty_repo / "docs/00-governance/DocOps_Constitution.md"
+    constitution_path = empty_repo / "docs/00-governance/docops-constitution.md"
     assert constitution_path.exists()
     content = constitution_path.read_text()
     assert "DocOps Constitution" in content
@@ -234,3 +237,69 @@ def test_init_brownfield_script_is_executable(empty_repo):
     assert actual_mode == script_asset.file_mode, (
         f"Expected mode {oct(script_asset.file_mode)}, got {oct(actual_mode)}"
     )
+
+
+# --- Golden-path fixes (greenfield dogfood run #0) ---
+
+
+def test_fresh_init_passes_check_cleanly(empty_repo):
+    """A freshly initialized repo must pass check with zero violations AND zero warnings."""
+    InitRepositoryUseCase(str(empty_repo)).execute()
+
+    result = CheckRepositoryUseCase(root_dir=str(empty_repo)).execute_full_summary()
+
+    assert result.violations_count == 0, result.violations
+    assert result.warnings_count == 0, result.warnings
+
+
+def test_init_constitution_filename_is_kebab_case(empty_repo):
+    """The scaffolded constitution must use a kebab-case filename, not PascalCase/underscore."""
+    InitRepositoryUseCase(str(empty_repo)).execute()
+
+    gov = empty_repo / "docs/00-governance"
+    assert (gov / "docops-constitution.md").exists()
+    assert not (gov / "DocOps_Constitution.md").exists()
+
+
+def test_init_accepts_explicit_repo_prefix(tmp_path: Path):
+    """An explicit repo_prefix must be used in config and stamped into the constitution ID."""
+    repo = tmp_path / "bedtime-alexa"
+    repo.mkdir()
+
+    InitRepositoryUseCase(str(repo), repo_prefix="BEDTIME").execute()
+
+    config = yaml.safe_load((repo / "docops.config.yaml").read_text())
+    assert config["repo_prefix"] == "BEDTIME"
+    content = (repo / "docs/00-governance/docops-constitution.md").read_text()
+    assert "BEDTIME-GOV-001" in content
+
+
+def test_init_explicit_prefix_is_normalized(tmp_path: Path):
+    """A lowercase explicit prefix is normalized to uppercase."""
+    repo = tmp_path / "proj"
+    repo.mkdir()
+
+    InitRepositoryUseCase(str(repo), repo_prefix="bedtime").execute()
+
+    config = yaml.safe_load((repo / "docops.config.yaml").read_text())
+    assert config["repo_prefix"] == "BEDTIME"
+
+
+def test_init_rejects_invalid_repo_prefix(tmp_path: Path):
+    """An explicit prefix that cannot satisfy the ID schema must be rejected."""
+    repo = tmp_path / "proj"
+    repo.mkdir()
+
+    with pytest.raises(MeminitError):
+        InitRepositoryUseCase(str(repo), repo_prefix="A1").execute()
+
+
+def test_derive_repo_prefix_uses_word_boundaries():
+    """Derivation should prefer whole words over a mid-word truncation."""
+    assert derive_repo_prefix("bedtime-alexa") == "BEDTIME"
+
+
+def test_derive_repo_prefix_preserves_existing_cases():
+    """Existing derivation contracts must still hold."""
+    assert derive_repo_prefix("myproject") == "MYPROJECT"
+    assert derive_repo_prefix("ab") == "REPO"

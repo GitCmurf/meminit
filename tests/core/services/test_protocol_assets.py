@@ -18,6 +18,7 @@ from meminit.core.services.protocol_assets import (
     resolve_repo_metadata,
 )
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.repo_config import derive_repo_prefix
 
 
 # ---------------------------------------------------------------------------
@@ -417,9 +418,8 @@ class TestResolveRepoMetadata:
     def test_without_config_uses_dirname(self, tmp_path):
         name, prefix = resolve_repo_metadata(tmp_path)
         assert name == tmp_path.name
-        clean = re.sub(r"[^a-zA-Z]", "", tmp_path.name)
-        expected_prefix = clean[:10].upper() if len(clean) >= 3 else "REPO"
-        assert prefix == expected_prefix
+        # Delegates to the canonical derivation rather than a duplicated formula.
+        assert prefix == derive_repo_prefix(tmp_path.name)
 
     def test_malformed_config_falls_back(self, tmp_path):
         (tmp_path / "docops.config.yaml").write_text("{{{invalid yaml", encoding="utf-8")

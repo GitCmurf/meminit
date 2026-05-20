@@ -54,11 +54,28 @@ def _normalize_type_key(key: str) -> str:
 
 
 def derive_repo_prefix(project_name: str) -> str:
-    """Derive a default repo prefix from project name."""
-    clean = re.sub(r"[^a-zA-Z]", "", project_name)
-    if len(clean) >= 3:
-        return clean[:10].upper()
-    return "REPO"
+    """Derive a default repo prefix from a project name.
+
+    Prefers whole-word boundaries (splitting on non-letters) over a mid-word
+    truncation, so "bedtime-alexa" yields "BEDTIME" instead of "BEDTIMEALE".
+    Falls back to "REPO" when fewer than 3 letters are available.
+    """
+    words = re.findall(r"[a-zA-Z]+", project_name)
+    if not words:
+        return "REPO"
+    prefix = words[0]
+    for word in words[1:]:
+        if len(prefix) + len(word) <= 10:
+            prefix += word
+        else:
+            break
+    prefix = prefix[:10]
+    if len(prefix) < 3:
+        clean = "".join(words)
+        if len(clean) >= 3:
+            return clean[:10].upper()
+        return "REPO"
+    return prefix.upper()
 
 
 def _safe_repo_relative_path(root_dir: Path, raw: Any) -> Optional[str]:

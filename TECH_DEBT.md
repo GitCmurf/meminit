@@ -188,6 +188,51 @@ updated together.
 | Definition of done | Missing/malformed config produces `CONFIG_MISSING` or the documented diagnostic result in every affected command; doctor behavior remains useful for uninitialized repos; tests cover both strict and fallback callers. |
 | Verification commands | `./.venv/bin/pytest -q tests/core/services/test_project_state.py tests/core/use_cases/test_doctor_repository.py tests/core/use_cases/test_index_repository.py tests/adapters/test_cli_state.py` |
 
+### TD-010: Built-in templates exist for only ADR/PRD/FDD despite ~20 configured types
+
+| Field | Value |
+| ----- | ----- |
+| Priority | P1 |
+| Status | Open |
+| Owner | Templates maintainers |
+| Source | Greenfield dogfood run #0 (bedtime-alexa), 2026-05-20; see `MEMINIT-PLAN-016` |
+| Related plans | `MEMINIT-PLAN-016`, `MEMINIT-PRD-006` |
+| Evidence | `meminit new STRAT` (and `meminit new PLAN`) return `data.template.applied=false`, `source=none` and emit a markerless skeleton. `init` scaffolds templates for only ADR/PRD/FDD (`src/meminit/core/assets/org_profiles/default/templates/`) while the default config defines ~20 `document_types`. |
+| Impact | Foundational doc types (STRAT, PLAN, SPEC, RUNBOOK, DESIGN, etc.) get a hollow scaffold, undermining the AI-first authoring contract (agents have no section markers/prompts to fill). Directly weakens greenfield value. |
+| Remediation | Ship built-in templates with section markers, agent prompts, `required` flags, and `initial_content` for all first-class types; surface them through `meminit new --format json`. |
+| Definition of done | `meminit new <TYPE>` returns `template.applied=true` for ADR/PRD/FDD/SPEC/RUNBOOK/PLAN/STRAT/DESIGN at minimum; built-in templates carry section markers; tests cover resolution for the new types. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/services/test_template_resolver.py tests/core/use_cases/test_new_document.py` |
+
+### TD-011: Skeleton fallback emits no section markers or agent prompts
+
+| Field | Value |
+| ----- | ----- |
+| Priority | P2 |
+| Status | Open |
+| Owner | Document factory maintainers |
+| Source | Greenfield dogfood run #0 (bedtime-alexa), 2026-05-20 |
+| Related plans | `MEMINIT-PLAN-016`, `MEMINIT-PRD-006` |
+| Evidence | When no template resolves, `meminit new` emits a body of only `# TYPE: Title` / `## Context` / `## Content` with no `<!-- MEMINIT_SECTION: -->` markers, `<!-- AGENT: -->` prompts, or `initial_content`. |
+| Impact | Skeleton documents are not machine-fillable via the JSON section contract, so even the fallback path violates the AI-first principle. |
+| Remediation | Have the skeleton emit at least one stable section marker with an agent prompt and `initial_content`, so orchestrators can fill it deterministically. |
+| Definition of done | Skeleton output includes >=1 `MEMINIT_SECTION` marker surfaced in `data.template.sections`; tests assert markers and `initial_content` exist for a no-template type. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_new_document.py` |
+
+### TD-012: migrate-ids does not repair repo_prefix mismatches
+
+| Field | Value |
+| ----- | ----- |
+| Priority | P3 |
+| Status | Open |
+| Owner | Migration maintainers |
+| Source | Greenfield dogfood run #0 (bedtime-alexa), 2026-05-20 |
+| Related plans | `MEMINIT-PLAN-016` |
+| Evidence | After changing `repo_prefix` in `docops.config.yaml`, governed docs whose IDs use the old prefix fail `check` with `ID_PREFIX`, but `meminit migrate-ids --dry-run` reports zero actions (it only targets non-`REPO-TYPE-SEQ` legacy IDs). The new `init --repo-prefix` flag (TD: closed in this branch) reduces, but does not eliminate, the need: prefix changes after init still have no on-rails repair. |
+| Impact | A user who renames their prefix post-init must hand-edit every governed `document_id` with no tooling support or guidance. |
+| Remediation | Either extend `migrate-ids` to re-stamp IDs when the configured `repo_prefix` no longer matches existing IDs (with dry-run preview and `--rewrite-references`), or emit explicit advice pointing at the mismatch. |
+| Definition of done | A prefix change followed by `migrate-ids --dry-run` previews the re-stamping (or emits actionable advice); applying it makes `check` green; cross-references are updated under `--rewrite-references`; tests cover the prefix-mismatch path. |
+| Verification commands | `./.venv/bin/pytest -q tests/core/use_cases/test_migrate_ids.py` |
+
 ## Recent Plan Assessment
 
 Assessment date: 2026-05-08.
@@ -227,3 +272,4 @@ TD-006, TD-007, TD-008, and TD-009.
 | 0.1 | 2026-04-28 | Codex | Initial standalone review-debt register. |
 | 0.2 | 2026-05-08 | Codex | Reworked into a structured professional debt register, assessed MEMINIT-PLAN-008 through MEMINIT-PLAN-014, and added live unsuperseded gaps from Phase 5 plus state/index hardening debt. |
 | 0.3 | 2026-05-17 | CMF | Closed TD-004 after approving the sanitized external testbed evidence in MEMINIT-LOG-001. |
+| 0.4 | 2026-05-20 | CMF | Added TD-010 (template breadth), TD-011 (skeleton has no section markers), and TD-012 (migrate-ids prefix mismatch) from greenfield dogfood run #0 (bedtime-alexa); see MEMINIT-PLAN-016. |

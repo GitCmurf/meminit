@@ -1,4 +1,5 @@
 import hashlib
+import re
 from importlib import resources
 from pathlib import Path
 from dataclasses import dataclass
@@ -82,10 +83,32 @@ def _record_created_ancestors(target: Path, record_fn, root_dir: Path) -> None:
 
 
 class InitRepositoryUseCase:
-    def __init__(self, root_dir: str, env: Optional[Mapping[str, str]] = None):
+    def __init__(
+        self,
+        root_dir: str,
+        env: Optional[Mapping[str, str]] = None,
+        repo_prefix: Optional[str] = None,
+    ):
         self.root_dir = Path(root_dir).resolve()
         self.docs_dir = self.root_dir / "docs"
         self._env = env
+        self._repo_prefix = (
+            self._normalize_repo_prefix(repo_prefix)
+            if repo_prefix is not None
+            else None
+        )
+
+    @staticmethod
+    def _normalize_repo_prefix(value: str) -> str:
+        """Normalize and validate an explicit repo prefix against the ID schema."""
+        normalized = value.strip().upper()
+        if not re.fullmatch(r"[A-Z]{3,10}", normalized):
+            raise MeminitError(
+                ErrorCode.INVALID_FIELD,
+                "repo_prefix must be 3-10 ASCII letters (A-Z).",
+                details={"repo_prefix": value},
+            )
+        return normalized
 
     def execute(self) -> InitReport:
         created_paths: List[str] = []
@@ -139,7 +162,7 @@ class InitRepositoryUseCase:
         config_path = self.root_dir / "docops.config.yaml"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=config_path)
         if not config_path.exists():
-            repo_prefix = derive_repo_prefix(self.root_dir.name)
+            repo_prefix = self._repo_prefix or derive_repo_prefix(self.root_dir.name)
             docs_root = "docs"
             config_content = {
                 "project_name": self.root_dir.name,
@@ -272,7 +295,7 @@ class InitRepositoryUseCase:
 
         # 6. Install gov-001 constitution document
         self._install_optional_asset(
-            target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
+            target_path=self.docs_dir / "00-governance" / "docops-constitution.md",
             package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
             record_fn=record,
             error_context="gov-001 constitution",

@@ -2425,7 +2425,17 @@ def migrate_templates(
 
 @cli.command()
 @agent_repo_options()
-def init(root, format, output, include_timestamp, correlation_id):
+@click.option(
+    "--repo-prefix",
+    "repo_prefix",
+    default=None,
+    help=(
+        "Repo prefix for document IDs (3-10 letters, e.g. BEDTIME). "
+        "Used only when creating a new docops.config.yaml; otherwise derived "
+        "from the directory name."
+    ),
+)
+def init(root, format, output, include_timestamp, correlation_id, repo_prefix):
     """Initialize a new DocOps repository structure."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
@@ -2434,7 +2444,7 @@ def init(root, format, output, include_timestamp, correlation_id):
         "init", format, output, include_timestamp, run_id, root_path,
         correlation_id=correlation_id,
     ):
-        use_case = InitRepositoryUseCase(str(root_path))
+        use_case = InitRepositoryUseCase(str(root_path), repo_prefix=repo_prefix)
         report = use_case.execute()
 
         if format == "json":
