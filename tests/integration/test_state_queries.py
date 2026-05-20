@@ -17,11 +17,12 @@ from click.testing import CliRunner
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.use_cases.state_document import StateDocumentUseCase
-from tests.helpers import parse_first_json_line
+from tests.helpers import parse_first_json_line, parse_json_envelope
 
 
 def _runner() -> CliRunner:
     import inspect
+
     kwargs = {}
     if "mix_stderr" in inspect.signature(CliRunner).parameters:
         kwargs["mix_stderr"] = False
@@ -97,7 +98,7 @@ def _invoke_state_next(tmp_path: Path, *flags, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
@@ -109,7 +110,7 @@ def _invoke_state_blockers(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
@@ -123,11 +124,12 @@ def _invoke_state_list(tmp_path: Path, **extra_flags) -> Dict[str, Any]:
             args.extend([f"--{k}", v])
     result = _runner().invoke(cli, args)
     if result.exit_code == 0:
-        return json.loads(result.output.strip().splitlines()[-1])
+        return parse_json_envelope(result.output)
     return {"_exit_code": result.exit_code, "_output": result.output}
 
 
 # --- Fixture builder: returns (tmp_path with repo, expected) ---
+
 
 def _write_state_legacy(tmp_path: Path, documents: Dict[str, Dict[str, Any]]) -> Path:
     state_dir = tmp_path / "docs" / "01-indices"
@@ -143,138 +145,244 @@ def _write_state_legacy(tmp_path: Path, documents: Dict[str, Dict[str, Any]]) ->
 
 def _setup_q01(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state_legacy(tmp_path, {
-        "FIX-ADR-001": {
-            "impl_state": "Not Started",
-            "updated_by": "test",
-            "updated": "2026-01-01T00:00:00+00:00",
+    _write_state_legacy(
+        tmp_path,
+        {
+            "FIX-ADR-001": {
+                "impl_state": "Not Started",
+                "updated_by": "test",
+                "updated": "2026-01-01T00:00:00+00:00",
+            },
         },
-    })
+    )
     return {"id": "Q01", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q02(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-        "FIX-ADR-003": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+            "FIX-ADR-002": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+            "FIX-ADR-003": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+        },
+    )
     return {"id": "Q02", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q03(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0"),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started"),
+        },
+    )
     return {"id": "Q03", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q04(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", updated="2026-06-01T00:00:00+00:00"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+            "FIX-ADR-002": _make_entry(
+                impl_state="Not Started", updated="2026-06-01T00:00:00+00:00"
+            ),
+        },
+    )
     return {"id": "Q04", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q05(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started"),
-        "FIX-ADR-003": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
-        "FIX-ADR-004": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started"),
+            "FIX-ADR-003": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
+            "FIX-ADR-004": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
+        },
+    )
     return {"id": "Q05", "expected_reason": None, "expected_doc": "FIX-ADR-002"}
 
 
 def _setup_q06(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+            "FIX-ADR-002": _make_entry(
+                impl_state="Not Started", updated="2026-01-01T00:00:00+00:00"
+            ),
+        },
+    )
     return {"id": "Q06", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q07(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
-        "FIX-ADR-002": _make_entry(impl_state="Done"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
+            "FIX-ADR-002": _make_entry(impl_state="Done"),
+        },
+    )
     return {"id": "Q07", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
 
 
 def _setup_q08(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
-        "FIX-ADR-002": _make_entry(impl_state="In Progress"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
+            "FIX-ADR-002": _make_entry(impl_state="In Progress"),
+        },
+    )
     return {"id": "Q08", "expected_reason": "queue_empty", "expected_doc": None}
 
 
 def _setup_q09(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-999"]),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-999"]),
+        },
+    )
     return {"id": "Q09", "expected_reason": "queue_empty", "expected_doc": None}
 
 
 def _setup_q10(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-001"]),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-002"]),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-001"]),
+        },
+    )
     return {"id": "Q10", "expected_error": "STATE_DEPENDENCY_CYCLE"}
 
 
 def _setup_q11(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+        },
+    )
     return {"id": "Q11", "expected_error": "STATE_SELF_DEPENDENCY"}
 
 
 def _setup_q12(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+        },
+    )
     return {"id": "Q12", "expected_error": "STATE_INVALID_PRIORITY"}
 
 
 def _setup_q13(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+        },
+    )
     return {"id": "Q13", "expected_error": "STATE_FIELD_TOO_LONG"}
 
 
 def _setup_q14(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0", assignee="agent:codex"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", priority="P1", assignee="agent:codex"),
-        "FIX-ADR-003": _make_entry(impl_state="Not Started", priority="P0", assignee="human:alice"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", priority="P0", assignee="agent:codex"
+            ),
+            "FIX-ADR-002": _make_entry(
+                impl_state="Not Started", priority="P1", assignee="agent:codex"
+            ),
+            "FIX-ADR-003": _make_entry(
+                impl_state="Not Started", priority="P0", assignee="human:alice"
+            ),
+        },
+    )
     return {"id": "Q14", "expected_reason": None, "expected_doc": "FIX-ADR-001"}
+
+
+def _setup_q21(tmp_path: Path) -> dict:
+    _write_config(tmp_path)
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0"),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started", priority="P3"),
+        },
+    )
+    return {
+        "id": "Q21",
+        "expected_reason": None,
+        "expected_doc": "FIX-ADR-001",
+        "filter_priority_at_least": "P0",
+    }
+
+
+def _setup_q22(tmp_path: Path) -> dict:
+    _write_config(tmp_path)
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", priority="P0", assignee="agent:codex"
+            ),
+            "FIX-ADR-002": _make_entry(
+                impl_state="Not Started", priority="P1", assignee="agent:codex"
+            ),
+            "FIX-ADR-003": _make_entry(
+                impl_state="Not Started", priority="P0", assignee="human:alice"
+            ),
+        },
+    )
+    return {
+        "id": "Q22",
+        "expected_reason": None,
+        "expected_doc": "FIX-ADR-003",
+        "filter_assignee": "human:alice",
+    }
 
 
 def _setup_q15(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="In Progress"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="In Progress"),
+        },
+    )
     return {"id": "Q15", "expected_reason": "queue_empty", "expected_doc": None}
 
 
@@ -285,27 +393,36 @@ def _setup_q16(tmp_path: Path) -> dict:
 
 def _setup_q17(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Done", depends_on=["FIX-ADR-002"]),
-        "FIX-ADR-002": _make_entry(impl_state="In Progress"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Done", depends_on=["FIX-ADR-002"]),
+            "FIX-ADR-002": _make_entry(impl_state="In Progress"),
+        },
+    )
     return {"id": "Q17"}
 
 
 def _setup_q18(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started"),
+        },
+    )
     return {"id": "Q18"}
 
 
 def _setup_q19(tmp_path: Path) -> dict:
     _write_config(tmp_path)
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P1"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-001"]),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P1"),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started", depends_on=["FIX-ADR-001"]),
+        },
+    )
     return {"id": "Q19"}
 
 
@@ -315,18 +432,40 @@ def _setup_q20(tmp_path: Path) -> dict:
         "---\ndocument_id: FIX-ADR-001\ntitle: Test ADR\nstatus: Draft\n---\nBody",
         encoding="utf-8",
     )
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0", assignee="agent:codex"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(
+                impl_state="Not Started", priority="P0", assignee="agent:codex"
+            ),
+        },
+    )
     return {"id": "Q20"}
 
 
 _FIXTURE_BUILDERS = {
-    "Q01": _setup_q01, "Q02": _setup_q02, "Q03": _setup_q03, "Q04": _setup_q04,
-    "Q05": _setup_q05, "Q06": _setup_q06, "Q07": _setup_q07, "Q08": _setup_q08,
-    "Q09": _setup_q09, "Q10": _setup_q10, "Q11": _setup_q11, "Q12": _setup_q12,
-    "Q13": _setup_q13, "Q14": _setup_q14, "Q15": _setup_q15, "Q16": _setup_q16,
-    "Q17": _setup_q17, "Q18": _setup_q18, "Q19": _setup_q19, "Q20": _setup_q20,
+    "Q01": _setup_q01,
+    "Q02": _setup_q02,
+    "Q03": _setup_q03,
+    "Q04": _setup_q04,
+    "Q05": _setup_q05,
+    "Q06": _setup_q06,
+    "Q07": _setup_q07,
+    "Q08": _setup_q08,
+    "Q09": _setup_q09,
+    "Q10": _setup_q10,
+    "Q11": _setup_q11,
+    "Q12": _setup_q12,
+    "Q13": _setup_q13,
+    "Q14": _setup_q14,
+    "Q15": _setup_q15,
+    "Q16": _setup_q16,
+    "Q17": _setup_q17,
+    "Q18": _setup_q18,
+    "Q19": _setup_q19,
+    "Q20": _setup_q20,
+    "Q21": _setup_q21,
+    "Q22": _setup_q22,
 }
 
 
@@ -340,8 +479,20 @@ _FIXTURE_BUILDERS = {
 _ALL_SCENARIO_IDS = sorted(_FIXTURE_BUILDERS.keys())
 
 _NEXT_SCENARIOS = [
-    "Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08",
-    "Q09", "Q14", "Q15", "Q16",
+    "Q01",
+    "Q02",
+    "Q03",
+    "Q04",
+    "Q05",
+    "Q06",
+    "Q07",
+    "Q08",
+    "Q09",
+    "Q14",
+    "Q15",
+    "Q16",
+    "Q21",
+    "Q22",
 ]
 
 _BLOCKERS_SCENARIOS = ["Q08", "Q09"]
@@ -395,6 +546,7 @@ def test_state_blockers(scenario_id: str, tmp_path: Path):
 
 # --- Parametrized state set validation (Q10, Q11, Q12, Q13) ---
 
+
 @pytest.mark.parametrize("scenario_id", _SET_VALIDATION_SCENARIOS)
 def test_state_set_validation(scenario_id: str, tmp_path: Path):
     meta = _FIXTURE_BUILDERS[scenario_id](tmp_path)
@@ -405,41 +557,98 @@ def test_state_set_validation(scenario_id: str, tmp_path: Path):
         assert state_file.exists()
         original = state_file.read_text()
 
-        result = runner.invoke(cli, [
-            "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-            "--add-depends-on", "FIX-ADR-002", "--root", str(tmp_path), "--format", "json",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "state",
+                "set",
+                "FIX-ADR-001",
+                "--impl-state",
+                "Not Started",
+                "--add-depends-on",
+                "FIX-ADR-002",
+                "--root",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
         assert result.exit_code != 0
-        assert "STATE_DEPENDENCY_CYCLE" in result.output
+        data = parse_json_envelope(result.output)
+        assert data["success"] is False
+        assert data["error"]["code"] == "STATE_DEPENDENCY_CYCLE"
         assert state_file.read_text() == original
 
     elif scenario_id == "Q11":
-        result = runner.invoke(cli, [
-            "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-            "--add-depends-on", "FIX-ADR-001", "--root", str(tmp_path), "--format", "json",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "state",
+                "set",
+                "FIX-ADR-001",
+                "--impl-state",
+                "Not Started",
+                "--add-depends-on",
+                "FIX-ADR-001",
+                "--root",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
         assert result.exit_code != 0
-        assert "STATE_SELF_DEPENDENCY" in result.output
+        data = parse_json_envelope(result.output)
+        assert data["success"] is False
+        assert data["error"]["code"] == "STATE_SELF_DEPENDENCY"
 
     elif scenario_id == "Q12":
-        result = runner.invoke(cli, [
-            "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-            "--priority", "P9", "--root", str(tmp_path), "--format", "json",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "state",
+                "set",
+                "FIX-ADR-001",
+                "--impl-state",
+                "Not Started",
+                "--priority",
+                "P9",
+                "--root",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
         assert result.exit_code != 0
-        assert "STATE_INVALID_PRIORITY" in result.output
+        data = parse_json_envelope(result.output)
+        assert data["success"] is False
+        assert data["error"]["code"] == "STATE_INVALID_PRIORITY"
 
     elif scenario_id == "Q13":
         long_action = "x" * 600
-        result = runner.invoke(cli, [
-            "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-            "--next-action", long_action, "--root", str(tmp_path), "--format", "json",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "state",
+                "set",
+                "FIX-ADR-001",
+                "--impl-state",
+                "Not Started",
+                "--next-action",
+                long_action,
+                "--root",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
         assert result.exit_code != 0
-        assert "STATE_FIELD_TOO_LONG" in result.output
+        data = parse_json_envelope(result.output)
+        assert data["success"] is False
+        assert data["error"]["code"] == "STATE_FIELD_TOO_LONG"
 
 
 # --- Q17: Advisory-only status conflict ---
+
 
 def test_state_advisory_q17(tmp_path: Path):
     _setup_q17(tmp_path)
@@ -458,6 +667,7 @@ def test_state_advisory_q17(tmp_path: Path):
 
 
 # --- Q18: Idempotency (state set) ---
+
 
 def test_state_idempotency_q18_file_hash(tmp_path: Path):
     _setup_q18(tmp_path)
@@ -479,14 +689,38 @@ def test_state_idempotency_q18_cli_envelope_bytes(tmp_path: Path):
     _setup_q18(tmp_path)
     runner = _runner()
 
-    r1 = runner.invoke(cli, [
-        "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-        "--priority", "P1", "--root", str(tmp_path), "--format", "json",
-    ])
-    r2 = runner.invoke(cli, [
-        "state", "set", "FIX-ADR-001", "--impl-state", "Not Started",
-        "--priority", "P1", "--root", str(tmp_path), "--format", "json",
-    ])
+    r1 = runner.invoke(
+        cli,
+        [
+            "state",
+            "set",
+            "FIX-ADR-001",
+            "--impl-state",
+            "Not Started",
+            "--priority",
+            "P1",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
+    r2 = runner.invoke(
+        cli,
+        [
+            "state",
+            "set",
+            "FIX-ADR-001",
+            "--impl-state",
+            "Not Started",
+            "--priority",
+            "P1",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
     assert r1.exit_code == 0
     assert r2.exit_code == 0
     stdout1 = r1.output.strip().splitlines()[-1]
@@ -496,18 +730,35 @@ def test_state_idempotency_q18_cli_envelope_bytes(tmp_path: Path):
 
 # --- Q19: Determinism (state list byte-identical envelopes) ---
 
+
 def test_state_determinism_q19_state_list(tmp_path: Path):
     """Q19 byte-exact regression: two state list calls must produce
     byte-identical stdout (not just logically-equivalent JSON)."""
     _setup_q19(tmp_path)
     runner = _runner()
 
-    r1 = runner.invoke(cli, [
-        "state", "list", "--root", str(tmp_path), "--format", "json",
-    ])
-    r2 = runner.invoke(cli, [
-        "state", "list", "--root", str(tmp_path), "--format", "json",
-    ])
+    r1 = runner.invoke(
+        cli,
+        [
+            "state",
+            "list",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
+    r2 = runner.invoke(
+        cli,
+        [
+            "state",
+            "list",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
     assert r1.exit_code == 0
     assert r2.exit_code == 0
     stdout1 = r1.output.strip().splitlines()[-1]
@@ -521,12 +772,28 @@ def test_state_determinism_q19_state_next(tmp_path: Path):
     _setup_q19(tmp_path)
     runner = _runner()
 
-    r1 = runner.invoke(cli, [
-        "state", "next", "--root", str(tmp_path), "--format", "json",
-    ])
-    r2 = runner.invoke(cli, [
-        "state", "next", "--root", str(tmp_path), "--format", "json",
-    ])
+    r1 = runner.invoke(
+        cli,
+        [
+            "state",
+            "next",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
+    r2 = runner.invoke(
+        cli,
+        [
+            "state",
+            "next",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
     assert r1.exit_code == 0
     assert r2.exit_code == 0
     stdout1 = r1.output.strip().splitlines()[-1]
@@ -536,15 +803,23 @@ def test_state_determinism_q19_state_next(tmp_path: Path):
 
 # --- Q20: Index integration with v2 state fields ---
 
+
 def test_index_v2_integration_q20(tmp_path: Path):
     _setup_q20(tmp_path)
     runner = _runner()
 
-    result = runner.invoke(cli, [
-        "index", "--root", str(tmp_path), "--format", "json",
-    ])
+    result = runner.invoke(
+        cli,
+        [
+            "index",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
 
     nodes = data["data"]["nodes"]
     assert len(nodes) == 1
@@ -626,6 +901,7 @@ def test_scenario_command_envelope_shape(scenario_id: str, command: str, tmp_pat
 # AR-new-3: P2 fidelity — explicit P2 round-trips, absent stays absent
 # ---------------------------------------------------------------------------
 
+
 def test_index_p2_round_trips_and_none_is_absent(tmp_path):
     """Explicit P2 persists to index node; absent priority stays absent (AR-new-3)."""
     _write_config(tmp_path)
@@ -637,14 +913,17 @@ def test_index_p2_round_trips_and_none_is_absent(tmp_path):
         "---\ndocument_id: FIX-ADR-002\ntitle: No Priority Doc\nstatus: Draft\n---\nBody",
         encoding="utf-8",
     )
-    _write_state(tmp_path, {
-        "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P2"),
-        "FIX-ADR-002": _make_entry(impl_state="Not Started"),
-    })
+    _write_state(
+        tmp_path,
+        {
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P2"),
+            "FIX-ADR-002": _make_entry(impl_state="Not Started"),
+        },
+    )
     runner = _runner()
     result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
-    data = json.loads(result.output.strip().splitlines()[-1])
+    data = parse_json_envelope(result.output)
     nodes = {n["document_id"]: n for n in data["data"]["nodes"]}
     assert nodes["FIX-ADR-001"].get("priority") == "P2", "Explicit P2 must round-trip"
     assert "priority" not in nodes["FIX-ADR-002"], "No-priority entry must not have priority key"
@@ -653,19 +932,25 @@ def test_index_p2_round_trips_and_none_is_absent(tmp_path):
 def test_q01_legacy_v1_no_migration_warning(tmp_path):
     """Q01: Legacy v1 state file (no schema_version key) reads succeed without schema/migration warnings."""
     _write_config(tmp_path)
-    _write_state_legacy(tmp_path, {
-        "FIX-ADR-001": {
-            "impl_state": "Not Started",
-            "updated_by": "test",
-            "updated": "2026-01-01T00:00:00+00:00",
+    _write_state_legacy(
+        tmp_path,
+        {
+            "FIX-ADR-001": {
+                "impl_state": "Not Started",
+                "updated_by": "test",
+                "updated": "2026-01-01T00:00:00+00:00",
+            },
         },
-    })
+    )
     data = _invoke_state_next(tmp_path)
     assert data["success"] is True
     assert data["data"]["entry"] is not None
     assert data["data"]["entry"]["document_id"] == "FIX-ADR-001"
     migration_codes = [
-        w["code"] for w in (data.get("warnings") or [])
+        w["code"]
+        for w in (data.get("warnings") or [])
         if "SCHEMA" in w.get("code", "") or "MIGRATION" in w.get("code", "")
     ]
-    assert migration_codes == [], f"Legacy v1 should not emit schema/migration warnings: {migration_codes}"
+    assert (
+        migration_codes == []
+    ), f"Legacy v1 should not emit schema/migration warnings: {migration_codes}"

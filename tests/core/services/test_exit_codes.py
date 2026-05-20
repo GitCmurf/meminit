@@ -45,9 +45,9 @@ def test_exit_code_for_error_mappings():
         ErrorCode.DUPLICATE_SECTION_ID: EX_DATAERR,
         ErrorCode.AMBIGUOUS_SECTION_BOUNDARY: EX_DATAERR,
         # Project State Dashboard error codes (PRD-007)
-        ErrorCode.E_STATE_YAML_MALFORMED: EX_DATAERR,
-        ErrorCode.E_STATE_SCHEMA_VIOLATION: EX_DATAERR,
-        ErrorCode.E_INVALID_FILTER_VALUE: EX_USAGE,
+        ErrorCode.STATE_YAML_MALFORMED: EX_DATAERR,
+        ErrorCode.STATE_SCHEMA_VIOLATION: EX_DATAERR,
+        ErrorCode.STATE_INVALID_FILTER_VALUE: EX_USAGE,
         ErrorCode.STATE_INVALID_PRIORITY: EX_DATAERR,
         ErrorCode.STATE_INVALID_DEPENDENCY_ID: EX_DATAERR,
         ErrorCode.STATE_SELF_DEPENDENCY: EX_DATAERR,

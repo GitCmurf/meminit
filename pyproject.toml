@@ -64,6 +64,7 @@ filterwarnings = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks tests as performance benchmarks (opt-in only)",
 ]
 
 [tool.mypy]

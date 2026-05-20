@@ -80,8 +80,8 @@ When developing Meminit locally, you have two options:
 **Run directly from source (no install):**
 
 ```bash
-python -m meminit --help
-python -m meminit new ADR "Test" --dry-run
+PYTHONPATH=src python -m meminit --help
+PYTHONPATH=src python -m meminit new ADR "Test" --dry-run
 ```
 
 **Install in editable mode:**
@@ -232,6 +232,8 @@ meminit check --root .
 ```
 
 The coverage report is optional and requires the `pytest-cov` extra.
+`npm test` is an optional compatibility shim for tooling that discovers test
+commands from `package.json`; it delegates to `python -m pytest`.
 
 ## Contributing
 

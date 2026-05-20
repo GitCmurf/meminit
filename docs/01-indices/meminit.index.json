@@ -122,6 +122,24 @@
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-PLAN-014"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-PLAN-015' in related_ids but 'MEMINIT-PLAN-015' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-PLAN-015"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-LOG-001' lists 'MEMINIT-RUNBOOK-006' in related_ids but 'MEMINIT-RUNBOOK-006' does not list 'MEMINIT-LOG-001'",
+      "source": "MEMINIT-LOG-001",
+      "target": "MEMINIT-RUNBOOK-006"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
       "message": "'MEMINIT-PLAN-004' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-004'",
       "source": "MEMINIT-PLAN-004",
       "target": "MEMINIT-PLAN-003"
@@ -711,8 +729,8 @@
   ],
   "command": "index",
   "data": {
-    "document_count": 77,
-    "edge_count": 235,
+    "document_count": 79,
+    "edge_count": 238,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -895,6 +913,27 @@
         "guaranteed": true,
         "source": "MEMINIT-IMPL-001",
         "target": "MEMINIT-PRD-005"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-PLAN-015"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-LOG-001",
+        "target": "MEMINIT-RUNBOOK-006"
       },
       {
         "context": "body.markdown_link",
@@ -2374,7 +2413,7 @@
         "repo_prefix": "ORG"
       }
     ],
-    "node_count": 77,
+    "node_count": 79,
     "nodes": [
       {
         "area": null,
@@ -3095,6 +3134,34 @@
         "unblocks": []
       },
       {
+        "area": "AGENT",
+        "description": "Operator-attested evidence template for Phase 5 NDJSON streaming and incremental cache validation in an external testbed repository.",
+        "document_id": "MEMINIT-LOG-001",
+        "keywords": [
+          "phase-5",
+          "streaming",
+          "cache",
+          "external-testbed"
+        ],
+        "last_updated": "2026-05-09",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/58-logs/log-001-phase-5-external-testbed-evidence.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-014",
+          "MEMINIT-PLAN-015",
+          "MEMINIT-RUNBOOK-006"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Phase 5 External Testbed Evidence",
+        "type": "LOG",
+        "unblocks": []
+      },
+      {
         "area": null,
         "description": null,
         "document_id": "MEMINIT-PLAN-001",
@@ -3468,6 +3535,32 @@
         "status": "Approved",
         "superseded_by": null,
         "title": "Phase 5 Detailed Implementation Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "AGENT",
+        "description": "Agent-orchestrator-ready sprint plan for closing live technical debt and hardening the post-Phase-5 Meminit agent interface.",
+        "document_id": "MEMINIT-PLAN-015",
+        "keywords": [
+          "next-steps",
+          "technical-debt",
+          "sprint-plan",
+          "streaming",
+          "state",
+          "index"
+        ],
+        "last_updated": "2026-05-08",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-015-next-improvements-sprint-plan.md",
+        "ready": false,
+        "related_ids": null,
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Next Improvements Sprint Plan",
         "type": "PLAN",
         "unblocks": []
       },
@@ -4094,7 +4187,7 @@
           "cli",
           "templates-v2"
         ],
-        "last_updated": "2026-04-30",
+        "last_updated": "2026-05-06",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",

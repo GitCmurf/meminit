@@ -15,12 +15,18 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import yaml
 
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
+from meminit.core.services.stream_events import (
+    StreamItem,
+    StreamSummary,
+    StreamingResult,
+    summary_data,
+)
 
 
 @dataclass
@@ -30,6 +36,44 @@ class ContextResult:
     data: Dict[str, Any]
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     documents: List[Dict[str, Any]] = field(default_factory=list)
+
+
+def _iter_ns_documents(
+    layout: RepoLayout, ns: RepoConfig,
+) -> Iterator[Dict[str, Any]]:
+    """Yield documents from a namespace as they are discovered."""
+    import frontmatter
+
+    docs_dir = ns.docs_dir
+    if not docs_dir.is_dir():
+        return
+    for path in docs_dir.rglob("*"):
+        if path.suffix.lower() != ".md":
+            continue
+        if not path.is_file():
+            continue
+        try:
+            post = frontmatter.load(path)
+        except Exception:
+            continue
+        owner = layout.namespace_for_path_and_document_id(
+            path,
+            post.metadata.get("document_id"),
+        )
+        if owner is None or owner.namespace != ns.namespace:
+            continue
+        if ns.is_excluded(path):
+            continue
+        doc_id = post.metadata.get("document_id")
+        if not isinstance(doc_id, str) or not doc_id.strip():
+            continue
+        yield {
+            "document_id": doc_id.strip(),
+            "path": relative_path_string(path, layout.root_dir),
+            "type": post.metadata.get("type"),
+            "title": post.metadata.get("title"),
+            "namespace": ns.namespace,
+        }
 
 
 def _count_governed_markdown(
@@ -56,14 +100,17 @@ def _count_governed_markdown(
             continue
         if not path.is_file():
             continue
-        owner = layout.namespace_for_path(path)
-        if owner is None or owner.namespace != ns.namespace:
-            continue
-        if ns.is_excluded(path):
-            continue
         try:
             post = frontmatter.load(path)
         except Exception:
+            continue
+        owner = layout.namespace_for_path_and_document_id(
+            path,
+            post.metadata.get("document_id"),
+        )
+        if owner is None or owner.namespace != ns.namespace:
+            continue
+        if ns.is_excluded(path):
             continue
         count += 1
         doc_id = post.metadata.get("document_id")
@@ -250,3 +297,45 @@ class ContextRepositoryUseCase:
             warnings=warnings,
             documents=documents_sorted,
         )
+
+    def iter_stream(self, *, deep: bool = True) -> StreamingResult:
+        """Return a core-owned streaming producer for deep context output."""
+        summary = StreamSummary()
+
+        def records():
+            for row in self._iter_document_type_stream_items():
+                yield StreamItem("document_type", row)
+
+            result = self.execute(deep=deep)
+            namespaces = result.data.get("namespaces", [])
+            for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
+                yield StreamItem("namespace", ns)
+
+            if deep:
+                for row in result.data.get("documents", []):
+                    yield StreamItem("document", row)
+
+            summary.data = summary_data(result.data, "namespaces", "documents")
+            summary.warnings = result.warnings
+
+        return StreamingResult(records=records(), summary=summary)
+
+    def _iter_document_type_stream_items(self) -> Iterator[dict[str, Any]]:
+        """Yield document-type stream items without running the deep scan."""
+        layout: RepoLayout = load_repo_layout(self.root_dir)
+        default_ns = layout.default_namespace()
+        document_types: Dict[str, Any] = {}
+        for doc_type, dt_config in sorted(default_ns.document_types.items()):
+            dt_dict = {"directory": dt_config.directory}
+            if dt_config.template:
+                dt_dict["template"] = dt_config.template
+            if dt_config.description:
+                dt_dict["description"] = dt_config.description
+            document_types[doc_type] = dt_dict
+        for doc_type, directory in sorted(default_ns.type_directories.items()):
+            document_types.setdefault(doc_type, {"directory": directory})
+        for doc_type, payload in sorted(document_types.items()):
+            row = {"type": doc_type}
+            if isinstance(payload, dict):
+                row.update(payload)
+            yield row

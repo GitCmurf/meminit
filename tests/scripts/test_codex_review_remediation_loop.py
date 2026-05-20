@@ -5,6 +5,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "codex_review_remediation_loop.py"
 SPEC = importlib.util.spec_from_file_location("codex_review_remediation_loop", SCRIPT_PATH)
@@ -321,6 +323,38 @@ def test_main_rejects_negative_timeout(tmp_path, monkeypatch, capsys):
 
     assert exit_code == 1
     assert "--timeout-seconds must be 0 or greater" in capsys.readouterr().err
+
+
+def test_main_rejects_zero_max_remediation_chars(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        MODULE.main(["--max-remediation-input-chars", "0", "--max-iterations", "1"])
+    assert exc_info.value.code == 2
+    assert "--max-remediation-input-chars must be >= 1" in capsys.readouterr().err
+
+
+def test_main_rejects_negative_max_remediation_chars(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        MODULE.main(["--max-remediation-input-chars", "-50", "--max-iterations", "1"])
+    assert exc_info.value.code == 2
+    assert "--max-remediation-input-chars must be >= 1" in capsys.readouterr().err
+
+
+def test_main_rejects_zero_terminal_excerpt_chars(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        MODULE.main(["--terminal-excerpt-chars", "0", "--max-iterations", "1"])
+    assert exc_info.value.code == 2
+    assert "--terminal-excerpt-chars must be >= 1" in capsys.readouterr().err
+
+
+def test_main_rejects_negative_terminal_excerpt_chars(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        MODULE.main(["--terminal-excerpt-chars", "-5", "--max-iterations", "1"])
+    assert exc_info.value.code == 2
+    assert "--terminal-excerpt-chars must be >= 1" in capsys.readouterr().err
 
 
 def test_main_handles_keyboard_interrupt_without_traceback(tmp_path, monkeypatch, capsys):

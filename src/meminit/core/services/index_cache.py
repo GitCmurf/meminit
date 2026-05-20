@@ -81,7 +81,12 @@ class IndexCache:
         return IndexCacheLock(self)
 
     def clear(self) -> bool:
-        """Remove the index cache directory or file if it exists."""
+        """Remove the index cache directory or file if it exists.
+
+        Safety: symlinks are unlinked (not followed) to prevent deletion
+        of targets outside the cache directory. Regular subdirectories
+        are validated to be within the cache tree before recursive removal.
+        """
         if not self.cache_dir.exists():
             return False
 
@@ -93,7 +98,25 @@ class IndexCache:
                     if child == self.lock_path:
                         kept_lock = True
                         continue
-                    if child.is_dir():
+                    if child.is_symlink():
+                        child.unlink()
+                    elif child.is_dir():
+                        resolved = child.resolve()
+                        cache_resolved = self.cache_dir.resolve()
+                        try:
+                            resolved.relative_to(cache_resolved)
+                        except ValueError:
+                            raise MeminitError(
+                                ErrorCode.PATH_ESCAPE,
+                                f"Refusing to remove '{child}' — resolved path "
+                                f"'{resolved}' is outside cache directory "
+                                f"'{cache_resolved}'.",
+                                details={
+                                    "child": str(child),
+                                    "resolved": str(resolved),
+                                    "cache_dir": str(cache_resolved),
+                                },
+                            )
                         shutil.rmtree(child)
                     else:
                         child.unlink()

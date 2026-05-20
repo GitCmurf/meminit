@@ -187,3 +187,81 @@ class TestTemplateInterpolatorNoneHandling:
         result = interpolator.interpolate(template, keywords=[])
 
         assert result == "Keywords: "
+
+
+class TestTemplateInterpolatorSinglePass:
+    """Test single-pass substitution prevents double-substitution (Finding #14)."""
+
+    def test_no_double_substitution_on_injection(self):
+        """User-supplied values containing {{variable}} syntax are not re-substituted."""
+        interpolator = TemplateInterpolator()
+        template = "{{title}} {{status}}"
+        result = interpolator.interpolate(
+            template,
+            title="{{owner}}",
+            status="Draft",
+            owner="Alice"
+        )
+        # {{title}} should be replaced with literal "{{owner}}",
+        # not with "Alice" from the owner kwarg
+        assert result == "{{owner}} Draft"
+
+    def test_no_double_substitution_multiple_vars(self):
+        """Multiple variables with injected-style values all remain literal."""
+        interpolator = TemplateInterpolator()
+        template = "{{title}}-{{status}}-{{owner}}"
+        result = interpolator.interpolate(
+            template,
+            title="{{seq}}",
+            status="{{type}}",
+            owner="{{date}}",
+            seq="001",
+            doc_type="ADR",
+            date="2026-01-01",
+        )
+        assert result == "{{seq}}-{{type}}-{{date}}"
+
+    def test_normal_substitution_still_works(self):
+        """Standard use cases are unaffected by single-pass change."""
+        interpolator = TemplateInterpolator()
+        template = "# {{title}}\nOwner: {{owner}}"
+        result = interpolator.interpolate(template, title="Feature", owner="Team A")
+        assert result == "# Feature\nOwner: Team A"
+
+
+class TestTemplateInterpolatorListValidation:
+    """Test validation of list-type fields (Finding #21)."""
+
+    def test_keywords_rejects_string(self):
+        """String passed as keywords raises MeminitError, not character-mangling."""
+        interpolator = TemplateInterpolator()
+        template = "Keywords: {{keywords}}"
+        with pytest.raises(MeminitError) as exc_info:
+            interpolator.interpolate(template, keywords="abc")
+        assert "list of strings" in str(exc_info.value)
+        assert "keywords" in exc_info.value.details["field"]
+
+    def test_related_ids_rejects_string(self):
+        """String passed as related_ids raises MeminitError."""
+        interpolator = TemplateInterpolator()
+        template = "Related: {{related_ids}}"
+        with pytest.raises(MeminitError) as exc_info:
+            interpolator.interpolate(template, related_ids="abc")
+        assert "list of strings" in str(exc_info.value)
+        assert "related_ids" in exc_info.value.details["field"]
+
+    def test_keywords_rejects_non_string_items(self):
+        """Non-string items in keywords list raise MeminitError."""
+        interpolator = TemplateInterpolator()
+        template = "Keywords: {{keywords}}"
+        with pytest.raises(MeminitError) as exc_info:
+            interpolator.interpolate(template, keywords=["valid", 42])
+        assert "must contain only strings" in str(exc_info.value)
+        assert exc_info.value.details["index"] == 1
+
+    def test_related_ids_none_is_valid(self):
+        """None for related_ids results in empty string."""
+        interpolator = TemplateInterpolator()
+        template = "Related: {{related_ids}}"
+        result = interpolator.interpolate(template, related_ids=None)
+        assert result == "Related: "

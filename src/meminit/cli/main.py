@@ -16,9 +16,7 @@ from meminit.cli.shared_flags import (
     command_supports_ndjson,
 )
 from meminit.cli.streaming import (
-    CallableStreamingProducer,
-    StreamEmitter,
-    SummaryPayload,
+    CoreStreamingProducer,
     streaming_output_handler,
     unsupported_ndjson,
     write_ndjson_error,
@@ -110,7 +108,7 @@ def command_output_handler(
                     output,
                 )
             elif format == "ndjson":
-                _write_ndjson_error(
+                write_ndjson_error(
                     command_name=command_name,
                     error=MeminitError(
                         ErrorCode.INVALID_FLAG_COMBINATION, error_msg
@@ -129,7 +127,7 @@ def command_output_handler(
             command_name,
             f"meminit {command_name} does not support --format ndjson.",
         )
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command_name,
             error=error,
             output=output,
@@ -143,7 +141,7 @@ def command_output_handler(
         yield
     except MeminitError as e:
         if format == "ndjson":
-            _write_ndjson_error(
+            write_ndjson_error(
                 command_name=command_name,
                 error=e,
                 output=output,
@@ -187,7 +185,7 @@ def command_output_handler(
                     root=root_path,
                     error_code=ErrorCode.UNKNOWN_ERROR,
                     message=safe_msg,
-                    details={"internal_error": str(e)},
+                    details=_unexpected_error_details(e),
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,
@@ -195,12 +193,12 @@ def command_output_handler(
                 output,
             )
         elif format == "ndjson":
-            _write_ndjson_error(
+            write_ndjson_error(
                 command_name=command_name,
                 error=MeminitError(
                     ErrorCode.UNKNOWN_ERROR,
                     safe_msg,
-                    details={"internal_error": str(e)},
+                    details=_unexpected_error_details(e),
                 ),
                 output=output,
                 include_timestamp=include_timestamp,
@@ -223,27 +221,6 @@ def command_output_handler(
         click.echo(f"INTERNAL ERROR: {e}", err=True)
         raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
 
-
-def _write_ndjson_error(
-    *,
-    command_name: str,
-    error: MeminitError,
-    output: Optional[str],
-    include_timestamp: bool,
-    run_id: str,
-    root_path: Optional[Path] = None,
-    correlation_id: Optional[str] = None,
-) -> None:
-    """Emit a terminal NDJSON error record to stdout or the requested file."""
-    write_ndjson_error(
-        command_name=command_name,
-        error=error,
-        output=output,
-        include_timestamp=include_timestamp,
-        run_id=run_id,
-        root_path=root_path,
-        correlation_id=correlation_id,
-    )
 
 
 def complete_document_types(ctx, param, incomplete: str):
@@ -282,6 +259,11 @@ def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
     ):
         return payload
     return None
+
+
+def _unexpected_error_details(exc: Exception) -> Dict[str, Any]:
+    """Return public, non-sensitive details for an unexpected exception."""
+    return {"exception": exc.__class__.__name__}
 
 
 def _write_output(
@@ -354,6 +336,63 @@ def _write_output(
     click.echo(output_str, nl=add_newline)
 
 
+def _write_scan_plan_artifact(
+    *,
+    plan: str,
+    root_path: Path,
+    migration_plan: Any,
+    format: str,
+    output: Optional[str],
+    include_timestamp: bool,
+    run_id: str,
+    correlation_id: Optional[str],
+    empty: bool = False,
+) -> None:
+    plan_path = Path(plan)
+    if not is_safe_cli_output_path(plan_path):
+        raise MeminitError(
+            ErrorCode.PATH_ESCAPE,
+            f"Plan path is considered unsafe: {plan}",
+            details={"plan_path": plan},
+        )
+
+    plan_json = format_envelope(
+        command="scan",
+        root=str(root_path),
+        success=True,
+        data={"plan": migration_plan.as_dict()},
+        include_timestamp=include_timestamp,
+        run_id=run_id,
+        correlation_id=correlation_id,
+    )
+    try:
+        with open(plan_path, "w", encoding="utf-8") as f:
+            f.write(plan_json + "\n")
+    except OSError as e:
+        if format == "json":
+            _write_output(
+                format_error_envelope(
+                    command="scan",
+                    root=str(root_path),
+                    error_code=ErrorCode.UNKNOWN_ERROR,
+                    message=f"Failed to save plan: {plan}",
+                    details={"plan_path": plan, "reason": str(e)},
+                    run_id=run_id,
+                    include_timestamp=include_timestamp,
+                    correlation_id=correlation_id,
+                ),
+                output,
+            )
+            raise SystemExit(1) from e
+        get_console().print(f"[bold red]Failed to save plan: {e}[/bold red]")
+        raise SystemExit(1) from e
+
+    if format != "json":
+        adjective = "empty " if empty else ""
+        style = "dim" if empty else "bold green"
+        get_console().print(f"[{style}]Saved {adjective}migration plan to {plan}[/{style}]")
+
+
 def _filter_index_edges(
     report: Any, *, status_filter: str | None, impl_state_filter: str | None
 ) -> list[dict[str, Any]]:
@@ -391,69 +430,6 @@ def _index_output_data(
     if report.kanban_path:
         data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
     return data
-
-
-def _summary_data(data: dict[str, Any], *excluded_keys: str) -> dict[str, Any]:
-    """Return a shallow copy of summary data with selected keys removed."""
-    summary = dict(data)
-    for key in excluded_keys:
-        summary.pop(key, None)
-    return summary
-
-
-def _emit_items(emit: StreamEmitter, kind: str, rows: Iterable[dict[str, Any]]) -> None:
-    for row in rows:
-        emit.emit_item(kind, row)
-
-
-def _scan_file_items(root_path: Path, docs_root: str | None) -> list[dict[str, Any]]:
-    from meminit.core.services.repo_config import load_repo_layout
-
-    if not docs_root:
-        return []
-
-    docs_dir = root_path / docs_root
-    if not docs_dir.exists():
-        return []
-
-    layout = load_repo_layout(root_path)
-    items: list[dict[str, Any]] = []
-    for path in docs_dir.rglob("*.md"):
-        owner = layout.namespace_for_path(path)
-        items.append(
-            {
-                "path": path.relative_to(root_path).as_posix(),
-                "namespace": owner.namespace if owner else None,
-                "governed": bool(owner and not owner.is_excluded(path)),
-            }
-        )
-
-    return sorted(items, key=lambda row: row["path"])
-
-
-def _scan_suggestion_items(scan_data: dict[str, Any]) -> list[dict[str, Any]]:
-    docs_root = scan_data.get("docs_root")
-    suggestion_specs = (
-        ("ambiguous_types", "warning", docs_root or "."),
-        ("suggested_namespaces", "info", "docops.config.yaml"),
-        ("suggested_type_directories", "info", docs_root or "."),
-    )
-    suggestions: list[dict[str, Any]] = []
-    for code, severity, path in suggestion_specs:
-        value = scan_data.get(code)
-        if value:
-            suggestions.append(
-                {
-                    "severity": severity,
-                    "code": code,
-                    "path": path,
-                    "value": value,
-                }
-            )
-    return sorted(
-        suggestions,
-        key=lambda row: (row["severity"], row["code"], row["path"]),
-    )
 
 
 @contextlib.contextmanager
@@ -558,7 +534,7 @@ def validate_root_path(
             output=output,
         )
     elif format == "ndjson":
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command,
             error=MeminitError(
                 ErrorCode.INVALID_ROOT_PATH,
@@ -670,7 +646,7 @@ def validate_initialized(
             output=output,
         )
     elif format == "ndjson":
-        _write_ndjson_error(
+        write_ndjson_error(
             command_name=command,
             error=MeminitError(
                 ErrorCode.CONFIG_MISSING,
@@ -1354,21 +1330,11 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             )
 
         use_case = ScanRepositoryUseCase(root_dir=str(root_path))
-        report = use_case.execute(generate_plan=bool(plan))
-        scan_data = report.as_dict()
 
         if format == "ndjson":
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                for item in _scan_file_items(root_path, scan_data.get("docs_root")):
-                    emit.emit_item("file", item)
-                for item in _scan_suggestion_items(scan_data):
-                    emit.emit_item("suggestion", item)
-                summary = _summary_data(scan_data)
-                return SummaryPayload(data=summary)
-
             streaming_output_handler(
                 command="scan",
-                producer=CallableStreamingProducer(produce),
+                producer=CoreStreamingProducer(use_case.iter_stream()),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -1377,50 +1343,20 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
             )
             return
 
+        report = use_case.execute(generate_plan=bool(plan))
+        scan_data = report.as_dict()
+
         if plan and report.plan:
-            plan_path = Path(plan)
-            if not is_safe_cli_output_path(plan_path):
-                raise MeminitError(
-                    ErrorCode.PATH_ESCAPE,
-                    f"Plan path is considered unsafe: {plan}",
-                    details={"plan_path": plan},
-                )
-            try:
-                plan_json = format_envelope(
-                    command="scan",
-                    root=str(root_path),
-                    success=True,
-                    data={"plan": report.plan.as_dict()},
-                    include_timestamp=include_timestamp,
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                )
-                with open(plan_path, "w", encoding="utf-8") as f:
-                    f.write(plan_json + "\n")
-                if format != "json":
-                    get_console().print(
-                        f"[bold green]Saved migration plan to {plan}[/bold green]"
-                    )
-            except Exception as e:
-                if format == "json":
-                    _write_output(
-                        format_error_envelope(
-                            command="scan",
-                            root=str(root_path),
-                            error_code=ErrorCode.UNKNOWN_ERROR,
-                            message=f"Failed to save plan: {e}",
-                            run_id=run_id,
-                            include_timestamp=include_timestamp,
-                            correlation_id=correlation_id,
-                        ),
-                        output,
-                    )
-                    raise SystemExit(1) from e
-                else:
-                    get_console().print(
-                        f"[bold red]Failed to save plan: {e}[/bold red]"
-                    )
-                    raise SystemExit(1) from e
+            _write_scan_plan_artifact(
+                plan=plan,
+                root_path=root_path,
+                migration_plan=report.plan,
+                format=format,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                correlation_id=correlation_id,
+            )
         elif plan:
             # Plan was requested but no actions were generated
             if format != "json":
@@ -1428,34 +1364,22 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     "[yellow]No plan actions generated — repository may already be compliant.[/yellow]"
                 )
             # Write an empty plan envelope so downstream tooling gets a stable artifact
-            try:
-                from meminit.core.services.scan_plan import MigrationPlan
-
-                plan_path = Path(plan)
-                if not is_safe_cli_output_path(plan_path):
-                    pass  # Best-effort, skip file write for unsafe path
-                else:
-                    empty_plan = MigrationPlan(
-                        plan_version="1.0",
-                        generated_at="1970-01-01T00:00:00Z",
-                        config_fingerprint="",
-                        actions=[],
-                    )
-                    empty_plan_json = format_envelope(
-                        command="scan",
-                        root=str(root_path),
-                        success=True,
-                        data={"plan": empty_plan.as_dict()},
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                        correlation_id=correlation_id,
-                    )
-                    with open(plan_path, "w", encoding="utf-8") as f:
-                        f.write(empty_plan_json + "\n")
-                    if format != "json":
-                        get_console().print(f"[dim]Saved empty plan to {plan}[/dim]")
-            except Exception:
-                pass  # Best-effort write, don't fail on empty plan
+            _write_scan_plan_artifact(
+                plan=plan,
+                root_path=root_path,
+                migration_plan=MigrationPlan(
+                    plan_version="1.0",
+                    generated_at="1970-01-01T00:00:00Z",
+                    config_fingerprint="",
+                    actions=[],
+                ),
+                format=format,
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                correlation_id=correlation_id,
+                empty=True,
+            )
 
         if format == "json":
             _write_output(
@@ -1872,6 +1796,43 @@ def index(
             status_filter=status_filter,
             impl_state_filter=impl_state_filter,
         )
+        if format == "ndjson":
+            try:
+                stream_result = use_case.iter_stream(
+                    use_cache=not no_cache,
+                    clear_cache=no_cache or rebuild_cache,
+                )
+                streaming_output_handler(
+                    command="index",
+                    producer=CoreStreamingProducer(stream_result),
+                    output=output,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    root_path=root_path,
+                    correlation_id=correlation_id,
+                )
+            except MeminitError as e:
+                details = e.details if isinstance(e.details, dict) else {}
+                if "errors" in details:
+                    write_ndjson_error(
+                        command_name="index",
+                        error=e,
+                        output=output,
+                        include_timestamp=include_timestamp,
+                        run_id=run_id,
+                        root_path=root_path,
+                        correlation_id=correlation_id,
+                    )
+                    raise SystemExit(exit_code_for_error(e.code)) from e
+                raise
+            has_error = any(
+                w.get("severity") == Severity.ERROR.value
+                for w in stream_result.summary.warnings
+            )
+            if has_error:
+                raise SystemExit(1)
+            return
+
         try:
             report = use_case.execute(
                 use_cache=not no_cache,
@@ -1898,17 +1859,6 @@ def index(
                             correlation_id=correlation_id,
                         ),
                         output,
-                    )
-                    raise SystemExit(exit_code_for_error(e.code)) from e
-                if format == "ndjson":
-                    _write_ndjson_error(
-                        command_name="index",
-                        error=e,
-                        output=output,
-                        include_timestamp=include_timestamp,
-                        run_id=run_id,
-                        root_path=root_path,
-                        correlation_id=correlation_id,
                     )
                     raise SystemExit(exit_code_for_error(e.code)) from e
                 if format == "md":
@@ -1941,47 +1891,6 @@ def index(
             impl_state_filter=impl_state_filter,
         )
         display_edges = data["edges"]
-
-        if format == "ndjson":
-
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                _emit_items(
-                    emit,
-                    "node",
-                    sorted(data["nodes"], key=lambda n: n.get("document_id", "")),
-                )
-                _emit_items(
-                    emit,
-                    "edge",
-                    sorted(
-                        display_edges,
-                        key=lambda e: (
-                            e.get("source", ""),
-                            e.get("target", ""),
-                            e.get("type", e.get("edge_type", "")),
-                        ),
-                    ),
-                )
-                summary = _summary_data(data, "nodes", "edges")
-                return SummaryPayload(
-                    data=summary,
-                    warnings=warnings_list,
-                    advice=getattr(report, "advice", []),
-                )
-
-            streaming_output_handler(
-                command="index",
-                producer=CallableStreamingProducer(produce),
-                output=output,
-                include_timestamp=include_timestamp,
-                run_id=run_id,
-                root_path=root_path,
-                correlation_id=correlation_id,
-                success=not has_error,
-            )
-            if has_error:
-                raise SystemExit(1)
-            return
 
         if format == "json":
             _write_output(
@@ -3284,36 +3193,11 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
             )
 
         use_case = ContextRepositoryUseCase(root_dir=root_path)
-        result = use_case.execute(deep=deep)
 
         if format == "ndjson":
-            def produce(emit: StreamEmitter) -> SummaryPayload:
-                namespaces = result.data.get("namespaces", [])
-                for ns in sorted(namespaces, key=lambda n: n.get("name", "")):
-                    emit.emit_item("namespace", ns)
-                doc_type_rows = []
-                for doc_type, payload in result.data.get("document_types", {}).items():
-                    row = {"type": doc_type}
-                    if isinstance(payload, dict):
-                        row.update(payload)
-                    row["type"] = doc_type
-                    doc_type_rows.append(row)
-                _emit_items(
-                    emit,
-                    "document_type",
-                    sorted(doc_type_rows, key=lambda r: r.get("type", "")),
-                )
-                _emit_items(
-                    emit,
-                    "document",
-                    sorted(result.documents, key=lambda row: row["document_id"]),
-                )
-                summary = _summary_data(result.data, "namespaces", "documents")
-                return SummaryPayload(data=summary, warnings=result.warnings)
-
             streaming_output_handler(
                 command="context",
-                producer=CallableStreamingProducer(produce),
+                producer=CoreStreamingProducer(use_case.iter_stream()),
                 output=output,
                 include_timestamp=include_timestamp,
                 run_id=run_id,
@@ -3321,6 +3205,8 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
                 correlation_id=correlation_id,
             )
             return
+
+        result = use_case.execute(deep=deep)
 
         if format == "json":
             _write_output(
@@ -3609,7 +3495,7 @@ def _state_set_execute(
 ):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.set_state(
         document_id,
         impl_state=impl_state,
@@ -3816,7 +3702,7 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             correlation_id=correlation_id,
         )
 
-        use_case = StateDocumentUseCase(str(root_path))
+        use_case = StateDocumentUseCase(str(root_path), strict_config=True)
         result = use_case.get_state(document_id)
 
         if format == "json":
@@ -3858,19 +3744,19 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
 def _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
     if ready and no_ready:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --ready and --no-ready.",
             details={"conflicting_flags": ["--ready", "--no-ready"]},
         )
     if blocked and no_blocked:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --blocked and --no-blocked.",
             details={"conflicting_flags": ["--blocked", "--no-blocked"]},
         )
     if ready and blocked:
         raise MeminitError(
-            code=ErrorCode.E_INVALID_FILTER_VALUE,
+            code=ErrorCode.STATE_INVALID_FILTER_VALUE,
             message="Cannot specify both --ready and --blocked (an entry cannot be both ready and blocked).",
             details={"conflicting_flags": ["--ready", "--blocked"]},
         )
@@ -3906,7 +3792,7 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
         output=output,
         correlation_id=correlation_id,
     )
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     result = use_case.list_states(
         ready=ready_filter,
         blocked=blocked_filter,
@@ -4091,7 +3977,7 @@ def state_list(root, format, output, include_timestamp, correlation_id,
 def _state_next_execute(root_path, assignee, priority_at_least):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.next_state(assignee=assignee, priority_at_least=priority_at_least)
 
 
@@ -4162,7 +4048,7 @@ def _render_state_next_text(result, fmt, output):
 def _state_blockers_execute(root_path, assignee):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
-    use_case = StateDocumentUseCase(str(root_path))
+    use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.blockers_state(assignee=assignee)
 
 

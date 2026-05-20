@@ -16,6 +16,8 @@ from meminit.core.services.project_state import (
     ProjectStateEntry,
     STATE_SCHEMA_VERSION,
     STATE_SCHEMA_VERSION_LEGACY,
+    get_state_file_rel_path_fallback,
+    get_state_file_rel_path_strict,
     load_project_state,
     save_project_state,
     validate_project_state,
@@ -102,13 +104,13 @@ def test_load_project_state_missing_file(tmp_path):
 
 
 def test_load_project_state_malformed_yaml(tmp_path):
-    """Raises MeminitError with E_STATE_YAML_MALFORMED for invalid YAML."""
+    """Raises MeminitError with STATE_YAML_MALFORMED for invalid YAML."""
     _write_state_file(tmp_path, "documents:\n  - bad: yaml: invalid: [\n")
 
     with pytest.raises(MeminitError) as exc_info:
         load_project_state(tmp_path)
 
-    assert exc_info.value.code == ErrorCode.E_STATE_YAML_MALFORMED
+    assert exc_info.value.code == ErrorCode.STATE_YAML_MALFORMED
 
 
 def test_load_project_state_empty_file(tmp_path):
@@ -123,7 +125,7 @@ def test_load_project_state_invalid_documents_shape(tmp_path):
     _write_state_file(tmp_path, "documents: []\n")
     state = load_project_state(tmp_path)
     assert state is not None
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
 
 
 def test_load_project_state_invalid_updated_defaults_with_warning(tmp_path):
@@ -135,7 +137,7 @@ def test_load_project_state_invalid_updated_defaults_with_warning(tmp_path):
     state = load_project_state(tmp_path, default_now=now)
     assert state is not None
     assert "MEMINIT-PRD-003" not in state.entries
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in [v.rule for v in state.schema_violations]
 
 
 def test_load_project_state_missing_updated_defaults_with_warning(tmp_path):
@@ -164,7 +166,7 @@ def test_load_project_state_non_string_doc_id(tmp_path):
     assert state is not None
     assert len(state.entries) == 0
     rules = [v.rule for v in state.schema_violations]
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in rules
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in rules
     messages = [v.message for v in state.schema_violations]
     assert any("must be a string" in m for m in messages)
 
@@ -174,7 +176,7 @@ def test_load_project_state_missing_documents_key_with_other_keys(tmp_path):
     _write_state_file(tmp_path, 'version: "1.0"\nmetadata:\n  foo: bar\n')
     with pytest.raises(MeminitError) as exc_info:
         load_project_state(tmp_path)
-    assert exc_info.value.code == ErrorCode.E_STATE_SCHEMA_VIOLATION
+    assert exc_info.value.code == ErrorCode.STATE_SCHEMA_VIOLATION
     assert "no 'documents' key" in exc_info.value.message
 
 
@@ -450,6 +452,97 @@ def test_get_state_file_rel_path_default(tmp_path):
     assert get_state_file_rel_path(tmp_path) == "docs/01-indices/project-state.yaml"
 
 
+def test_get_state_file_rel_path_strict_custom_docs_root(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "docops_version: '2.0'\ndocs_root: handbook\n",
+        encoding="utf-8",
+    )
+
+    assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+
+
+def test_get_state_file_rel_path_strict_namespace_docs_root(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+docops_version: '2.0'
+namespaces:
+  - name: handbook
+    docs_root: handbook
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    assert get_state_file_rel_path_strict(tmp_path) == "handbook/01-indices/project-state.yaml"
+
+
+def test_get_state_file_rel_path_strict_raises_when_layout_load_fails(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+docops_version: '2.0'
+docs_root: handbook
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    from unittest import mock
+
+    with mock.patch(
+        "meminit.core.services.repo_config.load_repo_layout",
+        side_effect=ValueError("broken layout"),
+    ), pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "invalid_layout"
+
+
+def test_get_state_file_rel_path_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "missing"
+
+
+def test_get_state_file_rel_path_strict_malformed_config_raises(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text("docops_version: [\n", encoding="utf-8")
+
+    with pytest.raises(MeminitError) as exc_info:
+        get_state_file_rel_path_strict(tmp_path)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+    assert exc_info.value.details["reason"] == "unparseable"
+
+
+def test_get_state_file_rel_path_fallback_preserves_default_for_diagnostics(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text("docops_version: [\n", encoding="utf-8")
+
+    assert get_state_file_rel_path_fallback(tmp_path) == "docs/01-indices/project-state.yaml"
+
+
+def test_load_project_state_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        load_project_state(tmp_path, strict_config=True)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+
+def test_load_project_state_strict_missing_state_file_remains_optional(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "docops_version: '2.0'\ndocs_root: docs\n",
+        encoding="utf-8",
+    )
+
+    assert load_project_state(tmp_path, strict_config=True) is None
+
+
+def test_save_project_state_strict_missing_config_raises(tmp_path):
+    with pytest.raises(MeminitError) as exc_info:
+        save_project_state(tmp_path, ProjectState(), strict_config=True)
+
+    assert exc_info.value.code == ErrorCode.CONFIG_MISSING
+
+
 # ---------------------------------------------------------------------------
 # v2 schema: load, save, round-trip
 # ---------------------------------------------------------------------------
@@ -540,7 +633,7 @@ def test_load_explicit_unknown_schema_version_surfaces_violation(tmp_path):
     assert state is not None
     assert state.schema_version == "3.0"
     codes = [v.rule for v in state.schema_violations]
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in codes
     messages = " ".join(v.message for v in state.schema_violations)
     assert "state_schema_version" in messages
     assert "'2.0'" in messages
@@ -867,7 +960,7 @@ def test_non_string_priority_surfaces_violation(tmp_path):
     state = _make_state_with_entry(tmp_path, priority=123)
     assert state.entries["TEST-ADR-001"].priority == "123"
     codes = [v.rule for v in state.schema_violations]
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in codes
     messages = " ".join(v.message for v in state.schema_violations)
     assert "priority" in messages
     assert "int" in messages
@@ -899,7 +992,7 @@ def test_unknown_entry_field_surfaces_schema_violation(tmp_path):
 
     assert "TEST-ADR-001" in state.entries
     codes = [v.rule for v in state.schema_violations]
-    assert ErrorCode.E_STATE_SCHEMA_VIOLATION.value in codes
+    assert ErrorCode.STATE_SCHEMA_VIOLATION.value in codes
     messages = " ".join(v.message for v in state.schema_violations)
     assert "unknown field" in messages
     assert "assigneee" in messages

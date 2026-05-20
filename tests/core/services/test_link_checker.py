@@ -40,3 +40,14 @@ def test_external_link_ignored():
     body = "See [Google](https://google.com)."
     violation = checker.validate_links("docs/source.md", body)
     assert len(violation) == 0
+
+
+def test_link_escape_outside_root_is_rejected_even_if_target_exists():
+    checker = LinkChecker(root_dir="/app")
+    body = "See [Secret](../../secret.md) for info."
+    checker._file_exists = lambda p: str(p).endswith("secret.md")
+
+    violations = checker.validate_links("docs/source.md", body)
+    assert len(violations) == 1
+    assert violations[0].rule == "LINK_BROKEN"
+    assert "outside root" in violations[0].message.lower()

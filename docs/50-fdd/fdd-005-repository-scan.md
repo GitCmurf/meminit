@@ -3,8 +3,8 @@ document_id: MEMINIT-FDD-005
 type: FDD
 title: Repository Scan (meminit scan)
 status: Approved
-version: 1.0
-last_updated: 2026-03-01
+version: 1.1
+last_updated: 2026-05-18
 owner: GitCmurf
 docops_version: 2.0
 ---
@@ -24,6 +24,8 @@ Provide a read-only “brownfield assessment” that inspects an existing repo a
 
 - Command: `meminit scan --root .`
 - Output: JSON report to stdout; optional `--plan <filename>` to write a deterministic JSON plan.
+  `--plan` is strict: unsafe paths and write failures return structured errors
+  instead of success, and no-action scans write an empty plan artifact.
 - Detection:
   - Determine docs root from `docops.config.yaml` or infer `docs/` if present.
   - Count Markdown files under docs root.
@@ -41,9 +43,13 @@ Provide a read-only “brownfield assessment” that inspects an existing repo a
 
 - Use case: `src/meminit/core/use_cases/scan_repository.py`
 - CLI: `meminit scan` in `src/meminit/cli/main.py`
+- Plan artifact behavior: all `--plan` writes use the same validation and
+  error handling, whether the generated action list is populated or empty.
 
 ## Tests
 
 - Suggests `ADR` directory override when `docs/adrs` exists.
 - Reports missing docs root if no docs directory and no config.
 - Reports ambiguous ADR directories when both `docs/adrs` and `docs/decisions` exist.
+- Writes an empty plan artifact for a no-action scan, rejects unsafe plan paths,
+  and reports write failures without claiming success.

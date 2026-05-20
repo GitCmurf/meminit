@@ -39,20 +39,17 @@ class TemplateInterpolator:
     Unknown variables are rejected with UNKNOWN_TEMPLATE_VARIABLE.
     """
 
-    # Preferred {{variable}} patterns - compiled on initialization
-    _PREFERRED_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-        (re.compile(r'\{\{\s*title\s*\}\}'), 'title'),
-        (re.compile(r'\{\{\s*document_id\s*\}\}'), 'document_id'),
-        (re.compile(r'\{\{\s*owner\s*\}\}'), 'owner'),
-        (re.compile(r'\{\{\s*status\s*\}\}'), 'status'),
-        (re.compile(r'\{\{\s*date\s*\}\}'), 'date'),
-        (re.compile(r'\{\{\s*repo_prefix\s*\}\}'), 'repo_prefix'),
-        (re.compile(r'\{\{\s*seq\s*\}\}'), 'seq'),
-        (re.compile(r'\{\{\s*type\s*\}\}'), 'type'),
-        (re.compile(r'\{\{\s*area\s*\}\}'), 'area'),
-        (re.compile(r'\{\{\s*description\s*\}\}'), 'description'),
-        (re.compile(r'\{\{\s*keywords\s*\}\}'), 'keywords'),
-        (re.compile(r'\{\{\s*related_ids\s*\}\}'), 'related_ids'),
+    # All known variable names for single-pass regex and validation.
+    _KNOWN_VARIABLES = (
+        'title', 'document_id', 'owner', 'status', 'date',
+        'repo_prefix', 'seq', 'type', 'area', 'description',
+        'keywords', 'related_ids',
+    )
+
+    # Single regex matching all known {{variable}} patterns.
+    # Captures the variable name as group 1 for lookup-based replacement.
+    _ALL_VARIABLES_PATTERN = re.compile(
+        r'\{\{\s*(' + '|'.join(_KNOWN_VARIABLES) + r')\s*\}\}'
     )
 
     # Legacy patterns to detect and reject - compiled on initialization
@@ -79,7 +76,7 @@ class TemplateInterpolator:
 
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""
-        self._preferred = self._PREFERRED_PATTERNS
+        self._known_vars = set(self._KNOWN_VARIABLES)
         self._legacy = self._LEGACY_PATTERNS
         self._unknown = self._UNKNOWN_PATTERN
 
@@ -94,12 +91,13 @@ class TemplateInterpolator:
         Raises errors for legacy syntax or unknown variables.
 
         **Security note:** Substitution is safe against injection because:
-        1. Only an explicit allowlist of variable names is matched
-           (compiled regexes in ``_PREFERRED_PATTERNS``).
-        2. Replacement uses ``re.sub`` with a *lambda* callable, so
-           replacement strings cannot trigger backreference expansion.
-        3. Any ``{{...}}`` token not in the allowlist is rejected by
-           ``_raise_on_unknown_variables``.
+         1. Only an explicit allowlist of variable names is matched via a
+            single regex (``_ALL_VARIABLES_PATTERN``).
+         2. Replacement uses ``re.sub`` with a lookup *function*, so
+            replacement strings cannot trigger backreference expansion
+            or re-substitution of injected placeholder-like text.
+         3. Any ``{{...}}`` token not in the allowlist is rejected by
+            ``_raise_on_unknown_variables`` **before** any substitution.
 
         Args:
             template: The template content with {{variable}} placeholders.
@@ -120,27 +118,47 @@ class TemplateInterpolator:
         self._raise_on_unknown_variables(template)
 
         substitutions: Dict[str, str] = self._build_substitutions(**kwargs)
-        result = template
 
-        # Apply preferred {{variable}} patterns
-        # Use lambda to avoid backreference interpretation in replacement string
-        # Sanitize values to prevent injection into markdown comments and markers
-        for pattern, key in self._preferred:
-            value = substitutions.get(key, '')
+        def _replacer(match: re.Match[str]) -> str:
+            var_name = match.group(1)
+            value = substitutions.get(var_name, '')
             # Sanitize to prevent injection attacks
-            sanitized_value = value.replace("<!--", "&lt;!--").replace("-->", "--&gt;").replace("\n", " ").replace("\r", " ")
-            result = pattern.sub(lambda m, v=sanitized_value: v, result)
+            return value.replace("<!--", "&lt;!--").replace("-->", "--&gt;").replace("\n", " ").replace("\r", " ")
 
-        return result
+        return self._ALL_VARIABLES_PATTERN.sub(_replacer, template)
 
     def _build_substitutions(self, **kwargs: Any) -> Dict[str, str]:
         """Build the substitution dictionary from kwargs.
 
         Handles list-type fields (keywords, related_ids) by joining them.
+        Validates list fields are actually lists of strings to prevent
+        silent mangling (e.g. a string being iterated character-by-character).
         Coerces None values to empty strings to avoid literal "None" in output.
         """
         keywords = kwargs.get('keywords', [])
         related_ids = kwargs.get('related_ids', [])
+
+        def _validate_list_field(value: Any, name: str) -> list[str]:
+            if value is None:
+                return []
+            if not isinstance(value, list):
+                raise MeminitError(
+                    ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
+                    f"'{name}' must be a list of strings, got {type(value).__name__}",
+                    details={"field": name, "type": type(value).__name__},
+                )
+            for i, item in enumerate(value):
+                if not isinstance(item, str):
+                    raise MeminitError(
+                        ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
+                        f"'{name}' must contain only strings, "
+                        f"item at index {i} is {type(item).__name__}",
+                        details={"field": name, "index": i, "type": type(item).__name__},
+                    )
+            return value
+
+        validated_keywords = _validate_list_field(keywords, 'keywords')
+        validated_related_ids = _validate_list_field(related_ids, 'related_ids')
 
         return {
             'title': str(kwargs.get('title') or ''),
@@ -153,8 +171,8 @@ class TemplateInterpolator:
             'type': str(kwargs.get('doc_type') or ''),
             'area': str(kwargs.get('area') or ''),
             'description': str(kwargs.get('description') or ''),
-            'keywords': ', '.join(keywords) if keywords else '',
-            'related_ids': ', '.join(related_ids) if related_ids else '',
+            'keywords': ', '.join(validated_keywords) if validated_keywords else '',
+            'related_ids': ', '.join(validated_related_ids) if validated_related_ids else '',
         }
 
     def _raise_on_legacy_tokens(self, content: str) -> None:
@@ -180,12 +198,10 @@ class TemplateInterpolator:
 
         Scans for any {{...}} patterns that weren't substituted.
         """
-        # Compute known vars set inline from _PREFERRED_PATTERNS
-        known_vars = {key for _, key in self._preferred}
         unknown = set()
         for match in self._unknown.finditer(content):
             var_name = match.group(1).strip()
-            if var_name not in known_vars:
+            if var_name not in self._known_vars:
                 unknown.add(var_name or "<empty>")
 
         if unknown:
@@ -194,7 +210,7 @@ class TemplateInterpolator:
                 message=f"Unknown template variables: {', '.join(sorted(unknown))}",
                 details={
                     "unknown_variables": sorted(unknown),
-                    "known_variables": sorted(known_vars)
+                    "known_variables": sorted(self._known_vars)
                 }
             )
 

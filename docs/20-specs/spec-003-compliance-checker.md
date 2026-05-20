@@ -134,6 +134,8 @@ Counter semantics:
 - **Regex:** Must match `^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$`.
 - **Uniqueness:** ID must be unique within the scanned scope.
 - **Namespace prefix (monorepo mode):** When `namespaces` are configured, `document_id` MUST start with the namespace `repo_prefix` (rule: `ID_PREFIX`).
+- Namespace resolution uses the configured `repo_prefix` as a leading token boundary, not the first hyphen-delimited token in `document_id`.
+- An empty `repo_prefix` is treated as a fallback namespace only when no non-empty namespace prefix matches the `document_id`.
 - **Immutability:** (Future) Check against git history if possible, or index.
 
 ### 3.2 Frontmatter Validation

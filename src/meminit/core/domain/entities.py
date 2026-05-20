@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
@@ -8,6 +9,10 @@ from typing import Any, Dict, List, Optional
 class Severity(str, Enum):
     ERROR = "error"
     WARNING = "warning"
+
+
+VALID_STATUSES = frozenset({"Draft", "In Review", "Approved", "Superseded"})
+_DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 
 
 @dataclass
@@ -45,6 +50,21 @@ class Violation:
     rule: str
     message: str
     severity: Severity = Severity.ERROR
+
+    def __post_init__(self) -> None:
+        if isinstance(self.severity, str):
+            try:
+                object.__setattr__(self, "severity", Severity(self.severity))
+            except ValueError:
+                raise ValueError(
+                    f"Invalid severity '{self.severity}': must be one of "
+                    f"{[e.value for e in Severity]}"
+                )
+        elif not isinstance(self.severity, Severity):
+            raise ValueError(
+                f"Invalid severity type '{type(self.severity).__name__}': "
+                f"must be a Severity enum or string"
+            )
 
 
 @dataclass
@@ -101,6 +121,12 @@ class NewDocumentParams:
     document_id: Optional[str] = None
     dry_run: bool = False
     verbose: bool = False
+
+    def __post_init__(self) -> None:
+        if self.status not in VALID_STATUSES:
+            raise ValueError(
+                f"Invalid status '{self.status}': must be one of {sorted(VALID_STATUSES)}"
+            )
 
 
 @dataclass

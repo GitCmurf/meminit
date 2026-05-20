@@ -1,5 +1,8 @@
 """Tests for the capabilities registry and use case."""
 
+import tomllib
+from pathlib import Path
+
 import click
 
 from importlib.metadata import PackageNotFoundError
@@ -36,7 +39,6 @@ def test_capabilities_use_case_returns_deterministic_output():
     assert data1 == data2
 
 
-
 def test_capabilities_use_case_falls_back_to_pyproject_version(monkeypatch):
     """Capabilities must work in source-tree runs when package metadata is absent."""
     monkeypatch.setattr(
@@ -46,9 +48,22 @@ def test_capabilities_use_case_falls_back_to_pyproject_version(monkeypatch):
     )
     versioning.get_cli_version.cache_clear()
 
+    expected_version = _parse_pyproject_version()
     caps = CapabilitiesUseCase().execute()
-    assert caps["cli_version"] == versioning.get_cli_version()
+    assert caps["cli_version"] == expected_version, (
+        f"Expected cli_version to fall back to pyproject.toml version {expected_version}, "
+        f"got {caps['cli_version']}"
+    )
     versioning.get_cli_version.cache_clear()
+
+
+def _parse_pyproject_version() -> str:
+    import tomllib
+
+    pyproject_path = Path(__file__).resolve().parents[3] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
 
 
 def test_capabilities_includes_required_fields():
@@ -170,7 +185,6 @@ def test_agent_facing_commands_support_json_and_correlation():
                 violations.append(f"{cmd['name']}: supports_json=False")
             if not cmd["supports_correlation_id"]:
                 violations.append(f"{cmd['name']}: supports_correlation_id=False")
-    assert not violations, (
-        "Agent-facing commands must support JSON and correlation IDs: "
-        + "; ".join(violations)
-    )
+    assert (
+        not violations
+    ), "Agent-facing commands must support JSON and correlation IDs: " + "; ".join(violations)

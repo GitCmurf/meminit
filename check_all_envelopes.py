@@ -1,18 +1,40 @@
 import json
+import shutil
 import subprocess
 import os
+import sys
+import tempfile
 from pathlib import Path
 
-REPO_ROOT = os.getcwd()
-VENV_PYTHON = REPO_ROOT + "/.venv/bin/python3"
+from packaging.version import InvalidVersion, Version
+
+from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
+
+REPO_ROOT = Path(os.getcwd())
+TIMEOUT = 300
+VENV_PYTHON = str(REPO_ROOT / ".venv" / "bin" / "python3")
+
+MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
+
 
 def check_command(cmd_args, expected_data_keys=None):
     print(f"Checking: {' '.join(cmd_args)}")
     env = os.environ.copy()
-    env["PYTHONPATH"] = REPO_ROOT + "/src"
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
     
     full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
-    result = subprocess.run(full_cmd, env=env, capture_output=True, text=True)
+    try:
+        result = subprocess.run(full_cmd, env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"  FAILED: command timed out after {TIMEOUT}s")
+        return False
+    
+    # Check command exit status (Finding #2)
+    if result.returncode != 0:
+        print(f"  FAILED: command exited with code {result.returncode}")
+        print(f"  STDOUT: {result.stdout}")
+        print(f"  STDERR: {result.stderr}")
+        return False
     
     # Try to parse JSON from stdout
     try:
@@ -29,8 +51,19 @@ def check_command(cmd_args, expected_data_keys=None):
         print(f"  FAILED: missing fields: {missing}")
         return False
     
-    if envelope["output_schema_version"] != "2.0":
-        print(f"  FAILED: wrong schema version: {envelope['output_schema_version']}")
+    # Check success field (Finding #2)
+    if not envelope.get("success", False):
+        print("  FAILED: envelope indicates failure (success=false)")
+        print(f"  DATA: {envelope}")
+        return False
+    
+    try:
+        ver_current = Version(envelope["output_schema_version"])
+    except InvalidVersion:
+        print(f"  FAILED: invalid schema version '{envelope['output_schema_version']}'")
+        return False
+    if ver_current < Version(MIN_SUPPORTED_SCHEMA_VERSION):
+        print(f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}")
         return False
 
     if expected_data_keys:
@@ -43,49 +76,83 @@ def check_command(cmd_args, expected_data_keys=None):
     print("  OK")
     return True
 
-# Setup test repo
-test_dir = Path("/tmp/meminit_test_envelope")
-if test_dir.exists():
-    import shutil
-    shutil.rmtree(test_dir)
-test_dir.mkdir()
-os.chdir(test_dir)
+# Setup test repo with unique temp directory (Finding #12)
+original_cwd = Path.cwd()
+_test_dir_ctx = tempfile.TemporaryDirectory(prefix="meminit_test_envelope_")
+try:
+    test_dir = Path(_test_dir_ctx.name)
+    os.chdir(test_dir)
 
-# Initialize
-env = os.environ.copy()
-env["PYTHONPATH"] = REPO_ROOT + "/src"
-subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"], env=env)
+    # Initialize
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    try:
+        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"init failed: command timed out after {TIMEOUT}s")
+        sys.exit(1)
+    if result.returncode != 0:
+        print(f"init failed (exit {result.returncode}): {result.stderr}")
+        sys.exit(1)
 
-# Create index directory to avoid early error
-(test_dir / "docs" / "01-indices").mkdir(parents=True, exist_ok=True)
-(test_dir / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
+    # Create index directory to avoid early error
+    (test_dir / "docs" / "01-indices").mkdir(parents=True, exist_ok=True)
+    (test_dir / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
 
-# Run index to create index file
-subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"], env=env)
+    # Create a governed document for the identify test
+    (test_dir / "docs" / "45-adr" / "adr-001-test.md").write_text(
+        "---\n"
+        "document_id: MEMINIT-ADR-001\n"
+        "type: ADR\n"
+        "title: Test ADR\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2024-01-01\n"
+        "owner: test\n"
+        "docops_version: 2.0\n"
+        "---\n"
+        "\n"
+        "# MEMINIT-ADR-001: Test ADR\n"
+    )
 
-# List of commands to test
-commands = [
-    (["check"], []),
-    (["context"], ["namespaces", "repo_prefix"]),
-    (["doctor"], ["issues"]),
-    (["scan"], ["report"]),
-    (["index"], ["index_path"]),
-    (["resolve", "MEMINIT-ADR-001"], []), 
-    (["identify", "docs/45-adr/adr-001-test.md"], []),
-    (["link", "MEMINIT-ADR-001"], []),
-    (["migrate-ids"], ["report"]),
-    (["install-precommit"], ["installed"]),
-    (["new", "ADR", "TestADR", "--dry-run"], ["document_id", "path"]),
-    (["adr", "new", "TestADR2"], ["path"]),
-    (["org", "install", "--dry-run"], ["installed"]),
-    (["org", "status"], ["profile_name"]),
-    (["org", "vendor", "--dry-run"], ["profile_name"]),
-]
+    # Run index to create index file
+    try:
+        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"index failed: command timed out after {TIMEOUT}s")
+        sys.exit(1)
+    if result.returncode != 0:
+        print(f"index failed (exit {result.returncode}): {result.stderr}")
+        sys.exit(1)
 
-all_ok = True
-for cmd, keys in commands:
-    if not check_command(cmd, keys):
-        all_ok = False
+    # List of commands to test
+    commands = [
+        (["check"], []),
+        (["context"], ["namespaces", "repo_prefix"]),
+        (["doctor"], ["issues"]),
+        (["scan"], ["report"]),
+        (["index"], ["index_path"]),
+        (["resolve", "MEMINIT-ADR-001"], []), 
+        (["identify", "docs/45-adr/adr-001-test.md"], []),
+        (["link", "MEMINIT-ADR-001"], []),
+        (["migrate-ids"], ["report"]),
+        (["install-precommit"], ["installed"]),
+        (["new", "ADR", "TestADR", "--dry-run"], ["document_id", "path"]),
+        (["adr", "new", "TestADR2"], ["path"]),
+        (["org", "install", "--dry-run"], ["installed"]),
+        (["org", "status"], ["profile_name"]),
+        (["org", "vendor", "--dry-run"], ["profile_name"]),
+    ]
+
+    all_ok = True
+    for cmd, keys in commands:
+        if not check_command(cmd, keys):
+            all_ok = False
+finally:
+    os.chdir(original_cwd)
+    _test_dir_ctx.cleanup()
 
 if all_ok:
     print("\nALL COMMANDS CONFORM TO ENVELOPE")

@@ -3,11 +3,12 @@ from __future__ import annotations
 import io
 import os
 import signal
+from dataclasses import dataclass
+from typing import Callable
 
 import pytest
 
 from meminit.cli.streaming import (
-    CallableStreamingProducer,
     StreamEmitter,
     SummaryPayload,
     streaming_output_handler,
@@ -17,6 +18,14 @@ from meminit.core.services.exit_codes import exit_code_for_error
 from tests.cli.streaming_helpers import records
 
 RUN_ID = "11111111-1111-4111-8111-111111111111"
+
+
+@dataclass(frozen=True)
+class CallableStreamingProducer:
+    func: Callable[[StreamEmitter], SummaryPayload]
+
+    def produce(self, emit: StreamEmitter) -> SummaryPayload:
+        return self.func(emit)
 
 
 def test_stream_emitter_sequences_and_counts(stream_schema_validator):

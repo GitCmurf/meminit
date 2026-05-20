@@ -26,6 +26,32 @@ def parse_first_json_line(output: str) -> dict:
     raise ValueError("No JSON envelope found in output")
 
 
+def parse_json_envelope(output: str) -> dict:
+    """Parse exactly one JSON envelope from CLI output.
+
+    Strict variant: asserts exactly one JSON dict is present in the output.
+    Raises ValueError if zero or multiple JSON objects are found.
+    """
+    candidates: list[dict] = []
+    for line in output.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+            if isinstance(obj, dict):
+                candidates.append(obj)
+        except json.JSONDecodeError:
+            continue
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise ValueError("No JSON envelope found in output")
+    raise ValueError(
+        f"Expected exactly 1 JSON envelope, found {len(candidates)}"
+    )
+
+
 def stdout_text(result: "Result") -> str:
     """Extract pure stdout from a Click test result.
 

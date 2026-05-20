@@ -1,5 +1,7 @@
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 
+from tests.cli.streaming_helpers import create_initialized_repo
+
 
 def test_scan_suggests_type_directory_for_adr(tmp_path):
     docs_root = tmp_path / "docs"
@@ -108,4 +110,91 @@ def test_scan_reports_configured_namespaces_and_overlaps(tmp_path):
     assert any(
         o.get("parent_docs_root") == "docs" and o.get("child_docs_root") == "docs/00-governance/org"
         for o in report.overlapping_namespaces
+    )
+
+
+def test_scan_counts_same_root_namespace_by_document_id(tmp_path):
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    (tmp_path / "docops.config.yaml").write_text(
+        "\n".join(
+            [
+                "project_name: Example",
+                "repo_prefix: EXAMPLE",
+                "docops_version: '2.0'",
+                "namespaces:",
+                "  - name: root",
+                "    repo_prefix: EXAMPLE",
+                "    docs_root: docs",
+                "  - name: phyla",
+                "    repo_prefix: PHYLA",
+                "    docs_root: docs",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "45-adr" / "root-doc.md").write_text(
+        "---\n"
+        "document_id: EXAMPLE-ADR-001\n"
+        "type: ADR\n"
+        "title: Root\n"
+        "---\n\n# Root\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "45-adr" / "phyla-doc.md").write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Phyla\n"
+        "---\n\n# Phyla\n",
+        encoding="utf-8",
+    )
+
+    report = ScanRepositoryUseCase(str(tmp_path)).execute()
+
+    namespaces = {ns["namespace"]: ns["governed_markdown_count"] for ns in report.configured_namespaces}
+    assert namespaces == {"root": 1, "phyla": 1}
+    assert report.governed_markdown_count == 2
+
+
+def test_scan_stream_does_not_load_frontmatter_for_unique_namespace(tmp_path, monkeypatch):
+    create_initialized_repo(tmp_path)
+    use_case = ScanRepositoryUseCase(str(tmp_path))
+
+    def fail_load(*args, **kwargs):
+        raise AssertionError("frontmatter.load should not run for unique namespace matches")
+
+    monkeypatch.setattr("meminit.core.use_cases.scan_repository.frontmatter.load", fail_load)
+
+    first = next(use_case.iter_stream().records)
+
+    assert first.kind == "file"
+    assert first.data["namespace"] == "default"
+    assert first.data["governed"] is True
+
+
+def test_scan_stream_reuses_single_markdown_snapshot(tmp_path, monkeypatch):
+    create_initialized_repo(tmp_path)
+    use_case = ScanRepositoryUseCase(str(tmp_path))
+
+    call_count = 0
+    real_iter_markdown_paths = ScanRepositoryUseCase._iter_markdown_paths
+
+    def counting_iter_markdown_paths(self, docs_dir):
+        nonlocal call_count
+        call_count += 1
+        yield from real_iter_markdown_paths(self, docs_dir)
+
+    monkeypatch.setattr(
+        ScanRepositoryUseCase,
+        "_iter_markdown_paths",
+        counting_iter_markdown_paths,
+    )
+
+    stream = use_case.iter_stream()
+    records = list(stream.records)
+
+    assert call_count == 1
+    assert stream.summary.data["markdown_count"] == sum(
+        1 for record in records if record.kind == "file"
     )

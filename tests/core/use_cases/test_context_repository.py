@@ -144,6 +144,65 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     assert result.warnings == []
 
 
+def test_context_repository_execute_deep_uses_document_id_for_same_root_namespaces(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "\n".join(
+            [
+                "project_name: Test",
+                "repo_prefix: TST",
+                "docops_version: '2.0'",
+                "namespaces:",
+                "  - name: root",
+                "    docs_root: docs",
+                "    repo_prefix: TEST",
+                "  - name: phyla",
+                "    docs_root: docs",
+                "    repo_prefix: PHYLA",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "00-governance" / "root.md").write_text(
+        "---\n"
+        "document_id: TEST-ADR-001\n"
+        "type: ADR\n"
+        "title: Root\n"
+        "---\n\n# Root\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance" / "phyla.md").write_text(
+        "---\n"
+        "document_id: PHYLA-ADR-001\n"
+        "type: ADR\n"
+        "title: Phyla\n"
+        "---\n\n# Phyla\n",
+        encoding="utf-8",
+    )
+
+    result = ContextRepositoryUseCase(root_dir=tmp_path).execute(deep=True)
+
+    namespaces = {ns["name"]: ns["document_count"] for ns in result.data["namespaces"]}
+    assert namespaces == {"root": 1, "phyla": 1}
+    assert result.documents == [
+        {
+            "document_id": "PHYLA-ADR-001",
+            "namespace": "phyla",
+            "path": "docs/00-governance/phyla.md",
+            "title": "Phyla",
+            "type": "ADR",
+        },
+        {
+            "document_id": "TEST-ADR-001",
+            "namespace": "root",
+            "path": "docs/00-governance/root.md",
+            "title": "Root",
+            "type": "ADR",
+        },
+    ]
+
+
 def test_context_repository_execute_deep_budget_exhaustion(tmp_path):
     _write_config(tmp_path)
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)

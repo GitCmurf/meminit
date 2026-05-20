@@ -145,15 +145,30 @@ def load_index_documents(index_path: Path) -> List[Dict[str, Any]]:
     if isinstance(data_field, dict):
         if "nodes" in data_field:
             docs = data_field.get("nodes")
-            return docs if isinstance(docs, list) else []
+            if isinstance(docs, list):
+                return docs
+            raise ValueError(
+                f"Malformed index envelope in {index_path}: "
+                f"'data.nodes' must be a list, got {type(docs).__name__}"
+            )
         if "documents" in data_field:
             docs = data_field.get("documents")
-            return docs if isinstance(docs, list) else []
+            if isinstance(docs, list):
+                return docs
+            raise ValueError(
+                f"Malformed index envelope in {index_path}: "
+                f"'data.documents' must be a list, got {type(docs).__name__}"
+            )
         raise ValueError(
             f"Malformed index envelope in {index_path}: "
             f"'data' dict contains neither 'nodes' nor 'documents'"
         )
     if "documents" in data:
         docs = data.get("documents")
-        return docs if isinstance(docs, list) else []
+        if isinstance(docs, list):
+            return docs
+        raise ValueError(
+            f"Malformed index envelope in {index_path}: "
+            f"'documents' must be a list, got {type(docs).__name__}"
+        )
     return []

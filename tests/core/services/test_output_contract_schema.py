@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
+from tests.helpers import parse_json_envelope
 from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
@@ -91,7 +92,7 @@ docops_version: 2.0
     )
 
     assert result.exit_code == 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)
     assert not errors
 
@@ -179,7 +180,7 @@ docops_version: 2.0
     )
 
     assert result.exit_code != 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert "error" not in payload
     assert "violations" in payload
@@ -281,8 +282,8 @@ docops_version: 2.0
     assert result1.exit_code == 0
     assert result2.exit_code == 0
 
-    payload1 = json.loads(result1.output.strip().splitlines()[-1])
-    payload2 = json.loads(result2.output.strip().splitlines()[-1])
+    payload1 = parse_json_envelope(result1.output)
+    payload2 = parse_json_envelope(result2.output)
     assert "run_id" in payload1
     assert "run_id" in payload2
     assert "timestamp" in payload1
@@ -292,6 +293,7 @@ docops_version: 2.0
     payload1.pop("timestamp", None)
     payload2.pop("timestamp", None)
     assert payload1 == payload2
+
 
 def test_operational_error_envelope_conforms_to_agent_schema(tmp_path):
     schema_path = (
@@ -315,11 +317,14 @@ def test_operational_error_envelope_conforms_to_agent_schema(tmp_path):
     )
 
     assert result.exit_code != 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
+    payload = parse_json_envelope(result.output)
     assert payload["success"] is False
     assert "error" in payload
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)
     assert not errors
+
+
+import uuid
 
 
 def test_non_error_payload_requires_check_counters():
@@ -328,6 +333,21 @@ def test_non_error_payload_requires_check_counters():
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
-    payload = {"output_schema_version": "3.0", "success": True, "run_id": "test-run"}
+    payload = {
+        "output_schema_version": "3.0",
+        "success": True,
+        "command": "check",
+        "run_id": str(uuid.uuid4()),
+        "root": "/tmp/test",
+        "data": {
+            "files_checked": 5,
+        },
+        "warnings": [],
+        "violations": [],
+        "advice": [],
+    }
     errors = sorted(Draft7Validator(schema).iter_errors(payload), key=str)
     assert errors
+    error_messages = " ".join(str(e) for e in errors)
+    for expected in ("files_passed", "files_failed", "schema_failures_count"):
+        assert expected in error_messages, f"Expected schema error about missing '{expected}'"

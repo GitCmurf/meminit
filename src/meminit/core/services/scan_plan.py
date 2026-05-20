@@ -98,17 +98,34 @@ class MigrationPlan:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MigrationPlan":
+        if not isinstance(data, dict):
+            raise ValueError(f"MigrationPlan data must be a dict, got {type(data).__name__}")
         actions = []
-        for a_data in data.get("actions", []):
+        for idx, a_data in enumerate(data.get("actions", [])):
+            if not isinstance(a_data, dict):
+                raise ValueError(
+                    f"MigrationPlan action at index {idx} must be a dict, "
+                    f"got {type(a_data).__name__}"
+                )
             try:
                 action_type = PlanActionType(a_data.get("action"))
             except ValueError:
                 action_type = a_data.get("action")  # Allow unknown actions to be parsed but failed during validation
                 
             pre = a_data.get("preconditions", {})
+            if not isinstance(pre, dict):
+                raise ValueError(
+                    f"MigrationPlan action[{idx}].preconditions must be a dict, "
+                    f"got {type(pre).__name__}"
+                )
             preconditions = ActionPreconditions(source_sha256=pre.get("source_sha256"))
             
             saf = a_data.get("safety", {})
+            if not isinstance(saf, dict):
+                raise ValueError(
+                    f"MigrationPlan action[{idx}].safety must be a dict, "
+                    f"got {type(saf).__name__}"
+                )
             safety = ActionSafety(destructive=bool(saf.get("destructive", False)), overwrites=bool(saf.get("overwrites", False)))
             
             a = PlanAction(

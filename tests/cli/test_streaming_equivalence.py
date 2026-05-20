@@ -4,7 +4,8 @@ import json
 
 from click.testing import CliRunner
 
-from meminit.cli.main import _scan_suggestion_items, cli
+from meminit.cli.main import cli
+from meminit.core.use_cases.scan_repository import scan_suggestion_items
 from tests.cli.streaming_helpers import records
 
 
@@ -62,7 +63,7 @@ def test_scan_json_and_ndjson_summaries_are_equivalent(initialized_repo):
 
 
 def test_scan_suggestions_sort_by_severity_code_and_path():
-    suggestions = _scan_suggestion_items(
+    suggestions = scan_suggestion_items(
         {
             "docs_root": "docs",
             "suggested_type_directories": {"ADR": "adrs"},
@@ -94,6 +95,16 @@ def test_context_json_and_ndjson_are_equivalent(initialized_repo):
     summary = stream[-1]["data"]
     assert _items_by_kind(stream, "namespace") == sorted(
         envelope["data"]["namespaces"], key=lambda row: row["name"]
+    )
+    expected_doc_types = []
+    for doc_type, payload in envelope["data"]["document_types"].items():
+        row = {"type": doc_type}
+        if isinstance(payload, dict):
+            row.update(payload)
+        row["type"] = doc_type
+        expected_doc_types.append(row)
+    assert _items_by_kind(stream, "document_type") == sorted(
+        expected_doc_types, key=lambda row: row["type"]
     )
     assert _items_by_kind(stream, "document") == sorted(
         envelope["data"]["documents"],
