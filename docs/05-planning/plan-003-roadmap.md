@@ -24,6 +24,8 @@ docops_version: 2.0
 This is the detailed development roadmap and the sequencing source of truth.
 If this roadmap and the vision diverge, the roadmap wins for sequencing and the vision wins for constraints: see [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md).
 
+> **Near-term re-sequencing (2026-05-20):** [MEMINIT-PLAN-016](plan-016-adoption-and-dogfooding-sequencing.md) supersedes the near-term ordering below with a dogfood-first, gated-launch sequence. Until reconciled into this file, PLAN-016 is the current decision for what to do next.
+
 ## Idea catcher (not yet sequenced or properly specified)
 
 Legend: `[x]` done, `[ ]` to do, `[?]` needs clarification.
