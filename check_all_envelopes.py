@@ -86,8 +86,12 @@ try:
     # Initialize
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
-    result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"],
-                            env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    try:
+        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"init failed: command timed out after {TIMEOUT}s")
+        sys.exit(1)
     if result.returncode != 0:
         print(f"init failed (exit {result.returncode}): {result.stderr}")
         sys.exit(1)
@@ -96,9 +100,29 @@ try:
     (test_dir / "docs" / "01-indices").mkdir(parents=True, exist_ok=True)
     (test_dir / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
 
+    # Create a governed document for the identify test
+    (test_dir / "docs" / "45-adr" / "adr-001-test.md").write_text(
+        "---\n"
+        "document_id: MEMINIT-ADR-001\n"
+        "type: ADR\n"
+        "title: Test ADR\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2024-01-01\n"
+        "owner: test\n"
+        "docops_version: 2.0\n"
+        "---\n"
+        "\n"
+        "# MEMINIT-ADR-001: Test ADR\n"
+    )
+
     # Run index to create index file
-    result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"],
-                            env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    try:
+        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"index failed: command timed out after {TIMEOUT}s")
+        sys.exit(1)
     if result.returncode != 0:
         print(f"index failed (exit {result.returncode}): {result.stderr}")
         sys.exit(1)
