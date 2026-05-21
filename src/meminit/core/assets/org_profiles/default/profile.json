@@ -7,6 +7,11 @@
     "templates/adr.template.md",
     "templates/fdd.template.md",
     "templates/prd.template.md",
+    "templates/plan.template.md",
+    "templates/spec.template.md",
+    "templates/runbook.template.md",
+    "templates/design.template.md",
+    "templates/log.template.md",
     "org_docs/org-gov-001-constitution.md",
     "org_docs/org-gov-002-metadata-schema.md"
   ]

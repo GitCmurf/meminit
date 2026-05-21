@@ -58,6 +58,11 @@ _FALLBACK_TEMPLATES: dict[str, bytes] = {
     "templates/adr.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## 1. Context & Problem Statement\\n\\n## 2. Decision Drivers\\n\\n## 3. Options Considered\\n\\n## 4. Decision Outcome\\n\\n## 5. Consequences\\n",
     "templates/fdd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Feature Description\\n",
     "templates/prd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Product Requirements\\n",
+    "templates/plan.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Plan Description\\n",
+    "templates/spec.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Technical Specification\\n",
+    "templates/runbook.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Operations Runbook\\n",
+    "templates/design.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## System Design\\n",
+    "templates/log.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Execution Log\\n",
 }
 
 
@@ -179,11 +184,20 @@ class InitRepositoryUseCase:
                         "template": "docs/00-governance/templates/prd.template.md",
                     },
                     "RESEARCH": {"directory": "10-prd"},
-                    "PLAN": {"directory": "05-planning"},
+                    "PLAN": {
+                        "directory": "05-planning",
+                        "template": "docs/00-governance/templates/plan.template.md",
+                    },
                     "TASK": {"directory": "05-planning/tasks"},
                     "NOTES": {"directory": "12-notes"},
-                    "SPEC": {"directory": "20-specs"},
-                    "DESIGN": {"directory": "30-design"},
+                    "SPEC": {
+                        "directory": "20-specs",
+                        "template": "docs/00-governance/templates/spec.template.md",
+                    },
+                    "DESIGN": {
+                        "directory": "30-design",
+                        "template": "docs/00-governance/templates/design.template.md",
+                    },
                     "DECISION": {"directory": "40-decisions"},
                     "ADR": {
                         "directory": "45-adr",
@@ -195,9 +209,15 @@ class InitRepositoryUseCase:
                     },
                     "INDEX": {"directory": "01-indices"},
                     "TESTING": {"directory": "55-testing"},
-                    "LOG": {"directory": "58-logs"},
+                    "LOG": {
+                        "directory": "58-logs",
+                        "template": "docs/00-governance/templates/log.template.md",
+                    },
                     "GUIDE": {"directory": "60-runbooks"},
-                    "RUNBOOK": {"directory": "60-runbooks"},
+                    "RUNBOOK": {
+                        "directory": "60-runbooks",
+                        "template": "docs/00-governance/templates/runbook.template.md",
+                    },
                     "REF": {"directory": "70-devex"},
                 },
             }

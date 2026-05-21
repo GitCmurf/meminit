@@ -41,3 +41,23 @@ document_types:
     directory: "50-fdd"
     template: "docs/00-governance/templates/fdd.template.md"
     description: "Feature Description Document"
+  PLAN:
+    directory: "05-planning"
+    template: "docs/00-governance/templates/plan.template.md"
+    description: "Project Plan"
+  SPEC:
+    directory: "20-specs"
+    template: "docs/00-governance/templates/spec.template.md"
+    description: "Technical Specification"
+  RUNBOOK:
+    directory: "60-runbooks"
+    template: "docs/00-governance/templates/runbook.template.md"
+    description: "Operations Runbook"
+  DESIGN:
+    directory: "30-design"
+    template: "docs/00-governance/templates/design.template.md"
+    description: "System Design"
+  LOG:
+    directory: "58-logs"
+    template: "docs/00-governance/templates/log.template.md"
+    description: "Execution Log"

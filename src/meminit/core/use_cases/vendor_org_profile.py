@@ -93,6 +93,11 @@ class VendorOrgProfileUseCase:
             "templates/adr.template.md": f"{repo_docs_root}/00-governance/templates/adr.template.md",
             "templates/fdd.template.md": f"{repo_docs_root}/00-governance/templates/fdd.template.md",
             "templates/prd.template.md": f"{repo_docs_root}/00-governance/templates/prd.template.md",
+            "templates/plan.template.md": f"{repo_docs_root}/00-governance/templates/plan.template.md",
+            "templates/spec.template.md": f"{repo_docs_root}/00-governance/templates/spec.template.md",
+            "templates/runbook.template.md": f"{repo_docs_root}/00-governance/templates/runbook.template.md",
+            "templates/design.template.md": f"{repo_docs_root}/00-governance/templates/design.template.md",
+            "templates/log.template.md": f"{repo_docs_root}/00-governance/templates/log.template.md",
         }
         if include_org_docs:
             mapping.update(
