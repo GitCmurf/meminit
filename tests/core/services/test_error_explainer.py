@@ -2,9 +2,9 @@
 
 from click.testing import CliRunner
 
+from meminit.cli.main import cli
 from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorCode
 from meminit.core.use_cases.explain_error import ExplainErrorUseCase
-from meminit.cli.main import cli
 from tests.helpers import parse_first_json_line
 
 

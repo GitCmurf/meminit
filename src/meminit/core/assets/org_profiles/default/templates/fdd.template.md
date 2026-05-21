@@ -1,12 +1,12 @@
 ---
-document_id: {{document_id}}
-type: {{type}}
-title: {{title}}
-status: {{status}}
+document_id: { { document_id } }
+type: { { type } }
+title: { { title } }
+status: { { status } }
 version: "0.1"
-last_updated: {{date}}
-owner: {{owner}}
-area: {{area}}
+last_updated: { { date } }
+owner: { { owner } }
+area: { { area } }
 docops_version: "2.0"
 template_type: fdd-standard
 template_version: "2.0"
@@ -14,12 +14,8 @@ template_version: "2.0"
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Version:** 0.1
-> **Last Updated:** {{date}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1
+> **Last Updated:** {{date}} > **Type:** {{type}}
 
 # {{document_id}}: {{title}}
 
@@ -64,10 +60,10 @@ template_version: "2.0"
 
 <!-- AGENT: List user stories with acceptance criteria. -->
 
-| Story | As a | I want to | So that | Acceptance Criteria |
-|-------|-----|----------|---------|---------------------|
-| [Story 1] | [role] | [action] | [benefit] | [criteria] |
-| [Story 2] | [role] | [action] | [benefit] | [criteria] |
+| Story     | As a   | I want to | So that   | Acceptance Criteria |
+| --------- | ------ | --------- | --------- | ------------------- |
+| [Story 1] | [role] | [action]  | [benefit] | [criteria]          |
+| [Story 2] | [role] | [action]  | [benefit] | [criteria]          |
 
 ## 4. Functional Requirements
 
@@ -122,6 +118,6 @@ template_version: "2.0"
 
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | {{date}} | {{owner}} | Initial draft |
+| Version | Date     | Author    | Changes       |
+| ------- | -------- | --------- | ------------- |
+| 0.1     | {{date}} | {{owner}} | Initial draft |

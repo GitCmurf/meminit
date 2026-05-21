@@ -5,27 +5,26 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import frontmatter
-from meminit.core.services.safe_yaml import safe_frontmatter_loads
-from meminit.core.services.observability import log_event
 
 from meminit.core.domain.entities import FixAction, FixReport, Severity, Violation
-from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
-from meminit.core.services.repo_config import RepoConfig, load_repo_layout
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.safe_fs import ensure_safe_write_path
-from meminit.core.services.validators import SchemaValidator
-from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
-from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType
+from meminit.core.services.markdown_utils import DEFAULT_DOCOPS_VERSION, extract_title_from_markdown
+from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
+from meminit.core.services.observability import log_event
 from meminit.core.services.path_utils import (
     FILENAME_EXCEPTIONS,
-    normalize_filename_to_kebab_case,
     compute_file_hash,
+    normalize_filename_to_kebab_case,
 )
-from meminit.core.services.markdown_utils import extract_title_from_markdown, DEFAULT_DOCOPS_VERSION
+from meminit.core.services.repo_config import RepoConfig, load_repo_layout
+from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
+from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType
+from meminit.core.services.validators import SchemaValidator
+from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 
 
 class FixRepositoryUseCase:
-
     def __init__(self, root_dir: str, default_now: datetime | None = None):
         self._layout = load_repo_layout(root_dir)
         self.root_dir = self._layout.root_dir

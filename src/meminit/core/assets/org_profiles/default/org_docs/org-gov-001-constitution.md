@@ -12,4 +12,3 @@ docops_version: 2.0
 # DocOps Constitution v2.0 (Draft)
 
 This Constitution defines the immutable laws of documentation for the organisation.
-

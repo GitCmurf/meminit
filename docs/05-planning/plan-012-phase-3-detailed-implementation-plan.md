@@ -3,22 +3,23 @@ document_id: MEMINIT-PLAN-012
 type: PLAN
 title: Phase 3 Detailed Implementation Plan
 status: Draft
-version: '0.5'
-last_updated: '2026-04-19'
+version: "0.5"
+last_updated: "2026-04-19"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 3 protocol governance
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 3 protocol governance
   work.
 keywords:
-- phase-3
-- planning
-- protocol
-- governance
+  - phase-3
+  - planning
+  - protocol
+  - governance
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-PRD-005
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-PRD-005
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
@@ -151,13 +152,13 @@ Phase 3 implementation is not done when the code lands. The following governed
 document updates are required for closeout, consistent with MEMINIT-PLAN-008
 Section 7:
 
-| Action | Type | Document | Required update |
-| ------ | ---- | -------- | --------------- |
-| Update | PRD | `MEMINIT-PRD-005` | Add `protocol check` / `protocol sync`, runtime-contract references, and supported protocol surface scope |
-| Update | SPEC | `MEMINIT-SPEC-006` | Register the `PROTOCOL_*` error codes and normative explain semantics |
-| New | FDD | Protocol Surface Governance | Define the asset registry, ownership model, marker grammar, check/sync logic, and JSON payload shapes |
-| New or Update | RUNBOOK | Agent Integration and Upgrade Workflow | Document brownfield adoption, CI usage, and operator recovery paths |
-| Conditional update | PLAN | `MEMINIT-PLAN-003` | Only if Phase 3 sequencing or completion criteria move materially during delivery |
+| Action             | Type    | Document                               | Required update                                                                                           |
+| ------------------ | ------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Update             | PRD     | `MEMINIT-PRD-005`                      | Add `protocol check` / `protocol sync`, runtime-contract references, and supported protocol surface scope |
+| Update             | SPEC    | `MEMINIT-SPEC-006`                     | Register the `PROTOCOL_*` error codes and normative explain semantics                                     |
+| New                | FDD     | Protocol Surface Governance            | Define the asset registry, ownership model, marker grammar, check/sync logic, and JSON payload shapes     |
+| New or Update      | RUNBOOK | Agent Integration and Upgrade Workflow | Document brownfield adoption, CI usage, and operator recovery paths                                       |
+| Conditional update | PLAN    | `MEMINIT-PLAN-003`                     | Only if Phase 3 sequencing or completion criteria move materially during delivery                         |
 
 Every delivery slice in this phase must satisfy the repository's atomic-unit
 rule: code, docs, and tests move together.
@@ -177,11 +178,11 @@ Problem:
 The Phase 3 asset set is explicitly enumerated. Assets outside this table are
 out of scope for drift detection and sync.
 
-| Asset | Target path in repo | Package source | Ownership model |
-| ----- | ------------------- | -------------- | --------------- |
-| AGENTS.md (top-level protocol) | `AGENTS.md` | `src/meminit/core/assets/AGENTS.md` | Mixed (see §3.1.2) |
-| meminit-docops skill manifest | `.agents/skills/meminit-docops/SKILL.md` | `src/meminit/core/assets/meminit-docops-skill.md` | Fully generated |
-| brownfield helper script | `.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh` | `src/meminit/core/assets/scripts/meminit_brownfield_plan.sh` | Fully generated |
+| Asset                          | Target path in repo                                                | Package source                                               | Ownership model    |
+| ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------ |
+| AGENTS.md (top-level protocol) | `AGENTS.md`                                                        | `src/meminit/core/assets/AGENTS.md`                          | Mixed (see §3.1.2) |
+| meminit-docops skill manifest  | `.agents/skills/meminit-docops/SKILL.md`                           | `src/meminit/core/assets/meminit-docops-skill.md`            | Fully generated    |
+| brownfield helper script       | `.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh` | `src/meminit/core/assets/scripts/meminit_brownfield_plan.sh` | Fully generated    |
 
 Non-goals for this phase:
 
@@ -302,14 +303,14 @@ JSON success semantics must match existing Meminit conventions:
 Each asset check yields exactly one of the following outcomes. These map
 directly to the new `ErrorCode` values listed in §3.2.4.
 
-| Outcome | Meaning | Sync remediation |
-| ------- | ------- | ---------------- |
-| `aligned` | Asset exists; normalized managed content matches the canonical render. | No-op. |
-| `missing` | Asset file does not exist at target path. | Write canonical render. |
-| `legacy` | Mixed asset exists but has no `MEMINIT_PROTOCOL` markers (pre-v0.4 install, before protocol markers were introduced). | Wrap + refresh; preserve user content below the region for mixed assets. |
-| `stale` | Asset is self-consistent on disk, but the canonical render has changed. For mixed assets, the recorded marker metadata matches the managed region but differs from the current canonical render; for fully generated assets, the whole file differs from the current canonical render. | Replace the managed content with the current canonical render. |
-| `tampered` | Mixed asset markers parse, but the recorded `sha256` does not match the normalized managed payload currently on disk. | Refuse sync unless `--force` is passed; always reportable. |
-| `unparseable` | Mixed asset markers are malformed, duplicated, or unterminated. | Refuse sync; require manual fix. |
+| Outcome       | Meaning                                                                                                                                                                                                                                                                                | Sync remediation                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `aligned`     | Asset exists; normalized managed content matches the canonical render.                                                                                                                                                                                                                 | No-op.                                                                   |
+| `missing`     | Asset file does not exist at target path.                                                                                                                                                                                                                                              | Write canonical render.                                                  |
+| `legacy`      | Mixed asset exists but has no `MEMINIT_PROTOCOL` markers (pre-v0.4 install, before protocol markers were introduced).                                                                                                                                                                  | Wrap + refresh; preserve user content below the region for mixed assets. |
+| `stale`       | Asset is self-consistent on disk, but the canonical render has changed. For mixed assets, the recorded marker metadata matches the managed region but differs from the current canonical render; for fully generated assets, the whole file differs from the current canonical render. | Replace the managed content with the current canonical render.           |
+| `tampered`    | Mixed asset markers parse, but the recorded `sha256` does not match the normalized managed payload currently on disk.                                                                                                                                                                  | Refuse sync unless `--force` is passed; always reportable.               |
+| `unparseable` | Mixed asset markers are malformed, duplicated, or unterminated.                                                                                                                                                                                                                        | Refuse sync; require manual fix.                                         |
 
 Classification must be deterministic and ownership-aware:
 
@@ -372,13 +373,13 @@ Rules:
 Add the following codes to `ErrorCode` (namespace: `PROTOCOL_*`, no collision
 with existing codes per the context gathered):
 
-| Code | Outcome | `resolution_type` |
-| ---- | ------- | ----------------- |
-| `PROTOCOL_ASSET_MISSING` | `missing` | `auto_fixable` |
-| `PROTOCOL_ASSET_LEGACY` | `legacy` | `auto_fixable` |
-| `PROTOCOL_ASSET_STALE` | `stale` | `auto_fixable` |
-| `PROTOCOL_ASSET_TAMPERED` | `tampered` | `manual` |
-| `PROTOCOL_ASSET_UNPARSEABLE` | `unparseable` | `manual` |
+| Code                         | Outcome       | `resolution_type` |
+| ---------------------------- | ------------- | ----------------- |
+| `PROTOCOL_ASSET_MISSING`     | `missing`     | `auto_fixable`    |
+| `PROTOCOL_ASSET_LEGACY`      | `legacy`      | `auto_fixable`    |
+| `PROTOCOL_ASSET_STALE`       | `stale`       | `auto_fixable`    |
+| `PROTOCOL_ASSET_TAMPERED`    | `tampered`    | `manual`          |
+| `PROTOCOL_ASSET_UNPARSEABLE` | `unparseable` | `manual`          |
 
 Each code ships a matching `ERROR_EXPLANATIONS` entry emitted by
 `meminit explain`, with `remediation.action` pointing to the appropriate
@@ -465,18 +466,18 @@ Sync reuses the checker and then acts on each outcome deterministically:
 3. For each `rewrite`:
    a. Compute the canonical payload via `ProtocolAsset.render()`.
    b. For mixed-ownership files, read the existing file, extract any content
-      after `MEMINIT_PROTOCOL: end`, and concatenate it unchanged after the
-      newly rendered region. If no end marker is found (legacy), the entire
-      existing content is treated as user-owned and appended after the new
-      region. Files that never existed get only the generated region plus a
-      trailing newline.
-      If the end marker exists but no user content follows it, the rendered
-      output still ends with a trailing newline so the Markdown file remains
-      well-formed.
+   after `MEMINIT_PROTOCOL: end`, and concatenate it unchanged after the
+   newly rendered region. If no end marker is found (legacy), the entire
+   existing content is treated as user-owned and appended after the new
+   region. Files that never existed get only the generated region plus a
+   trailing newline.
+   If the end marker exists but no user content follows it, the rendered
+   output still ends with a trailing newline so the Markdown file remains
+   well-formed.
    c. Validate the write target with `ensure_safe_write_path`, normalize line
-      endings to LF, write atomically via a dedicated `safe_fs` helper
-      (temp-file + `os.replace`), and apply the registry-declared file mode on
-      Unix.
+   endings to LF, write atomically via a dedicated `safe_fs` helper
+   (temp-file + `os.replace`), and apply the registry-declared file mode on
+   Unix.
 4. Do not touch the filesystem in dry-run mode; only report the planned
    action per asset.
 
@@ -611,23 +612,23 @@ where applicable, `protocol sync` (planned vs. applied behavior).
 > keeps fixtures deterministic via the same render/normalize paths as
 > production code. See MEMINIT-FDD-012 §Testing.
 
-| ID | Scenario | Expected check outcome | Expected sync action |
-| -- | -------- | ---------------------- | -------------------- |
-| F01 | Freshly-initialized repo | all `aligned` | `noop` across all assets |
-| F02 | `AGENTS.md` missing | `missing` | `rewrite` (creates file) |
-| F03 | Skill manifest missing | `missing` | `rewrite` (creates file) |
-| F04 | Pre-v0.4 `AGENTS.md` without markers | `legacy` | `rewrite` wrapping existing content below |
-| F05 | Mixed asset with stale recorded `version` | `stale` | `rewrite` |
-| F06 | Mixed asset whose recorded marker metadata is self-consistent but whose canonical render hash has changed | `stale` | `rewrite` |
-| F07 | Generated region edited in place (markers intact) | `tampered` | `refuse` without `--force`; `rewrite` with `--force` |
-| F08 | Duplicate `MEMINIT_PROTOCOL: begin` | `unparseable` | always `refuse` |
-| F09 | Missing `MEMINIT_PROTOCOL: end` marker | `unparseable` | always `refuse` |
-| F10 | Mixed file with rich user content below region and stale generated content above it | `stale` | rewritten region plus byte-identical preserved user content |
-| F11 | Line-ending variants (`CRLF`) in generated region | `aligned` after normalization | `noop` |
-| F12 | Trailing whitespace or extra blank lines in generated region | `aligned` after normalization | `noop` |
-| F13 | Asset filter (`--asset agents-md`) on multi-drift repo | only `agents-md` reported | only `agents-md` rewritten |
-| F14 | Idempotency: run sync twice | second run produces `noop` everywhere, zero writes | -- |
-| F15 | Byte-level determinism: two identical repo states on different machines | identical JSON envelopes (stable hash sort order) | -- |
+| ID  | Scenario                                                                                                  | Expected check outcome                             | Expected sync action                                        |
+| --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| F01 | Freshly-initialized repo                                                                                  | all `aligned`                                      | `noop` across all assets                                    |
+| F02 | `AGENTS.md` missing                                                                                       | `missing`                                          | `rewrite` (creates file)                                    |
+| F03 | Skill manifest missing                                                                                    | `missing`                                          | `rewrite` (creates file)                                    |
+| F04 | Pre-v0.4 `AGENTS.md` without markers                                                                      | `legacy`                                           | `rewrite` wrapping existing content below                   |
+| F05 | Mixed asset with stale recorded `version`                                                                 | `stale`                                            | `rewrite`                                                   |
+| F06 | Mixed asset whose recorded marker metadata is self-consistent but whose canonical render hash has changed | `stale`                                            | `rewrite`                                                   |
+| F07 | Generated region edited in place (markers intact)                                                         | `tampered`                                         | `refuse` without `--force`; `rewrite` with `--force`        |
+| F08 | Duplicate `MEMINIT_PROTOCOL: begin`                                                                       | `unparseable`                                      | always `refuse`                                             |
+| F09 | Missing `MEMINIT_PROTOCOL: end` marker                                                                    | `unparseable`                                      | always `refuse`                                             |
+| F10 | Mixed file with rich user content below region and stale generated content above it                       | `stale`                                            | rewritten region plus byte-identical preserved user content |
+| F11 | Line-ending variants (`CRLF`) in generated region                                                         | `aligned` after normalization                      | `noop`                                                      |
+| F12 | Trailing whitespace or extra blank lines in generated region                                              | `aligned` after normalization                      | `noop`                                                      |
+| F13 | Asset filter (`--asset agents-md`) on multi-drift repo                                                    | only `agents-md` reported                          | only `agents-md` rewritten                                  |
+| F14 | Idempotency: run sync twice                                                                               | second run produces `noop` everywhere, zero writes | --                                                          |
+| F15 | Byte-level determinism: two identical repo states on different machines                                   | identical JSON envelopes (stable hash sort order)  | --                                                          |
 
 #### 3.6.2 Implementation tasks
 
@@ -727,10 +728,10 @@ Phase 3 can be considered complete when all of the following are true:
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 3 workstreams, sequencing, and exit criteria |
-| 0.3 | 2026-04-17 | Augment | Concrete protocol-asset inventory and region-marker grammar (Workstream A); `protocol check` outcomes, output schema, and `PROTOCOL_*` error codes (Workstream B); deterministic sync algorithm with preview-first default and user-content preservation (Workstream C); added Workstream F with 15 fixture scenarios and determinism tests; tightened exit criteria |
-| 0.4 | 2026-04-17 | Codex | Tightened engineering handoff quality: clarified runtime-contract references, codebase-fit constraints, and required governed-doc outputs; fixed drift-classification inconsistencies (`stale` vs `tampered`) and mixed-vs-generated asset rules; added schema/capabilities updates, `init`/safe-write integration, PR slicing guidance, and stronger rollout closeout criteria |
-| 0.5 | 2026-04-19 | Augment | Amended §3.6.1 to record approved deviation from checked-in fixture directories to code-generated fixtures (see MEMINIT-FDD-012 §Testing) |
+| Version | Date       | Author   | Changes                                                                                                                                                                                                                                                                                                                                                                         |
+| ------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-14 | GitCmurf | Initial draft created via `meminit new`                                                                                                                                                                                                                                                                                                                                         |
+| 0.2     | 2026-04-14 | Codex    | Replaced stub with detailed Phase 3 workstreams, sequencing, and exit criteria                                                                                                                                                                                                                                                                                                  |
+| 0.3     | 2026-04-17 | Augment  | Concrete protocol-asset inventory and region-marker grammar (Workstream A); `protocol check` outcomes, output schema, and `PROTOCOL_*` error codes (Workstream B); deterministic sync algorithm with preview-first default and user-content preservation (Workstream C); added Workstream F with 15 fixture scenarios and determinism tests; tightened exit criteria            |
+| 0.4     | 2026-04-17 | Codex    | Tightened engineering handoff quality: clarified runtime-contract references, codebase-fit constraints, and required governed-doc outputs; fixed drift-classification inconsistencies (`stale` vs `tampered`) and mixed-vs-generated asset rules; added schema/capabilities updates, `init`/safe-write integration, PR slicing guidance, and stronger rollout closeout criteria |
+| 0.5     | 2026-04-19 | Augment  | Amended §3.6.1 to record approved deviation from checked-in fixture directories to code-generated fixtures (see MEMINIT-FDD-012 §Testing)                                                                                                                                                                                                                                       |

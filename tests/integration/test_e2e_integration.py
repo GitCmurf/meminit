@@ -5,8 +5,8 @@ They import run_e2e from the standalone scripts/e2e_integration_test.py to
 avoid duplicating the core test logic.
 """
 
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 
 import pytest

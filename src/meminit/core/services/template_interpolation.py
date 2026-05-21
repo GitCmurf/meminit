@@ -57,7 +57,10 @@ class TemplateInterpolator:
 
     # Single regex matching all known {{variable}} patterns.
     # Captures the variable name as group 1 for lookup-based replacement.
-    _ALL_VARIABLES_PATTERN = re.compile(r"\{\{\s*(" + "|".join(_KNOWN_VARIABLES) + r")\s*\}\}")
+    # Matches both {{variable}} and { { variable } } format to stay robust under formatter changes.
+    _ALL_VARIABLES_PATTERN = re.compile(
+        r"\{\s*\{\s*(" + "|".join(_KNOWN_VARIABLES) + r")\s*\}\s*\}"
+    )
 
     # Legacy patterns to detect and reject - compiled on initialization
     _LEGACY_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -78,8 +81,9 @@ class TemplateInterpolator:
         re.compile(r"<AREA>"),
     )
 
-    # Pattern to find all {{...}} variables to reject unknown or malformed ones
-    _UNKNOWN_PATTERN = re.compile(r"\{\{\s*([^{}]*?)\s*\}\}")
+    # Pattern to find all {{...}} variables to reject unknown or malformed ones.
+    # Matches both {{...}} and { { ... } } format.
+    _UNKNOWN_PATTERN = re.compile(r"\{\s*\{\s*([^{}]*?)\s*\}\s*\}")
 
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""

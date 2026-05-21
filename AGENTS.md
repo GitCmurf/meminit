@@ -67,6 +67,7 @@ Meminit provides a deterministic, machine-parseable interface for agents and orc
 When `--format json` is used, Meminit emits exactly one JSON object on STDOUT. All human-readable logs and errors are routed to STDERR.
 
 The JSON envelope includes:
+
 - `output_schema_version`: `"3.0"`
 - `success`: boolean status
 - `command`: canonical subcommand name
@@ -78,6 +79,7 @@ The JSON envelope includes:
 ### Repo Discovery
 
 Use `meminit context --format json` at the start of a session to discover:
+
 - `namespaces`: governed subtrees, their docs roots, and prefixes.
 - `document_types`: type-to-directory and type-to-template mappings (Templates v2).
 - `allowed_types`: valid document types.
@@ -98,6 +100,7 @@ Meminit Templates v2 provides a stable, machine-parseable template system for do
 ### Template Resolution Precedence
 
 When creating documents, templates are resolved in this order:
+
 1. **Config**: Explicit `template` path in `document_types.<type>.template`
 2. **Convention**: `<docs_root>/00-governance/templates/<type>.template.md`
 3. **Built-in**: Package templates (ADR, PRD, FDD)
@@ -123,19 +126,19 @@ When `--format json` is used with `meminit new`, the response includes:
 
 Templates use **only** `{{variable}}` syntax. Legacy syntax is rejected:
 
-| Variable | Description |
-|----------|-------------|
-| `{{title}}` | Document title |
-| `{{document_id}}` | Full document ID |
-| `{{owner}}` | Document owner |
-| `{{status}}` | Document status |
-| `{{date}}` | Current date (ISO 8601) |
-| `{{repo_prefix}}` | Repository prefix |
-| `{{seq}}` | Sequence number |
-| `{{type}}` | Document type |
-| `{{area}}` | Document area |
-| `{{description}}` | Document description |
-| `{{keywords}}` | Comma-separated keywords |
+| Variable          | Description                 |
+| ----------------- | --------------------------- |
+| `{{title}}`       | Document title              |
+| `{{document_id}}` | Full document ID            |
+| `{{owner}}`       | Document owner              |
+| `{{status}}`      | Document status             |
+| `{{date}}`        | Current date (ISO 8601)     |
+| `{{repo_prefix}}` | Repository prefix           |
+| `{{seq}}`         | Sequence number             |
+| `{{type}}`        | Document type               |
+| `{{area}}`        | Document area               |
+| `{{description}}` | Document description        |
+| `{{keywords}}`    | Comma-separated keywords    |
 | `{{related_ids}}` | Comma-separated related IDs |
 
 Legacy syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.) raises `INVALID_TEMPLATE_PLACEHOLDER` error.
@@ -146,14 +149,20 @@ Templates may include stable section markers for agent orchestration:
 
 ```markdown
 <!-- MEMINIT_SECTION: context -->
+
 ## Context
+
 ...
+
 <!-- MEMINIT_SECTION: decision -->
+
 ## Decision
+
 ...
 ```
 
 Agents can parse sections to:
+
 - Identify document structure
 - Extract content spans by section ID
 - Preserve `<!-- AGENT: ... -->` guidance prompts

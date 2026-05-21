@@ -624,8 +624,8 @@ def test_set_state_clear_alone_succeeds(tmp_path):
 
 
 def test_validate_state_reports_all_schema_violations(tmp_path):
-    from meminit.core.services.project_state import ProjectState
     from meminit.core.domain.entities import Severity, Violation
+    from meminit.core.services.project_state import ProjectState
 
     use_case = StateDocumentUseCase(str(tmp_path))
     state = ProjectState(

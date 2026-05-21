@@ -24,13 +24,13 @@ related_ids:
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** MEMINIT-SPEC-004  
-> **Owner:** Product Team  
-> **Status:** Superseded  
-> **Version:** 1.1  
-> **Last Updated:** 2026-03-05  
-> **Type:** SPEC  
-> **Area:** Agentic Integration  
+> **Document ID:** MEMINIT-SPEC-004
+> **Owner:** Product Team
+> **Status:** Superseded
+> **Version:** 1.1
+> **Last Updated:** 2026-03-05
+> **Type:** SPEC
+> **Area:** Agentic Integration
 > **Superseded By:** [MEMINIT-SPEC-008](spec-008-agent-output-contract-v2.md)
 
 # SPEC: Agent Output Contract

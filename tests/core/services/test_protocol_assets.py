@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     AssetOwnership,
@@ -17,7 +18,6 @@ from meminit.core.services.protocol_assets import (
     parse_protocol_markers,
     resolve_repo_metadata,
 )
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import derive_repo_prefix
 
 # ---------------------------------------------------------------------------

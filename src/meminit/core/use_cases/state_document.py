@@ -178,10 +178,7 @@ def _collect_read_validation_warnings(
     if state is None or not state.entries:
         return [], set()
     from meminit.core.services.project_state import validate_project_state
-    from meminit.core.services.state_derived import (
-        check_dependency_cycle,
-        validate_planning_fields,
-    )
+    from meminit.core.services.state_derived import check_dependency_cycle, validate_planning_fields
 
     fs_known = _get_known_ids(root_dir)
 

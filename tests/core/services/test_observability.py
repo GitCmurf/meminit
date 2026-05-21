@@ -3,6 +3,7 @@ import re
 
 import pytest
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import (
     get_current_run_id,
     get_log_format,
@@ -10,7 +11,6 @@ from meminit.core.services.observability import (
     log_event,
     log_operation,
 )
-from meminit.core.services.error_codes import MeminitError, ErrorCode
 
 
 class TestObservability:

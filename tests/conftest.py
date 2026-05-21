@@ -1,8 +1,8 @@
 """Shared pytest fixtures."""
 
 import pytest
-from meminit.core.services.output_formatter import _reset_schema_cache
 
+from meminit.core.services.output_formatter import _reset_schema_cache
 from tests.helpers import parse_first_json_line  # noqa: F401 — re-export for backward compat
 
 

@@ -8,11 +8,11 @@ import pytest
 from click.testing import CliRunner
 
 from meminit.cli.main import cli
-from meminit.core.services.versioning import get_cli_version
 from meminit.core.domain.entities import CheckResult, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from tests.helpers import parse_json_envelope
 from meminit.core.services.exit_codes import exit_code_for_error
+from meminit.core.services.versioning import get_cli_version
+from tests.helpers import parse_json_envelope
 
 
 def runner_no_mixed_stderr() -> CliRunner:
@@ -1552,7 +1552,8 @@ class TestCliNewJsonOutput:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1572,8 +1573,10 @@ class TestCliNewJsonOutput:
     "superseded_by": { "type": "string" }
   }
 }
-""".strip())
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+""".strip()
+        )
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1581,7 +1584,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -1691,7 +1695,8 @@ class TestCliNewListTypes:
     @pytest.fixture
     def repo_with_types(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
@@ -1701,7 +1706,8 @@ document_types:
     directory: 10-prd
   FDD:
     directory: 50-fdd
-""")
+"""
+        )
         return tmp_path
 
     def test_new_list_types_text(self, repo_with_types):
@@ -1758,7 +1764,8 @@ class TestCliNewDryRun:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1778,8 +1785,10 @@ class TestCliNewDryRun:
     "superseded_by": { "type": "string" }
   }
 }
-""".strip())
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+""".strip()
+        )
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1787,7 +1796,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -1903,7 +1913,8 @@ class TestCliCheckTargeted:
     def repo_for_targeted_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text("""
+        (gov / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1918,20 +1929,24 @@ class TestCliCheckTargeted:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+        )
 
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text("""---
+        (adr_dir / "adr-001-valid.md").write_text(
+            """---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid
@@ -1942,9 +1957,11 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-""")
+"""
+        )
 
-        (adr_dir / "adr-002-invalid.md").write_text("""---
+        (adr_dir / "adr-002-invalid.md").write_text(
+            """---
 document_id: BAD-ID
 type: ADR
 title: Invalid
@@ -1955,7 +1972,8 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Invalid
-""")
+"""
+        )
 
         return tmp_path
 
@@ -2128,13 +2146,15 @@ class TestCliFlagIncompatibilities:
     @pytest.fixture
     def repo_for_flags(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
         return tmp_path
 
     def test_interactive_and_json_incompatible(self, repo_for_flags):
@@ -2292,7 +2312,8 @@ class TestCliJsonOutputFormat:
     def repo_for_json_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text("""
+        (gov / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2307,20 +2328,24 @@ class TestCliJsonOutputFormat:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+        )
 
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text("""---
+        (adr_dir / "adr-001-valid.md").write_text(
+            """---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid
@@ -2331,7 +2356,8 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-""")
+"""
+        )
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
 
         return tmp_path
@@ -2381,7 +2407,8 @@ class TestCliSinglePathNotFound:
     def repo_for_single_path_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text("""
+        (gov / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2396,15 +2423,18 @@ class TestCliSinglePathNotFound:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+        )
 
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
@@ -2467,7 +2497,8 @@ class TestCliAbsolutePathEscape:
     def repo_for_path_escape_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text("""
+        (gov / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2482,15 +2513,18 @@ class TestCliAbsolutePathEscape:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+        )
 
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
@@ -2855,7 +2889,8 @@ class TestCliVerboseJsonStderr:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+            """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2870,8 +2905,10 @@ class TestCliVerboseJsonStderr:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+""".strip()
+        )
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -2879,7 +2916,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -2922,13 +2960,15 @@ class TestCliEdgeCases:
     def repo_for_edge_cases(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "45-adr").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-""")
+"""
+        )
         return tmp_path
 
     def test_new_empty_title_returns_error_json(self, repo_for_edge_cases):

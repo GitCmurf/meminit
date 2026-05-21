@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from meminit.core.services.output_formatter import format_envelope
 from meminit.core.use_cases.protocol_check import ProtocolChecker
 from meminit.core.use_cases.protocol_sync import ProtocolSyncer
-from meminit.core.services.output_formatter import format_envelope
 from tests.fixtures.protocol.conftest import FIXTURE_SCENARIOS
 
 

@@ -172,6 +172,7 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
 
 def test_org_vendor_refuses_symlink_escape(tmp_path: Path):
     import pytest
+
     from meminit.core.services.error_codes import ErrorCode, MeminitError
 
     env = _xdg_env(tmp_path)

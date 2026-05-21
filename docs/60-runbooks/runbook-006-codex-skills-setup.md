@@ -130,13 +130,13 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 
 ### JSON vs NDJSON Decision Table
 
-| Use case | Recommended format | Reason |
-| -------- | ------------------ | ------ |
-| Bootstrapping repo constraints | `meminit context --format json` | Bounded output; one envelope is simpler |
-| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace, type, and document records |
-| Building graph artifacts for agents | `meminit index --format ndjson` | Streams graph items and still writes the persisted index |
-| Brownfield migration scan | `meminit scan --format ndjson` | Streams scan inventory and suggestions |
-| CI gates and small commands | `--format json` | Stable v3 envelope and easier assertions |
+| Use case                            | Recommended format                       | Reason                                                   |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
+| Bootstrapping repo constraints      | `meminit context --format json`          | Bounded output; one envelope is simpler                  |
+| Deep repo inventory                 | `meminit context --deep --format ndjson` | Streams namespace, type, and document records            |
+| Building graph artifacts for agents | `meminit index --format ndjson`          | Streams graph items and still writes the persisted index |
+| Brownfield migration scan           | `meminit scan --format ndjson`           | Streams scan inventory and suggestions                   |
+| CI gates and small commands         | `--format json`                          | Stable v3 envelope and easier assertions                 |
 
 ### Streaming Troubleshooting
 
@@ -369,10 +369,10 @@ treated as an empty queue, not as an error.
 The `state next` JSON response includes `data.reason` when no entry is
 selected:
 
-| Reason | Meaning |
-|---|---|
-| `state_missing` | No `project-state.yaml` exists. The queue is empty. |
-| `queue_empty` | State file exists but no entries are ready. All candidates are blocked, in progress, or the filters excluded everyone. |
+| Reason          | Meaning                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `state_missing` | No `project-state.yaml` exists. The queue is empty.                                                                    |
+| `queue_empty`   | State file exists but no entries are ready. All candidates are blocked, in progress, or the filters excluded everyone. |
 
 When `data.entry` is present, `data.reason` is `null`.
 

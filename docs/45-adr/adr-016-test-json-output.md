@@ -3,21 +3,19 @@ document_id: MEMINIT-ADR-016
 type: ADR
 title: Test JSON Output
 status: Draft
-version: '0.1'
-last_updated: '2026-03-07'
+version: "0.1"
+last_updated: "2026-03-07"
 owner: __TBD__
-docops_version: '2.0'
+docops_version: "2.0"
 template_type: adr-standard
-template_version: '2.0'
+template_version: "2.0"
 ---
 
 > **Document ID:** MEMINIT-ADR-016
-> **Owner:** __TBD__
-> **Status:** Draft
+> **Owner:** **TBD** > **Status:** Draft
 > **Version:** 0.1
 > **Last Updated:** 2026-03-07
 > **Type:** ADR
-
 
 # MEMINIT-ADR-016: Test JSON Output
 
@@ -146,6 +144,6 @@ template_version: '2.0'
 
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-03-07 | __TBD__ | Initial draft |
+| Version | Date       | Author  | Changes       |
+| ------- | ---------- | ------- | ------------- |
+| 0.1     | 2026-03-07 | **TBD** | Initial draft |

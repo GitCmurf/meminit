@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
-from tests.helpers import parse_json_envelope
 from jsonschema import Draft7Validator
 
 from meminit.cli.main import cli
+from tests.helpers import parse_json_envelope
 
 
 def test_check_json_output_conforms_to_agent_schema(tmp_path):

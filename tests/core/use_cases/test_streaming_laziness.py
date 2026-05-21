@@ -4,10 +4,10 @@ import queue
 import threading
 
 from meminit.core.services.stream_events import StreamItem
-from meminit.core.use_cases.context_repository import ContextRepositoryUseCase, ContextResult
-from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases import index_repository
+from meminit.core.use_cases.context_repository import ContextRepositoryUseCase, ContextResult
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
+from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from tests.cli.streaming_helpers import create_initialized_repo
 
 

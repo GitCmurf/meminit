@@ -6,10 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from meminit.core.services.path_utils import (
-    is_safe_cli_output_path,
-    load_index_documents,
-)
+from meminit.core.services.path_utils import is_safe_cli_output_path, load_index_documents
 
 
 def test_is_safe_cli_output_path_rejects_forbidden_system_paths():

@@ -3,7 +3,17 @@
   "$id": "https://meminit.io/schemas/agent-output.schema.v2.json",
   "title": "Meminit Agent Output Envelope v2",
   "type": "object",
-  "required": ["output_schema_version", "success", "command", "run_id", "root", "data", "warnings", "violations", "advice"],
+  "required": [
+    "output_schema_version",
+    "success",
+    "command",
+    "run_id",
+    "root",
+    "data",
+    "warnings",
+    "violations",
+    "advice"
+  ],
   "properties": {
     "output_schema_version": {
       "type": "string",

@@ -3,22 +3,23 @@ document_id: MEMINIT-PLAN-009
 type: PLAN
 title: Phase 0 Detailed Implementation Plan
 status: Approved
-version: '0.3'
-last_updated: '2026-04-14'
+version: "0.3"
+last_updated: "2026-04-14"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 0 foundation
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 0 foundation
   hardening.
 keywords:
-- phase-0
-- planning
-- testing
-- determinism
+  - phase-0
+  - planning
+  - testing
+  - determinism
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-PRD-003
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-PRD-003
 ---
 
 > **Document ID:** MEMINIT-PLAN-009
@@ -241,8 +242,8 @@ Outcome against exit criteria:
 
 ## 7. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 0 workstreams, acceptance criteria, and delivery sequence |
-| 0.3 | 2026-04-14 | Codex | Recorded Phase 0 implementation outcome, verification commands, and exit-criteria closeout |
+| Version | Date       | Author   | Changes                                                                                     |
+| ------- | ---------- | -------- | ------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-14 | GitCmurf | Initial draft created via `meminit new`                                                     |
+| 0.2     | 2026-04-14 | Codex    | Replaced stub with detailed Phase 0 workstreams, acceptance criteria, and delivery sequence |
+| 0.3     | 2026-04-14 | Codex    | Recorded Phase 0 implementation outcome, verification commands, and exit-criteria closeout  |

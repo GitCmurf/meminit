@@ -102,17 +102,17 @@ This section anchors the proposal in the current codebase so engineering does no
 
 ### 2.1 Implemented today
 
-| Capability | Implementation | Location |
-| --- | --- | --- |
-| `meminit init` use case | `InitRepositoryUseCase` | `src/meminit/core/use_cases/init_repository.py` |
-| Protocol asset registry | `ProtocolAssetRegistry`, `ProtocolAsset`, `AssetOwnership` | `src/meminit/core/services/protocol_assets.py` |
-| Drift detection | `classify_drift`, `DriftOutcome` | `src/meminit/core/services/protocol_assets.py` |
-| Drift CLI | `meminit protocol check`, `meminit protocol sync` | `src/meminit/cli/main.py`; use cases `protocol_check.py`, `protocol_sync.py` |
-| Output envelope (v3) | `output_schema_version: "3.0"` | [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md) |
-| Templates v2 | `meminit new` template resolution | [MEMINIT-SPEC-007](../20-specs/spec-007-templates-v2.md) |
-| Repo discovery | `meminit context --format json` | `src/meminit/cli/main.py` |
-| Pre-commit installer | `meminit install-precommit` | `src/meminit/core/use_cases/install_precommit.py`; [MEMINIT-FDD-006](../50-fdd/fdd-006-precommit-installer.md) |
-| Capabilities and explain surface | `meminit capabilities`, `meminit explain` | `src/meminit/core/use_cases/capabilities.py`; [MEMINIT-PRD-005](./prd-005-agent-interface-v2.md) |
+| Capability                       | Implementation                                             | Location                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `meminit init` use case          | `InitRepositoryUseCase`                                    | `src/meminit/core/use_cases/init_repository.py`                                                                |
+| Protocol asset registry          | `ProtocolAssetRegistry`, `ProtocolAsset`, `AssetOwnership` | `src/meminit/core/services/protocol_assets.py`                                                                 |
+| Drift detection                  | `classify_drift`, `DriftOutcome`                           | `src/meminit/core/services/protocol_assets.py`                                                                 |
+| Drift CLI                        | `meminit protocol check`, `meminit protocol sync`          | `src/meminit/cli/main.py`; use cases `protocol_check.py`, `protocol_sync.py`                                   |
+| Output envelope (v3)             | `output_schema_version: "3.0"`                             | [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)                                           |
+| Templates v2                     | `meminit new` template resolution                          | [MEMINIT-SPEC-007](../20-specs/spec-007-templates-v2.md)                                                       |
+| Repo discovery                   | `meminit context --format json`                            | `src/meminit/cli/main.py`                                                                                      |
+| Pre-commit installer             | `meminit install-precommit`                                | `src/meminit/core/use_cases/install_precommit.py`; [MEMINIT-FDD-006](../50-fdd/fdd-006-precommit-installer.md) |
+| Capabilities and explain surface | `meminit capabilities`, `meminit explain`                  | `src/meminit/core/use_cases/capabilities.py`; [MEMINIT-PRD-005](./prd-005-agent-interface-v2.md)               |
 
 The shipped `ProtocolAssetRegistry.default()` registers exactly three assets: `agents-md` (mixed), `meminit-docops-skill` (generated), and `meminit-brownfield-script` (generated, mode `0o755`). `AssetOwnership` currently has only two members: `GENERATED` and `MIXED`. There is **no** `PROJECTED` ownership class today; introducing it is part of the work this PRD authorises.
 
@@ -151,7 +151,6 @@ This produces three failure modes:
 3. **Brittle agent surfaces.** Tool-specific paths (`.codex/`, `.claude/`) are maintained as ad-hoc copies or symlinks of `.agents/` content, so they silently rot when the canonical source updates.
 
 The strategic problem is therefore not "improve `init`" but "define a small, composable installer architecture so that greenfield, brownfield, and upgrade are three different drivers of the same engine."
-
 
 <!-- MEMINIT_SECTION: design_constraints -->
 
@@ -194,16 +193,16 @@ These constraints are non-negotiable and derive from existing governance.
 
 ### 5.3 Success Metrics
 
-| Metric | Target | Measurement |
-| --- | --- | --- |
-| **Time to first green** | < 60 s on Ubuntu CI | `meminit init --profile standard` to passing `meminit check && meminit doctor && meminit protocol check`. |
-| **Idempotency** | 0 changes | `init` followed by a second `init` with identical inputs produces zero `created`/`updated` entries. |
-| **Drift correctness** | 100 % | Fixture matrix of intentionally-corrupted assets (per drift outcome) is correctly classified by `protocol check` and remediated by `protocol sync` / `upgrade-setup`. |
-| **Cross-platform parity** | green on Linux + Windows | Greenfield smoke job in CI passes on both. |
-| **Manifest fidelity** | 100 % | For any sequence of `init` + `upgrade-setup`, `.meminit/setup.yaml` accurately describes the on-disk state (verified by contract tests). |
-| **Brownfield reuse** | ≥ 80 % shared code | At MEMINIT-PRD-004 implementation time, brownfield installers reuse ≥ 80 % of the apply-path code by executable line count, excluding tests, schemas, and CLI glue. |
-| **Contract coverage** | 100 % | Each concrete installer has schema, unit, contract, and integration coverage for `plan`, `apply`, `verify`, dry-run, idempotency, and conflict paths. |
-| **User-authored preservation** | 0 destructive rewrites | Existing user-authored files are preserved unless an explicit generated or projection marker permits replacement, or the user passes an apply/force flag documented by the relevant command. |
+| Metric                         | Target                   | Measurement                                                                                                                                                                                  |
+| ------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Time to first green**        | < 60 s on Ubuntu CI      | `meminit init --profile standard` to passing `meminit check && meminit doctor && meminit protocol check`.                                                                                    |
+| **Idempotency**                | 0 changes                | `init` followed by a second `init` with identical inputs produces zero `created`/`updated` entries.                                                                                          |
+| **Drift correctness**          | 100 %                    | Fixture matrix of intentionally-corrupted assets (per drift outcome) is correctly classified by `protocol check` and remediated by `protocol sync` / `upgrade-setup`.                        |
+| **Cross-platform parity**      | green on Linux + Windows | Greenfield smoke job in CI passes on both.                                                                                                                                                   |
+| **Manifest fidelity**          | 100 %                    | For any sequence of `init` + `upgrade-setup`, `.meminit/setup.yaml` accurately describes the on-disk state (verified by contract tests).                                                     |
+| **Brownfield reuse**           | ≥ 80 % shared code       | At MEMINIT-PRD-004 implementation time, brownfield installers reuse ≥ 80 % of the apply-path code by executable line count, excluding tests, schemas, and CLI glue.                          |
+| **Contract coverage**          | 100 %                    | Each concrete installer has schema, unit, contract, and integration coverage for `plan`, `apply`, `verify`, dry-run, idempotency, and conflict paths.                                        |
+| **User-authored preservation** | 0 destructive rewrites   | Existing user-authored files are preserved unless an explicit generated or projection marker permits replacement, or the user passes an apply/force flag documented by the relevant command. |
 
 <!-- MEMINIT_SECTION: solution -->
 
@@ -213,19 +212,19 @@ These constraints are non-negotiable and derive from existing governance.
 
 The bootstrap is built from a small set of named abstractions. Each is independently testable and lives in a clear module.
 
-| Abstraction | Module | Responsibility |
-| --- | --- | --- |
-| `BootstrapInstaller` (Protocol/ABC) | `core/services/bootstrap/installer.py` | Defines `id`, `plan()`, `apply()`, `verify()` for each concern. |
-| `InstallerRegistry` | `core/services/bootstrap/installer_registry.py` | Maintains the catalog of available installers and enforces dependency topological sorting. (Extensibility) |
-| `BootstrapPlan` | `core/services/bootstrap/plan.py` | Deterministic, serialisable list of `PlanAction` items per installer. |
-| `PlanAction` | `core/services/bootstrap/actions.py` | Versioned action model for create/update/merge/chmod/delete-warning operations; the only object `apply()` may execute. |
-| `SafeFileWriter` | `core/services/bootstrap/writer.py` | Centralises `ensure_safe_write_path`, atomic LF writes, file-mode handling, marker preservation, and diff generation. |
-| `Profile` | `core/services/bootstrap/profile.py` | Declarative bundle: which installers to run, their parameters, and which add-ons to layer on top. |
-| `ProfileRegistry` | `core/services/bootstrap/profile_registry.py` | Resolves profile names to `Profile` instances; layered (built-in → org overlay → repo overlay). |
-| `ProjectionAdapter` | `core/services/bootstrap/projections.py` | Defines how a canonical asset is reflected into a tool-specific path. Introduces the `PROJECTED` ownership class. |
-| `SetupManifest` | `core/services/bootstrap/manifest.py` | Read/write of `.meminit/setup.yaml`. Single source of truth for "what is configured here". |
-| `BootstrapOrchestrator` | `core/use_cases/bootstrap_repository.py` | Orchestrates installer ordering, dry-run, JSON envelope assembly. |
-| Bootstrap schemas | `src/meminit/core/assets/bootstrap/*.schema.json` mirrored to `docs/20-specs/` | Machine-readable contracts for manifest, profile, plan, action, and command payloads. Tests import these assets; `tests/contracts/bootstrap/` contains fixtures, not the normative schema source. |
+| Abstraction                         | Module                                                                         | Responsibility                                                                                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BootstrapInstaller` (Protocol/ABC) | `core/services/bootstrap/installer.py`                                         | Defines `id`, `plan()`, `apply()`, `verify()` for each concern.                                                                                                                                   |
+| `InstallerRegistry`                 | `core/services/bootstrap/installer_registry.py`                                | Maintains the catalog of available installers and enforces dependency topological sorting. (Extensibility)                                                                                        |
+| `BootstrapPlan`                     | `core/services/bootstrap/plan.py`                                              | Deterministic, serialisable list of `PlanAction` items per installer.                                                                                                                             |
+| `PlanAction`                        | `core/services/bootstrap/actions.py`                                           | Versioned action model for create/update/merge/chmod/delete-warning operations; the only object `apply()` may execute.                                                                            |
+| `SafeFileWriter`                    | `core/services/bootstrap/writer.py`                                            | Centralises `ensure_safe_write_path`, atomic LF writes, file-mode handling, marker preservation, and diff generation.                                                                             |
+| `Profile`                           | `core/services/bootstrap/profile.py`                                           | Declarative bundle: which installers to run, their parameters, and which add-ons to layer on top.                                                                                                 |
+| `ProfileRegistry`                   | `core/services/bootstrap/profile_registry.py`                                  | Resolves profile names to `Profile` instances; layered (built-in → org overlay → repo overlay).                                                                                                   |
+| `ProjectionAdapter`                 | `core/services/bootstrap/projections.py`                                       | Defines how a canonical asset is reflected into a tool-specific path. Introduces the `PROJECTED` ownership class.                                                                                 |
+| `SetupManifest`                     | `core/services/bootstrap/manifest.py`                                          | Read/write of `.meminit/setup.yaml`. Single source of truth for "what is configured here".                                                                                                        |
+| `BootstrapOrchestrator`             | `core/use_cases/bootstrap_repository.py`                                       | Orchestrates installer ordering, dry-run, JSON envelope assembly.                                                                                                                                 |
+| Bootstrap schemas                   | `src/meminit/core/assets/bootstrap/*.schema.json` mirrored to `docs/20-specs/` | Machine-readable contracts for manifest, profile, plan, action, and command payloads. Tests import these assets; `tests/contracts/bootstrap/` contains fixtures, not the normative schema source. |
 
 ### 6.2 Installer Contract
 
@@ -323,7 +322,6 @@ add_ons:
 
 Resolution precedence (highest wins): explicit CLI flags → repo overlay (`docops.config.yaml: bootstrap.profile_overlay`) → vendored org profile (MEMINIT-ADR-012 local profile source) → packaged built-in. Resolution and merge rules live in `ProfileRegistry.resolve()` and MUST be deterministic and pure. Runtime network fetches are forbidden.
 
-
 ### 6.5 Setup Manifest
 
 `.meminit/setup.yaml` is the persisted record of the bootstrap. It is validated by Meminit (`meminit doctor` and `upgrade-setup`) but is **not** a governed documentation artifact under `docs/`; it carries operational state, not narrative. It MUST be safe to commit: no secrets, no local absolute paths, no usernames, and no machine-specific temp paths.
@@ -378,14 +376,15 @@ A new `AssetOwnership.PROJECTED` value is introduced in `protocol_assets.py`. To
 
 ```markdown
 <!-- MEMINIT_PROTOCOL: begin id=<projection-id> source=<source-asset-id> version=<version> sha256=<sha> -->
+
 ...
+
 <!-- MEMINIT_PROTOCOL: end id=<projection-id> -->
 ```
 
 `protocol check` and `protocol sync` extend their reporting to include projection-specific outcomes (`projection_aligned`, `projection_stale`, `projection_orphaned`, `projection_tampered`, `projection_unparseable`). A projected file is always derived output; the canonical payload remains the source `ProtocolAsset`.
 
 Built-in adapters in v1: `codex`, `claude`. Each is a small, declarative dataclass; adding a new adapter is a single-file change with paired tests.
-
 
 <!-- MEMINIT_SECTION: requirements -->
 
@@ -443,7 +442,7 @@ For every installer: running `apply()` after `plan()` returned an empty action l
 
 ### FR-13 Manifest installer
 
-`manifest` MUST be the last installer in every plan. It writes `.meminit/setup.yaml` reflecting the actual outcome (post-apply hashes, not pre-apply intent). On `--dry-run`, it writes nothing and reports the manifest it *would* have written.
+`manifest` MUST be the last installer in every plan. It writes `.meminit/setup.yaml` reflecting the actual outcome (post-apply hashes, not pre-apply intent). On `--dry-run`, it writes nothing and reports the manifest it _would_ have written.
 
 ### FR-14 Idempotent re-run
 
@@ -473,8 +472,8 @@ The manifest, profile, profile overlay, bootstrap plan, plan action, and command
 
 Every installer MUST map conflicts into one of: `safe_create`, `safe_update_generated`, `safe_merge_managed_region`, `manual_conflict`, `unsafe_path`, `invalid_existing_file`, or `orphaned_projection`. The taxonomy MUST be present in both `BootstrapPlan` actions and SPEC-008 warnings/violations so agents can route remediation deterministically.
 
-
 <!-- MEMINIT_SECTION: non_functional_requirements -->
+
 ## 8. Non-Functional Requirements
 
 ### NFR-1 Determinism
@@ -522,22 +521,24 @@ Adding a new built-in installer or projection MUST require registering one new m
 The first implementation PR MUST include an ADR or FDD section that defines the package boundaries for `bootstrap/` and the dependency rule between installers, registries, writer, and use cases. Any future installer that needs cross-installer state MUST add a typed manifest field or orchestrator-level dependency, not reach into another installer's internals.
 
 <!-- MEMINIT_SECTION: cli_surface -->
+
 ## 9. CLI Surface
 
-| Command | Purpose | Mutates? |
-| --- | --- | --- |
-| `meminit init [--root PATH] [--profile ID] [--add-on ID]… [--projection ID]… [--dry-run] [--format json]` | Greenfield bootstrap; idempotent | yes (unless `--dry-run`) |
-| `meminit upgrade-setup [--root PATH] [--no-dry-run] [--profile ID] [--remove-orphans] [--force] [--format json]` | Re-run installers from manifest, optionally migrate profile | dry-run by default |
-| `meminit doctor [--format json]` | Run all installer `verify()` plus existing checks | no |
-| `meminit protocol check [--format json]` | Existing command, extended for projections | no |
-| `meminit protocol sync [--no-dry-run] [--format json]` | Existing command, extended for projections | dry-run by default |
-| `meminit profiles list [--root PATH] [--built-in-only] [--format json]` | List available profiles, add-ons, projections, including repo overlays unless `--built-in-only` is set | no |
+| Command                                                                                                          | Purpose                                                                                                | Mutates?                 |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------ |
+| `meminit init [--root PATH] [--profile ID] [--add-on ID]… [--projection ID]… [--dry-run] [--format json]`        | Greenfield bootstrap; idempotent                                                                       | yes (unless `--dry-run`) |
+| `meminit upgrade-setup [--root PATH] [--no-dry-run] [--profile ID] [--remove-orphans] [--force] [--format json]` | Re-run installers from manifest, optionally migrate profile                                            | dry-run by default       |
+| `meminit doctor [--format json]`                                                                                 | Run all installer `verify()` plus existing checks                                                      | no                       |
+| `meminit protocol check [--format json]`                                                                         | Existing command, extended for projections                                                             | no                       |
+| `meminit protocol sync [--no-dry-run] [--format json]`                                                           | Existing command, extended for projections                                                             | dry-run by default       |
+| `meminit profiles list [--root PATH] [--built-in-only] [--format json]`                                          | List available profiles, add-ons, projections, including repo overlays unless `--built-in-only` is set | no                       |
 
 `meminit profiles list` is a thin read-only command exposing `ProfileRegistry.list()`; agents use it to discover the option matrix without parsing CLI help. It is repo-aware by default because repo overlays may affect the result, so SPEC-008 requires `root` in JSON output. `--built-in-only` suppresses repo overlay loading for fast global discovery.
 
 `--force` is valid only for generated or projected assets with deterministic expected hashes. It MUST NOT overwrite unmarked user-authored files, invalid YAML, or mixed files outside managed regions.
 
 <!-- MEMINIT_SECTION: json_envelope_profiles -->
+
 ## 10. JSON Envelope Profiles
 
 All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` payload for new/modified commands is specified below. Schemas live as packaged assets mirrored to `docs/20-specs/`; `tests/contracts/bootstrap/` stores examples and fixtures. `docs/20-specs/agent-output.schema.v3.json` and `src/meminit/core/assets/agent-output.schema.v3.json` MUST be updated in the same PR that adds `upgrade-setup` or `profiles list`.
@@ -547,7 +548,11 @@ All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` paylo
 ```json
 {
   "data": {
-    "profile": {"id": "standard", "version": "1.0", "add_ons": ["security-first"]},
+    "profile": {
+      "id": "standard",
+      "version": "1.0",
+      "add_ons": ["security-first"]
+    },
     "projections": ["codex"],
     "dry_run": false,
     "manifest_path": ".meminit/setup.yaml",
@@ -575,7 +580,7 @@ All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` paylo
           "skipped": [".agents/skills/meminit-docops/SKILL.md"],
           "conflicts": []
         },
-        "verify": {"outcome": "ok", "checked_paths": ["AGENTS.md"]}
+        "verify": { "outcome": "ok", "checked_paths": ["AGENTS.md"] }
       }
     ]
   }
@@ -587,9 +592,13 @@ All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` paylo
 ```json
 {
   "data": {
-    "profiles": [{"id": "standard", "version": "1.0", "extends": "minimal"}],
-    "add_ons":  [{"id": "security-first", "compatible_with": ["standard", "strict"]}],
-    "projections": [{"id": "codex", "source_assets": ["meminit-docops-skill"]}]
+    "profiles": [{ "id": "standard", "version": "1.0", "extends": "minimal" }],
+    "add_ons": [
+      { "id": "security-first", "compatible_with": ["standard", "strict"] }
+    ],
+    "projections": [
+      { "id": "codex", "source_assets": ["meminit-docops-skill"] }
+    ]
   }
 }
 ```
@@ -598,35 +607,37 @@ All envelopes follow SPEC-008 (`output_schema_version: "3.0"`). The `data` paylo
 
 New codes registered in `error_codes.py`:
 
-| Code | Severity | Meaning |
-| --- | --- | --- |
-| `MEMINIT-ERROR-UNKNOWN-PROFILE` | error | `--profile` id not in registry. |
-| `MEMINIT-ERROR-UNKNOWN-ADDON` | error | `--add-on` id not compatible with selected profile. |
-| `MEMINIT-ERROR-UNKNOWN-PROJECTION` | error | `--projection` id not registered. |
-| `MEMINIT-VIOLATION-CONFIG-CONFLICT` | violation | `docops.config.yaml` has user-edited keys conflicting with the profile. |
-| `MEMINIT-WARN-MANIFEST-FUTURE` | warning | On-disk manifest schema is newer than the running CLI. |
-| `MEMINIT-VIOLATION-MANIFEST-INVALID` | violation | `.meminit/setup.yaml` is missing, malformed, or schema-invalid for a command that requires it. |
-| `MEMINIT-WARN-PROJECTION-ORPHANED` | warning | Projection target exists on disk but is not enabled in the manifest. |
-| `MEMINIT-WARN-PROFILE-MIGRATION` | warning | `upgrade-setup --profile` is changing the recorded profile id. |
-| `MEMINIT-VIOLATION-BOOTSTRAP-CONFLICT` | violation | An installer found an existing user-authored file or config structure it cannot safely merge. |
-| `MEMINIT-ERROR-BOOTSTRAP-UNSAFE-PATH` | error | A plan action targets a path outside the repo root or escapes through a symlink. |
+| Code                                   | Severity  | Meaning                                                                                        |
+| -------------------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `MEMINIT-ERROR-UNKNOWN-PROFILE`        | error     | `--profile` id not in registry.                                                                |
+| `MEMINIT-ERROR-UNKNOWN-ADDON`          | error     | `--add-on` id not compatible with selected profile.                                            |
+| `MEMINIT-ERROR-UNKNOWN-PROJECTION`     | error     | `--projection` id not registered.                                                              |
+| `MEMINIT-VIOLATION-CONFIG-CONFLICT`    | violation | `docops.config.yaml` has user-edited keys conflicting with the profile.                        |
+| `MEMINIT-WARN-MANIFEST-FUTURE`         | warning   | On-disk manifest schema is newer than the running CLI.                                         |
+| `MEMINIT-VIOLATION-MANIFEST-INVALID`   | violation | `.meminit/setup.yaml` is missing, malformed, or schema-invalid for a command that requires it. |
+| `MEMINIT-WARN-PROJECTION-ORPHANED`     | warning   | Projection target exists on disk but is not enabled in the manifest.                           |
+| `MEMINIT-WARN-PROFILE-MIGRATION`       | warning   | `upgrade-setup --profile` is changing the recorded profile id.                                 |
+| `MEMINIT-VIOLATION-BOOTSTRAP-CONFLICT` | violation | An installer found an existing user-authored file or config structure it cannot safely merge.  |
+| `MEMINIT-ERROR-BOOTSTRAP-UNSAFE-PATH`  | error     | A plan action targets a path outside the repo root or escapes through a symlink.               |
 
 <!-- MEMINIT_SECTION: profiles_catalog -->
+
 ## 11. Profiles Catalog
 
 Built-in profiles in v1. Each is a packaged YAML asset; the table below is the normative summary.
 
-| Profile | Extends | Installers enabled | Default projections | Intended audience |
-| --- | --- | --- | --- | --- |
-| `minimal` | — | `docops-tree`, `docops-config`, `governance-templates`, `protocol-assets`, `manifest` | none | Library authors wanting DocOps only, no CI. |
-| `standard` | `minimal` | + `projections`, `editorconfig`, `gitignore`, `pre-commit`, `ci-github` (docops + protocol-check + greenfield-smoke), `github-meta` (pr-template, issue-templates) | `codex` | Default for new repos. |
-| `strict` | `standard` | + stricter pre-commit bundle, CI `meminit doctor --strict`, `github-meta` (+ CODEOWNERS) | `codex`, `claude` | Regulated / multi-contributor repos. |
+| Profile    | Extends    | Installers enabled                                                                                                                                                 | Default projections | Intended audience                           |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------------------- |
+| `minimal`  | —          | `docops-tree`, `docops-config`, `governance-templates`, `protocol-assets`, `manifest`                                                                              | none                | Library authors wanting DocOps only, no CI. |
+| `standard` | `minimal`  | + `projections`, `editorconfig`, `gitignore`, `pre-commit`, `ci-github` (docops + protocol-check + greenfield-smoke), `github-meta` (pr-template, issue-templates) | `codex`             | Default for new repos.                      |
+| `strict`   | `standard` | + stricter pre-commit bundle, CI `meminit doctor --strict`, `github-meta` (+ CODEOWNERS)                                                                           | `codex`, `claude`   | Regulated / multi-contributor repos.        |
 
 Add-ons in v1: `security-first` (injects the `MEMINIT_AGENT_SECURITY` section into `AGENTS.md`), `testing-first` (adds a testing section and enables an additional CI smoke job that runs the existing test/check commands), `monorepo` (adjusts `docops.config.yaml` `namespaces` defaults).
 
 Projections in v1: `codex` (projects `meminit-docops` skill into `.codex/skills/`), `claude` (projects the same skill into `.claude/skills/`).
 
 <!-- MEMINIT_SECTION: engineering_quality_bar -->
+
 ## 12. Engineering Quality Bar
 
 This PRD is implementation-ready only if engineering treats these as merge gates, not preferences.
@@ -639,6 +650,7 @@ This PRD is implementation-ready only if engineering treats these as merge gates
 6. **Runtime and docs stay atomic.** Any PR that changes CLI flags, JSON payloads, schemas, or generated assets MUST update capabilities, error explanations, relevant FDD/SPEC text, and regression fixtures in the same commit set.
 
 <!-- MEMINIT_SECTION: phased_implementation_plan -->
+
 ## 13. Phased Implementation Plan
 
 Each phase is an independently mergeable increment. Every phase MUST ship with updated FDDs and tests (atomic unit of work per `AGENTS.md`).
@@ -688,6 +700,7 @@ Each phase is an independently mergeable increment. Every phase MUST ship with u
 - Deliverable: MEMINIT-PRD-004 work can begin against a stable installer contract.
 
 <!-- MEMINIT_SECTION: acceptance_criteria -->
+
 ## 14. Acceptance Criteria
 
 A phase is complete only when all criteria applicable to that phase hold:
@@ -716,6 +729,7 @@ Before implementation starts, engineering should create or update:
 - Integration tests under `tests/integration/` that initialize a fresh repo, re-run idempotently, and verify `check`/`doctor`/`protocol check`.
 
 <!-- MEMINIT_SECTION: alternatives_considered -->
+
 ## 15. Alternatives Considered
 
 - **Keep a single `InitRepositoryUseCase` and grow it.** Rejected: violates SRP, makes brownfield reuse impossible, and defeats the MEMINIT-PRD-004 plan-driven fix workflow.
@@ -725,20 +739,22 @@ Before implementation starts, engineering should create or update:
 - **Store manifest in `docops.config.yaml`.** Rejected: `docops.config.yaml` is a user-authored policy file; the manifest is operational state. Mixing them breaks round-trip ergonomics and violates the byte-invariance goal for user-authored files.
 
 <!-- MEMINIT_SECTION: risks_and_mitigations -->
+
 ## 16. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- |
-| Profile/add-on combinatorial bugs | medium | medium | Contract tests across a matrix of `{profile} × {add_on}` combinations; `ProfileRegistry.resolve()` is pure and deterministically tested. |
-| Projection adapters diverge from canonical asset | medium | high | Projected files must carry `source=<id>` in their marker; `protocol check` fails if projection hash does not match rendered source. |
-| `upgrade-setup` silently breaks user-edited files | low | high | Dry-run by default, per-installer conflict reporting, structural diffs, and explicit `--force` gates. |
-| Windows path/line-ending regressions | medium | medium | Windows job in greenfield smoke; all writes use `newline="\n"` with explicit LF mode. |
-| Brownfield plan format drift | medium | high | Shared schema assets plus a SPEC-005 adapter test prove bootstrap plans can feed `fix --plan` without private-shape drift (FR-18). |
-| Schema source-of-truth drift | medium | high | Runtime schemas live as packaged assets and are mirrored to docs; tests validate mirror parity and fixture conformance. |
-| Hidden installer coupling | medium | high | Registry-level dependency graph, package-boundary import tests, and typed manifest fields for cross-installer handoff. |
-| Manifest corruption (user edit) | low | medium | `SetupManifest.load()` validates against schema and emits `MEMINIT-VIOLATION-MANIFEST-INVALID` rather than crashing; users repair by re-running `init`/`upgrade-setup` after moving the invalid manifest aside. |
+| Risk                                              | Likelihood | Impact | Mitigation                                                                                                                                                                                                      |
+| ------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profile/add-on combinatorial bugs                 | medium     | medium | Contract tests across a matrix of `{profile} × {add_on}` combinations; `ProfileRegistry.resolve()` is pure and deterministically tested.                                                                        |
+| Projection adapters diverge from canonical asset  | medium     | high   | Projected files must carry `source=<id>` in their marker; `protocol check` fails if projection hash does not match rendered source.                                                                             |
+| `upgrade-setup` silently breaks user-edited files | low        | high   | Dry-run by default, per-installer conflict reporting, structural diffs, and explicit `--force` gates.                                                                                                           |
+| Windows path/line-ending regressions              | medium     | medium | Windows job in greenfield smoke; all writes use `newline="\n"` with explicit LF mode.                                                                                                                           |
+| Brownfield plan format drift                      | medium     | high   | Shared schema assets plus a SPEC-005 adapter test prove bootstrap plans can feed `fix --plan` without private-shape drift (FR-18).                                                                              |
+| Schema source-of-truth drift                      | medium     | high   | Runtime schemas live as packaged assets and are mirrored to docs; tests validate mirror parity and fixture conformance.                                                                                         |
+| Hidden installer coupling                         | medium     | high   | Registry-level dependency graph, package-boundary import tests, and typed manifest fields for cross-installer handoff.                                                                                          |
+| Manifest corruption (user edit)                   | low        | medium | `SetupManifest.load()` validates against schema and emits `MEMINIT-VIOLATION-MANIFEST-INVALID` rather than crashing; users repair by re-running `init`/`upgrade-setup` after moving the invalid manifest aside. |
 
 <!-- MEMINIT_SECTION: resolved_decisions_and_open_questions -->
+
 ## 17. Resolved Decisions and Open Questions
 
 ### Resolved
@@ -757,6 +773,7 @@ Before implementation starts, engineering should create or update:
 2. Should profile overlays be allowed from both vendored org profiles and repo config in v1, or should repo overlays wait until brownfield hardening?
 
 <!-- MEMINIT_SECTION: related_documents -->
+
 ## 18. Related Documents
 
 - [MEMINIT-STRAT-001 — Project Meminit Vision](../02-strategy/strat-001-project-meminit-vision.md)
@@ -782,9 +799,9 @@ Before implementation starts, engineering should create or update:
 
 ## 19. Version History
 
-| Version | Date       | Author              | Changes                                                                                                                                               |
-| ------- | ---------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1     | 2026-04-25 | Meminit maintainers | Initial draft (reformatted from earlier scaffolding notes).                                                                                          |
-| 0.2     | 2026-04-25 | Meminit maintainers | Hardened to demonstration-class PRD: grounded in current code (`ProtocolAssetRegistry`, `AssetOwnership`), introduced modular installer contract, profile registry, setup manifest, projection model, phased plan, risks, and brownfield-ready plan schema. |
-| 0.3     | 2026-04-25 | Codex              | Corrected current-state drift (`install-precommit`, capabilities, `explain`), tightened schema/action/write-boundary contracts, clarified projection markers, strengthened security and CI requirements, and added engineering handoff criteria for brownfield reuse. |
-| 0.4     | 2026-04-30 | Codex              | Corrected schema source-of-truth and SPEC-005 plan compatibility gaps, clarified `profiles list` repo-awareness, removed stale `meminit test-smoke` claim, added engineering quality gates, tightened installer compartmentalisation, and fixed ADR-012 reference text. |
+| Version | Date       | Author              | Changes                                                                                                                                                                                                                                                                 |
+| ------- | ---------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-25 | Meminit maintainers | Initial draft (reformatted from earlier scaffolding notes).                                                                                                                                                                                                             |
+| 0.2     | 2026-04-25 | Meminit maintainers | Hardened to demonstration-class PRD: grounded in current code (`ProtocolAssetRegistry`, `AssetOwnership`), introduced modular installer contract, profile registry, setup manifest, projection model, phased plan, risks, and brownfield-ready plan schema.             |
+| 0.3     | 2026-04-25 | Codex               | Corrected current-state drift (`install-precommit`, capabilities, `explain`), tightened schema/action/write-boundary contracts, clarified projection markers, strengthened security and CI requirements, and added engineering handoff criteria for brownfield reuse.   |
+| 0.4     | 2026-04-30 | Codex               | Corrected schema source-of-truth and SPEC-005 plan compatibility gaps, clarified `profiles list` repo-awareness, removed stale `meminit test-smoke` claim, added engineering quality gates, tightened installer compartmentalisation, and fixed ADR-012 reference text. |

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import tomllib
 from functools import lru_cache
-from importlib.metadata import PackageNotFoundError, version as package_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Final
-
-import tomllib
 
 PACKAGE_NAME: Final[str] = "meminit"
 

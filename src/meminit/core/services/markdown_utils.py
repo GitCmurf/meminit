@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
+
 from meminit.core.services.repo_config import RepoConfig
 
 DEFAULT_DOCOPS_VERSION = "2.0"

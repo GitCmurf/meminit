@@ -15,10 +15,7 @@ import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.index_cache import _cache_key
-from meminit.core.use_cases.index_repository import (
-    IndexRepositoryUseCase,
-    _safe_css_slug,
-)
+from meminit.core.use_cases.index_repository import IndexRepositoryUseCase, _safe_css_slug
 
 # ---------------------------------------------------------------------------
 # Helpers

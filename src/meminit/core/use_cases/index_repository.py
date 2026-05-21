@@ -11,11 +11,11 @@ Enhancements:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import re
-import hashlib
 import threading
 from contextlib import nullcontext
 from dataclasses import dataclass, field
@@ -28,17 +28,16 @@ import frontmatter
 import yaml
 
 from meminit.core.domain.entities import Severity
+from meminit.core.services import graph
+from meminit.core.services.diagnostics import canonicalize_advice_list, canonicalize_warning_list
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.diagnostics import (
-    canonicalize_advice_list,
-    canonicalize_warning_list,
-)
+from meminit.core.services.index_cache import CachePlan, IndexCache
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.project_state import (
+    VALID_PRIORITIES,
     ImplState,
     ProjectState,
-    VALID_PRIORITIES,
     get_state_file_rel_path,
     load_project_state,
     validate_project_state,
@@ -53,16 +52,14 @@ from meminit.core.services.sanitization import (
     sanitize_html,
     validate_actor,
 )
-from meminit.core.services.warning_codes import WarningCode
-from meminit.core.services import graph
-from meminit.core.services.index_cache import CachePlan, IndexCache
 from meminit.core.services.stream_events import (
+    StreamingResult,
     StreamItem,
     StreamSummary,
-    StreamingResult,
     summary_data,
 )
 from meminit.core.services.versioning import get_cli_version
+from meminit.core.services.warning_codes import WarningCode
 
 MAX_STREAM_QUEUE_SIZE = 500
 
@@ -1421,9 +1418,9 @@ class IndexRepositoryUseCase:
                     if state_entry.updated_by and validate_actor(state_entry.updated_by):
                         entry["updated_by"] = state_entry.updated_by
                     elif state_entry.updated_by == "":
-                        entry["updated_by"] = (
-                            ""  # preserve explicitly empty string if originally there
-                        )
+                        entry[
+                            "updated_by"
+                        ] = ""  # preserve explicitly empty string if originally there
 
                     if state_entry.notes is not None:
                         sanitized_notes = sanitize_field(

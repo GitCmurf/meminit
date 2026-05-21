@@ -11,11 +11,11 @@ import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.project_state import (
+    STATE_SCHEMA_VERSION,
+    STATE_SCHEMA_VERSION_LEGACY,
     ImplState,
     ProjectState,
     ProjectStateEntry,
-    STATE_SCHEMA_VERSION,
-    STATE_SCHEMA_VERSION_LEGACY,
     get_state_file_rel_path_fallback,
     get_state_file_rel_path_strict,
     load_project_state,
@@ -913,6 +913,7 @@ def test_utc_normalization_on_load(tmp_path):
 
 def test_load_project_state_converts_non_utc_offset_to_utc(tmp_path):
     from datetime import timedelta
+
     from meminit.core.services.project_state import load_project_state
 
     (tmp_path / "docs").mkdir()

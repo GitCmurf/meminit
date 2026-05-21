@@ -1082,8 +1082,9 @@ class TestCliStateSetMixedMutationModeRejection:
 
 def test_cli_state_next_invalid_priority_warning_has_path(repo_with_docs):
     """BV-2 regression: invalid priority warnings must include 'path' for schema compliance."""
-    import jsonschema
     from pathlib import Path as P
+
+    import jsonschema
 
     runner = runner_no_mixed_stderr()
     runner.invoke(

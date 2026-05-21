@@ -66,13 +66,13 @@ The index artifact was upgraded from a flat document inventory to a graph-grade 
 
 ### Edge schema
 
-| Field      | Type   | Required | Description |
-| ---------- | ------ | -------- | ----------- |
-| `source`   | string | yes      | Document ID of the source node |
-| `target`   | string | yes      | Document ID of the target node |
-| `edge_type`| string | yes      | `"related"`, `"supersedes"`, or `"references"` |
-| `guaranteed`| bool  | yes      | `true` for frontmatter-derived edges, `false` for body-link scanned |
-| `context`  | string | no       | Provenance: `"frontmatter.related_ids"`, `"frontmatter.superseded_by"`, `"body.markdown_link"` |
+| Field        | Type   | Required | Description                                                                                    |
+| ------------ | ------ | -------- | ---------------------------------------------------------------------------------------------- |
+| `source`     | string | yes      | Document ID of the source node                                                                 |
+| `target`     | string | yes      | Document ID of the target node                                                                 |
+| `edge_type`  | string | yes      | `"related"`, `"supersedes"`, or `"references"`                                                 |
+| `guaranteed` | bool   | yes      | `true` for frontmatter-derived edges, `false` for body-link scanned                            |
+| `context`    | string | no       | Provenance: `"frontmatter.related_ids"`, `"frontmatter.superseded_by"`, `"body.markdown_link"` |
 
 When the same logical edge `(source, target, edge_type)` is discovered from
 multiple sources, Meminit persists a single edge and keeps the strongest
@@ -89,14 +89,14 @@ Edge direction conventions:
 
 Six checks run during `meminit index` build:
 
-| Code | Severity | Channel | Description |
-| ---- | -------- | ------- | ----------- |
-| `GRAPH_DUPLICATE_DOCUMENT_ID` | fatal | violations | Same `document_id` in multiple files |
-| `GRAPH_SUPERSESSION_CYCLE` | fatal | violations | Supersedes chain forms a cycle |
-| `GRAPH_DANGLING_RELATED_ID` | warning | warnings | `related_ids` target not in index |
-| `GRAPH_DANGLING_SUPERSEDED_BY` | warning | warnings | `superseded_by` target not in index |
-| `GRAPH_SUPERSESSION_STATUS_MISMATCH` | warning | warnings | `superseded_by` set but status is not `Superseded` (or vice versa) |
-| `GRAPH_RELATED_ID_ASYMMETRY` | info | advice | A lists B in `related_ids` but B does not list A |
+| Code                                 | Severity | Channel    | Description                                                        |
+| ------------------------------------ | -------- | ---------- | ------------------------------------------------------------------ |
+| `GRAPH_DUPLICATE_DOCUMENT_ID`        | fatal    | violations | Same `document_id` in multiple files                               |
+| `GRAPH_SUPERSESSION_CYCLE`           | fatal    | violations | Supersedes chain forms a cycle                                     |
+| `GRAPH_DANGLING_RELATED_ID`          | warning  | warnings   | `related_ids` target not in index                                  |
+| `GRAPH_DANGLING_SUPERSEDED_BY`       | warning  | warnings   | `superseded_by` target not in index                                |
+| `GRAPH_SUPERSESSION_STATUS_MISMATCH` | warning  | warnings   | `superseded_by` set but status is not `Superseded` (or vice versa) |
+| `GRAPH_RELATED_ID_ASYMMETRY`         | info     | advice     | A lists B in `related_ids` but B does not list A                   |
 
 Fatal errors halt the build and are surfaced in the CLI JSON envelope `violations` array. Non-fatal checks are skipped when fatal errors exist.
 

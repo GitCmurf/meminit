@@ -67,6 +67,7 @@ Out of scope:
 - "Agent" refers to an automated tool that consumes JSON output.
 
 <!-- MEMINIT_SECTION: streaming_envelope -->
+
 ### 3.1 Streaming and the v3 Envelope
 
 `--format json` emits exactly one v3 envelope as defined by this document.
@@ -79,6 +80,7 @@ minus entity arrays that were already emitted as `item` records.
 
 Consumers MUST choose the parser from the requested `--format` value. They
 MUST NOT attempt to parse NDJSON as a v3 envelope.
+
 <!-- /MEMINIT_SECTION: streaming_envelope -->
 
 ## 4. Output Envelope
@@ -118,22 +120,22 @@ or in structured logs.
 
 Current scope includes the shared v3 envelope plus the listed Phase 1-4 command payload profiles.
 
-| Command             | Required `data` fields                                                                                   | Payload Type |
-| ------------------- | -------------------------------------------------------------------------------------------------------- | ------------ |
-| `check`             | See SPEC-004 counters                                                                                    | Object with integer counters |
-| `new`               | `data.document_id`, `data.path`, `data.type`, `data.title`                                               | Object with string fields |
-| `state set/get`     | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                                 | Object with string fields |
-| `state list`        | `data.entries`                                                                                           | Object containing an array |
-| `state next`        | `data.entry`, `data.selection`, `data.reason`                                                            | Object containing `entry` object or `null`, selection object, and nullable reason |
-| `state blockers`    | `data.blocked`, `data.summary`                                                                           | Object containing blocked-entry array and summary object |
-| `capabilities`      | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object |
-| `explain`           | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list` |
-| `index`             | `data.index_path`, `data.node_count`, `data.edge_count`, `data.nodes`, `data.edges`, `data.filtered` | Object containing graph index data |
-| `resolve`           | `data.document_id`, `data.path`                                                                          | Object with resolution result (FILE_NOT_FOUND error on miss) |
-| `identify`          | `data.path`, `data.document_id`                                                                          | Object with identification result (FILE_NOT_FOUND error on miss) |
-| `link`              | `data.document_id`, `data.link`                                                                          | Object with link generation result (FILE_NOT_FOUND error on miss) |
-| `protocol check`    | `data.summary`, `data.assets`                                                                            | Object with asset status array and counters |
-| `protocol sync`     | `data.dry_run`, `data.applied`, `data.assets`, `data.summary`                                            | Object with sync outcome |
+| Command          | Required `data` fields                                                                                | Payload Type                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `check`          | See SPEC-004 counters                                                                                 | Object with integer counters                                                      |
+| `new`            | `data.document_id`, `data.path`, `data.type`, `data.title`                                            | Object with string fields                                                         |
+| `state set/get`  | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                              | Object with string fields                                                         |
+| `state list`     | `data.entries`                                                                                        | Object containing an array                                                        |
+| `state next`     | `data.entry`, `data.selection`, `data.reason`                                                         | Object containing `entry` object or `null`, selection object, and nullable reason |
+| `state blockers` | `data.blocked`, `data.summary`                                                                        | Object containing blocked-entry array and summary object                          |
+| `capabilities`   | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object                              |
+| `explain`        | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list`              |
+| `index`          | `data.index_path`, `data.node_count`, `data.edge_count`, `data.nodes`, `data.edges`, `data.filtered`  | Object containing graph index data                                                |
+| `resolve`        | `data.document_id`, `data.path`                                                                       | Object with resolution result (FILE_NOT_FOUND error on miss)                      |
+| `identify`       | `data.path`, `data.document_id`                                                                       | Object with identification result (FILE_NOT_FOUND error on miss)                  |
+| `link`           | `data.document_id`, `data.link`                                                                       | Object with link generation result (FILE_NOT_FOUND error on miss)                 |
+| `protocol check` | `data.summary`, `data.assets`                                                                         | Object with asset status array and counters                                       |
+| `protocol sync`  | `data.dry_run`, `data.applied`, `data.assets`, `data.summary`                                         | Object with sync outcome                                                          |
 
 ### 5.1 `new` Command Payload (Templates v2)
 
@@ -193,6 +195,7 @@ Required:
 - `summary`: Object containing total entry counts and blocked/ready counts.
 
 <!-- MEMINIT_SECTION: index_payload -->
+
 ### 5.3 `index` Command Payload
 
 For `command: index`, the `data` object MUST contain:
@@ -214,6 +217,7 @@ Optional:
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: protocol_sync_payload -->
+
 ### 5.4 `protocol sync` Command Payload
 
 For `command: protocol sync`, the `data` object MUST contain:
@@ -234,6 +238,7 @@ Asset result fields:
 - `preserved_user_bytes`: integer (present for mixed-ownership assets when user content was preserved).
 
 **Refusal Semantics:**
+
 - In dry-run mode, `violations` represent drift when `success` is false.
 - In apply mode, `violations` are generated for assets with `action: "refuse"`.
 - Refusal outcomes are represented both in `assets[].action == "refuse"` and in the `violations` array.
@@ -241,6 +246,7 @@ Asset result fields:
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: capabilities_payload -->
+
 ### 5.5 `capabilities` Command Payload
 
 For `command: capabilities`, the `data` object MUST contain:
@@ -259,6 +265,7 @@ Warnings, violations, and advice are always empty arrays.
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: explain_payload -->
+
 ### 5.6 `explain` Command Payload
 
 For `command: explain` (single code), the `data` object MUST contain:
@@ -283,6 +290,7 @@ The command is repo-agnostic (`needs_root: false`), so `root` is omitted from th
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: resolve_payload -->
+
 ### 5.7 `resolve` Command Payload
 
 For `command: resolve`, the `data` object MUST contain on success:
@@ -297,6 +305,7 @@ On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`succ
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: identify_payload -->
+
 ### 5.8 `identify` Command Payload
 
 For `command: identify`, the `data` object MUST contain on success:
@@ -311,6 +320,7 @@ On a miss (path not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`su
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: link_payload -->
+
 ### 5.9 `link` Command Payload
 
 For `command: link`, the `data` object MUST contain on success:
@@ -325,6 +335,7 @@ On a miss (ID not found), the CLI emits a `FILE_NOT_FOUND` error envelope (`succ
 <!-- /MEMINIT_SECTION -->
 
 <!-- MEMINIT_SECTION: protocol_check_payload -->
+
 ### 5.10 `protocol check` Command Payload
 
 For `command: protocol check`, the `data` object MUST contain:
@@ -342,6 +353,7 @@ Asset status fields:
 - `auto_fixable`: boolean.
 
 **Warnings/Violations:**
+
 - A `success: false` result indicates drift.
 - Violations are emitted for all drifted assets (status other than "aligned").
 
@@ -357,12 +369,12 @@ The normative schema is `docs/20-specs/agent-output.schema.v3.json`.
 
 ## 8. Version History
 
-| Version | Date       | Author   | Changes |
-| ------- | ---------- | -------- | ------- |
-| 1.0     | 2026-03-05 | Product Team | Initial agent output contract for `check` and `new`. |
-| 1.1     | 2026-04-16 | GitCmurf | Updated conditional root semantics and broadened command scope. |
-| 1.2     | 2026-04-21 | Codex    | Added Phase 4 queue command payload profiles (`state next`, `state blockers`) and clarified merged `state list` expectations. |
-| 1.3     | 2026-04-30 | Codex    | Added payload profiles for all Phase 1-3 commands and clarified protocol sync dry-run/apply semantics. |
-| 1.4     | 2026-04-30 | Codex    | Remediation: Updated index command CLI payload fields, corrected resolve/identify/link to remove 'found', and documented protocol sync 'dry_run'. |
-| 1.5     | 2026-05-06 | Codex    | Added Section 3.1 streaming/envelope semantics and the MEMINIT-SPEC-011 cross-reference. |
-| 1.6     | 2026-05-18 | Codex    | Clarified that unexpected internal exception details in JSON and NDJSON stdout must be redacted. |
+| Version | Date       | Author       | Changes                                                                                                                                           |
+| ------- | ---------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0     | 2026-03-05 | Product Team | Initial agent output contract for `check` and `new`.                                                                                              |
+| 1.1     | 2026-04-16 | GitCmurf     | Updated conditional root semantics and broadened command scope.                                                                                   |
+| 1.2     | 2026-04-21 | Codex        | Added Phase 4 queue command payload profiles (`state next`, `state blockers`) and clarified merged `state list` expectations.                     |
+| 1.3     | 2026-04-30 | Codex        | Added payload profiles for all Phase 1-3 commands and clarified protocol sync dry-run/apply semantics.                                            |
+| 1.4     | 2026-04-30 | Codex        | Remediation: Updated index command CLI payload fields, corrected resolve/identify/link to remove 'found', and documented protocol sync 'dry_run'. |
+| 1.5     | 2026-05-06 | Codex        | Added Section 3.1 streaming/envelope semantics and the MEMINIT-SPEC-011 cross-reference.                                                          |
+| 1.6     | 2026-05-18 | Codex        | Clarified that unexpected internal exception details in JSON and NDJSON stdout must be redacted.                                                  |

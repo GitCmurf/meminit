@@ -1,17 +1,16 @@
 import os
+from pathlib import Path
 
 import pytest
 
-from pathlib import Path
-
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import (
-    ensure_safe_write_path,
-    ensure_existing_regular_file_path,
-    UnsafePathError,
     MeminitFileTypeError,
     MeminitPathEscapeError,
+    UnsafePathError,
+    ensure_existing_regular_file_path,
+    ensure_safe_write_path,
 )
-from meminit.core.services.error_codes import MeminitError, ErrorCode
 
 
 def test_path_escape_catchable_as_unsafe_path_error(tmp_path):

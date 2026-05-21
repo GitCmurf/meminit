@@ -1,22 +1,22 @@
 import hashlib
+import logging
 import re
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from dataclasses import dataclass
 from typing import List, Mapping, Optional
-import logging
 
 import yaml
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.org_profiles import resolve_org_profile
 from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     ProtocolAssetRegistry,
-    resolve_repo_metadata,
     normalize_protocol_payload,
+    resolve_repo_metadata,
 )
 from meminit.core.services.repo_config import derive_repo_prefix
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 
 _FALLBACK_SCHEMA_JSON = b"""{

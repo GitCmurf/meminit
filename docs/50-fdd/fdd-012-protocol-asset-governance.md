@@ -44,11 +44,11 @@ A frozen dataclass registry (`ProtocolAssetRegistry`) serves as the single sourc
 
 Three assets are registered by default:
 
-| ID | Path | Ownership | File Mode |
-|----|------|-----------|-----------|
-| `agents-md` | `AGENTS.md` | mixed | None |
-| `meminit-docops-skill` | `.agents/skills/meminit-docops/SKILL.md` | generated | None |
-| `meminit-brownfield-script` | `.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh` | generated | `0o755` |
+| ID                          | Path                                                               | Ownership | File Mode |
+| --------------------------- | ------------------------------------------------------------------ | --------- | --------- |
+| `agents-md`                 | `AGENTS.md`                                                        | mixed     | None      |
+| `meminit-docops-skill`      | `.agents/skills/meminit-docops/SKILL.md`                           | generated | None      |
+| `meminit-brownfield-script` | `.agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh` | generated | `0o755`   |
 
 ### Marker Grammar
 
@@ -124,7 +124,7 @@ The protocol subsystem emits non-fatal warnings for operator awareness:
 5. User content in mixed-ownership files is preserved byte-identical.
 6. Init consumes the registry as single source of truth for all three assets.
 7. Contract-matrix tests auto-include both commands.
-8. 5 PROTOCOL_* error codes registered in MEMINIT-SPEC-006.
+8. 5 PROTOCOL\_\* error codes registered in MEMINIT-SPEC-006.
 
 ## Testing
 

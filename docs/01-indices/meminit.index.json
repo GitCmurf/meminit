@@ -2727,10 +2727,7 @@
         "owner": "Product Team",
         "path": "docs/45-adr/adr-014-templates-v2-architecture.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PRD-006",
-          "MEMINIT-SPEC-007"
-        ],
+        "related_ids": ["MEMINIT-PRD-006", "MEMINIT-SPEC-007"],
         "repo_prefix": "MEMINIT",
         "status": "Draft",
         "superseded_by": null,
@@ -2951,12 +2948,7 @@
         "area": "CORE",
         "description": "Functional design for the meminit migrate-templates command to convert legacy templates and configurations to Templates v2 format.",
         "document_id": "MEMINIT-FDD-010",
-        "keywords": [
-          "migration",
-          "template",
-          "templates-v2",
-          "cli"
-        ],
+        "keywords": ["migration", "template", "templates-v2", "cli"],
         "last_updated": "2026-03-07",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3003,23 +2995,14 @@
         "area": "GOVERNANCE",
         "description": "Protocol asset registry, ownership model, marker grammar, drift detection (protocol check), and safe remediation (protocol sync).",
         "document_id": "MEMINIT-FDD-012",
-        "keywords": [
-          "protocol",
-          "governance",
-          "drift",
-          "sync",
-          "agents-md"
-        ],
+        "keywords": ["protocol", "governance", "drift", "sync", "agents-md"],
         "last_updated": "2026-04-19",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
         "path": "docs/50-fdd/fdd-012-protocol-asset-governance.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PRD-005",
-          "MEMINIT-SPEC-006"
-        ],
+        "related_ids": ["MEMINIT-PRD-005", "MEMINIT-SPEC-006"],
         "repo_prefix": "MEMINIT",
         "status": "Draft",
         "superseded_by": null,
@@ -3062,12 +3045,7 @@
         "area": "AGENT",
         "description": "Feature design for Phase 5 NDJSON streaming and repo-local index cache surfaces.",
         "document_id": "MEMINIT-FDD-014",
-        "keywords": [
-          "streaming",
-          "ndjson",
-          "index",
-          "cache"
-        ],
+        "keywords": ["streaming", "ndjson", "index", "cache"],
         "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3166,20 +3144,14 @@
         "area": "AGENT",
         "description": "Corrects the graph_index capability flag status from future-only to shipped.",
         "document_id": "MEMINIT-IMPL-001",
-        "keywords": [
-          "capabilities",
-          "graph_index"
-        ],
+        "keywords": ["capabilities", "graph_index"],
         "last_updated": "2026-04-30",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Codex",
         "path": "docs/05-planning/impl-note-001-graph-index-capabilities.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PLAN-010",
-          "MEMINIT-PRD-005"
-        ],
+        "related_ids": ["MEMINIT-PLAN-010", "MEMINIT-PRD-005"],
         "repo_prefix": "MEMINIT",
         "status": "Approved",
         "superseded_by": null,
@@ -3191,12 +3163,7 @@
         "area": "AGENT",
         "description": "Operator-attested evidence template for Phase 5 NDJSON streaming and incremental cache validation in an external testbed repository.",
         "document_id": "MEMINIT-LOG-001",
-        "keywords": [
-          "phase-5",
-          "streaming",
-          "cache",
-          "external-testbed"
-        ],
+        "keywords": ["phase-5", "streaming", "cache", "external-testbed"],
         "last_updated": "2026-05-17",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3279,13 +3246,7 @@
         "area": "AGENT",
         "description": "Execution plan for redefining files_checked, adding counters, and rolling output_schema_version 2.0 for check JSON outputs.",
         "document_id": "MEMINIT-PLAN-004",
-        "keywords": [
-          "output",
-          "contract",
-          "files_checked",
-          "counters",
-          "json"
-        ],
+        "keywords": ["output", "contract", "files_checked", "counters", "json"],
         "last_updated": "2026-02-19",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3362,22 +3323,14 @@
         "area": "PLAN",
         "description": "Scope and architecture boundary for org-level config (P3.1 from MEMINIT-PLAN-006)",
         "document_id": "MEMINIT-PLAN-007",
-        "keywords": [
-          "org-config",
-          "scope",
-          "deferred",
-          "architecture"
-        ],
+        "keywords": ["org-config", "scope", "deferred", "architecture"],
         "last_updated": "2026-03-07",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
         "path": "docs/05-planning/plan-006a-org-config-scope.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PLAN-006",
-          "MEMINIT-PRD-001"
-        ],
+        "related_ids": ["MEMINIT-PLAN-006", "MEMINIT-PRD-001"],
         "repo_prefix": "MEMINIT",
         "status": "Draft",
         "superseded_by": null,
@@ -3389,12 +3342,7 @@
         "area": "AGENT",
         "description": "Phased improvement programme for Meminit as a stronger platform for agentic coding agents.",
         "document_id": "MEMINIT-PLAN-008",
-        "keywords": [
-          "agent",
-          "roadmap",
-          "planning",
-          "orchestration"
-        ],
+        "keywords": ["agent", "roadmap", "planning", "orchestration"],
         "last_updated": "2026-04-14",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3419,12 +3367,7 @@
         "area": "AGENT",
         "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 0 foundation hardening.",
         "document_id": "MEMINIT-PLAN-009",
-        "keywords": [
-          "phase-0",
-          "planning",
-          "testing",
-          "determinism"
-        ],
+        "keywords": ["phase-0", "planning", "testing", "determinism"],
         "last_updated": "2026-04-14",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3447,12 +3390,7 @@
         "area": "AGENT",
         "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 1 agent contract core.",
         "document_id": "MEMINIT-PLAN-010",
-        "keywords": [
-          "phase-1",
-          "planning",
-          "capabilities",
-          "contract"
-        ],
+        "keywords": ["phase-1", "planning", "capabilities", "contract"],
         "last_updated": "2026-04-15",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3475,12 +3413,7 @@
         "area": "AGENT",
         "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 2 repository graph work.",
         "document_id": "MEMINIT-PLAN-011",
-        "keywords": [
-          "phase-2",
-          "planning",
-          "index",
-          "graph"
-        ],
+        "keywords": ["phase-2", "planning", "index", "graph"],
         "last_updated": "2026-04-17",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3503,12 +3436,7 @@
         "area": "AGENT",
         "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 3 protocol governance work.",
         "document_id": "MEMINIT-PLAN-012",
-        "keywords": [
-          "phase-3",
-          "planning",
-          "protocol",
-          "governance"
-        ],
+        "keywords": ["phase-3", "planning", "protocol", "governance"],
         "last_updated": "2026-04-19",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3531,12 +3459,7 @@
         "area": "AGENT",
         "description": "Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue layer.",
         "document_id": "MEMINIT-PLAN-013",
-        "keywords": [
-          "phase-4",
-          "planning",
-          "state",
-          "work-queue"
-        ],
+        "keywords": ["phase-4", "planning", "state", "work-queue"],
         "last_updated": "2026-04-28",
         "namespace": "meminit",
         "open_blockers": [],
@@ -3636,10 +3559,7 @@
         "owner": "GitCmurf",
         "path": "docs/05-planning/plan-016-adoption-and-dogfooding-sequencing.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PLAN-003",
-          "MEMINIT-STRAT-001"
-        ],
+        "related_ids": ["MEMINIT-PLAN-003", "MEMINIT-STRAT-001"],
         "repo_prefix": "MEMINIT",
         "status": "Draft",
         "superseded_by": null,
@@ -4146,13 +4066,7 @@
         "area": "AGENT",
         "description": "Normative JSON output contract and error envelope for v2-migrated meminit CLI commands (currently check).",
         "document_id": "MEMINIT-SPEC-004",
-        "keywords": [
-          "agent",
-          "output",
-          "json",
-          "contract",
-          "cli"
-        ],
+        "keywords": ["agent", "output", "json", "contract", "cli"],
         "last_updated": "2026-03-05",
         "namespace": "meminit",
         "open_blockers": [],
@@ -4175,13 +4089,7 @@
         "area": "ADOPT",
         "description": "Normative JSON format for brownfield scan plans and plan-driven fixes.",
         "document_id": "MEMINIT-SPEC-005",
-        "keywords": [
-          "scan",
-          "plan",
-          "fix",
-          "migration",
-          "brownfield"
-        ],
+        "keywords": ["scan", "plan", "fix", "migration", "brownfield"],
         "last_updated": "2026-05-18",
         "namespace": "meminit",
         "open_blockers": [],
@@ -4204,12 +4112,7 @@
         "area": "AGENT",
         "description": "Canonical ErrorCode inventory, extensibility process, and governance rules for the meminit CLI error code enum.",
         "document_id": "MEMINIT-SPEC-006",
-        "keywords": [
-          "error",
-          "enum",
-          "agent",
-          "contract"
-        ],
+        "keywords": ["error", "enum", "agent", "contract"],
         "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],
@@ -4234,23 +4137,14 @@
         "area": "CORE",
         "description": "Normative specification for Meminit Templates v2 system including resolution chain, interpolation syntax, section markers, and validation rules.",
         "document_id": "MEMINIT-SPEC-007",
-        "keywords": [
-          "template",
-          "interpolation",
-          "section",
-          "marker",
-          "agent"
-        ],
+        "keywords": ["template", "interpolation", "section", "marker", "agent"],
         "last_updated": "2026-03-04",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",
         "path": "docs/20-specs/spec-007-templates-v2.md",
         "ready": false,
-        "related_ids": [
-          "MEMINIT-PRD-006",
-          "MEMINIT-SPEC-008"
-        ],
+        "related_ids": ["MEMINIT-PRD-006", "MEMINIT-SPEC-008"],
         "repo_prefix": "MEMINIT",
         "status": "Approved",
         "superseded_by": null,
@@ -4295,12 +4189,7 @@
         "area": "CORE",
         "description": "Implementation specification for meminit migrate-templates command to convert legacy templates and configurations to Templates v2 format.",
         "document_id": "MEMINIT-SPEC-010",
-        "keywords": [
-          "migration",
-          "template",
-          "templates-v2",
-          "cli"
-        ],
+        "keywords": ["migration", "template", "templates-v2", "cli"],
         "last_updated": "2026-04-14",
         "namespace": "meminit",
         "open_blockers": [],
@@ -4325,12 +4214,7 @@
         "area": "AGENT",
         "description": "Normative NDJSON record contract for streamed Meminit CLI output.",
         "document_id": "MEMINIT-SPEC-011",
-        "keywords": [
-          "streaming",
-          "ndjson",
-          "agent",
-          "output"
-        ],
+        "keywords": ["streaming", "ndjson", "agent", "output"],
         "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],

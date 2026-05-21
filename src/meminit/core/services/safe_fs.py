@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-
 from pathlib import Path
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError

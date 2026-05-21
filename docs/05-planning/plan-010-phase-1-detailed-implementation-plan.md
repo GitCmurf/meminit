@@ -3,22 +3,23 @@ document_id: MEMINIT-PLAN-010
 type: PLAN
 title: Phase 1 Detailed Implementation Plan
 status: Approved
-version: '0.5'
-last_updated: '2026-04-15'
+version: "0.5"
+last_updated: "2026-04-15"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 1 agent contract
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 1 agent contract
   core.
 keywords:
-- phase-1
-- planning
-- capabilities
-- contract
+  - phase-1
+  - planning
+  - capabilities
+  - contract
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-PRD-005
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-PRD-005
 ---
 
 > **Document ID:** MEMINIT-PLAN-010
@@ -120,6 +121,7 @@ meaningfully enough to warrant a version bump so agents can detect the
 contract change via `output_schema_version`.
 
 Other Phase 1 changes shipped under v3:
+
 - `correlation_id` added as optional property
 - `additionalProperties: false` enforced at top level
 - All command-specific top-level fields explicitly declared (check counters, etc.)
@@ -178,14 +180,14 @@ Problem:
 
 #### 3.2.1 Correlation ID vs Run ID — semantic contract
 
-| Property | `run_id` | `correlation_id` |
-| -------- | -------- | ----------------- |
-| Owner | Meminit (generated internally) | Caller (passed in externally) |
-| Uniqueness | Per CLI invocation | Per orchestration session (may span N invocations) |
-| Format | UUIDv4 (validated) | Opaque string, max 128 chars, no whitespace |
-| Presence | Always present | Present only when `--correlation-id` is supplied |
-| Purpose | Correlate a single Meminit run with its logs | Correlate multiple Meminit runs within an agent workflow |
-| Overridable | Yes, via `MEMINIT_RUN_ID` env var | Yes, via `--correlation-id` flag or `MEMINIT_CORRELATION_ID` env var |
+| Property    | `run_id`                                     | `correlation_id`                                                     |
+| ----------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| Owner       | Meminit (generated internally)               | Caller (passed in externally)                                        |
+| Uniqueness  | Per CLI invocation                           | Per orchestration session (may span N invocations)                   |
+| Format      | UUIDv4 (validated)                           | Opaque string, max 128 chars, no whitespace                          |
+| Presence    | Always present                               | Present only when `--correlation-id` is supplied                     |
+| Purpose     | Correlate a single Meminit run with its logs | Correlate multiple Meminit runs within an agent workflow             |
+| Overridable | Yes, via `MEMINIT_RUN_ID` env var            | Yes, via `--correlation-id` flag or `MEMINIT_CORRELATION_ID` env var |
 
 #### 3.2.2 Integration into `format_envelope`
 
@@ -324,13 +326,13 @@ Problem:
 
 Each entry in the `commands` array includes:
 
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| `name` | string | Canonical command name (e.g., `"check"`, `"state set"`) |
-| `description` | string | One-line description |
-| `supports_json` | boolean | Whether `--format json` is accepted |
-| `supports_correlation_id` | boolean | Whether `--correlation-id` is threaded |
-| `agent_facing` | boolean | Whether the command is intended for agent orchestration |
+| Field                     | Type    | Description                                             |
+| ------------------------- | ------- | ------------------------------------------------------- |
+| `name`                    | string  | Canonical command name (e.g., `"check"`, `"state set"`) |
+| `description`             | string  | One-line description                                    |
+| `supports_json`           | boolean | Whether `--format json` is accepted                     |
+| `supports_correlation_id` | boolean | Whether `--correlation-id` is threaded                  |
+| `agent_facing`            | boolean | Whether the command is intended for agent orchestration |
 
 Commands that are purely human-oriented (e.g., `install-precommit`) are
 still listed but with `agent_facing: false`, so agents know the full surface
@@ -398,17 +400,17 @@ Problem:
 
 #### 3.4.2 Explain payload field definitions
 
-| Field | Type | Required | Description |
-| ----- | ---- | -------- | ----------- |
-| `code` | string | yes | The error code being explained |
-| `category` | string | yes | Error category (e.g., `"shared"`, `"check"`, `"new"`, `"templates"`, `"state"`, `"general"`) |
-| `summary` | string | yes | One-sentence human-readable summary |
-| `cause` | string | yes | Most likely root cause |
-| `remediation.action` | string | yes | Recommended fix, written for both human and agent consumption |
-| `remediation.resolution_type` | string | yes | One of: `"auto_fixable"` (meminit fix can resolve), `"manual"` (requires human judgment), `"retryable"` (transient; retry may succeed), `"config_change"` (requires configuration modification) |
-| `remediation.automatable` | boolean | yes | Whether an agent can resolve this without human input |
-| `remediation.relevant_commands` | string[] | yes | CLI commands relevant to diagnosing or fixing the issue |
-| `spec_reference` | string | yes | Document ID of the governing spec |
+| Field                           | Type     | Required | Description                                                                                                                                                                                     |
+| ------------------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `code`                          | string   | yes      | The error code being explained                                                                                                                                                                  |
+| `category`                      | string   | yes      | Error category (e.g., `"shared"`, `"check"`, `"new"`, `"templates"`, `"state"`, `"general"`)                                                                                                    |
+| `summary`                       | string   | yes      | One-sentence human-readable summary                                                                                                                                                             |
+| `cause`                         | string   | yes      | Most likely root cause                                                                                                                                                                          |
+| `remediation.action`            | string   | yes      | Recommended fix, written for both human and agent consumption                                                                                                                                   |
+| `remediation.resolution_type`   | string   | yes      | One of: `"auto_fixable"` (meminit fix can resolve), `"manual"` (requires human judgment), `"retryable"` (transient; retry may succeed), `"config_change"` (requires configuration modification) |
+| `remediation.automatable`       | boolean  | yes      | Whether an agent can resolve this without human input                                                                                                                                           |
+| `remediation.relevant_commands` | string[] | yes      | CLI commands relevant to diagnosing or fixing the issue                                                                                                                                         |
+| `spec_reference`                | string   | yes      | Document ID of the governing spec                                                                                                                                                               |
 
 #### 3.4.3 Error registry as single source of truth
 
@@ -439,8 +441,8 @@ When an unrecognized code is passed:
 ```json
 {
   "error_codes": [
-    {"code": "CONFIG_MISSING", "category": "shared", "summary": "..."},
-    {"code": "DUPLICATE_ID", "category": "shared", "summary": "..."}
+    { "code": "CONFIG_MISSING", "category": "shared", "summary": "..." },
+    { "code": "DUPLICATE_ID", "category": "shared", "summary": "..." }
   ]
 }
 ```
@@ -513,15 +515,15 @@ but fails the matrix, the test fails.
 
 #### 3.5.2 Minimum fixture requirements
 
-| Test scenario | Commands covered | Assertion |
-| ------------- | ---------------- | --------- |
-| Valid envelope shape | All JSON-supporting commands | Schema validates |
-| Correlation echo | All JSON-supporting commands | `correlation_id` present when flag supplied |
-| Correlation omission | All JSON-supporting commands | Key absent when flag not supplied |
-| Error envelope | At least `check`, `explain` | `success: false` + `error` object validates |
-| Capabilities self-consistency | `capabilities` | Every command listed matches the CLI command registry |
-| Explain completeness | `explain --list` | Every `ErrorCode` enum member has metadata |
-| stdout isolation | All JSON-supporting commands | stdout is valid JSON; stderr is non-empty only for logs |
+| Test scenario                 | Commands covered             | Assertion                                               |
+| ----------------------------- | ---------------------------- | ------------------------------------------------------- |
+| Valid envelope shape          | All JSON-supporting commands | Schema validates                                        |
+| Correlation echo              | All JSON-supporting commands | `correlation_id` present when flag supplied             |
+| Correlation omission          | All JSON-supporting commands | Key absent when flag not supplied                       |
+| Error envelope                | At least `check`, `explain`  | `success: false` + `error` object validates             |
+| Capabilities self-consistency | `capabilities`               | Every command listed matches the CLI command registry   |
+| Explain completeness          | `explain --list`             | Every `ErrorCode` enum member has metadata              |
+| stdout isolation              | All JSON-supporting commands | stdout is valid JSON; stderr is non-empty only for logs |
 
 Implementation tasks:
 
@@ -585,10 +587,10 @@ Phase 1 can be considered complete when all of the following are true:
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 1 workstreams, sequencing, and exit criteria |
-| 0.3 | 2026-04-14 | Augment Agent | Strengthened plan: added breaking-change posture; specified envelope evolution strategy with `additionalProperties: false`; defined concrete capabilities JSON schema with per-command metadata, feature flags, and deterministic ordering; specified correlation_id vs run_id semantic contract with env var fallback and input validation; detailed explain command payload schema with resolution_type taxonomy and `--list` mode; added contract-matrix test specification with self-maintaining parametrization; tightened exit criteria from 5 generic to 9 specific testable criteria |
-| 0.4 | 2026-04-14 | Codex | Added an audit-gated path for top-level schema tightening, documented safe deferment if the command surface is not fully enumerated, and clarified expected text and Markdown behavior for capabilities and explain |
-| 0.5 | 2026-04-15 | GitCmurf | Recorded implementation complete: all 5 workstreams delivered; 8 review findings resolved; normative docs updated |
+| Version | Date       | Author        | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------- | ---------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-14 | GitCmurf      | Initial draft created via `meminit new`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 0.2     | 2026-04-14 | Codex         | Replaced stub with detailed Phase 1 workstreams, sequencing, and exit criteria                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 0.3     | 2026-04-14 | Augment Agent | Strengthened plan: added breaking-change posture; specified envelope evolution strategy with `additionalProperties: false`; defined concrete capabilities JSON schema with per-command metadata, feature flags, and deterministic ordering; specified correlation_id vs run_id semantic contract with env var fallback and input validation; detailed explain command payload schema with resolution_type taxonomy and `--list` mode; added contract-matrix test specification with self-maintaining parametrization; tightened exit criteria from 5 generic to 9 specific testable criteria |
+| 0.4     | 2026-04-14 | Codex         | Added an audit-gated path for top-level schema tightening, documented safe deferment if the command surface is not fully enumerated, and clarified expected text and Markdown behavior for capabilities and explain                                                                                                                                                                                                                                                                                                                                                                          |
+| 0.5     | 2026-04-15 | GitCmurf      | Recorded implementation complete: all 5 workstreams delivered; 8 review findings resolved; normative docs updated                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

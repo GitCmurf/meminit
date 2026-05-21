@@ -12,4 +12,3 @@ docops_version: 2.0
 # Metadata Schema v2.0
 
 This document defines the schema for the YAML frontmatter of all governed documents.
-

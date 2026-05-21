@@ -3,26 +3,27 @@ document_id: MEMINIT-PLAN-014
 type: PLAN
 title: Phase 5 Detailed Implementation Plan
 status: Approved
-version: '1.0'
-last_updated: '2026-05-06'
+version: "1.0"
+last_updated: "2026-05-06"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 5 scale and streaming
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 5 scale and streaming
   work.
 keywords:
-- phase-5
-- planning
-- streaming
-- ndjson
-- incremental
+  - phase-5
+  - planning
+  - streaming
+  - ndjson
+  - incremental
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-PLAN-011
-- MEMINIT-PRD-005
-- MEMINIT-SPEC-006
-- MEMINIT-SPEC-008
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-PLAN-011
+  - MEMINIT-PRD-005
+  - MEMINIT-SPEC-006
+  - MEMINIT-SPEC-008
 ---
 
 > **Document ID:** MEMINIT-PLAN-014
@@ -264,15 +265,15 @@ Phase 5 implementation is not done when the code lands. The following
 governed-document updates are required for closeout, consistent with
 MEMINIT-PLAN-008 Section 7:
 
-| Action | Type | Document | Required update |
-| ------ | ---- | -------- | --------------- |
-| Update | PRD | `MEMINIT-PRD-005` | Promote streaming from SHOULD/optional to normative, document the shipped record types, and reference the new streaming spec |
-| Update | SPEC | `MEMINIT-SPEC-008` | Extend the agent-output contract spec to define how streaming relates to the v3 envelope (same command names, different output shape) |
-| Update | SPEC | `MEMINIT-SPEC-006` | Register the new `STREAM_*` and `CACHE_*` error codes with normative `explain` semantics |
-| New | SPEC | `MEMINIT-SPEC-011` NDJSON Streaming Contract | Normative record schema, ordering rules, error semantics, and version policy |
-| New | FDD | Streaming Emitter and Incremental Index | Implementation boundary for the shared emitter, the incremental rebuild algorithm, and the cache format |
-| Update | RUNBOOK | Agent Integration and Upgrade Workflow | Document when to use NDJSON vs standard JSON, how to invalidate the cache, and how to debug a truncated stream |
-| Conditional update | PLAN | `MEMINIT-PLAN-003` | Only if Phase 5 sequencing or completion criteria move materially during delivery |
+| Action             | Type    | Document                                     | Required update                                                                                                                       |
+| ------------------ | ------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Update             | PRD     | `MEMINIT-PRD-005`                            | Promote streaming from SHOULD/optional to normative, document the shipped record types, and reference the new streaming spec          |
+| Update             | SPEC    | `MEMINIT-SPEC-008`                           | Extend the agent-output contract spec to define how streaming relates to the v3 envelope (same command names, different output shape) |
+| Update             | SPEC    | `MEMINIT-SPEC-006`                           | Register the new `STREAM_*` and `CACHE_*` error codes with normative `explain` semantics                                              |
+| New                | SPEC    | `MEMINIT-SPEC-011` NDJSON Streaming Contract | Normative record schema, ordering rules, error semantics, and version policy                                                          |
+| New                | FDD     | Streaming Emitter and Incremental Index      | Implementation boundary for the shared emitter, the incremental rebuild algorithm, and the cache format                               |
+| Update             | RUNBOOK | Agent Integration and Upgrade Workflow       | Document when to use NDJSON vs standard JSON, how to invalidate the cache, and how to debug a truncated stream                        |
+| Conditional update | PLAN    | `MEMINIT-PLAN-003`                           | Only if Phase 5 sequencing or completion criteria move materially during delivery                                                     |
 
 Note on SPEC numbering: existing specs run 001–008 plus 010, so 011 is
 the next free number. If SPEC-009 is already reserved by other work at
@@ -325,13 +326,13 @@ produce identical bytes.
 
 The stream carries exactly five record types:
 
-| `record_type` | When emitted                                                | Count per stream          |
-| ------------- | ----------------------------------------------------------- | ------------------------- |
-| `header`      | First record of every stream                                | exactly 1                 |
-| `item`        | Per-entity payload (node, edge, action, namespace)          | 0..N                      |
-| `progress`    | Optional coarse-grained progress update                     | 0..N                      |
-| `error`       | Terminal record on operational failure                      | 0 or 1 (terminal)         |
-| `summary`     | Terminal record on completion; `success` may be `true` or `false` | exactly 1 (terminal)      |
+| `record_type` | When emitted                                                      | Count per stream     |
+| ------------- | ----------------------------------------------------------------- | -------------------- |
+| `header`      | First record of every stream                                      | exactly 1            |
+| `item`        | Per-entity payload (node, edge, action, namespace)                | 0..N                 |
+| `progress`    | Optional coarse-grained progress update                           | 0..N                 |
+| `error`       | Terminal record on operational failure                            | 0 or 1 (terminal)    |
+| `summary`     | Terminal record on completion; `success` may be `true` or `false` | exactly 1 (terminal) |
 
 Each stream ends with either a `summary` record or an
 `error` record (failure). A stream that ends without one of those
@@ -339,12 +340,12 @@ terminators is malformed.
 
 Common required fields on every record:
 
-| Field                      | Type   | Notes                                                                                                    |
-| -------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
-| `stream_schema_version`    | string | `"1.0"` for this phase. Locked once shipped.                                                             |
-| `record_type`              | string | One of the five values above.                                                                            |
-| `command`                  | string | Canonical command name (matches the non-streaming envelope `command` field).                             |
-| `sequence`                 | int    | Zero-based monotonically increasing record index within the stream. The `header` record has `sequence: 0`. |
+| Field                   | Type   | Notes                                                                                                      |
+| ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| `stream_schema_version` | string | `"1.0"` for this phase. Locked once shipped.                                                               |
+| `record_type`           | string | One of the five values above.                                                                              |
+| `command`               | string | Canonical command name (matches the non-streaming envelope `command` field).                               |
+| `sequence`              | int    | Zero-based monotonically increasing record index within the stream. The `header` record has `sequence: 0`. |
 
 `header`-only fields: `run_id` (UUIDv4), optional `correlation_id`,
 optional `root` (repo-aware commands), `started_at` (ISO-8601,
@@ -407,11 +408,11 @@ Mid-stream failures are signalled by a terminal `error` record:
 New error codes introduced by streaming (see §3.3.6 and §3.4.5 for
 command-level additions):
 
-| Code                       | Emitted by           | `resolution_type` |
-| -------------------------- | -------------------- | ----------------- |
-| `STREAM_UNSUPPORTED_FORMAT` | any command with `--format ndjson` where the capability is not advertised | `manual` |
-| `STREAM_PRODUCER_FAILED`   | emitter wrapping an unexpected producer exception | `manual` |
-| `STREAM_INTERRUPTED`       | signal handler on SIGINT/SIGTERM during emission | `manual` |
+| Code                        | Emitted by                                                                | `resolution_type` |
+| --------------------------- | ------------------------------------------------------------------------- | ----------------- |
+| `STREAM_UNSUPPORTED_FORMAT` | any command with `--format ndjson` where the capability is not advertised | `manual`          |
+| `STREAM_PRODUCER_FAILED`    | emitter wrapping an unexpected producer exception                         | `manual`          |
+| `STREAM_INTERRUPTED`        | signal handler on SIGINT/SIGTERM during emission                          | `manual`          |
 
 #### 3.1.4 Capability advertisement
 
@@ -515,7 +516,7 @@ stdout.
   envelope-builder's run metadata (`run_id`, optional
   `correlation_id`, optional `root`, optional `started_at`).
 - Providing `emit_item(kind, data)`, `emit_progress(processed, total,
-  stage)`, `emit_error(error_code, message, details)`, and
+stage)`, `emit_error(error_code, message, details)`, and
   `emit_summary(data, warnings, violations, advice, counts)` methods
   that build the appropriate record shape and delegate to the shared
   serialiser.
@@ -620,11 +621,11 @@ Problem:
 
 #### 3.3.1 Command matrix
 
-| Command         | `kind` catalogue                          | Item ordering rule                                                                                   | Summary payload                                                                 |
-| --------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `index`         | `node`, `edge`                            | `node` records sorted by `document_id` ascending; `edge` records grouped after all nodes, sorted by `(source, target, type)` | `{"index_version", "node_count", "edge_count", "artifact_path"}`                |
-| `scan`          | `file`, `suggestion`                      | `file` records sorted by repo-relative path; `suggestion` records grouped after all files, sorted by `(severity, code, path)` | `{"files_scanned", "suggestion_count", "config_preview"}`                       |
-| `context --deep` | `namespace`, `document_type`, `document` | `namespace` records first (sorted by `namespace.name`), `document_type` next (sorted by `type`), `document` last (sorted by `document_id`) | `{"repo_prefix", "namespace_count", "document_type_count", "document_count"}`  |
+| Command          | `kind` catalogue                         | Item ordering rule                                                                                                                         | Summary payload                                                               |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `index`          | `node`, `edge`                           | `node` records sorted by `document_id` ascending; `edge` records grouped after all nodes, sorted by `(source, target, type)`               | `{"index_version", "node_count", "edge_count", "artifact_path"}`              |
+| `scan`           | `file`, `suggestion`                     | `file` records sorted by repo-relative path; `suggestion` records grouped after all files, sorted by `(severity, code, path)`              | `{"files_scanned", "suggestion_count", "config_preview"}`                     |
+| `context --deep` | `namespace`, `document_type`, `document` | `namespace` records first (sorted by `namespace.name`), `document_type` next (sorted by `type`), `document` last (sorted by `document_id`) | `{"repo_prefix", "namespace_count", "document_type_count", "document_count"}` |
 
 `progress` records are OPTIONAL for all three commands in this phase.
 If emitted, they fire every 100 processed items for `index` and
@@ -864,11 +865,11 @@ Both flags are mutually exclusive; combining them raises
 
 #### 3.4.5 New error codes
 
-| Code                   | Emitted when                                                         | `resolution_type` |
-| ---------------------- | -------------------------------------------------------------------- | ----------------- |
-| `CACHE_LOCK_HELD`      | Another `meminit index` holds the cache lock                         | `manual`          |
-| `CACHE_ENTRY_INVALID`  | A cache entry fails schema or hash validation (warning-level)        | `auto`            |
-| `CACHE_WRITE_FAILED`   | Atomic rewrite of `manifest.json` or any cache entry fails           | `manual`          |
+| Code                  | Emitted when                                                  | `resolution_type` |
+| --------------------- | ------------------------------------------------------------- | ----------------- |
+| `CACHE_LOCK_HELD`     | Another `meminit index` holds the cache lock                  | `manual`          |
+| `CACHE_ENTRY_INVALID` | A cache entry fails schema or hash validation (warning-level) | `auto`            |
+| `CACHE_WRITE_FAILED`  | Atomic rewrite of `manifest.json` or any cache entry fails    | `manual`          |
 
 `CACHE_ENTRY_INVALID` is warning-level and surfaces in the
 `warnings` array of the summary record; it does not fail the run.
@@ -936,28 +937,28 @@ Problem:
 
 #### 3.5.1 Required fixture scenarios
 
-| ID  | Name                             | Shape                                                  | Purpose                                                                      |
-| --- | -------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| S01 | `tiny`                           | 5 docs                                                 | Smoke test the NDJSON contract against every opted-in command                |
-| S02 | `medium`                         | 50 docs, mixed types                                   | Golden-stream parity between `--format json` and `--format ndjson`           |
-| S03 | `large`                          | 1000 generated docs                                    | Incremental warm-no-change 2-second target                                   |
-| S04 | `scale`                          | 5000 generated docs (`@pytest.mark.slow`)              | Cache-disabled full-rebuild 60-second and 256 MB ceiling targets             |
-| S05 | `single_file_changed`            | `large` + 1 edited doc                                 | Incremental recomputes only the changed file                                 |
-| S06 | `single_file_added`              | `large` + 1 new doc                                    | Added-file bucket exercise                                                   |
-| S07 | `single_file_removed`            | `large` minus 1 doc                                    | Removed-file bucket exercise                                                 |
-| S08 | `edge_crosses_changed`           | Two docs, one edits its `related_ids` to add the other | Cross-doc edge recomputation correctness                                     |
-| S09 | `config_changed`                 | `medium` + `docops.config.yaml` mutation               | Global cache invalidation via `config_sha256` bump                           |
-| S10 | `schema_changed`                 | `medium` + `metadata.schema.json` mutation             | Global cache invalidation via `schema_sha256` bump                           |
-| S11 | `version_bump`                   | `medium` with simulated version change                 | Global cache invalidation via `meminit_version` bump                         |
-| S12 | `corrupt_cache_entry`            | `medium` + one truncated cache file                    | `CACHE_ENTRY_INVALID` warning path                                           |
-| S13 | `missing_manifest`               | `medium` + manifest file deleted                       | Graceful degradation to full rebuild                                         |
-| S14 | `concurrent_index`               | Two processes invoking `meminit index` simultaneously  | `CACHE_LOCK_HELD` path                                                       |
-| S15 | `stream_sigint`                  | `large` interrupted mid-stream                         | `STREAM_INTERRUPTED` terminal record                                         |
-| S16 | `stream_producer_failure`        | `medium` with one document crafted to raise            | `STREAM_PRODUCER_FAILED` terminal record                                     |
-| S17 | `context_deep_only`              | `medium`                                               | `context --format ndjson` without `--deep` fails with `STREAM_UNSUPPORTED_FORMAT` |
-| S18 | `scan_large_suggestions`         | Repo with 200+ scan suggestions                        | Ordering and per-kind counter correctness                                    |
-| S19 | `stdout_isolation`               | `medium` with `MEMINIT_LOG_FILE=-`                     | Every stdout line parses as JSON; stderr receives logs                       |
-| S20 | `determinism_two_runs`           | `medium` run twice                                     | Byte-identical streams modulo `run_id`                                       |
+| ID  | Name                      | Shape                                                  | Purpose                                                                           |
+| --- | ------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| S01 | `tiny`                    | 5 docs                                                 | Smoke test the NDJSON contract against every opted-in command                     |
+| S02 | `medium`                  | 50 docs, mixed types                                   | Golden-stream parity between `--format json` and `--format ndjson`                |
+| S03 | `large`                   | 1000 generated docs                                    | Incremental warm-no-change 2-second target                                        |
+| S04 | `scale`                   | 5000 generated docs (`@pytest.mark.slow`)              | Cache-disabled full-rebuild 60-second and 256 MB ceiling targets                  |
+| S05 | `single_file_changed`     | `large` + 1 edited doc                                 | Incremental recomputes only the changed file                                      |
+| S06 | `single_file_added`       | `large` + 1 new doc                                    | Added-file bucket exercise                                                        |
+| S07 | `single_file_removed`     | `large` minus 1 doc                                    | Removed-file bucket exercise                                                      |
+| S08 | `edge_crosses_changed`    | Two docs, one edits its `related_ids` to add the other | Cross-doc edge recomputation correctness                                          |
+| S09 | `config_changed`          | `medium` + `docops.config.yaml` mutation               | Global cache invalidation via `config_sha256` bump                                |
+| S10 | `schema_changed`          | `medium` + `metadata.schema.json` mutation             | Global cache invalidation via `schema_sha256` bump                                |
+| S11 | `version_bump`            | `medium` with simulated version change                 | Global cache invalidation via `meminit_version` bump                              |
+| S12 | `corrupt_cache_entry`     | `medium` + one truncated cache file                    | `CACHE_ENTRY_INVALID` warning path                                                |
+| S13 | `missing_manifest`        | `medium` + manifest file deleted                       | Graceful degradation to full rebuild                                              |
+| S14 | `concurrent_index`        | Two processes invoking `meminit index` simultaneously  | `CACHE_LOCK_HELD` path                                                            |
+| S15 | `stream_sigint`           | `large` interrupted mid-stream                         | `STREAM_INTERRUPTED` terminal record                                              |
+| S16 | `stream_producer_failure` | `medium` with one document crafted to raise            | `STREAM_PRODUCER_FAILED` terminal record                                          |
+| S17 | `context_deep_only`       | `medium`                                               | `context --format ndjson` without `--deep` fails with `STREAM_UNSUPPORTED_FORMAT` |
+| S18 | `scan_large_suggestions`  | Repo with 200+ scan suggestions                        | Ordering and per-kind counter correctness                                         |
+| S19 | `stdout_isolation`        | `medium` with `MEMINIT_LOG_FILE=-`                     | Every stdout line parses as JSON; stderr receives logs                            |
+| S20 | `determinism_two_runs`    | `medium` run twice                                     | Byte-identical streams modulo `run_id`                                            |
 
 Scenarios S03 and S04 are gated behind `@pytest.mark.slow` and skipped
 in the default CI matrix but run on demand and in the nightly suite.
@@ -1091,18 +1092,18 @@ Reason:
 Each slice is independently reviewable and independently green under
 `meminit check` and the test suite.
 
-| PR | Slice                                              | Surfaces touched                                                                                   |
-| -- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1  | Streaming contract spec and schema artifacts       | MEMINIT-SPEC-011, `agent-output.stream.schema.v1.json` (both copies), SPEC-006 error-code entries  |
-| 2  | `--format ndjson` flag and capabilities plumbing   | `shared_flags.py`, `capabilities.py`, `register_capability`, `supports_ndjson` field               |
-| 3  | Shared streaming emitter                          | `src/meminit/cli/streaming.py`, emitter tests, stdout isolation test harness                       |
-| 4  | `meminit index --format ndjson`                   | Index streaming producer, golden-stream fixture, json/ndjson equivalence test                      |
-| 5  | `meminit scan --format ndjson`                    | Scan streaming producer, golden-stream fixture                                                     |
-| 6  | `meminit context --deep --format ndjson`          | Context streaming producer, golden-stream fixture, unsupported-format error path                   |
-| 7  | Incremental rebuild cache service                 | `index_cache.py`, cache unit tests, `CACHE_*` error codes, `.gitignore` scaffold update            |
-| 8  | Incremental rebuild wiring into `meminit index`   | `IndexRepositoryUseCase` refactor, `--no-cache`/`--rebuild-cache`/`--explain-cache` flags, E2E tests |
-| 9  | Scale fixtures and nightly job wiring             | Fixture-builder generator, slow-test markers, nightly CI target                                    |
-| 10 | PRD-005 / SPEC-008 / FDD / runbook updates        | Governed document closeout; testbed checklist                                                      |
+| PR  | Slice                                            | Surfaces touched                                                                                     |
+| --- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| 1   | Streaming contract spec and schema artifacts     | MEMINIT-SPEC-011, `agent-output.stream.schema.v1.json` (both copies), SPEC-006 error-code entries    |
+| 2   | `--format ndjson` flag and capabilities plumbing | `shared_flags.py`, `capabilities.py`, `register_capability`, `supports_ndjson` field                 |
+| 3   | Shared streaming emitter                         | `src/meminit/cli/streaming.py`, emitter tests, stdout isolation test harness                         |
+| 4   | `meminit index --format ndjson`                  | Index streaming producer, golden-stream fixture, json/ndjson equivalence test                        |
+| 5   | `meminit scan --format ndjson`                   | Scan streaming producer, golden-stream fixture                                                       |
+| 6   | `meminit context --deep --format ndjson`         | Context streaming producer, golden-stream fixture, unsupported-format error path                     |
+| 7   | Incremental rebuild cache service                | `index_cache.py`, cache unit tests, `CACHE_*` error codes, `.gitignore` scaffold update              |
+| 8   | Incremental rebuild wiring into `meminit index`  | `IndexRepositoryUseCase` refactor, `--no-cache`/`--rebuild-cache`/`--explain-cache` flags, E2E tests |
+| 9   | Scale fixtures and nightly job wiring            | Fixture-builder generator, slow-test markers, nightly CI target                                      |
+| 10  | PRD-005 / SPEC-008 / FDD / runbook updates       | Governed document closeout; testbed checklist                                                        |
 
 ## 5. Exit Criteria for Phase 5
 
@@ -1138,8 +1139,8 @@ true:
    stdout line during `--format ndjson` is a valid SPEC-011 record;
    all logs appear on stderr only.
 10. MEMINIT-PRD-005, MEMINIT-SPEC-008, MEMINIT-SPEC-006, the new FDD,
-   and the operator runbook are updated or created and pass
-   `meminit check`.
+    and the operator runbook are updated or created and pass
+    `meminit check`.
 11. The external testbed has been exercised with `--format ndjson`
     and with incremental rebuilds; the testbed checklist is marked
     complete on the closing PR.
@@ -1152,12 +1153,12 @@ true:
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 5 workstreams, sequencing, and exit criteria |
-| 0.3 | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
-| 0.4 | 2026-05-03 | Codex | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance |
-| 0.5 | 2026-05-03 | Codex | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix |
-| 0.6 | 2026-05-03 | Codex | Recorded known architectural debt: current streaming command adapters still materialise use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target |
-| 1.0 | 2026-05-06 | Codex | Completed Phase 5 implementation: incremental index cache with manifest fingerprints, cache lock, changed/added/removed/corrupt scenarios, deterministic streaming fixtures, slow scale-test wiring, and aligned operator docs |
+| Version | Date       | Author        | Changes                                                                                                                                                                                                                                                                                                                         |
+| ------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-14 | GitCmurf      | Initial draft created via `meminit new`                                                                                                                                                                                                                                                                                         |
+| 0.2     | 2026-04-14 | Codex         | Replaced stub with detailed Phase 5 workstreams, sequencing, and exit criteria                                                                                                                                                                                                                                                  |
+| 0.3     | 2026-04-19 | Augment Agent | Expanded plan to implementation-ready detail matching PLAN-011/012/013: normative NDJSON record schema, shared emitter design, per-command rollout specifics for index/scan/context, incremental rebuild algorithm with cache service and fingerprinting, 20-scenario fixture matrix, PR slicing, and 12 concrete exit criteria |
+| 0.4     | 2026-05-03 | Codex         | Implemented the first Phase 5 integrated slice: SPEC-011, stream schema artifacts, shared NDJSON emitter, `index`/`scan`/`context --deep` streaming paths, capabilities advertisement, cache-control CLI flags, and aligned PRD/spec/runbook guidance                                                                           |
+| 0.5     | 2026-05-03 | Codex         | Tightened review-remediation scope: added emitter/signal/determinism/equivalence coverage, documented that Workstream D incremental rebuilds and Workstream E scale fixtures remain open until their cache service and generated fixtures ship, and corrected the cache-flag exit-criteria matrix                               |
+| 0.6     | 2026-05-03 | Codex         | Recorded known architectural debt: current streaming command adapters still materialise use-case results before emitting and must be replaced with true generator-backed producers before enforcing the 5000-document constant-memory target                                                                                    |
+| 1.0     | 2026-05-06 | Codex         | Completed Phase 5 implementation: incremental index cache with manifest fingerprints, cache lock, changed/added/removed/corrupt scenarios, deterministic streaming fixtures, slow scale-test wiring, and aligned operator docs                                                                                                  |

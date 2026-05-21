@@ -8,11 +8,7 @@ from typing import Callable
 
 import pytest
 
-from meminit.cli.streaming import (
-    StreamEmitter,
-    SummaryPayload,
-    streaming_output_handler,
-)
+from meminit.cli.streaming import StreamEmitter, SummaryPayload, streaming_output_handler
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import exit_code_for_error
 from tests.cli.streaming_helpers import records

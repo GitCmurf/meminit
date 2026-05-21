@@ -1,5 +1,4 @@
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
-
 from tests.cli.streaming_helpers import create_initialized_repo
 
 

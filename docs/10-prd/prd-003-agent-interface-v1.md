@@ -417,14 +417,13 @@ its linked specs.
 
 This repo currently uses (or may use) multiple protocol surfaces:
 
-| Surface                                                                                                    | Primary audience   | Role                                                                            |
-| ---------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------- |
-| [`AGENTS.md`](../../AGENTS.md)                                                                             | Any agent + humans | Repo-wide operating rules; safety, governance, "how to work here".              |
+| Surface                                                                                                      | Primary audience   | Role                                                                            |
+| ------------------------------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------- |
+| [`AGENTS.md`](../../AGENTS.md)                                                                               | Any agent + humans | Repo-wide operating rules; safety, governance, "how to work here".              |
 | `.agents/skills/*/SKILL.md` (e.g., [example skill](../../.agents/skills/meminit-docops/SKILL.md) if present) | Codex CLI          | Host-specific step-by-step playbooks that can be selected/invoked as a “skill”. |
-| Tool-specific folders (e.g., `.claude/`, `.vscode/`)                                                       | Tool-specific      | Convenience configuration; not normative for Meminit.                           |
+| Tool-specific folders (e.g., `.claude/`, `.vscode/`)                                                         | Tool-specific      | Convenience configuration; not normative for Meminit.                           |
 
-> [!IMPORTANT]
-> **Staleness is expected.** Protocol files should be treated like other
+> [!IMPORTANT] > **Staleness is expected.** Protocol files should be treated like other
 > documentation: versioned, reviewed, and updated when contracts change.
 > This PRD explicitly does not assume the repo’s existing skill files are
 > up to date.
@@ -552,24 +551,23 @@ The migration to Agent Interface v1 (output schema v2) is complete. 100% of CLI 
 
 All commands now fully conform to the v2 contract.
 
-| Command                     | Today (2026-02-27) | Conforms? | Remaining Work | Target      | Test Coverage               |
-| --------------------------- | ------------------ | --------- | -------------- | ----------- | --------------------------- |
-| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + schema tests          |
-| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope | CLI alias + use-case tests  |
-| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
-| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests        |
+| Command                     | Today (2026-02-27) | Conforms? | Remaining Work | Target      | Test Coverage              |
+| --------------------------- | ------------------ | --------- | -------------- | ----------- | -------------------------- |
+| `check`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + schema tests         |
+| `doctor`                    | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `scan`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `index`                     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `migrate-ids`               | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `org install/status/vendor` | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `new`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `adr new` (alias)           | v2 envelope        | Yes       | Complete       | v2 envelope | CLI alias + use-case tests |
+| `fix`                       | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `init`                      | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `install-precommit`         | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `identify/resolve/link`     | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
+| `context`                   | v2 envelope        | Yes       | Complete       | v2 envelope | CLI + use-case tests       |
 
-> [!IMPORTANT]
-> **Migration order recommendation:** Prioritize `context` (agent
+> [!IMPORTANT] > **Migration order recommendation:** Prioritize `context` (agent
 > bootstrap), then `new` (agent creation loop), then `fix` (remediation
 > loop). These three commands complete the core agent workflow. The
 > remaining commands can follow in any order.
@@ -581,8 +579,7 @@ All commands now fully conform to the v2 contract.
 > is what enables generic parsers, schema validation, and stable CI
 > reporting.
 
-> [!TIP]
-> **Why this order?** `context` enables portable agent bootstrap (eliminates
+> [!TIP] > **Why this order?** `context` enables portable agent bootstrap (eliminates
 > hardcoded paths). `new` is the primary document creation command. `fix`
 > closes the remediation loop. Together, these three complete the core
 > agent workflow: discover → create → validate → remediate.
@@ -1133,15 +1130,15 @@ final `json.dumps()` call from the shared output formatter.
 
 ### 13.2 Exit Codes
 
-| Code | Meaning                                       | When Used                                                                                               | JSON `success` Value |
-| ---- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------- |
-| `0`  | Operational success; no gating failures       | Command completed and (where applicable) no compliance gating failures                                  | `true`               |
-| `1`  | Compliance failure (validation findings)      | `check`, `doctor`, or `fix` found violations or issues; `success: false` with no operational `error`    | `false`              |
-| `64` | `EX_USAGE` — invalid command/argument         | Bad flags, invalid flag combinations, unknown commands/subcommands                                      | `false`              |
-| `65` | `EX_DATAERR` — input data error               | Invalid document type, bad metadata, invalid IDs/status/related_ids                                     | `false`              |
-| `66` | `EX_NOINPUT` — input file not found           | Missing config, missing target paths                                                                    | `false`              |
-| `73` | `EX_CANTCREAT` — cannot create output         | Filesystem write failure                                                                                | `false`              |
-| `77` | `EX_NOPERM` — permission denied / path escape | Symlink escape, permission error                                                                        | `false`              |
+| Code | Meaning                                       | When Used                                                                                            | JSON `success` Value |
+| ---- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------- |
+| `0`  | Operational success; no gating failures       | Command completed and (where applicable) no compliance gating failures                               | `true`               |
+| `1`  | Compliance failure (validation findings)      | `check`, `doctor`, or `fix` found violations or issues; `success: false` with no operational `error` | `false`              |
+| `64` | `EX_USAGE` — invalid command/argument         | Bad flags, invalid flag combinations, unknown commands/subcommands                                   | `false`              |
+| `65` | `EX_DATAERR` — input data error               | Invalid document type, bad metadata, invalid IDs/status/related_ids                                  | `false`              |
+| `66` | `EX_NOINPUT` — input file not found           | Missing config, missing target paths                                                                 | `false`              |
+| `73` | `EX_CANTCREAT` — cannot create output         | Filesystem write failure                                                                             | `false`              |
+| `77` | `EX_NOPERM` — permission denied / path escape | Symlink escape, permission error                                                                     | `false`              |
 
 > [!IMPORTANT]
 > Exit code `1` is for compliance and health findings from `check`, `doctor`,
@@ -1190,16 +1187,16 @@ follow these rules:
    mappings.
 1. Always request JSON mode (`--format json`) and treat STDOUT as the
    single parseable artifact. Treat STDERR as human logs only.
-2. Treat `output_schema_version` as the contract selector:
+1. Treat `output_schema_version` as the contract selector:
    - If missing: treat as non-conforming output (migration gap) and
      surface to a human.
    - If unknown: treat as a hard failure (do not guess).
-3. Determine outcome using a generic rule set:
+1. Determine outcome using a generic rule set:
    - If top-level `error` exists: operational error (retry/fail).
    - Else if `success: true`: operational success.
    - Else if `success: false` and `violations` exists: compliance
      failure (fixable findings).
-4. Treat `run_id` as an opaque correlation token; never branch on its
+1. Treat `run_id` as an opaque correlation token; never branch on its
    format.
 
 **Reference pseudocode:**
@@ -1235,8 +1232,7 @@ This PRD defines the **product requirement**; the normative v3 contract
 lives in [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md). This section summarizes the v3 envelope for
 human reviewers and agent builders.
 
-> [!IMPORTANT]
-> **All migrated commands MUST emit `output_schema_version: "3.0"`.**
+> [!IMPORTANT] > **All migrated commands MUST emit `output_schema_version: "3.0"`.**
 > The v1/v2 baselines are deprecated; new migrations should target v3 directly.
 
 > [!NOTE]
@@ -2110,11 +2106,11 @@ This appendix provides concrete test scenarios for validating the agent interfac
 
 ### 27.2 Determinism Tests
 
-| Test ID | Description                              | Expected Result                    |
-| ------- | ---------------------------------------- | ---------------------------------- |
-| DET-001 | Repeated `check` produces identical JSON | Diff is empty (excluding `run_id`) |
-| DET-002 | Violations sorted by path, then code, then severity | Stable ordering across runs |
-| DET-003 | Keys in consistent order                 | Matches §16.1 specification        |
+| Test ID | Description                                         | Expected Result                    |
+| ------- | --------------------------------------------------- | ---------------------------------- |
+| DET-001 | Repeated `check` produces identical JSON            | Diff is empty (excluding `run_id`) |
+| DET-002 | Violations sorted by path, then code, then severity | Stable ordering across runs        |
+| DET-003 | Keys in consistent order                            | Matches §16.1 specification        |
 
 ### 27.3 Error Path Tests
 
@@ -2192,8 +2188,7 @@ This appendix documents ambiguities and gaps identified during review, along wit
 
 ### 29.1 SPEC-004 vs PRD-003 Field Requirements Conflict
 
-> [!WARNING]
-> **PRE-HANDOVER ACTION REQUIRED:** Update SPEC-004 to align with
+> [!WARNING] > **PRE-HANDOVER ACTION REQUIRED:** Update SPEC-004 to align with
 > this PRD's decisions **before implementation begins**. Until both
 > documents agree, implementers MUST follow this PRD as authoritative.
 > A tracking issue MUST be created for this alignment task.
@@ -2203,10 +2198,12 @@ This appendix documents ambiguities and gaps identified during review, along wit
 **Options:**
 
 1. **Option A (Recommended):** Update SPEC-004 to make `command` and `root` required in v2. This aligns the spec with the PRD decisions and provides maximum clarity for agent implementers.
+
    - Trade-off: Requires spec update and coordination.
    - Benefit: Eliminates ambiguity; agents can always rely on these fields.
 
 2. **Option B:** Keep SPEC-004 as-is and update PRD-003 to match. Make `command` and `root` optional but recommended.
+
    - Trade-off: Agents cannot rely on these fields always being present.
    - Benefit: No spec update needed.
 
@@ -2222,8 +2219,7 @@ This appendix documents ambiguities and gaps identified during review, along wit
 
 ### 29.2 `advice` Array Field Requirements
 
-> [!IMPORTANT]
-> **Action required before implementation:** Align producers and contract
+> [!IMPORTANT] > **Action required before implementation:** Align producers and contract
 > artifacts so `advice[].code` is REQUIRED. Update the following artifacts:
 >
 > - [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md) §7
@@ -2236,10 +2232,12 @@ This appendix documents ambiguities and gaps identified during review, along wit
 **Options:**
 
 1. **Option A (Recommended):** Make `code` required for `advice` objects. This enables deterministic sorting and gives agents a stable key for programmatic handling.
+
    - Trade-off: Slightly more verbose advice objects.
    - Benefit: Deterministic sorting; agents can branch on advice codes.
 
 2. **Option B:** Keep `code` optional and sort by `message` when `code` is absent.
+
    - Trade-off: Sorting is less predictable.
    - Benefit: Simpler advice objects for simple messages.
 
@@ -2260,10 +2258,12 @@ This appendix documents ambiguities and gaps identified during review, along wit
 **Options:**
 
 1. **Option A (Recommended):** Require `data: {}` (empty object) for `check` to maintain envelope consistency. Counters remain at top level per SPEC-004.
+
    - Trade-off: Slightly redundant empty object.
    - Benefit: All commands have the same envelope structure; generic parsers work uniformly.
 
 2. **Option B:** Make `data` optional for `check` since counters are at top level.
+
    - Trade-off: Breaks the "all commands have `data`" pattern.
    - Benefit: Slightly cleaner output for `check`.
 
@@ -2284,10 +2284,12 @@ This appendix documents ambiguities and gaps identified during review, along wit
 **Options:**
 
 1. **Option A (Recommended):** Return partial results with a warning if the budget is exceeded. Include a `data.deep_incomplete: true` flag.
+
    - Trade-off: Agents may get incomplete data.
    - Benefit: Command always returns within reasonable time.
 
 2. **Option B:** Return an error if the budget is exceeded.
+
    - Trade-off: Agent cannot get any deep data on large repos.
    - Benefit: Clear failure mode.
 
@@ -2308,10 +2310,12 @@ This appendix documents ambiguities and gaps identified during review, along wit
 **Options:**
 
 1. **Option A (Recommended):** Document a process for adding new error codes: (1) propose in PRD, (2) add to enum with comment indicating command, (3) update PRD-002 §5.4.
+
    - Trade-off: Process overhead.
    - Benefit: Clear ownership and avoids conflicts.
 
 2. **Option B:** Reserve code ranges per command (e.g., 100-199 for `new`, 200-299 for `check`).
+
    - Trade-off: Limits extensibility.
    - Benefit: Clear ownership by range.
 
@@ -2343,10 +2347,12 @@ consistent across all commands that support JSON mode.
 **Options:**
 
 1. **Option A (Recommended):** Add `--include-timestamp` to §13.3 Flag Normalization and §22.1 Code Changes.
+
    - Trade-off: Another flag to implement.
    - Benefit: Complete specification.
 
 2. **Option B:** Remove the decision and always omit `timestamp`. If timestamps are needed, use `run_id` correlation with STDERR logs.
+
    - Trade-off: No timestamp in output.
    - Benefit: Simpler implementation.
 
@@ -2367,10 +2373,12 @@ consistent across all commands that support JSON mode.
 **Options:**
 
 1. **Option A:** Add a `--correlation-id` flag that allows agents to pass a custom ID that will be included in the output envelope alongside `run_id`.
+
    - Trade-off: Additional flag complexity.
    - Benefit: Agents can correlate multi-command workflows.
 
 2. **Option B (Recommended):** Document that agents should use `run_id` from each command and maintain their own correlation mapping externally.
+
    - Trade-off: Agents must maintain external state.
    - Benefit: Simpler CLI; no new flags.
 
@@ -2425,7 +2433,7 @@ proceed to implementation.
 | 1.3     | 2026-02-24 | Architect | Final handover polish for agentic implementation: updated metadata date; removed remaining ambiguity around `--output` (now explicitly CLI-wide); tightened determinism sorting (null `line` ordering + warning tie-breaker); clarified normative `success`/`error` relationship (non-`check` cannot be `success:false` without `error`); improved FR-2 invalid-args examples to match actual CLI shapes; and aligned remaining sections to reduce orchestrator guesswork.                                                                                                                                   |
 | 1.4     | 2026-02-24 | Architect | Final pass on sub-optimalities: updated remaining as-of dates to match `last_updated`; added `adr new` alias visibility and guidance; clarified recursive sorting applies across the whole envelope (including `error.details`); added an explicit note that examples are pretty-printed but real JSON output must be single-line; and ensured all sections remain internally consistent for agentic implementers.                                                                                                                                                                                           |
 | 2.0     | 2026-02-25 | Architect | Final approval and handover: marked all pre-handover action items as complete; updated status to Approved; synchronized all normative sections with implementation; and finalized CLI-wide contract enforcement.                                                                                                                                                                                                                                                                                                                                                                                             |
-| 2.1     | 2026-02-27 | GitCmurf  | Aligned deep-scan budget messaging to 10s and reconciled violation sorting to include severity across determinism rules and tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| 2.2     | 2026-02-27 | GitCmurf  | Clarified rollout status and verification scope; documented the violations ordering change as a breaking determinism update; added test-coverage inventory and timing rationale for the 10s target.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2.1     | 2026-02-27 | GitCmurf  | Aligned deep-scan budget messaging to 10s and reconciled violation sorting to include severity across determinism rules and tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2.2     | 2026-02-27 | GitCmurf  | Clarified rollout status and verification scope; documented the violations ordering change as a breaking determinism update; added test-coverage inventory and timing rationale for the 10s target.                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 2.3     | 2026-02-27 | GitCmurf  | Set status to In Review pending approval of breaking determinism ordering change; updated governance metadata accordingly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 3.0     | 2026-02-28 | Architect | Finalized implementation and hardening: ensured single-line JSON on STDOUT across all commands; implemented centralized error handling and safe-path validation; and updated all commands to conform to the v2 envelope contract.                                                                                                                                                                                                                                                                                                                                                                           |
+| 3.0     | 2026-02-28 | Architect | Finalized implementation and hardening: ensured single-line JSON on STDOUT across all commands; implemented centralized error handling and safe-path validation; and updated all commands to conform to the v2 envelope contract.                                                                                                                                                                                                                                                                                                                                                                            |

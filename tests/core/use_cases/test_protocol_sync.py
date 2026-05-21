@@ -6,8 +6,8 @@ import pytest
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
-    AssetOwnership,
     PROTOCOL_ASSET_VERSION,
+    AssetOwnership,
     DriftOutcome,
     ProtocolAsset,
     ProtocolAssetRegistry,

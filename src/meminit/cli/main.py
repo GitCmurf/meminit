@@ -23,24 +23,17 @@ from meminit.cli.streaming import (
 )
 from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.exit_codes import (
-    EX_CANTCREAT,
-    EX_COMPLIANCE_FAIL,
-    exit_code_for_error,
-)
+from meminit.core.services.exit_codes import EX_CANTCREAT, EX_COMPLIANCE_FAIL, exit_code_for_error
 from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
-    normalize_correlation_id,
     format_envelope,
     format_error_envelope,
+    normalize_correlation_id,
 )
-from meminit.core.services.versioning import get_cli_version
-from meminit.core.services.path_utils import (
-    is_safe_cli_output_path,
-    relative_path_string,
-)
+from meminit.core.services.path_utils import is_safe_cli_output_path, relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
+from meminit.core.services.versioning import get_cli_version
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
 from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
@@ -2113,9 +2106,7 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
                     data={
                         "document_id": document_id,
                         "link": (
-                            f"[{document_id}]({normalized_path})"
-                            if normalized_path
-                            else None
+                            f"[{document_id}]({normalized_path})" if normalized_path else None
                         ),
                     },
                     include_timestamp=include_timestamp,
@@ -3898,9 +3889,9 @@ def _state_list_execute(
     priority_list,
     impl_state_list,
 ):
-    from meminit.core.use_cases.state_document import StateDocumentUseCase
-    from meminit.core.services.repo_config import load_repo_layout
     from meminit.core.services.project_state import ImplState
+    from meminit.core.services.repo_config import load_repo_layout
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
 
     validate_root_path(
         root_path,
@@ -4110,10 +4101,14 @@ def state_list(
         root_path,
         correlation_id=correlation_id,
     ):
-        ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list = (
-            _state_list_validate_filters(
-                ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
-            )
+        (
+            ready_filter,
+            blocked_filter,
+            assignee_list,
+            priority_list,
+            impl_state_list,
+        ) = _state_list_validate_filters(
+            ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
         )
 
         result, valid_impl_states, valid_doc_statuses = _state_list_execute(

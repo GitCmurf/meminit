@@ -518,7 +518,7 @@ class ErrorCode(str, Enum):
 | `UNKNOWN_NAMESPACE`        | Namespace not found                | 400           |
 | `DUPLICATE_ID`             | Document ID already exists         | 409           |
 | `FILE_EXISTS`              | Target file already exists         | 409           |
-| `INVALID_ID_FORMAT`        | Provided `--id` value is malformed  | 400           |
+| `INVALID_ID_FORMAT`        | Provided `--id` value is malformed | 400           |
 | `INVALID_STATUS`           | Status not in enum                 | 400           |
 | `INVALID_RELATED_ID`       | Related ID value is malformed      | 400           |
 | `TEMPLATE_NOT_FOUND`       | Template file missing              | 500           |
@@ -936,19 +936,19 @@ Options:
 
 ### 11.5 Error Codes for Check Command
 
-| Code                       | Meaning                           |
-| -------------------------- | --------------------------------- |
-| `CONFIG_MISSING`           | `docops.config.yaml` not found    |
-| `FILE_NOT_FOUND`           | Specified file does not exist     |
-| `OUTSIDE_DOCS_ROOT`        | File outside configured docs root |
-| `MISSING_FRONTMATTER`      | File lacks YAML frontmatter       |
-| `MISSING_FIELD`            | Required field missing            |
-| `INVALID_FIELD`            | Field value violates schema       |
-| `INVALID_FLAG_COMBINATION` | Invalid flag/argument combination |
-| `INVALID_ID_FORMAT`        | Invalid document ID encountered during validation      |
-| `DUPLICATE_ID`             | document_id not unique            |
-| `DIRECTORY_MISMATCH`       | Type doesn't match directory      |
-| `PATH_ESCAPE`              | Path escapes repository root      |
+| Code                       | Meaning                                           |
+| -------------------------- | ------------------------------------------------- |
+| `CONFIG_MISSING`           | `docops.config.yaml` not found                    |
+| `FILE_NOT_FOUND`           | Specified file does not exist                     |
+| `OUTSIDE_DOCS_ROOT`        | File outside configured docs root                 |
+| `MISSING_FRONTMATTER`      | File lacks YAML frontmatter                       |
+| `MISSING_FIELD`            | Required field missing                            |
+| `INVALID_FIELD`            | Field value violates schema                       |
+| `INVALID_FLAG_COMBINATION` | Invalid flag/argument combination                 |
+| `INVALID_ID_FORMAT`        | Invalid document ID encountered during validation |
+| `DUPLICATE_ID`             | document_id not unique                            |
+| `DIRECTORY_MISMATCH`       | Type doesn't match directory                      |
+| `PATH_ESCAPE`              | Path escapes repository root                      |
 
 ### 11.6 User Experience Flows
 

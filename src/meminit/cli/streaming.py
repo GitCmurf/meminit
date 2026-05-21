@@ -10,20 +10,17 @@ from pathlib import Path
 from types import FrameType
 from typing import Any, Protocol, TextIO
 
-from meminit.core.services.stream_events import (
-    StreamItem,
-    StreamProgress,
-    StreamSummary,
-    StreamingResult,
-)
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.observability import log_operation
-from meminit.core.services.output_formatter import (
-    canonical_json_dumps,
-    normalize_correlation_id,
-)
+from meminit.core.services.output_formatter import canonical_json_dumps, normalize_correlation_id
 from meminit.core.services.path_utils import is_safe_cli_output_path
+from meminit.core.services.stream_events import (
+    StreamingResult,
+    StreamItem,
+    StreamProgress,
+    StreamSummary,
+)
 
 STREAM_SCHEMA_VERSION = "1.0"
 
@@ -50,7 +47,8 @@ class SummaryPayload:
 class StreamingProducer(Protocol):
     """Protocol implemented by streaming producers."""
 
-    def produce(self, emit: "StreamEmitter") -> SummaryPayload: ...
+    def produce(self, emit: "StreamEmitter") -> SummaryPayload:
+        ...
 
 
 @dataclass(frozen=True)

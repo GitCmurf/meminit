@@ -63,7 +63,8 @@ def repo_with_config_and_template(tmp_path):
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
     )
-    (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -71,7 +72,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+    )
     (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
     return tmp_path
 
@@ -762,7 +764,8 @@ def test_new_adr_template_mustache_placeholders(tmp_path):
         SCHEMA_JSON, encoding="utf-8"
     )
 
-    (tmp_path / "docops.config.yaml").write_text("""project_name: Meminit
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Meminit
 repo_prefix: MEMINIT
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -770,7 +773,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/custom-adr.md
-""")
+"""
+    )
 
     use_case = NewDocumentUseCase(str(tmp_path))
     doc_path = use_case.execute("ADR", "Placeholder Substitution Works")
@@ -830,7 +834,8 @@ def test_new_uses_configured_type_directory(tmp_path):
         SCHEMA_JSON, encoding="utf-8"
     )
 
-    (tmp_path / "docops.config.yaml").write_text("""project_name: Example
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -839,7 +844,8 @@ document_types:
   ADR:
     directory: adrs
     template: docs/00-governance/templates/custom-adr.md
-""")
+"""
+    )
 
     use_case = NewDocumentUseCase(str(tmp_path))
     doc_path = use_case.execute("ADR", "Goes To ADRs Folder")
@@ -904,7 +910,8 @@ class TestVisibleMetadataBlock:
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -912,7 +919,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
@@ -993,7 +1001,8 @@ area: TemplateArea
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1001,7 +1010,8 @@ document_types:
   PRD:
     directory: 10-prd
     template: docs/00-governance/templates/prd.md
-""")
+"""
+        )
         (tmp_path / "docs" / "10-prd").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
@@ -1049,7 +1059,8 @@ custom_owner: "{{owner}}"
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1057,7 +1068,8 @@ document_types:
   FDD:
     directory: 50-fdd
     template: docs/00-governance/templates/fdd.md
-""")
+"""
+        )
         (tmp_path / "docs" / "50-fdd").mkdir(parents=True, exist_ok=True)
 
         use_case = NewDocumentUseCase(str(tmp_path))
@@ -1089,7 +1101,8 @@ class TestFileLocking:
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1097,7 +1110,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         return tmp_path
 

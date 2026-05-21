@@ -4,11 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Optional
 
-from meminit.core.services.org_profiles import (
-    OrgProfile,
-    global_profile_dir,
-    load_packaged_profile,
-)
+from meminit.core.services.org_profiles import OrgProfile, global_profile_dir, load_packaged_profile
 
 
 @dataclass(frozen=True)

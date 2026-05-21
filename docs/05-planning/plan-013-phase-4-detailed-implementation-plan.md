@@ -3,27 +3,28 @@ document_id: MEMINIT-PLAN-013
 type: PLAN
 title: Phase 4 Detailed Implementation Plan
 status: Draft
-version: '0.10'
-last_updated: '2026-04-28'
+version: "0.10"
+last_updated: "2026-04-28"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue
+description:
+  Detailed implementation plan for MEMINIT-PLAN-008 Phase 4 work queue
   layer.
 keywords:
-- phase-4
-- planning
-- state
-- work-queue
+  - phase-4
+  - planning
+  - state
+  - work-queue
 related_ids:
-- MEMINIT-PLAN-008
-- MEMINIT-PLAN-003
-- MEMINIT-PLAN-011
-- MEMINIT-PRD-005
-- MEMINIT-PRD-007
-- MEMINIT-SPEC-006
-- MEMINIT-SPEC-008
-- MEMINIT-RUNBOOK-006
+  - MEMINIT-PLAN-008
+  - MEMINIT-PLAN-003
+  - MEMINIT-PLAN-011
+  - MEMINIT-PRD-005
+  - MEMINIT-PRD-007
+  - MEMINIT-SPEC-006
+  - MEMINIT-SPEC-008
+  - MEMINIT-RUNBOOK-006
 ---
 
 > **Document ID:** MEMINIT-PLAN-013
@@ -215,15 +216,15 @@ Phase 4 implementation is not done when the code lands. The following
 governed-document updates are required for closeout, consistent with
 MEMINIT-PLAN-008 Section 7:
 
-| Action | Type | Document | Required update |
-| ------ | ---- | -------- | --------------- |
-| Update | PRD | `MEMINIT-PRD-005` | Add `state next`, `state blockers`, and the enriched `state list` filter set to the Agent Interface v2 command inventory |
-| Update | PRD | `MEMINIT-PRD-007` | Document how the richer state surfaces in the project-state dashboard, catalog, and kanban views |
-| Update | SPEC | `MEMINIT-SPEC-006` | Register the new `STATE_*` error codes and their normative `explain` semantics |
-| Update | SPEC | `MEMINIT-SPEC-008` | Extend the repo-aware command enum in `agent-output.schema.v3.json` to include `state next` and `state blockers` |
-| New | FDD | Agent Work Queue Queries | Define the v2 state schema, the readiness and selection algorithms, JSON payload shapes, and integration with the index graph |
-| Update | RUNBOOK | `MEMINIT-RUNBOOK-006` | Document the upgrade from v1 state, operator recovery paths, and how agents should loop on the queue |
-| Conditional update | PLAN | `MEMINIT-PLAN-003` | Only if Phase 4 sequencing or completion criteria move materially during delivery |
+| Action             | Type    | Document                 | Required update                                                                                                               |
+| ------------------ | ------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Update             | PRD     | `MEMINIT-PRD-005`        | Add `state next`, `state blockers`, and the enriched `state list` filter set to the Agent Interface v2 command inventory      |
+| Update             | PRD     | `MEMINIT-PRD-007`        | Document how the richer state surfaces in the project-state dashboard, catalog, and kanban views                              |
+| Update             | SPEC    | `MEMINIT-SPEC-006`       | Register the new `STATE_*` error codes and their normative `explain` semantics                                                |
+| Update             | SPEC    | `MEMINIT-SPEC-008`       | Extend the repo-aware command enum in `agent-output.schema.v3.json` to include `state next` and `state blockers`              |
+| New                | FDD     | Agent Work Queue Queries | Define the v2 state schema, the readiness and selection algorithms, JSON payload shapes, and integration with the index graph |
+| Update             | RUNBOOK | `MEMINIT-RUNBOOK-006`    | Document the upgrade from v1 state, operator recovery paths, and how agents should loop on the queue                          |
+| Conditional update | PLAN    | `MEMINIT-PLAN-003`       | Only if Phase 4 sequencing or completion criteria move materially during delivery                                             |
 
 Every delivery slice in this phase must satisfy the repository's
 atomic-unit rule: code, docs, and tests move together.
@@ -280,13 +281,13 @@ Rules:
 
 Extend `ProjectStateEntry` with five optional planning fields:
 
-| Field         | Type     | Required | Default  | Validation                                                                                                            |
-| ------------- | -------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `priority`    | string   | no       | `P2`     | One of `P0`, `P1`, `P2`, `P3`. `P0` is highest. Omitted on disk when equal to the default.                            |
-| `depends_on`  | string[] | no       | `[]`     | Each entry must be a valid document ID shape (`<PREFIX>-<TYPE>-<NNN>`). Duplicates collapsed. Sorted lexicographically on save. |
-| `blocked_by`  | string[] | no       | `[]`     | Same shape as `depends_on`. Distinct list; see §3.1.4 for semantics.                                                  |
-| `assignee`    | string   | no       | omitted  | Free-form string, max 120 characters. Recommended shapes: `agent:<name>`, `user:<login>`, `team:<slug>`.              |
-| `next_action` | string   | no       | omitted  | Free-form string, max `sanitization.MAX_NOTES_LENGTH` characters. One line (no embedded newlines).                    |
+| Field         | Type     | Required | Default | Validation                                                                                                                      |
+| ------------- | -------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`    | string   | no       | `P2`    | One of `P0`, `P1`, `P2`, `P3`. `P0` is highest. Omitted on disk when equal to the default.                                      |
+| `depends_on`  | string[] | no       | `[]`    | Each entry must be a valid document ID shape (`<PREFIX>-<TYPE>-<NNN>`). Duplicates collapsed. Sorted lexicographically on save. |
+| `blocked_by`  | string[] | no       | `[]`    | Same shape as `depends_on`. Distinct list; see §3.1.4 for semantics.                                                            |
+| `assignee`    | string   | no       | omitted | Free-form string, max 120 characters. Recommended shapes: `agent:<name>`, `user:<login>`, `team:<slug>`.                        |
+| `next_action` | string   | no       | omitted | Free-form string, max `sanitization.MAX_NOTES_LENGTH` characters. One line (no embedded newlines).                              |
 
 Existing fields (`impl_state`, `updated`, `updated_by`, `notes`) are unchanged.
 
@@ -300,11 +301,11 @@ not use advanced planning fields).
 
 The following fields are computed on read and never persisted:
 
-| Field           | Type     | Meaning                                                                                                                    |
-| --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Field           | Type     | Meaning                                                                                                                                               |
+| --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ready`         | boolean  | `true` iff `impl_state` is `Not Started`, `depends_on` and `blocked_by` are empty or resolve to entries whose `impl_state` is `Done`. Always emitted. |
-| `open_blockers` | string[] | Subset of `depends_on ∪ blocked_by` whose targets are not `Done`. Sorted lexicographically. Always emitted as an array, possibly empty. |
-| `unblocks`      | string[] | Document IDs whose `depends_on` or `blocked_by` lists reference this entry. Sorted lexicographically. Always emitted as an array, possibly empty. |
+| `open_blockers` | string[] | Subset of `depends_on ∪ blocked_by` whose targets are not `Done`. Sorted lexicographically. Always emitted as an array, possibly empty.               |
+| `unblocks`      | string[] | Document IDs whose `depends_on` or `blocked_by` lists reference this entry. Sorted lexicographically. Always emitted as an array, possibly empty.     |
 
 Derivation rules are deterministic and purely a function of the stored
 state plus the Phase 2 index. No wall-clock, filesystem mtime, or
@@ -375,16 +376,16 @@ existing `StateDocumentUseCase` path.
 
 New optional flags on `state set`:
 
-| Flag                                 | Behavior                                                                                                                                      |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--priority <P0\|P1\|P2\|P3>`        | Set `priority`. Passing `--priority P2` with no prior value writes the default (no-op on serialized output).                                  |
-| `--depends-on <ID>` (repeatable)     | Replace `depends_on` with the supplied list. Pass zero times with `--clear-depends-on` to empty the list.                                     |
-| `--add-depends-on <ID>` (repeatable) | Additive; deduplicated against the existing list.                                                                                             |
-| `--remove-depends-on <ID>`           | Remove the given ID if present. No-op otherwise.                                                                                              |
-| `--clear-depends-on`                 | Empty the list.                                                                                                                               |
-| `--blocked-by` family                | Same four-flag pattern for `blocked_by`.                                                                                                      |
-| `--assignee <string>`                | Set `assignee`; pass the empty string to clear.                                                                                               |
-| `--next-action <string>`             | Set `next_action`; pass the empty string to clear.                                                                                            |
+| Flag                                 | Behavior                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `--priority <P0\|P1\|P2\|P3>`        | Set `priority`. Passing `--priority P2` with no prior value writes the default (no-op on serialized output). |
+| `--depends-on <ID>` (repeatable)     | Replace `depends_on` with the supplied list. Pass zero times with `--clear-depends-on` to empty the list.    |
+| `--add-depends-on <ID>` (repeatable) | Additive; deduplicated against the existing list.                                                            |
+| `--remove-depends-on <ID>`           | Remove the given ID if present. No-op otherwise.                                                             |
+| `--clear-depends-on`                 | Empty the list.                                                                                              |
+| `--blocked-by` family                | Same four-flag pattern for `blocked_by`.                                                                     |
+| `--assignee <string>`                | Set `assignee`; pass the empty string to clear.                                                              |
+| `--next-action <string>`             | Set `next_action`; pass the empty string to clear.                                                           |
 
 Mutation rules:
 
@@ -415,17 +416,17 @@ warning when reading (emitted through `warnings[]` by `state list`,
 exit code 0). This is consistent with SPEC-006 and the
 `ERROR_EXPLANATIONS` entries for these codes.
 
-| Rule                                        | Code                            | Severity | Description                                                                                                                      |
-| ------------------------------------------- | ------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Unknown priority value                      | `STATE_INVALID_PRIORITY`        | dual     | `priority` is not one of `P0..P3`. Fatal on write; warning on read.                                                              |
-| Malformed dependency ID                     | `STATE_INVALID_DEPENDENCY_ID`   | fatal    | An entry in `depends_on` or `blocked_by` does not match `<PREFIX>-<TYPE>-<NNN>` shape.                                           |
-| Self-dependency                             | `STATE_SELF_DEPENDENCY`         | fatal    | An entry references its own `document_id` in `depends_on` or `blocked_by`.                                                       |
-| Dangling dependency target                  | `STATE_UNDEFINED_DEPENDENCY`    | warning  | A dependency target is not present in the index `nodes` array. The entry is still written; the warning is attached to the run. |
-| Dependency cycle                            | `STATE_DEPENDENCY_CYCLE`        | fatal    | Following `depends_on ∪ blocked_by` edges from any entry produces a cycle.                                                       |
-| Dependency with mismatched status           | `STATE_DEPENDENCY_STATUS_CONFLICT` | advice | Entry A is `Done` but lists B in `depends_on`/`blocked_by` where B is not `Done`. Advisory only; emitted through `advice[]`.   |
-| `assignee` or `next_action` exceeds bounds  | `STATE_FIELD_TOO_LONG`          | dual     | Length exceeds 120 for `assignee` or `MAX_NOTES_LENGTH` for `next_action`. Fatal on write; warning on read.                      |
-| Mixed mutation modes                        | `STATE_MIXED_MUTATION_MODE`     | fatal    | More than one mutation mode (replace/add-remove/clear) specified for the same field family.                                      |
-| Invalid filter value                        | `STATE_INVALID_FILTER_VALUE`        | fatal    | An invalid value was supplied for `--impl-state`, `--priority`, or `--priority-at-least` filter flags.                            |
+| Rule                                       | Code                               | Severity | Description                                                                                                                    |
+| ------------------------------------------ | ---------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Unknown priority value                     | `STATE_INVALID_PRIORITY`           | dual     | `priority` is not one of `P0..P3`. Fatal on write; warning on read.                                                            |
+| Malformed dependency ID                    | `STATE_INVALID_DEPENDENCY_ID`      | fatal    | An entry in `depends_on` or `blocked_by` does not match `<PREFIX>-<TYPE>-<NNN>` shape.                                         |
+| Self-dependency                            | `STATE_SELF_DEPENDENCY`            | fatal    | An entry references its own `document_id` in `depends_on` or `blocked_by`.                                                     |
+| Dangling dependency target                 | `STATE_UNDEFINED_DEPENDENCY`       | warning  | A dependency target is not present in the index `nodes` array. The entry is still written; the warning is attached to the run. |
+| Dependency cycle                           | `STATE_DEPENDENCY_CYCLE`           | fatal    | Following `depends_on ∪ blocked_by` edges from any entry produces a cycle.                                                     |
+| Dependency with mismatched status          | `STATE_DEPENDENCY_STATUS_CONFLICT` | advice   | Entry A is `Done` but lists B in `depends_on`/`blocked_by` where B is not `Done`. Advisory only; emitted through `advice[]`.   |
+| `assignee` or `next_action` exceeds bounds | `STATE_FIELD_TOO_LONG`             | dual     | Length exceeds 120 for `assignee` or `MAX_NOTES_LENGTH` for `next_action`. Fatal on write; warning on read.                    |
+| Mixed mutation modes                       | `STATE_MIXED_MUTATION_MODE`        | fatal    | More than one mutation mode (replace/add-remove/clear) specified for the same field family.                                    |
+| Invalid filter value                       | `STATE_INVALID_FILTER_VALUE`       | fatal    | An invalid value was supplied for `--impl-state`, `--priority`, or `--priority-at-least` filter flags.                         |
 
 Cycle detection uses the same iterative-with-visited-set pattern used by
 `GRAPH_SUPERSESSION_CYCLE` in Phase 2 (see MEMINIT-PLAN-011 §3.3.2). It
@@ -527,16 +528,16 @@ through.
 
 Additional flags per command:
 
-| Command              | Flag                                  | Meaning                                                                                                       |
-| -------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `state next`         | `--assignee <string>`                 | Restrict candidates to a specific assignee.                                                                   |
-| `state next`         | `--priority-at-least <P0\|P1\|P2\|P3>` | Restrict candidates to priorities at or above the threshold (`P0` is highest).                               |
-| `state blockers`     | `--assignee <string>`                 | Restrict blocked entries to a specific assignee.                                                              |
-| `state list`         | `--ready / --no-ready`                | Filter to ready or not-ready entries. Absent = no filter.                                                     |
-| `state list`         | `--blocked / --no-blocked`            | Filter to entries with at least one open blocker, or none.                                                    |
-| `state list`         | `--assignee <string>` (repeatable)    | Filter to one or more assignees (union).                                                                      |
-| `state list`         | `--priority <P0..P3>` (repeatable)    | Filter by priority (union).                                                                                   |
-| `state list`         | `--impl-state <value>` (repeatable)   | Filter by `impl_state` (union). Already partially present; this workstream finalises the set.                 |
+| Command          | Flag                                   | Meaning                                                                                       |
+| ---------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `state next`     | `--assignee <string>`                  | Restrict candidates to a specific assignee.                                                   |
+| `state next`     | `--priority-at-least <P0\|P1\|P2\|P3>` | Restrict candidates to priorities at or above the threshold (`P0` is highest).                |
+| `state blockers` | `--assignee <string>`                  | Restrict blocked entries to a specific assignee.                                              |
+| `state list`     | `--ready / --no-ready`                 | Filter to ready or not-ready entries. Absent = no filter.                                     |
+| `state list`     | `--blocked / --no-blocked`             | Filter to entries with at least one open blocker, or none.                                    |
+| `state list`     | `--assignee <string>` (repeatable)     | Filter to one or more assignees (union).                                                      |
+| `state list`     | `--priority <P0..P3>` (repeatable)     | Filter by priority (union).                                                                   |
+| `state list`     | `--impl-state <value>` (repeatable)    | Filter by `impl_state` (union). Already partially present; this workstream finalises the set. |
 
 Mutually exclusive flag pairs (e.g. `--ready` with `--no-ready`) are
 rejected with a `STATE_INVALID_FILTER_VALUE` usage error. `--ready` and
@@ -551,8 +552,8 @@ An entry `E` is **ready** iff **all** of the following hold:
 2. Every `id` in `E.depends_on` satisfies one of:
    a. `id` resolves to a state entry with `impl_state == "Done"`; or
    b. `id` does not appear in either the state file or the index
-      `nodes` array and the caller has explicitly consented to treat
-      unknown targets as resolved (not the default; see below).
+   `nodes` array and the caller has explicitly consented to treat
+   unknown targets as resolved (not the default; see below).
 3. Every `id` in `E.blocked_by` satisfies §3.3.2 (2) above.
 
 Default behavior on unknown dependency targets: treat the entry as
@@ -650,8 +651,8 @@ iteratively.
       "priority": "P1",
       "assignee": null,
       "open_blockers": [
-        {"id": "MEMINIT-FDD-011", "impl_state": "Not Started", "known": true},
-        {"id": "MEMINIT-ADR-042", "impl_state": null, "known": false}
+        { "id": "MEMINIT-FDD-011", "impl_state": "Not Started", "known": true },
+        { "id": "MEMINIT-ADR-042", "impl_state": null, "known": false }
       ]
     }
   ],
@@ -675,15 +676,15 @@ All arrays are sorted deterministically (lexicographic by
 
 New agent-facing error codes and their `explain` remediation targets:
 
-| Code                              | Emitted by                       | `resolution_type` |
-| --------------------------------- | -------------------------------- | ----------------- |
-| `STATE_INVALID_PRIORITY`          | `state set`, `state next` filter | `manual`          |
-| `STATE_INVALID_DEPENDENCY_ID`     | `state set`                      | `manual`          |
-| `STATE_SELF_DEPENDENCY`           | `state set`                      | `manual`          |
-| `STATE_UNDEFINED_DEPENDENCY`      | `state set`, query commands      | `manual`          |
-| `STATE_DEPENDENCY_CYCLE`          | `state set`, `state list`        | `manual`          |
-| `STATE_DEPENDENCY_STATUS_CONFLICT` | query commands                  | advisory          |
-| `STATE_FIELD_TOO_LONG`            | `state set`                      | `manual`          |
+| Code                               | Emitted by                       | `resolution_type` |
+| ---------------------------------- | -------------------------------- | ----------------- |
+| `STATE_INVALID_PRIORITY`           | `state set`, `state next` filter | `manual`          |
+| `STATE_INVALID_DEPENDENCY_ID`      | `state set`                      | `manual`          |
+| `STATE_SELF_DEPENDENCY`            | `state set`                      | `manual`          |
+| `STATE_UNDEFINED_DEPENDENCY`       | `state set`, query commands      | `manual`          |
+| `STATE_DEPENDENCY_CYCLE`           | `state set`, `state list`        | `manual`          |
+| `STATE_DEPENDENCY_STATUS_CONFLICT` | query commands                   | advisory          |
+| `STATE_FIELD_TOO_LONG`             | `state set`                      | `manual`          |
 
 Each ships a complete `ERROR_EXPLANATIONS` entry.
 
@@ -747,16 +748,16 @@ Problem:
 state-derived fields (`impl_state`, `updated`, `updated_by`, `notes`).
 Phase 4 adds the new planning fields and the `ready` derived flag:
 
-| Added node field | Source         | Notes                                                                                       |
-| ---------------- | -------------- | ------------------------------------------------------------------------------------------- |
-| `priority`       | project-state  | Omitted when `P2` (default) to keep the artifact minimal.                                   |
-| `depends_on`     | project-state  | Sorted lexicographically. Omitted when empty.                                               |
-| `blocked_by`     | project-state  | Same rule.                                                                                  |
-| `assignee`       | project-state  | Omitted when unset.                                                                         |
-| `next_action`    | project-state  | Omitted when unset.                                                                         |
-| `ready`          | derived        | Boolean. Always emitted.                                                                    |
-| `open_blockers`  | derived        | Sorted list. Always emitted as an array, possibly empty.                                     |
-| `unblocks`       | derived        | Sorted list. Always emitted as an array, possibly empty.                                     |
+| Added node field | Source        | Notes                                                     |
+| ---------------- | ------------- | --------------------------------------------------------- |
+| `priority`       | project-state | Omitted when `P2` (default) to keep the artifact minimal. |
+| `depends_on`     | project-state | Sorted lexicographically. Omitted when empty.             |
+| `blocked_by`     | project-state | Same rule.                                                |
+| `assignee`       | project-state | Omitted when unset.                                       |
+| `next_action`    | project-state | Omitted when unset.                                       |
+| `ready`          | derived       | Boolean. Always emitted.                                  |
+| `open_blockers`  | derived       | Sorted list. Always emitted as an array, possibly empty.  |
+| `unblocks`       | derived       | Sorted list. Always emitted as an array, possibly empty.  |
 
 Determinism rules:
 
@@ -858,28 +859,28 @@ test module). Every scenario exercises at least `state list` (summary
 shape) and, where relevant, `state next`, `state blockers`, and
 `meminit index` (for Workstream D integration).
 
-| ID  | Scenario                                                                                          | Expected outcome                                                                                              |
-| --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Q01 | Legacy v1 state file; no planning fields                                                          | All reads succeed; no migration warning; `state next` uses `impl_state` only                                 |
-| Q02 | Mixed repo: three `Not Started`, no dependencies                                                  | `state next` returns the lexicographically first one; all three are `ready`                                  |
-| Q03 | Two `Not Started` entries, one with `priority: P0`                                                | `P0` wins                                                                                                    |
-| Q04 | Two `Not Started` entries, same priority, different `updated`                                     | Older `updated` wins                                                                                          |
-| Q05 | Two `Not Started` entries, same priority and `updated`, one with higher `unblocks` count          | Higher `unblocks` wins                                                                                       |
-| Q06 | Two `Not Started` entries, identical on all keys except `document_id`                              | Lexicographically first `document_id` wins                                                                   |
-| Q07 | Entry with `depends_on: [X]`, X is `Done`                                                         | Entry is `ready`                                                                                              |
-| Q08 | Entry with `depends_on: [X]`, X is `In Progress`                                                  | Entry is not `ready`; X appears in `open_blockers`                                                            |
-| Q09 | Entry with `depends_on: [X]`, X is not in state or index                                          | `STATE_UNDEFINED_DEPENDENCY` warning; entry is not `ready`                                                   |
-| Q10 | Dependency cycle A → B → A                                                                        | `state set` for either entry emits `STATE_DEPENDENCY_CYCLE` and halts                                         |
-| Q11 | Self-dependency                                                                                   | `state set --add-depends-on <self>` emits `STATE_SELF_DEPENDENCY` and halts                                   |
-| Q12 | Invalid priority (`P9`)                                                                           | `state set --priority P9` emits `STATE_INVALID_PRIORITY`                                                      |
-| Q13 | `next_action` exceeds `MAX_NOTES_LENGTH`                                                          | `state set --next-action <too-long>` emits `STATE_FIELD_TOO_LONG`                                             |
-| Q14 | `state next --assignee agent:augment --priority-at-least P1` on a mixed queue                     | Filter reduces candidates deterministically; `selection.filter` echoes the input                              |
-| Q15 | Empty ready set                                                                                   | `state next` returns `data.entry = null`, `data.reason = "queue_empty"`, exit 0                              |
-| Q16 | Missing state file                                                                                | `state next` returns `data.entry = null`, `data.reason = "state_missing"`, exit 0                            |
-| Q17 | Advisory-only case: entry `Done` but `depends_on` target is `In Progress`                         | `state list` emits `STATE_DEPENDENCY_STATUS_CONFLICT` through `advice[]`; no violation                        |
-| Q18 | Idempotency: two consecutive `state set` calls with the same flags                                | Second run writes zero bytes; file mtime may update but content hash is unchanged                             |
-| Q19 | Determinism: two independent fixture materializations of the same logical state                   | `state list` JSON output is byte-identical after sorted-key serialization                                     |
-| Q20 | `meminit index` on a v2 state repo                                                                | Catalog and kanban views emit priority columns/badges; node entries carry the new fields; artifact byte-stable |
+| ID  | Scenario                                                                                 | Expected outcome                                                                                               |
+| --- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Q01 | Legacy v1 state file; no planning fields                                                 | All reads succeed; no migration warning; `state next` uses `impl_state` only                                   |
+| Q02 | Mixed repo: three `Not Started`, no dependencies                                         | `state next` returns the lexicographically first one; all three are `ready`                                    |
+| Q03 | Two `Not Started` entries, one with `priority: P0`                                       | `P0` wins                                                                                                      |
+| Q04 | Two `Not Started` entries, same priority, different `updated`                            | Older `updated` wins                                                                                           |
+| Q05 | Two `Not Started` entries, same priority and `updated`, one with higher `unblocks` count | Higher `unblocks` wins                                                                                         |
+| Q06 | Two `Not Started` entries, identical on all keys except `document_id`                    | Lexicographically first `document_id` wins                                                                     |
+| Q07 | Entry with `depends_on: [X]`, X is `Done`                                                | Entry is `ready`                                                                                               |
+| Q08 | Entry with `depends_on: [X]`, X is `In Progress`                                         | Entry is not `ready`; X appears in `open_blockers`                                                             |
+| Q09 | Entry with `depends_on: [X]`, X is not in state or index                                 | `STATE_UNDEFINED_DEPENDENCY` warning; entry is not `ready`                                                     |
+| Q10 | Dependency cycle A → B → A                                                               | `state set` for either entry emits `STATE_DEPENDENCY_CYCLE` and halts                                          |
+| Q11 | Self-dependency                                                                          | `state set --add-depends-on <self>` emits `STATE_SELF_DEPENDENCY` and halts                                    |
+| Q12 | Invalid priority (`P9`)                                                                  | `state set --priority P9` emits `STATE_INVALID_PRIORITY`                                                       |
+| Q13 | `next_action` exceeds `MAX_NOTES_LENGTH`                                                 | `state set --next-action <too-long>` emits `STATE_FIELD_TOO_LONG`                                              |
+| Q14 | `state next --assignee agent:augment --priority-at-least P1` on a mixed queue            | Filter reduces candidates deterministically; `selection.filter` echoes the input                               |
+| Q15 | Empty ready set                                                                          | `state next` returns `data.entry = null`, `data.reason = "queue_empty"`, exit 0                                |
+| Q16 | Missing state file                                                                       | `state next` returns `data.entry = null`, `data.reason = "state_missing"`, exit 0                              |
+| Q17 | Advisory-only case: entry `Done` but `depends_on` target is `In Progress`                | `state list` emits `STATE_DEPENDENCY_STATUS_CONFLICT` through `advice[]`; no violation                         |
+| Q18 | Idempotency: two consecutive `state set` calls with the same flags                       | Second run writes zero bytes; file mtime may update but content hash is unchanged                              |
+| Q19 | Determinism: two independent fixture materializations of the same logical state          | `state list` JSON output is byte-identical after sorted-key serialization                                      |
+| Q20 | `meminit index` on a v2 state repo                                                       | Catalog and kanban views emit priority columns/badges; node entries carry the new fields; artifact byte-stable |
 
 #### 3.5.2 Implementation tasks
 
@@ -1063,15 +1064,15 @@ Phase 4 can be considered complete when all of the following are true:
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with detailed Phase 4 workstreams, sequencing, and exit criteria |
-| 0.3 | 2026-04-18 | Augment Agent | Rewrote against MEMINIT-PLAN-011 and MEMINIT-PLAN-012 quality bar: concrete v2 state schema with `state_schema_version`, five planning fields and three derived fields; explicit `state set` mutation surface with additive/remove/clear flag families; deterministic readiness and next-selection algorithms with total ordering; `STATE_*` error-code registry and exit-code mapping; JSON payload shapes for `state next`, `state blockers`, and extended `state list`; index, catalog, and kanban alignment rules; 20-scenario fixture matrix with explicit determinism tests; engineering constraints section anchoring the work to existing modules; governed-document outputs table for closeout; PR slicing guidance; and concrete exit criteria tied to specific files, classes, and commands |
-| 0.4 | 2026-04-21 | Codex | Tightened Phase 4 for implementation safety and deliverability: explicit repo-initialization boundary for all state commands, canonical UTC handling for `updated` timestamps, mutually exclusive state mutation/filter modes, fatal handling for malformed state YAML/schema violations, always-emitted derived readiness fields, and clearer PR slicing and exit criteria for the queue workflow. |
-| 0.5 | 2026-04-21 | Codex | Aligned the handoff with the shipped contract docs: added explicit TDD/QA gates, normalized the fixture strategy to deterministic builders, and pinned queue work references to MEMINIT-SPEC-008 and MEMINIT-RUNBOOK-006. |
-| 0.6 | 2026-04-21 | Codex | Final wording pass: removed ambiguous contract/runbook alternatives and aligned the plan with the single canonical queue contract and runbook targets. |
-| 0.7 | 2026-04-22 | Codex | Phase 4 gap remediation (round 1): BV-1 mixed-mode rejection, BV-2 warning envelope correctness, BV-3 fixture matrix Q01–Q20, AR-1 decomposition, AR-2 byte-stability, AR-3 kanban decomposition, GG-1–GG-4 docs closeout. *(test-count claim removed in v0.8)* |
-| 0.8 | 2026-04-23 | Codex | Second audit remediation: BV-C XSS gate in kanban priority rendering, BV-A metadata drift corrected, BV-B exit criterion #13 scope correction (Q01–Q20 + RUNBOOK-006 §3), GG-A warning-code consolidation, GG-C stale test count removed. |
-| 0.9 | 2026-04-23 | Codex | Third audit remediation: AR-new-2 double-emission dedup, AR-new-3 P2 index fidelity, GG-new-1 SPEC-008 advice shape, GG-new-2 line:0 omission, AR-new-1 decomposition, GG-new-3 error-code registry correction, AR-new-4 errata marker. |
-| 0.10 | 2026-04-28 | Codex | Clarified that index-only governed documents receive derived fields but are not ready without an explicit `Not Started` project-state entry. |
+| Version | Date       | Author        | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1     | 2026-04-14 | GitCmurf      | Initial draft created via `meminit new`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 0.2     | 2026-04-14 | Codex         | Replaced stub with detailed Phase 4 workstreams, sequencing, and exit criteria                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 0.3     | 2026-04-18 | Augment Agent | Rewrote against MEMINIT-PLAN-011 and MEMINIT-PLAN-012 quality bar: concrete v2 state schema with `state_schema_version`, five planning fields and three derived fields; explicit `state set` mutation surface with additive/remove/clear flag families; deterministic readiness and next-selection algorithms with total ordering; `STATE_*` error-code registry and exit-code mapping; JSON payload shapes for `state next`, `state blockers`, and extended `state list`; index, catalog, and kanban alignment rules; 20-scenario fixture matrix with explicit determinism tests; engineering constraints section anchoring the work to existing modules; governed-document outputs table for closeout; PR slicing guidance; and concrete exit criteria tied to specific files, classes, and commands |
+| 0.4     | 2026-04-21 | Codex         | Tightened Phase 4 for implementation safety and deliverability: explicit repo-initialization boundary for all state commands, canonical UTC handling for `updated` timestamps, mutually exclusive state mutation/filter modes, fatal handling for malformed state YAML/schema violations, always-emitted derived readiness fields, and clearer PR slicing and exit criteria for the queue workflow.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 0.5     | 2026-04-21 | Codex         | Aligned the handoff with the shipped contract docs: added explicit TDD/QA gates, normalized the fixture strategy to deterministic builders, and pinned queue work references to MEMINIT-SPEC-008 and MEMINIT-RUNBOOK-006.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 0.6     | 2026-04-21 | Codex         | Final wording pass: removed ambiguous contract/runbook alternatives and aligned the plan with the single canonical queue contract and runbook targets.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 0.7     | 2026-04-22 | Codex         | Phase 4 gap remediation (round 1): BV-1 mixed-mode rejection, BV-2 warning envelope correctness, BV-3 fixture matrix Q01–Q20, AR-1 decomposition, AR-2 byte-stability, AR-3 kanban decomposition, GG-1–GG-4 docs closeout. _(test-count claim removed in v0.8)_                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 0.8     | 2026-04-23 | Codex         | Second audit remediation: BV-C XSS gate in kanban priority rendering, BV-A metadata drift corrected, BV-B exit criterion #13 scope correction (Q01–Q20 + RUNBOOK-006 §3), GG-A warning-code consolidation, GG-C stale test count removed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 0.9     | 2026-04-23 | Codex         | Third audit remediation: AR-new-2 double-emission dedup, AR-new-3 P2 index fidelity, GG-new-1 SPEC-008 advice shape, GG-new-2 line:0 omission, AR-new-1 decomposition, GG-new-3 error-code registry correction, AR-new-4 errata marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 0.10    | 2026-04-28 | Codex         | Clarified that index-only governed documents receive derived fields but are not ready without an explicit `Not Started` project-state entry.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

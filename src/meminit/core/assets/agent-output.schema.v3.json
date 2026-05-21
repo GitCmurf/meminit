@@ -16,9 +16,7 @@
   "properties": {
     "output_schema_version": {
       "type": "string",
-      "enum": [
-        "3.0"
-      ]
+      "enum": ["3.0"]
     },
     "success": {
       "type": "boolean"
@@ -131,9 +129,7 @@
       },
       "then": {
         "not": {
-          "required": [
-            "error"
-          ]
+          "required": ["error"]
         }
       }
     },
@@ -148,9 +144,7 @@
       "then": {
         "anyOf": [
           {
-            "required": [
-              "error"
-            ]
+            "required": ["error"]
           },
           {
             "properties": {
@@ -169,13 +163,9 @@
             "const": "check"
           }
         },
-        "required": [
-          "command"
-        ],
+        "required": ["command"],
         "not": {
-          "required": [
-            "error"
-          ]
+          "required": ["error"]
         }
       },
       "then": {
@@ -200,7 +190,32 @@
       "if": {
         "properties": {
           "command": {
-            "enum": ["check", "doctor", "fix", "scan", "install-precommit", "index", "protocol check", "protocol sync", "resolve", "identify", "link", "migrate-ids", "migrate-templates", "init", "new", "adr new", "context", "org vendor", "org status", "state set", "state get", "state list", "state next", "state blockers"]
+            "enum": [
+              "check",
+              "doctor",
+              "fix",
+              "scan",
+              "install-precommit",
+              "index",
+              "protocol check",
+              "protocol sync",
+              "resolve",
+              "identify",
+              "link",
+              "migrate-ids",
+              "migrate-templates",
+              "init",
+              "new",
+              "adr new",
+              "context",
+              "org vendor",
+              "org status",
+              "state set",
+              "state get",
+              "state list",
+              "state next",
+              "state blockers"
+            ]
           }
         },
         "required": ["command"]
@@ -229,11 +244,7 @@
   "definitions": {
     "issue": {
       "type": "object",
-      "required": [
-        "code",
-        "message",
-        "path"
-      ],
+      "required": ["code", "message", "path"],
       "properties": {
         "code": {
           "type": "string"
@@ -255,10 +266,7 @@
     },
     "advice": {
       "type": "object",
-      "required": [
-        "code",
-        "message"
-      ],
+      "required": ["code", "message"],
       "properties": {
         "message": {
           "type": "string"
@@ -280,10 +288,7 @@
     },
     "error": {
       "type": "object",
-      "required": [
-        "code",
-        "message"
-      ],
+      "required": ["code", "message"],
       "properties": {
         "code": {
           "type": "string"
@@ -299,10 +304,7 @@
     },
     "grouped_violations": {
       "type": "object",
-      "required": [
-        "path",
-        "violations"
-      ],
+      "required": ["path", "violations"],
       "properties": {
         "path": {
           "type": "string"
@@ -314,10 +316,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": [
-              "code",
-              "message"
-            ],
+            "required": ["code", "message"],
             "properties": {
               "code": {
                 "type": "string"

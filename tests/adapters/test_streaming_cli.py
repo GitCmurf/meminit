@@ -1,6 +1,6 @@
 import json
-from importlib import resources
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -10,12 +10,10 @@ from click.testing import CliRunner
 from meminit.cli.main import cli
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import exit_code_for_error
-from meminit.core.services.stream_events import StreamItem, StreamSummary, StreamingResult
-from tests.cli.streaming_helpers import (
-    create_initialized_repo,
-    records as parse_records,
-    stream_schema_validator,
-)
+from meminit.core.services.stream_events import StreamingResult, StreamItem, StreamSummary
+from tests.cli.streaming_helpers import create_initialized_repo
+from tests.cli.streaming_helpers import records as parse_records
+from tests.cli.streaming_helpers import stream_schema_validator
 
 
 def test_stream_schema_copies_are_identical():

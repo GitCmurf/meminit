@@ -3,24 +3,25 @@ document_id: MEMINIT-PLAN-016
 type: PLAN
 title: Adoption and Dogfooding Sequencing
 status: Draft
-version: '0.3'
-last_updated: '2026-05-21'
+version: "0.3"
+last_updated: "2026-05-21"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: ADOPT
-description: Defines the dogfood-first adoption sequence, engineering workstreams,
+description:
+  Defines the dogfood-first adoption sequence, engineering workstreams,
   verification gates, and release-readiness criteria for Meminit's first public
   package launch.
 keywords:
-- adoption
-- dogfooding
-- release-readiness
-- templates-v2
-- agent-skill
-- brownfield
+  - adoption
+  - dogfooding
+  - release-readiness
+  - templates-v2
+  - agent-skill
+  - brownfield
 related_ids:
-- MEMINIT-PLAN-003
-- MEMINIT-STRAT-001
+  - MEMINIT-PLAN-003
+  - MEMINIT-STRAT-001
 ---
 
 > **Document ID:** MEMINIT-PLAN-016
@@ -111,13 +112,13 @@ Important distinction:
 The adoption system has five cooperating surfaces. Each must stay independently
 testable and loosely coupled.
 
-| Surface | Responsibility | Launch-quality contract |
-| --- | --- | --- |
-| CLI core | `init`, `context`, `new`, `scan`, `fix`, `check`, `index`, `resolve`, `identify`, `link`, `protocol` | Deterministic output, repo-root safety, no runtime network dependency, strict v3 JSON envelope compliance (`check_all_envelopes.py`) |
-| Template system | Type-specific document scaffolds and section inventory | No skeleton fallback for launch-critical types; section markers and agent prompts are parseable |
-| Protocol assets | `AGENTS.md`, `meminit-docops` skill, brownfield helper script | Registry-owned canonical content, drift detection, safe sync, no stale `.codex`/`.agents` contradiction |
-| Adoption evidence | Logs, command transcripts, defect list, closure notes | Every dogfood repo has baseline, fixes, final check, and residual-risk notes |
-| Release surface | README, packaging metadata, tag workflow, release notes, PyPI page | Install commands work from a clean environment and match documented support boundaries |
+| Surface           | Responsibility                                                                                       | Launch-quality contract                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI core          | `init`, `context`, `new`, `scan`, `fix`, `check`, `index`, `resolve`, `identify`, `link`, `protocol` | Deterministic output, repo-root safety, no runtime network dependency, strict v3 JSON envelope compliance (`check_all_envelopes.py`) |
+| Template system   | Type-specific document scaffolds and section inventory                                               | No skeleton fallback for launch-critical types; section markers and agent prompts are parseable                                      |
+| Protocol assets   | `AGENTS.md`, `meminit-docops` skill, brownfield helper script                                        | Registry-owned canonical content, drift detection, safe sync, no stale `.codex`/`.agents` contradiction                              |
+| Adoption evidence | Logs, command transcripts, defect list, closure notes                                                | Every dogfood repo has baseline, fixes, final check, and residual-risk notes                                                         |
+| Release surface   | README, packaging metadata, tag workflow, release notes, PyPI page                                   | Install commands work from a clean environment and match documented support boundaries                                               |
 
 Engineering guidance:
 
@@ -149,7 +150,7 @@ Goal: create a clean measurement point before changing adoption behavior.
   and a file inventory of `docs/00-governance/templates/` plus packaged
   templates.
 - Create or update a governed LOG record for dogfooding evidence. Use `uv run meminit
-  new LOG ... --format json`; do not hand-roll metadata.
+new LOG ... --format json`; do not hand-roll metadata.
 
 Exit criteria:
 
@@ -259,14 +260,14 @@ Exit criteria:
 
 ## 5. Engineering Workstreams
 
-| ID | Workstream | Primary files | Required tests | Done when |
-| --- | --- | --- | --- | --- |
-| WS-1 | Greenfield golden path | `src/meminit/core/use_cases/init_repository.py`, `new_document.py`, templates, README | init/new/check/index use-case tests and `scripts/e2e_integration_test.py` | Clean repo reaches first green from documented commands |
-| WS-2 | Brownfield migration | `scan_repository.py`, `fix_repository.py`, `migrate_ids.py`, link checker | plan-driven migration, dry-run/apply parity, idempotence tests | Messy repo reaches green or emits actionable residuals |
-| WS-3 | Template breadth | `docs/00-governance/templates/`, packaged template assets, `template_resolver.py` | resolver, interpolation, section parser, `meminit new` JSON tests | Launch-critical types avoid skeleton fallback |
-| WS-4 | Protocol and skill packaging | `protocol_assets.py`, `.agents/skills/meminit-docops/`, README, runbooks | protocol check/sync tests, init asset tests, skill manifest tests | Canonical skill path and generated assets agree everywhere |
-| WS-5 | Release engineering | `.github/workflows/`, `pyproject.toml`, README, release notes | package build (`uv build`), install smoke, CI workflow dry-run where practical | Tag workflow can build and validate the package before publish |
-| WS-6 | Security and public hygiene | `LICENSE`, `NOTICE` if needed, `SECURITY.md`, docs/security guidance | secret scan output or documented manual scan, packaging metadata check | No known secrets/PII or license mismatch before launch |
+| ID   | Workstream                   | Primary files                                                                         | Required tests                                                                 | Done when                                                      |
+| ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| WS-1 | Greenfield golden path       | `src/meminit/core/use_cases/init_repository.py`, `new_document.py`, templates, README | init/new/check/index use-case tests and `scripts/e2e_integration_test.py`      | Clean repo reaches first green from documented commands        |
+| WS-2 | Brownfield migration         | `scan_repository.py`, `fix_repository.py`, `migrate_ids.py`, link checker             | plan-driven migration, dry-run/apply parity, idempotence tests                 | Messy repo reaches green or emits actionable residuals         |
+| WS-3 | Template breadth             | `docs/00-governance/templates/`, packaged template assets, `template_resolver.py`     | resolver, interpolation, section parser, `meminit new` JSON tests              | Launch-critical types avoid skeleton fallback                  |
+| WS-4 | Protocol and skill packaging | `protocol_assets.py`, `.agents/skills/meminit-docops/`, README, runbooks              | protocol check/sync tests, init asset tests, skill manifest tests              | Canonical skill path and generated assets agree everywhere     |
+| WS-5 | Release engineering          | `.github/workflows/`, `pyproject.toml`, README, release notes                         | package build (`uv build`), install smoke, CI workflow dry-run where practical | Tag workflow can build and validate the package before publish |
+| WS-6 | Security and public hygiene  | `LICENSE`, `NOTICE` if needed, `SECURITY.md`, docs/security guidance                  | secret scan output or documented manual scan, packaging metadata check         | No known secrets/PII or license mismatch before launch         |
 
 Ownership rule: each workstream PR must update the relevant governed doc,
 implementation, and tests together. Documentation-only exceptions are allowed
@@ -279,12 +280,12 @@ only for this plan, evidence LOGs, or release notes that do not alter behavior.
 Use a small portfolio for signal diversity instead of trying every maintainer
 repo.
 
-| Repo | Why it matters | Required signal |
-| --- | --- | --- |
-| Greenfield repo (`../bedtime-alexa/` or equivalent) | Tests cold-start ergonomics and generated assets | No private context needed; README quickstart works |
-| Architext | Tests the agent-orchestrator design center | Section IDs, templates, and index artifacts support orchestration |
-| Messy brownfield repo | Tests migration and defect reporting | `scan -> plan -> fix -> check` is understandable and deterministic |
-| AIDHA | Ongoing continuous testbed | Regression signal only; do not substitute for the three targeted pilots |
+| Repo                                                | Why it matters                                   | Required signal                                                         |
+| --------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Greenfield repo (`../bedtime-alexa/` or equivalent) | Tests cold-start ergonomics and generated assets | No private context needed; README quickstart works                      |
+| Architext                                           | Tests the agent-orchestrator design center       | Section IDs, templates, and index artifacts support orchestration       |
+| Messy brownfield repo                               | Tests migration and defect reporting             | `scan -> plan -> fix -> check` is understandable and deterministic      |
+| AIDHA                                               | Ongoing continuous testbed                       | Regression signal only; do not substitute for the three targeted pilots |
 
 Over-fitting guard: after the README quickstart is updated, run a stranger
 simulation where an agent starts from the README and runbooks only. The agent
@@ -318,7 +319,7 @@ rerunning everything.
 Publish and promote only when every item is complete.
 
 - [ ] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
-      json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`.
+json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`.
 - [ ] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`.
 - [ ] Greenfield adoption reaches first green from documented commands.
 - [ ] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
@@ -357,14 +358,14 @@ uv run pytest -q
 
 Focused verification when workstream code changes:
 
-| Change area | Additional checks |
-| --- | --- |
-| Templates | `uv run pytest -q tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py` |
-| Protocol assets | `uv run pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py` |
-| Brownfield migration | `uv run pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py` |
-| Index and resolution | `uv run pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py` |
-| CLI output contract | `uv run pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py` AND `uv run python check_all_envelopes.py` |
-| Release packaging | build sdist/wheel (`uv build`), install into a clean virtualenv, run `meminit --version`, `meminit doctor --format json`, and `meminit check --format json` |
+| Change area          | Additional checks                                                                                                                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Templates            | `uv run pytest -q tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py`                                                     |
+| Protocol assets      | `uv run pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py` |
+| Brownfield migration | `uv run pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py`   |
+| Index and resolution | `uv run pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py`                                                     |
+| CLI output contract  | `uv run pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py` AND `uv run python check_all_envelopes.py`                     |
+| Release packaging    | build sdist/wheel (`uv build`), install into a clean virtualenv, run `meminit --version`, `meminit doctor --format json`, and `meminit check --format json`                                               |
 
 Test design requirements:
 
@@ -378,14 +379,14 @@ Test design requirements:
 
 ## 10. Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Dogfooding only maintainer repos overfits the UX | Launch looks good locally but fails for strangers | Use greenfield, messy brownfield, Architext, and README-only stranger simulation |
-| Template breadth expands into a large design project | Launch slips into open-ended polish | Define launch-critical types and defer non-critical archetype refinement |
-| Skill path drift confuses agents | Generated instructions become untrustworthy | Make protocol assets and tests the source of truth; reconcile docs before launch, add CI linting for legacy `.codex` references |
-| PyPI publish happens without promotion readiness | Weak storefront creates early bounce | Couple production PyPI with release notes, README, and evidence gate |
-| Release automation adds supply-chain risk | Bad package or accidental secret exposure | Use least-privilege workflow permissions, build validation (`uv`), exact tags, and security scan |
-| Spec writing resumes instead of adoption fixes | Product remains impressive but unused | Freeze net-new specs unless a dogfood defect changes a cross-cutting contract |
+| Risk                                                 | Impact                                            | Mitigation                                                                                                                      |
+| ---------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Dogfooding only maintainer repos overfits the UX     | Launch looks good locally but fails for strangers | Use greenfield, messy brownfield, Architext, and README-only stranger simulation                                                |
+| Template breadth expands into a large design project | Launch slips into open-ended polish               | Define launch-critical types and defer non-critical archetype refinement                                                        |
+| Skill path drift confuses agents                     | Generated instructions become untrustworthy       | Make protocol assets and tests the source of truth; reconcile docs before launch, add CI linting for legacy `.codex` references |
+| PyPI publish happens without promotion readiness     | Weak storefront creates early bounce              | Couple production PyPI with release notes, README, and evidence gate                                                            |
+| Release automation adds supply-chain risk            | Bad package or accidental secret exposure         | Use least-privilege workflow permissions, build validation (`uv`), exact tags, and security scan                                |
+| Spec writing resumes instead of adoption fixes       | Product remains impressive but unused             | Freeze net-new specs unless a dogfood defect changes a cross-cutting contract                                                   |
 
 <!-- MEMINIT_SECTION: deferred -->
 

@@ -11,10 +11,17 @@
   "definitions": {
     "base": {
       "type": "object",
-      "required": ["stream_schema_version", "record_type", "command", "sequence"],
+      "required": [
+        "stream_schema_version",
+        "record_type",
+        "command",
+        "sequence"
+      ],
       "properties": {
         "stream_schema_version": { "const": "1.0" },
-        "record_type": { "enum": ["header", "item", "progress", "error", "summary"] },
+        "record_type": {
+          "enum": ["header", "item", "progress", "error", "summary"]
+        },
         "command": { "type": "string", "minLength": 1 },
         "sequence": { "type": "integer", "minimum": 0 }
       }
