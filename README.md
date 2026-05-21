@@ -32,7 +32,7 @@ Meminit is designed to work _with_ AI coding agents, not just alongside them:
 - **`meminit init` scaffolds an `AGENTS.md`** — a ready-made agentic coding
   rules file that teaches agents how to create, validate, and maintain governed
   docs in your repo.
-- **Ships with a Codex/Claude-compatible skill** (`.codex/skills/meminit-docops/`)
+- **Ships with a vendor-neutral agent skill** (`.agents/skills/meminit-docops/`)
   that agents can load to run the full DocOps workflow autonomously.
 
 ## What It Does

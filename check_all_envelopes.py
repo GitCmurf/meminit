@@ -12,7 +12,7 @@ from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
 REPO_ROOT = Path(os.getcwd())
 TIMEOUT = 300
-VENV_PYTHON = str(REPO_ROOT / ".venv" / "bin" / "python3")
+VENV_PYTHON = sys.executable
 
 MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 

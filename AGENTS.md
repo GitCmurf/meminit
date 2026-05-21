@@ -161,10 +161,10 @@ Agents can parse sections to:
 
 See `docs/20-specs/spec-007-templates-v2.md` for complete specification.
 
-## Codex Skills
+## Agent Skills
 
-- Codex can use the repo-scoped `meminit-docops` skill for “how-to” workflows (scan → config → check → fix → index).
-- Skill file: `.codex/skills/meminit-docops/SKILL.md`
+- Agents can use the repo-scoped `meminit-docops` skill for “how-to” workflows (scan → config → check → fix → index).
+- Skill file: `.agents/skills/meminit-docops/SKILL.md`
 - Setup runbook: `docs/60-runbooks/runbook-006-codex-skills-setup.md`
 
 ## Coding style

@@ -3,7 +3,7 @@ document_id: MEMINIT-PLAN-016
 type: PLAN
 title: Adoption and Dogfooding Sequencing
 status: Draft
-version: '0.2'
+version: '0.3'
 last_updated: '2026-05-21'
 owner: GitCmurf
 docops_version: '2.0'
@@ -26,7 +26,7 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-016
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.3
 > **Last Updated:** 2026-05-21
 > **Type:** PLAN
 > **Area:** ADOPT
@@ -63,6 +63,8 @@ These findings were verified against the repository on 2026-05-21.
 - The core agent interface has the v3 JSON envelope and NDJSON streaming support.
   Adoption workflows must use `--format json` by default and opt into NDJSON only
   for advertised large-output commands.
+- The project uses `uv` for dependency management (`uv.lock` is present), so local testing,
+  execution, and packaging should prefer `uv` (e.g., `uv run`, `uv build`) over manual `.venv` binary invocation to ensure environment determinism.
 - The configured and packaged first-class templates are currently ADR, PRD, and
   FDD only. PLAN, SPEC, RUNBOOK, DESIGN, LOG, TEST, DEVEX, and DECISION fall
   through to lower-quality skeleton behavior unless a repo-local template exists.
@@ -96,6 +98,7 @@ Important distinction:
 
 - Local editable install and git install are acceptable for dogfooding.
 - Build artifacts and TestPyPI are acceptable for release-engineering rehearsal.
+- Testing and building should be performed using `uv`, which is our standardized environment manager.
 - Production PyPI publish is launch-surface work and should wait for the gate in
   Section 8.
 - Public promotion should not happen separately from the production package
@@ -110,7 +113,7 @@ testable and loosely coupled.
 
 | Surface | Responsibility | Launch-quality contract |
 | --- | --- | --- |
-| CLI core | `init`, `context`, `new`, `scan`, `fix`, `check`, `index`, `resolve`, `identify`, `link`, `protocol` | Deterministic output, repo-root safety, no runtime network dependency, stable JSON envelope |
+| CLI core | `init`, `context`, `new`, `scan`, `fix`, `check`, `index`, `resolve`, `identify`, `link`, `protocol` | Deterministic output, repo-root safety, no runtime network dependency, strict v3 JSON envelope compliance (`check_all_envelopes.py`) |
 | Template system | Type-specific document scaffolds and section inventory | No skeleton fallback for launch-critical types; section markers and agent prompts are parseable |
 | Protocol assets | `AGENTS.md`, `meminit-docops` skill, brownfield helper script | Registry-owned canonical content, drift detection, safe sync, no stale `.codex`/`.agents` contradiction |
 | Adoption evidence | Logs, command transcripts, defect list, closure notes | Every dogfood repo has baseline, fixes, final check, and residual-risk notes |
@@ -137,13 +140,15 @@ Engineering guidance:
 
 Goal: create a clean measurement point before changing adoption behavior.
 
-- Run `meminit context --format json`, `meminit doctor --format json`,
-  `meminit check --format json`, and `pytest -q` in this repo.
-- Run `meminit protocol check --format json` to confirm protocol asset state.
-- Record current template coverage with `meminit new --list-types --format json`
+- Run `uv run meminit context --format json`, `uv run meminit doctor --format json`,
+  `uv run meminit check --format json`, and `uv run pytest -q` in this repo.
+- Run `uv run python check_all_envelopes.py` to ensure all endpoints emit valid v3 JSON payloads.
+- Run `uv run pre-commit run --all-files` to baseline code hygiene.
+- Run `uv run meminit protocol check --format json` to confirm protocol asset state.
+- Record current template coverage with `uv run meminit new --list-types --format json`
   and a file inventory of `docs/00-governance/templates/` plus packaged
   templates.
-- Create or update a governed LOG record for dogfooding evidence. Use `meminit
+- Create or update a governed LOG record for dogfooding evidence. Use `uv run meminit
   new LOG ... --format json`; do not hand-roll metadata.
 
 Exit criteria:
@@ -162,12 +167,14 @@ Target: `../bedtime-alexa/` or another genuinely low-history greenfield repo.
 Required scenario:
 
 ```bash
-meminit init --root . --format json
-meminit context --root . --format json
-meminit new ADR "Use Meminit for governed docs" --root . --format json
-meminit check --root . --format json
-meminit index --root . --format json
-meminit resolve <CREATED_DOCUMENT_ID> --root . --format json
+uv venv
+uv pip install -e ../Meminit # Or path to local source/sdist
+uv run meminit init --root . --format json
+uv run meminit context --root . --format json
+uv run meminit new ADR "Use Meminit for governed docs" --root . --format json
+uv run meminit check --root . --format json
+uv run meminit index --root . --format json
+uv run meminit resolve <CREATED_DOCUMENT_ID> --root . --format json
 ```
 
 Exit criteria:
@@ -185,15 +192,15 @@ Goal: prove migration from imperfect existing docs.
 Target: one messy repo with ad-hoc docs, selected for highest migration signal
 from RevRem, QualFreq, LeClerc, or an equivalent local repo.
 
-Required scenario:
+Required scenario (after installing Meminit via `uv`):
 
 ```bash
-meminit scan --root . --format json
-meminit scan --root . --plan .meminit/adoption-plan.json --format json
-meminit fix --root . --plan .meminit/adoption-plan.json --format json
-meminit fix --root . --plan .meminit/adoption-plan.json --no-dry-run --format json
-meminit check --root . --format json
-meminit index --root . --format json
+uv run meminit scan --root . --format json
+uv run meminit scan --root . --plan .meminit/adoption-plan.json --format json
+uv run meminit fix --root . --plan .meminit/adoption-plan.json --format json
+uv run meminit fix --root . --plan .meminit/adoption-plan.json --no-dry-run --format json
+uv run meminit check --root . --format json
+uv run meminit index --root . --format json
 ```
 
 Exit criteria:
@@ -214,7 +221,7 @@ Required scenario:
 
 - Pin Meminit to a commit SHA or exact tag; never float `main` in pilot CI.
 - Run `init`, `context`, `new`, `check`, `index`, `resolve`, and protocol
-  checks from Architext automation or an agent-driven script.
+  checks from Architext automation or an agent-driven script via `uv run meminit`.
 - Verify section-ID and template behavior against Architext's document
   archetypes.
 
@@ -235,9 +242,10 @@ Required work:
 
 - Expand launch-critical templates or explicitly narrow the launch claim.
 - Reconcile `.agents` versus `.codex` wording across README, runbooks, bundled
-  skill, tests, and protocol assets.
-- Add tag-triggered release automation for build, test, package validation, and
+  skill, tests, and protocol assets. Add a lint/grep check in CI to prevent regressions.
+- Add tag-triggered release automation for build (`uv build`), test, package validation, and
   publish dry-run.
+- Run `uv run pre-commit run --all-files` to ensure all formatting and linting rules are strictly enforced.
 - Run the full local verification matrix in Section 9 and capture results.
 
 Exit criteria:
@@ -253,11 +261,11 @@ Exit criteria:
 
 | ID | Workstream | Primary files | Required tests | Done when |
 | --- | --- | --- | --- | --- |
-| WS-1 | Greenfield golden path | `src/meminit/core/use_cases/init_repository.py`, `new_document.py`, templates, README | init/new/check/index use-case tests and one end-to-end fixture | Clean repo reaches first green from documented commands |
+| WS-1 | Greenfield golden path | `src/meminit/core/use_cases/init_repository.py`, `new_document.py`, templates, README | init/new/check/index use-case tests and `scripts/e2e_integration_test.py` | Clean repo reaches first green from documented commands |
 | WS-2 | Brownfield migration | `scan_repository.py`, `fix_repository.py`, `migrate_ids.py`, link checker | plan-driven migration, dry-run/apply parity, idempotence tests | Messy repo reaches green or emits actionable residuals |
 | WS-3 | Template breadth | `docs/00-governance/templates/`, packaged template assets, `template_resolver.py` | resolver, interpolation, section parser, `meminit new` JSON tests | Launch-critical types avoid skeleton fallback |
 | WS-4 | Protocol and skill packaging | `protocol_assets.py`, `.agents/skills/meminit-docops/`, README, runbooks | protocol check/sync tests, init asset tests, skill manifest tests | Canonical skill path and generated assets agree everywhere |
-| WS-5 | Release engineering | `.github/workflows/`, `pyproject.toml`, README, release notes | package build, install smoke, CI workflow dry-run where practical | Tag workflow can build and validate the package before publish |
+| WS-5 | Release engineering | `.github/workflows/`, `pyproject.toml`, README, release notes | package build (`uv build`), install smoke, CI workflow dry-run where practical | Tag workflow can build and validate the package before publish |
 | WS-6 | Security and public hygiene | `LICENSE`, `NOTICE` if needed, `SECURITY.md`, docs/security guidance | secret scan output or documented manual scan, packaging metadata check | No known secrets/PII or license mismatch before launch |
 
 Ownership rule: each workstream PR must update the relevant governed doc,
@@ -309,8 +317,9 @@ rerunning everything.
 
 Publish and promote only when every item is complete.
 
-- [ ] This repo passes `meminit doctor --format json`, `meminit check --format
-      json`, `meminit protocol check --format json`, and `pytest -q`.
+- [ ] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
+      json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`.
+- [ ] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`.
 - [ ] Greenfield adoption reaches first green from documented commands.
 - [ ] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
       on one messy repo.
@@ -320,9 +329,9 @@ Publish and promote only when every item is complete.
       DESIGN, and LOG, or the public claim is explicitly narrowed to the types
       that are truly supported.
 - [ ] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
-      tests agree on the canonical scaffolded path.
+      tests agree on the canonical scaffolded path (`.agents/skills/meminit-docops`).
 - [ ] README quickstart passes the stranger simulation from a clean checkout.
-- [ ] Tag-triggered release workflow builds sdist/wheel, runs tests, validates
+- [ ] Tag-triggered release workflow builds sdist/wheel (using `uv build`), runs tests, validates
       metadata, and supports a dry-run publish path before production PyPI.
 - [ ] Security and public hygiene gate from [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)
       is complete, including secrets/PII scan evidence.
@@ -336,23 +345,26 @@ Publish and promote only when every item is complete.
 Minimum local verification before a launch-candidate PR:
 
 ```bash
-./.venv/bin/meminit context --format json
-./.venv/bin/meminit doctor --format json
-./.venv/bin/meminit check --format json
-./.venv/bin/meminit protocol check --format json
-./.venv/bin/pytest -q
+uv run pre-commit run --all-files
+uv run meminit context --format json
+uv run meminit doctor --format json
+uv run meminit check --format json
+uv run meminit protocol check --format json
+uv run python scripts/e2e_integration_test.py
+uv run python check_all_envelopes.py
+uv run pytest -q
 ```
 
 Focused verification when workstream code changes:
 
 | Change area | Additional checks |
 | --- | --- |
-| Templates | `./.venv/bin/pytest -q tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py` |
-| Protocol assets | `./.venv/bin/pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py` |
-| Brownfield migration | `./.venv/bin/pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py` |
-| Index and resolution | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py` |
-| CLI output contract | `./.venv/bin/pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py` |
-| Release packaging | build sdist/wheel, install into a clean virtualenv, run `meminit --version`, `meminit doctor --format json`, and `meminit check --format json` |
+| Templates | `uv run pytest -q tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py` |
+| Protocol assets | `uv run pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py` |
+| Brownfield migration | `uv run pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py` |
+| Index and resolution | `uv run pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py` |
+| CLI output contract | `uv run pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py` AND `uv run python check_all_envelopes.py` |
+| Release packaging | build sdist/wheel (`uv build`), install into a clean virtualenv, run `meminit --version`, `meminit doctor --format json`, and `meminit check --format json` |
 
 Test design requirements:
 
@@ -370,9 +382,9 @@ Test design requirements:
 | --- | --- | --- |
 | Dogfooding only maintainer repos overfits the UX | Launch looks good locally but fails for strangers | Use greenfield, messy brownfield, Architext, and README-only stranger simulation |
 | Template breadth expands into a large design project | Launch slips into open-ended polish | Define launch-critical types and defer non-critical archetype refinement |
-| Skill path drift confuses agents | Generated instructions become untrustworthy | Make protocol assets and tests the source of truth; reconcile docs before launch |
+| Skill path drift confuses agents | Generated instructions become untrustworthy | Make protocol assets and tests the source of truth; reconcile docs before launch, add CI linting for legacy `.codex` references |
 | PyPI publish happens without promotion readiness | Weak storefront creates early bounce | Couple production PyPI with release notes, README, and evidence gate |
-| Release automation adds supply-chain risk | Bad package or accidental secret exposure | Use least-privilege workflow permissions, build validation, exact tags, and security scan |
+| Release automation adds supply-chain risk | Bad package or accidental secret exposure | Use least-privilege workflow permissions, build validation (`uv`), exact tags, and security scan |
 | Spec writing resumes instead of adoption fixes | Product remains impressive but unused | Freeze net-new specs unless a dogfood defect changes a cross-cutting contract |
 
 <!-- MEMINIT_SECTION: deferred -->
@@ -415,7 +427,7 @@ command output, target repo commits, and defect closure evidence.
   instruction.
 - Reference governed docs by document ID in prose and use relative links only
   when the target exists.
-- Start a session with `meminit context --format json`; do not hardcode type
+- Start a session with `uv run meminit context --format json`; do not hardcode type
   directories or prefixes.
 - Use the repo-scoped `meminit-docops` skill for DocOps workflows.
 - Treat `meminit check` as structural compliance, not semantic proof that launch

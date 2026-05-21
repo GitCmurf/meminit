@@ -9,37 +9,44 @@ owner: GitCmurf
 version: "0.6"
 ---
 
-# Runbook: Codex Skills Setup for Meminit
+# Runbook: Agent Skills Setup (Codex/Claude)
 
 ## Goal
 
-Make the Meminit Codex Skill available in your Codex environment, either:
+Make the Meminit DocOps skill available in your AI agent environment, either:
 
 - repo-scoped (recommended), or
 - installation-wide (global).
 
-This runbook targets **Codex CLI** usage first. Skills are also supported in IDE extensions, but the discovery UI may differ.
+This runbook targets **Codex** and **Claude** agent usage. Skills are typically scaffolded into `.agents/skills/` by `meminit init`.
 
 ## Repo-scoped setup (recommended)
 
-This repo already ships a Codex skill at:
+Meminit scaffolds a vendor-neutral agent skill at:
 
-- `.codex/skills/meminit-docops/SKILL.md`
+- `.agents/skills/meminit-docops/SKILL.md`
+
+Some tools (like Codex) may require a projection into a tool-specific folder (e.g., `.codex/skills/`).
+
+### Verification
 
 Steps:
+
+1. Confirm the skill directory exists: `.agents/skills/meminit-docops/`
+2. If your tool expects a different path (e.g., `.codex/skills/meminit-docops/`), confirm that path exists as a symlink or projection of the canonical folder.
+
+Self-check:
+
+```bash
+test -f .agents/skills/meminit-docops/SKILL.md && echo "OK: meminit-docops skill present"
+```
+
+### Loading the skill in Codex
 
 1. Start Codex from the repo (preferably the repo root).
 2. In the Codex TUI, run `/skills` to list available skills.
 3. Confirm `meminit-docops` appears in the list.
-4. If it does not appear:
-   - confirm the file exists: `.codex/skills/meminit-docops/SKILL.md`
-   - restart Codex so it re-scans the repo skill directory
-
-Self-check (before restart):
-
-```bash
-test -f .codex/skills/meminit-docops/SKILL.md && echo "OK: meminit-docops skill present"
-```
+4. If it does not appear, your version of Codex may require the `.codex/` projection. Use `meminit protocol sync` to ensure projections are up to date.
 
 Important: skills are typically loaded once per Codex session. If you add or edit skills, **restart Codex**.
 
@@ -53,40 +60,33 @@ How to invoke (Codex CLI):
 If `/skills` only lists built-in skills (e.g., `skill-creator`, `skill-installer`) and not repo skills:
 
 1. Confirm you launched Codex **inside the git repository**:
-   - Start Codex from the repo root directory where `.git/` and `.codex/` exist.
-   - If you launch from a different working directory, Codex may not discover repo-scoped skills.
-2. Confirm the skill is in a supported repo location:
-   - `$CWD/.codex/skills`
-   - `$REPO_ROOT/.codex/skills`
+   - Start Codex from the repo root directory where `.git/` and `.agents/` exist.
+2. Confirm the skill is in a supported repo location. For Codex, ensure the `.codex/` projection exists:
+   - `$REPO_ROOT/.codex/skills/meminit-docops`
 3. Confirm `SKILL.md` is valid:
    - filename must be exactly `SKILL.md`
    - YAML frontmatter must parse
-   - `name` and `description` must be single-line and within length limits
-4. Confirm the skill directory is not a symlink (Codex may ignore symlinked skill dirs).
-5. Restart Codex after adding/updating skills (skills are loaded once per session).
-6. If skills still don’t appear, check your Codex version and configuration:
-   - Update Codex CLI to a recent version that supports skills.
-   - Ensure skills are enabled in `~/.codex/config.toml` (exact setting varies by build).
+4. Restart Codex after adding/updating skills.
 
 ### Installing the skill into another repo (brownfield pilot)
 
 If you are testing Meminit in another repo (e.g., `../AIDHA`) and want the same skill there:
 
-1. Create the target skill directory: `<TARGET_REPO>/.codex/skills/`
-2. Copy the skill folder from this repo:
-   - source: `.codex/skills/meminit-docops/`
-   - destination: `<TARGET_REPO>/.codex/skills/meminit-docops/`
-3. Restart Codex from the target repo root and run `/skills`.
+1. Recommended: run `meminit init` in the target repo.
+2. Manual alternative: copy the skill folder from this repo:
+   - source: `.agents/skills/meminit-docops/`
+   - destination: `<TARGET_REPO>/.agents/skills/meminit-docops/`
+3. Restart your agent environment.
 
 ## Installation-wide setup (global)
 
-If your Codex implementation supports global skills, install by copying the skill folder into the global skills directory.
+If your agent environment supports global skills, install by copying the skill folder into the global skills directory.
 
-Steps (conceptual):
+Steps (conceptual for Codex):
 
 1. Locate your Codex global skills directory (varies by OS/installation).
 2. Copy the folder:
-   - source: `.codex/skills/meminit-docops/`
+   - source: `.agents/skills/meminit-docops/`
    - destination: `~/.codex/skills/meminit-docops/` (Mac/Linux default per Codex docs)
 3. Restart Codex and verify discovery.
 
