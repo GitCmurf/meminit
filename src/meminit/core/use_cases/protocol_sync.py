@@ -305,7 +305,7 @@ class ProtocolSyncer:
             raise MeminitError(
                 code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED,
                 message=(
-                    f"Failed to apply file mode {oct(asset.file_mode)} to " f"{asset.target_path}"
+                    f"Failed to apply file mode {oct(asset.file_mode)} to {asset.target_path}"
                 ),
                 details={
                     "target_path": asset.target_path,

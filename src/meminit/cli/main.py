@@ -630,7 +630,7 @@ def validate_initialized(
             "required": "regular file (not directory/symlink)",
         }
     else:
-        msg = "Repository not initialized: missing docops.config.yaml. " "Run 'meminit init' first."
+        msg = "Repository not initialized: missing docops.config.yaml. Run 'meminit init' first."
         details = {
             "reason": "missing",
             "hint": "meminit init",
@@ -2104,6 +2104,7 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
             raise MeminitError(ErrorCode.FILE_NOT_FOUND, f"Not found: {document_id}")
 
         if format == "json":
+            normalized_path = result.path.replace("\\", "/") if result.path else None
             _write_output(
                 format_envelope(
                     command="link",
@@ -2112,8 +2113,8 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
                     data={
                         "document_id": document_id,
                         "link": (
-                            f"[{document_id}]({result.path.replace('\\', '/')})"
-                            if result.path
+                            f"[{document_id}]({normalized_path})"
+                            if normalized_path
                             else None
                         ),
                     },

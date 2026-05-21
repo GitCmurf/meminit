@@ -6,6 +6,7 @@ DEFAULT_DOCOPS_VERSION = "2.0"
 DEFAULT_STATUS = "Draft"
 DEFAULT_VERSION = "0.1"
 DEFAULT_OWNER = "__TBD__"
+PLACEHOLDER_TBD = "__TBD__"
 
 
 def extract_title_from_markdown(body: str, fallback_stem: str) -> str:
@@ -30,7 +31,7 @@ def build_default_frontmatter_patch(
     in the repository. The caller should replace this with a generated ID.
     """
     patch = {
-        "document_id": DEFAULT_OWNER,  # Placeholder - caller should generate unique ID
+        "document_id": PLACEHOLDER_TBD,  # Placeholder - caller should generate unique ID
         "type": doc_type,
         "title": inferred_title,
         "status": DEFAULT_STATUS,

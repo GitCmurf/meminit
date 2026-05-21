@@ -261,7 +261,7 @@ class TestInferDocType:
         (tmp_path / "docs" / "adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "spec").mkdir(parents=True, exist_ok=True)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type("docs/adr/test.md", config)
+        doc_type, confidence, _ = service._infer_doc_type("docs/adr/test.md", config)
         assert doc_type == "ADR"
         assert confidence >= 0.9
 
@@ -270,7 +270,7 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type(
+        doc_type, _, _ = service._infer_doc_type(
             "docs/misc/decision-log.md", config
         )
         assert doc_type == "ADR"
@@ -280,7 +280,7 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type(
+        doc_type, _, _ = service._infer_doc_type(
             "docs/misc/product-requirements.md", config
         )
         assert doc_type == "PRD"
@@ -290,6 +290,6 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type("docs/misc/notes.md", config)
+        doc_type, confidence, _ = service._infer_doc_type("docs/misc/notes.md", config)
         assert doc_type == "DOC"
         assert confidence == 0.4

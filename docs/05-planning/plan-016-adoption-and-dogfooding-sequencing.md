@@ -172,5 +172,5 @@ There is one canonical `meminit-docops` skill with two distribution channels:
   evidence for Section 6.
 - Code anchors: `src/meminit/core/services/template_resolver.py`,
   `src/meminit/core/assets/org_profiles/default/templates/` (only adr/prd/fdd).
-- Reconcile near-term ordering in `plan-003-roadmap.md` against this plan's
+- Reconcile near-term ordering in `MEMINIT-PLAN-003` against this plan's
   Section 3.

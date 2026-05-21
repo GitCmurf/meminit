@@ -23,6 +23,7 @@ from meminit.core.services.markdown_utils import (
     DEFAULT_STATUS,
     DEFAULT_VERSION,
     DEFAULT_OWNER,
+    PLACEHOLDER_TBD,
 )
 
 
@@ -87,7 +88,7 @@ class HeuristicsService:
                 # Note: document_id uses "__TBD__" placeholder because unique ID generation
                 # requires full repository context. It will be replaced during plan execution.
                 metadata_patch = {
-                    "document_id": DEFAULT_OWNER,  # Placeholder, replaced during execution
+                    "document_id": PLACEHOLDER_TBD,  # Placeholder, replaced during execution
                     "type": inferred_type,
                     "title": inferred_title,
                     "status": DEFAULT_STATUS,
@@ -121,7 +122,7 @@ class HeuristicsService:
                 fields_to_patch = [
                     (
                         "document_id",
-                        lambda: DEFAULT_OWNER,
+                        lambda: PLACEHOLDER_TBD,
                         "document_id: placeholder replaced during execution with unique ID",
                     ),
                     (

@@ -653,7 +653,7 @@ class FixRepositoryUseCase:
         return doc_id if isinstance(doc_id, str) and doc_id.strip() else None
 
     def _namespace_for_path(self, path: Path, document_id: str | None = None) -> RepoConfig | None:
-        if document_id is not None:
+        if document_id is not None and document_id != "__TBD__":
             return self._layout.namespace_for_path_and_document_id(path, document_id)
         return self._layout.namespace_for_path_with_document_id_loader(
             path,
