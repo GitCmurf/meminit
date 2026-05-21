@@ -71,7 +71,7 @@ def _repo_relative_path(path: Path, root_dir: Path) -> str:
     path_text = str(path)
     root_text = str(root_dir).rstrip(os.sep) + os.sep
     if path_text.startswith(root_text):
-        return path_text[len(root_text):].replace(os.sep, "/")
+        return path_text[len(root_text) :].replace(os.sep, "/")
     return relative_path_string(path, root_dir)
 
 
@@ -79,7 +79,7 @@ def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
     path_text = str(path)
     docs_text = str(namespace.docs_dir).rstrip(os.sep) + os.sep
     if path_text.startswith(docs_text):
-        rel_to_docs = path_text[len(docs_text):].replace(os.sep, "/")
+        rel_to_docs = path_text[len(docs_text) :].replace(os.sep, "/")
         for prefix in namespace.excluded_filename_prefixes:
             prefix_lower = prefix.lower()
             if any(part.lower().startswith(prefix_lower) for part in rel_to_docs.split("/")):
@@ -132,9 +132,8 @@ def _filter_index_edges(
         return report.edges
     visible_ids = {n["document_id"] for n in report.documents}
     return [
-e for e in report.edges
-         if e.get("source") in visible_ids and e.get("target") in visible_ids
-     ]
+        e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
+    ]
 
 
 def _index_stream_data(
@@ -246,9 +245,7 @@ def _state_excluding_invalid_priority_entries(state: ProjectState) -> ProjectSta
         return state
     return ProjectState(
         entries={
-            doc_id: entry
-            for doc_id, entry in state.entries.items()
-            if doc_id not in skip_doc_ids
+            doc_id: entry for doc_id, entry in state.entries.items() if doc_id not in skip_doc_ids
         },
         schema_violations=state.schema_violations,
         schema_version=state.schema_version,
@@ -716,6 +713,7 @@ _KANBAN_COLUMNS = ["Not Started", "In Progress", "Blocked", "QA Required", "Done
 
 def _kanban_sort_key(entry: Dict[str, Any]) -> Tuple:
     from meminit.core.services.state_derived import PRIORITY_RANK
+
     priority = entry.get("priority", "P2") or "P2"
     priority_rank = PRIORITY_RANK.get(priority, PRIORITY_RANK["P2"])
     unblocks_count = -len(entry.get("unblocks", []))
@@ -820,17 +818,13 @@ def _kanban_fallback_section(
 
 def _kanban_fallback_card(entry: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
-    doc_id = sanitize_field(
-        entry.get("document_id", ""), max_length=None, html_escape=True
-    ) or ""
+    doc_id = sanitize_field(entry.get("document_id", ""), max_length=None, html_escape=True) or ""
     title = sanitize_field(
         entry.get("_raw_title", entry.get("title", "")),
         max_length=None,
         html_escape=True,
     )
-    status = sanitize_field(
-        entry.get("status", ""), max_length=None, html_escape=True
-    )
+    status = sanitize_field(entry.get("status", ""), max_length=None, html_escape=True)
     notes_raw = entry.get("_raw_notes", entry.get("notes"))
     badges = _kanban_badge_prefix(entry)
     lines.append(f"- **{doc_id}**: {badges}{title} ({status})")
@@ -848,9 +842,7 @@ def _kanban_html_board(
     index_dir: Path,
 ) -> List[str]:
     lines: List[str] = []
-    lines.append(
-        '<div class="kanban-board" role="region" aria-label="Project Kanban Board">'
-    )
+    lines.append('<div class="kanban-board" role="region" aria-label="Project Kanban Board">')
     lines.append("")
     for col_name in ordered_columns:
         col_entries = columns.get(col_name, [])
@@ -891,7 +883,11 @@ def _kanban_html_card(
     status_raw = entry.get("status", "Draft")
     status_slug = _safe_css_slug(status_raw, default="draft")
     status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
-    notes_escaped = sanitize_html(str(entry.get("_raw_notes", entry.get("notes")))) if (entry.get("notes") or entry.get("_raw_notes")) else None
+    notes_escaped = (
+        sanitize_html(str(entry.get("_raw_notes", entry.get("notes"))))
+        if (entry.get("notes") or entry.get("_raw_notes"))
+        else None
+    )
     lines.append(f'<article class="kanban-card" aria-label="{title_escaped}">')
     if rel_val:
         lines.append(
@@ -902,9 +898,7 @@ def _kanban_html_card(
     lines.append(
         f'<span class="card-title kanban-truncate" title="{title_escaped}">{title_escaped}</span>'
     )
-    lines.append(
-        f'<span class="card-status badge-{status_slug}">{status_escaped}</span>'
-    )
+    lines.append(f'<span class="card-status badge-{status_slug}">{status_escaped}</span>')
     priority_val = entry.get("priority")
     if priority_val:
         priority_slug = _safe_css_slug(str(priority_val), default="unknown")
@@ -1117,16 +1111,12 @@ class IndexRepositoryUseCase:
         self._valid_impl_states = list(valid_impl_states)
 
         # Parse and canonicalize filters upfront (raises on invalid values).
-        self._status_filter = _canonicalize_filter(
-            status_filter, self._valid_statuses, "--status"
-        )
+        self._status_filter = _canonicalize_filter(status_filter, self._valid_statuses, "--status")
         self._impl_state_filter = _canonicalize_filter(
             impl_state_filter, self._valid_impl_states, "--impl-state"
         )
 
-    def execute(
-        self, *, use_cache: bool = True, clear_cache: bool = False
-    ) -> IndexBuildReport:
+    def execute(self, *, use_cache: bool = True, clear_cache: bool = False) -> IndexBuildReport:
         return self._build_index_artifacts(
             use_cache=use_cache,
             clear_cache=clear_cache,
@@ -1141,21 +1131,15 @@ class IndexRepositoryUseCase:
     ) -> _IndexBuildArtifacts:
         any_docs = any(ns.docs_dir.exists() for ns in self._layout.namespaces)
         if not any_docs:
-            raise FileNotFoundError(
-                "No configured docs roots exist on disk; cannot build index."
-            )
+            raise FileNotFoundError("No configured docs roots exist on disk; cannot build index.")
 
         index_path = self._layout.index_file
         ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
-        catalog_out_name = (
-            Path(self._catalog_name).name if self._output_catalog else None
-        )
+        catalog_out_name = Path(self._catalog_name).name if self._output_catalog else None
 
         index_cache = IndexCache(self._root_dir)
-        lock_context = (
-            index_cache.acquire_lock() if use_cache or clear_cache else nullcontext()
-        )
+        lock_context = index_cache.acquire_lock() if use_cache or clear_cache else nullcontext()
         try:
             with lock_context:
                 return self._execute_locked(
@@ -1190,8 +1174,7 @@ class IndexRepositoryUseCase:
                     {
                         "code": warning_code,
                         "message": (
-                            "Index cache is unavailable; using a full rebuild "
-                            "without cache."
+                            "Index cache is unavailable; using a full rebuild " "without cache."
                         ),
                         "severity": Severity.WARNING.value,
                         "path": fallback_path,
@@ -1200,9 +1183,7 @@ class IndexRepositoryUseCase:
                 stream_item_emitter=stream_item_emitter,
             )
 
-    def iter_stream(
-        self, *, use_cache: bool = True, clear_cache: bool = False
-    ) -> StreamingResult:
+    def iter_stream(self, *, use_cache: bool = True, clear_cache: bool = False) -> StreamingResult:
         """Return a core-owned streaming producer for index output."""
         summary = StreamSummary()
         records_queue: Queue[Any] = Queue(maxsize=MAX_STREAM_QUEUE_SIZE)
@@ -1232,8 +1213,7 @@ class IndexRepositoryUseCase:
                             impl_state_filter=self._impl_state_filter,
                         ),
                         filtered=(
-                            self._status_filter is not None
-                            or self._impl_state_filter is not None
+                            self._status_filter is not None or self._impl_state_filter is not None
                         ),
                     ),
                     "nodes",
@@ -1355,11 +1335,7 @@ class IndexRepositoryUseCase:
         entries: List[Dict[str, Any]] = []
         known_doc_ids: set[str] = set()
         doc_id_paths: Dict[str, List[str]] = {}  # for duplicate detection
-        single_namespace = (
-            self._layout.namespaces[0]
-            if len(self._layout.namespaces) == 1
-            else None
-        )
+        single_namespace = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
         for path in doc_paths:
             cached = self._cached_entry(
                 cache,
@@ -1495,7 +1471,10 @@ class IndexRepositoryUseCase:
 
         # Run graph integrity validation (checks duplicates, cycles, dangling refs, etc.).
         graph_warnings, graph_advice, graph_fatal = graph.validate_graph_integrity(
-            entries, all_edges, known_doc_ids, doc_id_paths,
+            entries,
+            all_edges,
+            known_doc_ids,
+            doc_id_paths,
         )
         if graph_fatal:
             # Invalidate all stale generated artifacts so downstream
@@ -1542,42 +1521,51 @@ class IndexRepositoryUseCase:
                 check_status_conflicts,
                 validate_planning_fields,
             )
+
             state_path = get_state_file_rel_path(self._root_dir)
             _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG"}
             for doc_id, ps_entry in project_state.entries.items():
                 planning_issues = validate_planning_fields(
-                    ps_entry, known_doc_ids,
+                    ps_entry,
+                    known_doc_ids,
                 )
                 for pi in planning_issues:
                     if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                         continue
-                    warnings_list.append({
-                        "code": pi.code,
-                        "message": pi.message,
-                        "severity": _read_warning_severity(pi.severity),
-                        "path": state_path,
-                    })
+                    warnings_list.append(
+                        {
+                            "code": pi.code,
+                            "message": pi.message,
+                            "severity": _read_warning_severity(pi.severity),
+                            "path": state_path,
+                        }
+                    )
             cycle_issues = check_dependency_cycle(project_state.entries)
             for ci in cycle_issues:
-                warnings_list.append({
-                    "code": ci.code,
-                    "message": ci.message,
-                    "severity": _read_warning_severity(ci.severity),
-                    "path": state_path,
-                })
+                warnings_list.append(
+                    {
+                        "code": ci.code,
+                        "message": ci.message,
+                        "severity": _read_warning_severity(ci.severity),
+                        "path": state_path,
+                    }
+                )
 
             for si in check_status_conflicts(project_state.entries):
-                graph_advice.append({
-                    "code": si.code,
-                    "message": si.message,
-                    "severity": si.severity,
-                    "path": state_path,
-                })
+                graph_advice.append(
+                    {
+                        "code": si.code,
+                        "message": si.message,
+                        "severity": si.severity,
+                        "path": state_path,
+                    }
+                )
 
         # Compute derived fields (ready, open_blockers, unblocks) from state.
         # Spec (PLAN-013 §3.4.1): ready, open_blockers, unblocks are always emitted.
         if project_state and project_state.entries:
             from meminit.core.services.state_derived import compute_derived_fields
+
             derivation_state = _state_excluding_invalid_priority_entries(project_state)
             invalid_priority_doc_ids = _invalid_priority_doc_ids(project_state)
             derived = compute_derived_fields(derivation_state, known_doc_ids)
@@ -1606,10 +1594,7 @@ class IndexRepositoryUseCase:
         # full repository inventory (resolve/identify/link). Filters are for
         # command output and generated views only.
         sorted_entries = sorted(entries, key=lambda e: e.get("document_id", ""))
-        json_nodes = [
-            {k: v for k, v in e.items() if not k.startswith("_")}
-            for e in sorted_entries
-        ]
+        json_nodes = [{k: v for k, v in e.items() if not k.startswith("_")} for e in sorted_entries]
         json_edges = [e.to_dict() for e in all_edges]
 
         if use_cache:
@@ -1695,8 +1680,7 @@ class IndexRepositoryUseCase:
             reverse=True,
         )
         json_filtered = [
-            {k: v for k, v in e.items() if not k.startswith("_")}
-            for e in sorted_filtered
+            {k: v for k, v in e.items() if not k.startswith("_")} for e in sorted_filtered
         ]
 
         rebuild = cache_plan.summary()
@@ -1798,9 +1782,7 @@ class IndexRepositoryUseCase:
                 warnings_list.append(
                     {
                         "code": ErrorCode.CACHE_ENTRY_INVALID.value,
-                        "message": (
-                            "Cached node namespace is stale; recomputing document."
-                        ),
+                        "message": ("Cached node namespace is stale; recomputing document."),
                         "severity": Severity.WARNING.value,
                         "path": rel_path,
                     }
@@ -1846,11 +1828,7 @@ class IndexRepositoryUseCase:
         edges = data.get("edges")
         if not isinstance(nodes, list) or not isinstance(edges, list):
             return None, False
-        single_namespace = (
-            self._layout.namespaces[0]
-            if len(self._layout.namespaces) == 1
-            else None
-        )
+        single_namespace = self._layout.namespaces[0] if len(self._layout.namespaces) == 1 else None
         for node in nodes:
             if not isinstance(node, dict):
                 return None, False
@@ -1878,14 +1856,15 @@ class IndexRepositoryUseCase:
             document_count = int(raw_count)
         except (ValueError, TypeError):
             document_count = len(nodes)
-        return _IndexBuildArtifacts(
-            index_path=index_path,
-            document_count=document_count,
-            warnings=canonicalize_warning_list(
-                [*payload_warnings, *warnings_list]
+        return (
+            _IndexBuildArtifacts(
+                index_path=index_path,
+                document_count=document_count,
+                warnings=canonicalize_warning_list([*payload_warnings, *warnings_list]),
+                documents=nodes,
+                edges=edges,
+                advice=payload.get("advice", []),
+                rebuild=cache_plan.summary(),
             ),
-            documents=nodes,
-            edges=edges,
-            advice=payload.get("advice", []),
-            rebuild=cache_plan.summary(),
-        ), False
+            False,
+        )

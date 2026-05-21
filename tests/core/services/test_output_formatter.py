@@ -418,4 +418,3 @@ def test_format_error_envelope_omits_root_when_none():
     )
     payload = json.loads(output)
     assert "root" not in payload
-

@@ -35,4 +35,3 @@ def get_xdg_paths(env: Optional[Mapping[str, str]] = None, home: Optional[Path] 
     config_home = Path(env.get("XDG_CONFIG_HOME") or (home / ".config")).expanduser()
     data_home = Path(env.get("XDG_DATA_HOME") or (home / ".local" / "share")).expanduser()
     return XdgPaths(config_home=config_home, data_home=data_home)
-

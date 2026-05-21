@@ -186,8 +186,7 @@ class DoctorRepositoryUseCase:
                     rule="DOCTOR_PARSE_ERRORS",
                     message=(
                         f"{len(parse_errors)} governed document(s) could not be parsed "
-                        f"(unknown-doc-id validation skipped): "
-                        + "; ".join(parse_errors)
+                        f"(unknown-doc-id validation skipped): " + "; ".join(parse_errors)
                     ),
                     severity=Severity.ERROR,
                 )
@@ -222,22 +221,26 @@ class DoctorRepositoryUseCase:
                 if pi.code in _COVERED_BY_ENTRY_VALIDATORS:
                     continue
                 severity = Severity.ERROR if pi.severity == "fatal" else Severity.WARNING
-                issues.append(Violation(
-                    file=state_file_rel,
-                    line=0,
-                    rule=pi.code,
-                    message=pi.message,
-                    severity=severity,
-                ))
+                issues.append(
+                    Violation(
+                        file=state_file_rel,
+                        line=0,
+                        rule=pi.code,
+                        message=pi.message,
+                        severity=severity,
+                    )
+                )
 
         for ci in check_dependency_cycle(project_state.entries):
-            issues.append(Violation(
-                file=state_file_rel,
-                line=0,
-                rule=ci.code,
-                message=ci.message,
-                severity=Severity.ERROR,
-            ))
+            issues.append(
+                Violation(
+                    file=state_file_rel,
+                    line=0,
+                    rule=ci.code,
+                    message=ci.message,
+                    severity=Severity.ERROR,
+                )
+            )
 
         return issues
 

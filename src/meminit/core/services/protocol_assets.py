@@ -18,7 +18,6 @@ from typing import Optional, Tuple
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import load_repo_config
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -28,9 +27,7 @@ PROTOCOL_ASSET_VERSION = "1.0"
 _MARKER_BEGIN_RE = re.compile(
     r"^<!--\s+MEMINIT_PROTOCOL:\s+begin\s+id=(\S+)\s+version=(\S+)\s+sha256=([0-9a-fA-F]{64})\s+-->$"
 )
-_MARKER_END_RE = re.compile(
-    r"^<!--\s+MEMINIT_PROTOCOL:\s+end\s+id=(\S+)\s+-->$"
-)
+_MARKER_END_RE = re.compile(r"^<!--\s+MEMINIT_PROTOCOL:\s+end\s+id=(\S+)\s+-->$")
 
 
 # ---------------------------------------------------------------------------
@@ -224,18 +221,13 @@ def parse_protocol_markers(content: str) -> Optional[ParsedMarkers]:
     """
     lines = content.split("\n")
 
-    begin_indices = [
-        i for i, line in enumerate(lines) if _MARKER_BEGIN_RE.match(line.strip())
-    ]
+    begin_indices = [i for i, line in enumerate(lines) if _MARKER_BEGIN_RE.match(line.strip())]
 
     if not begin_indices:
         # Reject lines that look like marker syntax (begin/end prefix) but
         # aren't valid markers — those indicate a broken managed region.
         # Plain prose mentioning MEMINIT_PROTOCOL is allowed (legacy).
-        if any(
-            line.lstrip().startswith("<!-- MEMINIT_PROTOCOL:")
-            for line in lines
-        ):
+        if any(line.lstrip().startswith("<!-- MEMINIT_PROTOCOL:") for line in lines):
             raise ValueError("MEMINIT_PROTOCOL marker syntax found without valid begin marker")
         return None
 
@@ -496,7 +488,3 @@ def resolve_repo_metadata(root_dir: Path) -> Tuple[str, str]:
     """Resolve project_name and repo_prefix from the repository."""
     config = load_repo_config(root_dir)
     return config.project_name, config.repo_prefix
-
-
-
-

@@ -159,10 +159,7 @@ class IndexCache:
         except (OSError, json.JSONDecodeError) as exc:
             summary["warning"] = {
                 "code": ErrorCode.CACHE_ENTRY_INVALID.value,
-                "message": (
-                    "Cache manifest is not readable JSON: "
-                    f"{exc.__class__.__name__}"
-                ),
+                "message": ("Cache manifest is not readable JSON: " f"{exc.__class__.__name__}"),
             }
             return summary
 
@@ -170,8 +167,7 @@ class IndexCache:
             summary["warning"] = {
                 "code": ErrorCode.CACHE_ENTRY_INVALID.value,
                 "message": (
-                    "Cache manifest JSON must be an object, "
-                    f"got {type(manifest).__name__}."
+                    "Cache manifest JSON must be an object, " f"got {type(manifest).__name__}."
                 ),
             }
             return summary
@@ -293,9 +289,7 @@ class IndexCache:
             manifest_files = []
             for rel_path, fingerprint in sorted(fingerprints.items()):
                 doc_id = doc_id_by_path.get(rel_path)
-                should_write_fragment = (
-                    rewrite_paths is None or rel_path in rewrite_paths
-                )
+                should_write_fragment = rewrite_paths is None or rel_path in rewrite_paths
                 cache_node_size = fingerprint.cache_node_size
                 cache_node_mtime_ns = fingerprint.cache_node_mtime_ns
                 if should_write_fragment and doc_id and doc_id in entry_by_id:
@@ -356,9 +350,7 @@ class IndexCache:
             return None, _cache_warning("Cache manifest JSON must be an object.")
         return data, None
 
-    def _manifest_files(
-        self, manifest: dict[str, Any] | None
-    ) -> dict[str, FileFingerprint]:
+    def _manifest_files(self, manifest: dict[str, Any] | None) -> dict[str, FileFingerprint]:
         if manifest is None:
             return {}
         files = manifest.get("files")
@@ -385,12 +377,16 @@ class IndexCache:
                     mtime_ns=mtime_ns,
                     sha256=sha256,
                     document_id=doc_id if isinstance(doc_id, str) else None,
-                    cache_node_size=item.get("cache_node_size")
-                    if isinstance(item.get("cache_node_size"), int)
-                    else None,
-                    cache_node_mtime_ns=item.get("cache_node_mtime_ns")
-                    if isinstance(item.get("cache_node_mtime_ns"), int)
-                    else None,
+                    cache_node_size=(
+                        item.get("cache_node_size")
+                        if isinstance(item.get("cache_node_size"), int)
+                        else None
+                    ),
+                    cache_node_mtime_ns=(
+                        item.get("cache_node_mtime_ns")
+                        if isinstance(item.get("cache_node_mtime_ns"), int)
+                        else None
+                    ),
                 )
         return parsed
 
@@ -480,7 +476,7 @@ def _fast_relative_path(path: Path, root_path: Path) -> str:
     path_text = str(path)
     root_text = str(root_path).rstrip(os.sep) + os.sep
     if path_text.startswith(root_text):
-        return path_text[len(root_text):].replace(os.sep, "/")
+        return path_text[len(root_text) :].replace(os.sep, "/")
     return relative_path_string(path, root_path)
 
 

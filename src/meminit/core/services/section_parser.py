@@ -35,6 +35,7 @@ class SectionMarker:
         initial_content: The initial template content in the editable span
             (excluding agent prompts).
     """
+
     id: str
     heading: str
     line: int
@@ -57,12 +58,12 @@ class SectionParser:
     """
 
     # Patterns for section markers and agent prompts
-    SECTION_MARKER_PATTERN = re.compile(r'^\s*<!--\s*MEMINIT_SECTION:\s*([a-zA-Z0-9_-]+)\s*-->\s*$')
-    AGENT_PROMPT_PATTERN = re.compile(r'^\s*<!--\s*AGENT:\s*(.*?)\s*-->\s*$')
-    HEADING_PATTERN = re.compile(r'^(#{1,6})\s+(.+)$')
+    SECTION_MARKER_PATTERN = re.compile(r"^\s*<!--\s*MEMINIT_SECTION:\s*([a-zA-Z0-9_-]+)\s*-->\s*$")
+    AGENT_PROMPT_PATTERN = re.compile(r"^\s*<!--\s*AGENT:\s*(.*?)\s*-->\s*$")
+    HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+)$")
 
     # Pattern for code fences (supports various backtick/tilde counts and indentation)
-    CODE_FENCE_PATTERN = re.compile(r'^\s*([`~]{3,})')
+    CODE_FENCE_PATTERN = re.compile(r"^\s*([`~]{3,})")
 
     def parse_sections(self, content: str) -> List[SectionMarker]:
         """Parse section markers from template content.
@@ -82,7 +83,7 @@ class SectionParser:
 
         # Parser state
         in_code_fence = False
-        current_fence_char: str = ''
+        current_fence_char: str = ""
         current_fence_len: int = 0
 
         # Current section being built
@@ -98,10 +99,14 @@ class SectionParser:
                 fence_char = fence_match.group(1)[0]
                 fence_len = len(fence_match.group(1))
 
-                if in_code_fence and fence_char == current_fence_char and fence_len >= current_fence_len:
+                if (
+                    in_code_fence
+                    and fence_char == current_fence_char
+                    and fence_len >= current_fence_len
+                ):
                     # Closing fence
                     in_code_fence = False
-                    current_fence_char = ''
+                    current_fence_char = ""
                     current_fence_len = 0
                 elif not in_code_fence:
                     # Opening fence
@@ -127,22 +132,24 @@ class SectionParser:
                         details={
                             "section_id": section_id,
                             "first_line": section_ids_seen[section_id],
-                            "duplicate_line": i
-                        }
+                            "duplicate_line": i,
+                        },
                     )
                 section_ids_seen[section_id] = i
 
                 # Finalize previous section if exists
                 if current_id is not None:
-                    sections.append(self._finalize_section(
-                        lines=lines,
-                        section_id=current_id,
-                        marker_line=current_marker_line,
-                        agent_prompts=current_agent_prompts,
-                        content_start=current_content_start,
-                        content_end=i - 1,  # Content ends before this marker
-                        heading_pattern=self.HEADING_PATTERN
-                    ))
+                    sections.append(
+                        self._finalize_section(
+                            lines=lines,
+                            section_id=current_id,
+                            marker_line=current_marker_line,
+                            agent_prompts=current_agent_prompts,
+                            content_start=current_content_start,
+                            content_end=i - 1,  # Content ends before this marker
+                            heading_pattern=self.HEADING_PATTERN,
+                        )
+                    )
 
                 # Start new section
                 current_id = section_id
@@ -162,20 +169,26 @@ class SectionParser:
             if current_id is not None and current_content_start == 0:
                 stripped = line.strip()
                 # Skip empty lines, markers, and agent prompts
-                if stripped and not self.SECTION_MARKER_PATTERN.match(line) and not self.AGENT_PROMPT_PATTERN.match(line):
+                if (
+                    stripped
+                    and not self.SECTION_MARKER_PATTERN.match(line)
+                    and not self.AGENT_PROMPT_PATTERN.match(line)
+                ):
                     current_content_start = i
 
         # Don't forget the last section
         if current_id is not None:
-            sections.append(self._finalize_section(
-                lines=lines,
-                section_id=current_id,
-                marker_line=current_marker_line,
-                agent_prompts=current_agent_prompts,
-                content_start=current_content_start,
-                content_end=len(lines),  # End of file
-                heading_pattern=self.HEADING_PATTERN
-            ))
+            sections.append(
+                self._finalize_section(
+                    lines=lines,
+                    section_id=current_id,
+                    marker_line=current_marker_line,
+                    agent_prompts=current_agent_prompts,
+                    content_start=current_content_start,
+                    content_end=len(lines),  # End of file
+                    heading_pattern=self.HEADING_PATTERN,
+                )
+            )
 
         return sections
 
@@ -187,7 +200,7 @@ class SectionParser:
         agent_prompts: List[str],
         content_start: int,
         content_end: int,
-        heading_pattern: re.Pattern[str]
+        heading_pattern: re.Pattern[str],
     ) -> SectionMarker:
         """Finalize a section by extracting heading and initial content.
 
@@ -256,7 +269,7 @@ class SectionParser:
             content_end_line=content_end,
             required=True,  # Can be made configurable later
             agent_prompt="\n".join(agent_prompts) if agent_prompts else None,
-            initial_content=initial_content
+            initial_content=initial_content,
         )
 
     def extract_agent_prompts(self, content: str) -> dict[str, str]:
@@ -273,8 +286,4 @@ class SectionParser:
             Sections without prompts are not included.
         """
         sections = self.parse_sections(content)
-        return {
-            s.id: s.agent_prompt
-            for s in sections
-            if s.agent_prompt
-        }
+        return {s.id: s.agent_prompt for s in sections if s.agent_prompt}

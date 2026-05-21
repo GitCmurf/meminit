@@ -17,17 +17,13 @@ from meminit.core.services.error_codes import MeminitError, ErrorCode
 def test_path_escape_catchable_as_unsafe_path_error(tmp_path):
     """Backward compatibility: PATH_ESCAPE must be catchable as UnsafePathError."""
     with pytest.raises(UnsafePathError):
-        ensure_safe_write_path(
-            root_dir=tmp_path, target_path=tmp_path / ".." / "etc" / "passwd"
-        )
+        ensure_safe_write_path(root_dir=tmp_path, target_path=tmp_path / ".." / "etc" / "passwd")
 
 
 def test_path_escape_is_also_meminit_error(tmp_path):
     """PATH_ESCAPE should also be catchable as MeminitError."""
     with pytest.raises(MeminitError) as exc_info:
-        ensure_safe_write_path(
-            root_dir=tmp_path, target_path=tmp_path / ".." / "etc" / "passwd"
-        )
+        ensure_safe_write_path(root_dir=tmp_path, target_path=tmp_path / ".." / "etc" / "passwd")
 
     assert exc_info.value.code == ErrorCode.PATH_ESCAPE
 
@@ -122,9 +118,7 @@ def test_atomic_write_new_file_default_mode_respects_umask(tmp_path, monkeypatch
 def test_ensure_existing_regular_file_rejects_directory(tmp_path):
     (tmp_path / "subdir").mkdir()
     with pytest.raises(MeminitFileTypeError) as exc_info:
-        ensure_existing_regular_file_path(
-            root_dir=tmp_path, target_path=tmp_path / "subdir"
-        )
+        ensure_existing_regular_file_path(root_dir=tmp_path, target_path=tmp_path / "subdir")
     assert exc_info.value.code == ErrorCode.NOT_A_REGULAR_FILE
     assert isinstance(exc_info.value, MeminitError)
     assert not isinstance(exc_info.value, MeminitPathEscapeError)
@@ -132,9 +126,7 @@ def test_ensure_existing_regular_file_rejects_directory(tmp_path):
 
 def test_ensure_existing_regular_file_rejects_missing(tmp_path):
     with pytest.raises(MeminitFileTypeError) as exc_info:
-        ensure_existing_regular_file_path(
-            root_dir=tmp_path, target_path=tmp_path / "nonexistent"
-        )
+        ensure_existing_regular_file_path(root_dir=tmp_path, target_path=tmp_path / "nonexistent")
     assert exc_info.value.code == ErrorCode.NOT_A_REGULAR_FILE
 
 

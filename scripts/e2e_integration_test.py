@@ -17,9 +17,7 @@ def build_cli_env() -> dict:
     env = os.environ.copy()
     src_path = str(repo_root / "src")
     env["PYTHONPATH"] = (
-        src_path
-        if not env.get("PYTHONPATH")
-        else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+        src_path if not env.get("PYTHONPATH") else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
     )
     return env
 
@@ -27,7 +25,9 @@ def build_cli_env() -> dict:
 def run(cmd, cwd, env=None, timeout_seconds=180):
     print(f"Running: {' '.join(cmd)}")
     try:
-        res = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout_seconds)
+        res = subprocess.run(
+            cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout_seconds
+        )
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(
             f"Command timed out after {timeout_seconds}s: {' '.join(cmd)}\n"
@@ -68,12 +68,12 @@ def run_e2e(root_dir: Path) -> dict:
     docs_dir = root_dir / "docs" / "99-test"
     docs_dir.mkdir(parents=True)
 
-    start_gen = time.time()
+    start_gen = time.perf_counter()
     for i in range(1, 501):
         doc_id = f"TST-TST-{i:03d}"
         content = f"---\ndocument_id: {doc_id}\ntype: TEST\ntitle: Doc {i}\nstatus: Draft\n---\n# Doc {i}\n"
         (docs_dir / f"{doc_id}.md").write_text(content)
-    print(f"Generated 500 docs in {time.time() - start_gen:.2f}s")
+    print(f"Generated 500 docs in {time.perf_counter() - start_gen:.2f}s")
 
     # Add project state entries for half of them
     state_dir = root_dir / "docs" / "01-indices"
@@ -91,9 +91,9 @@ def run_e2e(root_dir: Path) -> dict:
 
     # 4. Test Performance (Index SLA)
     print("Running `meminit index` SLA test...")
-    start_index = time.time()
+    start_index = time.perf_counter()
     run([*cli_cmd, "index", "--output-catalog", "--output-kanban"], root_dir, env=env)
-    index_duration = time.time() - start_index
+    index_duration = time.perf_counter() - start_index
     print(f"Index generated in {index_duration:.2f}s")
 
     # 5. Check outputs
@@ -112,7 +112,9 @@ def run_e2e(root_dir: Path) -> dict:
     run([*cli_cmd, "identify", "docs/99-test/TST-TST-001.md"], root_dir, env=env)
     run([*cli_cmd, "doctor"], root_dir, env=env)
     # check may fail if dummy docs don't have all required schema fields, but it shouldn't crash
-    res_check = subprocess.run([*cli_cmd, "check"], cwd=root_dir, env=env, capture_output=True, text=True, timeout=180)
+    res_check = subprocess.run(
+        [*cli_cmd, "check"], cwd=root_dir, env=env, capture_output=True, text=True, timeout=180
+    )
     assert "Traceback" not in res_check.stderr
 
     print(f"E2E Integration & Performance OK. (Index 500 docs: {index_duration:.2f}s)")

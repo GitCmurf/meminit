@@ -16,12 +16,14 @@ def _drift_violations(assets, status_field="status"):
     for a in assets:
         status = a.get(status_field)
         if status and status != "aligned":
-            violations.append({
-                "code": f"PROTOCOL_ASSET_{status.upper()}",
-                "message": f"{status}: {a['target_path']}",
-                "path": a["target_path"],
-                "severity": "error" if status in ("tampered", "unparseable") else "warning",
-            })
+            violations.append(
+                {
+                    "code": f"PROTOCOL_ASSET_{status.upper()}",
+                    "message": f"{status}: {a['target_path']}",
+                    "path": a["target_path"],
+                    "severity": "error" if status in ("tampered", "unparseable") else "warning",
+                }
+            )
     return violations
 
 
@@ -52,7 +54,9 @@ class TestProtocolCheckFixtures:
             assert report.success is False
 
         if "expected_drifted" in meta:
-            expected_drifted_key = "filter_expected_drifted" if "filter_asset" in meta else "expected_drifted"
+            expected_drifted_key = (
+                "filter_expected_drifted" if "filter_asset" in meta else "expected_drifted"
+            )
             expected_drifted = int(meta[expected_drifted_key])
             assert report.summary["drifted"] == expected_drifted
 

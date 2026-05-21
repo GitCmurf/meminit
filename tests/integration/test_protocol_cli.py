@@ -27,7 +27,9 @@ class TestProtocolCheckCLI:
     def test_json_output_single_line(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"])
+        result = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"]
+        )
         assert result.exit_code != 2
         non_empty = [line for line in result.output.splitlines() if line.strip()]
         assert len(non_empty) == 1
@@ -35,14 +37,18 @@ class TestProtocolCheckCLI:
     def test_text_output_not_empty(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "text"])
+        result = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "text"]
+        )
         assert result.exit_code != 2
         assert "Protocol" in result.output
 
     def test_md_output_is_markdown_table_only(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "md"])
+        result = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "md"]
+        )
         assert result.exit_code != 2
         non_empty = [line for line in result.output.splitlines() if line.strip()]
         # Markdown table: header row + separator + data rows
@@ -55,7 +61,9 @@ class TestProtocolCheckCLI:
     def test_missing_assets_exit_nonzero(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"])
+        result = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"]
+        )
         assert result.exit_code != 0
 
 
@@ -63,7 +71,9 @@ class TestProtocolSyncCLI:
     def test_json_output_single_line(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "json"])
+        result = runner.invoke(
+            cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "json"]
+        )
         assert result.exit_code != 2
         non_empty = [line for line in result.output.splitlines() if line.strip()]
         assert len(non_empty) == 1
@@ -71,7 +81,9 @@ class TestProtocolSyncCLI:
     def test_text_output_not_empty(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "text"])
+        result = runner.invoke(
+            cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "text"]
+        )
         assert result.exit_code != 2
         assert "Protocol" in result.output
 
@@ -89,7 +101,9 @@ class TestProtocolSyncCLI:
     def test_dry_run_missing_assets_exit_nonzero(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "json"])
+        result = runner.invoke(
+            cli, ["protocol", "sync", "--root", str(tmp_path), "--format", "json"]
+        )
         # Dry-run with missing assets should be non-zero (fix 2)
         assert result.exit_code != 0
 
@@ -102,15 +116,21 @@ class TestProtocolCheckSyncCycle:
         runner = CliRunner()
 
         # Check: should show drift
-        r_check = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"])
+        r_check = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"]
+        )
         assert r_check.exit_code != 0
 
         # Sync: apply fixes
-        r_sync = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--no-dry-run", "--format", "json"])
+        r_sync = runner.invoke(
+            cli, ["protocol", "sync", "--root", str(tmp_path), "--no-dry-run", "--format", "json"]
+        )
         assert r_sync.exit_code == 0
 
         # Check again: should be aligned
-        r_check2 = runner.invoke(cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"])
+        r_check2 = runner.invoke(
+            cli, ["protocol", "check", "--root", str(tmp_path), "--format", "json"]
+        )
         assert r_check2.exit_code == 0
 
 
@@ -119,6 +139,7 @@ class TestProtocolSyncViolationCodes:
 
     def _setup_asset(self, tmp_path: Path, asset_id: str, content: str) -> None:
         from meminit.core.services.protocol_assets import ProtocolAssetRegistry
+
         registry = ProtocolAssetRegistry.default()
         asset = registry.get_by_id(asset_id)
         assert asset is not None
@@ -128,13 +149,26 @@ class TestProtocolSyncViolationCodes:
 
     def _json(self, result) -> dict:
         import json
+
         lines = [line for line in result.output.splitlines() if line.strip()]
         return json.loads(lines[0])
 
     def test_missing_emits_missing_code(self, tmp_path):
         _init_repo(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--asset", "agents-md", "--format", "json"])
+        result = runner.invoke(
+            cli,
+            [
+                "protocol",
+                "sync",
+                "--root",
+                str(tmp_path),
+                "--asset",
+                "agents-md",
+                "--format",
+                "json",
+            ],
+        )
         data = self._json(result)
         codes = [v["code"] for v in data["violations"]]
         assert "PROTOCOL_ASSET_MISSING" in codes
@@ -144,7 +178,19 @@ class TestProtocolSyncViolationCodes:
         _init_repo(tmp_path)
         self._setup_asset(tmp_path, "agents-md", "# Legacy content\n")
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--asset", "agents-md", "--format", "json"])
+        result = runner.invoke(
+            cli,
+            [
+                "protocol",
+                "sync",
+                "--root",
+                str(tmp_path),
+                "--asset",
+                "agents-md",
+                "--format",
+                "json",
+            ],
+        )
         data = self._json(result)
         codes = [v["code"] for v in data["violations"]]
         assert "PROTOCOL_ASSET_LEGACY" in codes
@@ -152,6 +198,7 @@ class TestProtocolSyncViolationCodes:
     def test_unparseable_emits_unparseable_code(self, tmp_path):
         _init_repo(tmp_path)
         from meminit.core.services.protocol_assets import ProtocolAssetRegistry
+
         asset = ProtocolAssetRegistry.default().get_by_id("agents-md")
         assert asset is not None
         canonical = asset.render(project_name="TestProject", repo_prefix="TEST")
@@ -159,7 +206,20 @@ class TestProtocolSyncViolationCodes:
         lines.insert(0, "Preamble\n")
         self._setup_asset(tmp_path, "agents-md", "\n".join(lines))
         runner = CliRunner()
-        result = runner.invoke(cli, ["protocol", "sync", "--root", str(tmp_path), "--asset", "agents-md", "--force", "--format", "json"])
+        result = runner.invoke(
+            cli,
+            [
+                "protocol",
+                "sync",
+                "--root",
+                str(tmp_path),
+                "--asset",
+                "agents-md",
+                "--force",
+                "--format",
+                "json",
+            ],
+        )
         data = self._json(result)
         codes = [v["code"] for v in data["violations"]]
         assert "PROTOCOL_ASSET_UNPARSEABLE" in codes

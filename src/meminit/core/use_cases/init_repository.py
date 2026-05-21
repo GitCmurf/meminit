@@ -1,4 +1,5 @@
 import hashlib
+import re
 from importlib import resources
 from pathlib import Path
 from dataclasses import dataclass
@@ -82,10 +83,30 @@ def _record_created_ancestors(target: Path, record_fn, root_dir: Path) -> None:
 
 
 class InitRepositoryUseCase:
-    def __init__(self, root_dir: str, env: Optional[Mapping[str, str]] = None):
+    def __init__(
+        self,
+        root_dir: str,
+        env: Optional[Mapping[str, str]] = None,
+        repo_prefix: Optional[str] = None,
+    ):
         self.root_dir = Path(root_dir).resolve()
         self.docs_dir = self.root_dir / "docs"
         self._env = env
+        self._repo_prefix = (
+            self._normalize_repo_prefix(repo_prefix) if repo_prefix is not None else None
+        )
+
+    @staticmethod
+    def _normalize_repo_prefix(value: str) -> str:
+        """Normalize and validate an explicit repo prefix against the ID schema."""
+        normalized = value.strip().upper()
+        if not re.fullmatch(r"[A-Z]{3,10}", normalized):
+            raise MeminitError(
+                ErrorCode.INVALID_FIELD,
+                "repo_prefix must be 3-10 ASCII letters (A-Z).",
+                details={"repo_prefix": value},
+            )
+        return normalized
 
     def execute(self) -> InitReport:
         created_paths: List[str] = []
@@ -139,7 +160,7 @@ class InitRepositoryUseCase:
         config_path = self.root_dir / "docops.config.yaml"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=config_path)
         if not config_path.exists():
-            repo_prefix = derive_repo_prefix(self.root_dir.name)
+            repo_prefix = self._repo_prefix or derive_repo_prefix(self.root_dir.name)
             docs_root = "docs"
             config_content = {
                 "project_name": self.root_dir.name,
@@ -153,7 +174,10 @@ class InitRepositoryUseCase:
                     "GOV": {"directory": "00-governance"},
                     "RFC": {"directory": "00-governance"},
                     "STRAT": {"directory": "02-strategy"},
-                    "PRD": {"directory": "10-prd", "template": "docs/00-governance/templates/prd.template.md"},
+                    "PRD": {
+                        "directory": "10-prd",
+                        "template": "docs/00-governance/templates/prd.template.md",
+                    },
                     "RESEARCH": {"directory": "10-prd"},
                     "PLAN": {"directory": "05-planning"},
                     "TASK": {"directory": "05-planning/tasks"},
@@ -161,8 +185,14 @@ class InitRepositoryUseCase:
                     "SPEC": {"directory": "20-specs"},
                     "DESIGN": {"directory": "30-design"},
                     "DECISION": {"directory": "40-decisions"},
-                    "ADR": {"directory": "45-adr", "template": "docs/00-governance/templates/adr.template.md"},
-                    "FDD": {"directory": "50-fdd", "template": "docs/00-governance/templates/fdd.template.md"},
+                    "ADR": {
+                        "directory": "45-adr",
+                        "template": "docs/00-governance/templates/adr.template.md",
+                    },
+                    "FDD": {
+                        "directory": "50-fdd",
+                        "template": "docs/00-governance/templates/fdd.template.md",
+                    },
                     "INDEX": {"directory": "01-indices"},
                     "TESTING": {"directory": "55-testing"},
                     "LOG": {"directory": "58-logs"},
@@ -192,12 +222,8 @@ class InitRepositoryUseCase:
         # This must still behave reasonably even if packaged resources are unavailable (e.g., in
         # constrained environments or tests that simulate missing assets).
         try:
-            profile = resolve_org_profile(
-                profile_name="default", env=self._env, prefer_global=True
-            )
-            schema_bytes = (
-                profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
-            )
+            profile = resolve_org_profile(profile_name="default", env=self._env, prefer_global=True)
+            schema_bytes = profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
             template_bytes = {
                 rel: (profile.files.get(rel) or _FALLBACK_TEMPLATES[rel])
                 for rel in _FALLBACK_TEMPLATES
@@ -245,9 +271,7 @@ class InitRepositoryUseCase:
                 continue
 
             try:
-                canonical = asset.render(
-                    project_name=project_name, repo_prefix=repo_prefix
-                )
+                canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
             except OSError:
                 canonical = None
 
@@ -271,12 +295,9 @@ class InitRepositoryUseCase:
                 record(target, created=False)
 
         # 6. Install gov-001 constitution document
-        self._install_optional_asset(
-            target_path=self.docs_dir / "00-governance" / "DocOps_Constitution.md",
-            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+        self._install_gov_001_constitution(
             record_fn=record,
-            error_context="gov-001 constitution",
-            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+            repo_prefix=repo_prefix,
         )
 
         created_paths_sorted = sorted(set(created_paths))
@@ -354,6 +375,37 @@ class InitRepositoryUseCase:
         except (OSError, FileNotFoundError) as e:
             logging.warning(f"Failed to install {error_context}: {e}")
             record_fn(target_path, created=False)
+
+    def _install_gov_001_constitution(self, record_fn, repo_prefix: str) -> None:
+        """Install or migrate the repo constitution without duplicating GOV-001."""
+        gov_dir = self.docs_dir / "00-governance"
+        target_path = gov_dir / "docops-constitution.md"
+        legacy_path = gov_dir / "DocOps_Constitution.md"
+
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=target_path)
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=legacy_path)
+
+        if target_path.exists():
+            if not target_path.is_file():
+                raise FileExistsError(f"{target_path} exists and is not a file")
+            record_fn(target_path, created=False)
+            return
+
+        if legacy_path.exists():
+            if not legacy_path.is_file():
+                raise FileExistsError(f"{legacy_path} exists and is not a file")
+            _record_created_ancestors(target_path, record_fn, self.root_dir)
+            legacy_path.replace(target_path)
+            record_fn(target_path, created=True)
+            return
+
+        self._install_optional_asset(
+            target_path=target_path,
+            package_resource_path="org_profiles/default/org_docs/org-gov-001-constitution.md",
+            record_fn=record_fn,
+            error_context="gov-001 constitution",
+            content_transform=lambda c: c.replace("ORG-", f"{repo_prefix}-"),
+        )
 
     def _load_agents_template(self) -> str:
         """Load the bundled AGENTS.md template from package resources (legacy fallback)."""

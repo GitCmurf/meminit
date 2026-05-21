@@ -179,15 +179,16 @@ class MigrateTemplatesUseCase:
             if self._config_file.exists():
                 try:
                     config_data = (
-                        yaml.safe_load(self._config_file.read_text(encoding="utf-8"))
-                        or {}
+                        yaml.safe_load(self._config_file.read_text(encoding="utf-8")) or {}
                     )
                 except Exception as e:
                     warnings.append(f"Failed to parse config: {e}")
                     return TemplateMigrationReport(
                         dry_run=dry_run,
                         config_file=relative_path_string(self._config_file, self._root_dir),
-                        templates_dir=relative_path_string(self._get_templates_dir(), self._root_dir),
+                        templates_dir=relative_path_string(
+                            self._get_templates_dir(), self._root_dir
+                        ),
                         backup_path=backup_path,
                         success=False,
                         warnings=warnings,
@@ -212,11 +213,14 @@ class MigrateTemplatesUseCase:
                         for i in range(1, 100):
                             new_target = templates_dir / f"{base}.template.{i}.md"
                             rel_new_target = new_target.relative_to(self._root_dir).as_posix()
-                            if not new_target.exists() and rel_new_target not in path_mapping.values():
+                            if (
+                                not new_target.exists()
+                                and rel_new_target not in path_mapping.values()
+                            ):
                                 target_path = new_target
                                 found_target = True
                                 break
-                        
+
                         if not found_target:
                             warnings.append(
                                 f"Skipping rename of {template_file.name}: all numbered variants (1-99) exist or are reserved"
@@ -257,10 +261,8 @@ class MigrateTemplatesUseCase:
                                 "template": existing,
                             }
                     else:
-                        config_data["document_types"][doc_type_key] = {
-                            "directory": directory
-                        }
-                    
+                        config_data["document_types"][doc_type_key] = {"directory": directory}
+
                     config_entries_migrated += 1
                     migrated_keys.append(doc_type)
                     actions.append(
@@ -296,9 +298,7 @@ class MigrateTemplatesUseCase:
                         if normalized_path in path_mapping:
                             normalized_path = path_mapping[normalized_path]
                         else:
-                            new_name = self._get_new_template_name(
-                                Path(normalized_path).name
-                            )
+                            new_name = self._get_new_template_name(Path(normalized_path).name)
                             if new_name:
                                 normalized_path = (
                                     Path(normalized_path).parent / new_name
@@ -315,9 +315,7 @@ class MigrateTemplatesUseCase:
                             existing["template"] = normalized_path
                         else:
                             config_data["document_types"][doc_type_key] = {
-                                "directory": existing
-                                if isinstance(existing, str)
-                                else "",
+                                "directory": existing if isinstance(existing, str) else "",
                                 "template": normalized_path,
                             }
                     else:
@@ -383,14 +381,12 @@ class MigrateTemplatesUseCase:
 
                     original_content = content
 
-                    content, placeholder_replacements = (
-                        self._replace_placeholders_aware(
-                            content,
-                            LEGACY_PLACEHOLDER_MAPPINGS,
-                            placeholder_replacements,
-                            actions,
-                            file_to_work_on,
-                        )
+                    content, placeholder_replacements = self._replace_placeholders_aware(
+                        content,
+                        LEGACY_PLACEHOLDER_MAPPINGS,
+                        placeholder_replacements,
+                        actions,
+                        file_to_work_on,
                     )
 
                     # Re-check for remaining legacy placeholders.
@@ -398,8 +394,7 @@ class MigrateTemplatesUseCase:
                     remaining_legacy = []
                     for match in LEGACY_PLACEHOLDER_PATTERN.finditer(content):
                         in_protected = any(
-                            start <= match.start() < end
-                            for start, end in protected_ranges_check
+                            start <= match.start() < end for start, end in protected_ranges_check
                         )
                         if not in_protected:
                             remaining_legacy.append(match.group(0))
@@ -460,7 +455,7 @@ class MigrateTemplatesUseCase:
         if path == self._templates_prefix or path.startswith(f"{self._templates_prefix}/"):
             return path
         if self._docs_root_prefix and path.startswith(self._docs_root_prefix):
-            path = path[len(self._docs_root_prefix):]
+            path = path[len(self._docs_root_prefix) :]
         return f"{self._templates_prefix}/{path}"
 
     def _get_new_template_name(self, old_name: str) -> Optional[str]:
@@ -528,12 +523,10 @@ class MigrateTemplatesUseCase:
                 idx = result.find(legacy, idx)
                 if idx == -1:
                     break
-                
+
                 # Recompute protected ranges for each check to handle shifts
                 protected_ranges = self._get_protected_ranges(result)
-                in_protected = any(
-                    start <= idx < end for start, end in protected_ranges
-                )
+                in_protected = any(start <= idx < end for start, end in protected_ranges)
                 if not in_protected:
                     result = result[:idx] + new + result[idx + len(legacy) :]
                     placeholder_replacements += 1

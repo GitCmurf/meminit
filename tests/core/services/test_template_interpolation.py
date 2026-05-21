@@ -14,10 +14,7 @@ class TestTemplateInterpolatorPreferredSyntax:
         interpolator = TemplateInterpolator()
         template = "# {{title}}\nOwner: {{owner}}\nStatus: {{status}}"
         result = interpolator.interpolate(
-            template,
-            title="Test Feature",
-            owner="Team A",
-            status="Draft"
+            template, title="Test Feature", owner="Team A", status="Draft"
         )
         assert result == "# Test Feature\nOwner: Team A\nStatus: Draft"
 
@@ -61,7 +58,7 @@ related_ids: {{related_ids}}
         assert "title: Test Feature" in result
         assert "status: Draft" in result
         # Date is in ISO format (YYYY-MM-DD)
-        assert len(result.split('date: ')[1].split('\n')[0]) == 10  # ISO date length
+        assert len(result.split("date: ")[1].split("\n")[0]) == 10  # ISO date length
         assert "owner: __TBD__" in result  # Default value
         assert "repo_prefix: REPO" in result
         assert "seq: 001" in result
@@ -197,10 +194,7 @@ class TestTemplateInterpolatorSinglePass:
         interpolator = TemplateInterpolator()
         template = "{{title}} {{status}}"
         result = interpolator.interpolate(
-            template,
-            title="{{owner}}",
-            status="Draft",
-            owner="Alice"
+            template, title="{{owner}}", status="Draft", owner="Alice"
         )
         # {{title}} should be replaced with literal "{{owner}}",
         # not with "Alice" from the owner kwarg

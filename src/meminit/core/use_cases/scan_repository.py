@@ -112,7 +112,9 @@ class ScanRepositoryUseCase:
             layout = load_repo_layout(self._root_dir)
             config_path = self._root_dir / "docops.config.yaml"
             existing_config = self._load_config(config_path)
-            docs_root = self._resolve_docs_root(existing_config, layout.default_namespace().docs_root)
+            docs_root = self._resolve_docs_root(
+                existing_config, layout.default_namespace().docs_root
+            )
             target_files: list[Path] = []
             if docs_root is not None:
                 docs_dir = self._root_dir / docs_root
@@ -252,7 +254,9 @@ class ScanRepositoryUseCase:
 
                 plan = MigrationPlan(
                     plan_version="1.0",
-                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
                     config_fingerprint=config_fingerprint_str,
                     actions=actions,
                 )
@@ -276,9 +280,7 @@ class ScanRepositoryUseCase:
     def _iter_markdown_paths(self, docs_dir: Path) -> Iterator[Path]:
         yield from sorted(docs_dir.rglob("*.md"), key=lambda path: path.as_posix())
 
-    def _iter_stream_file_items(
-        self, target_files: list[Path], layout
-    ) -> Iterator[dict[str, Any]]:
+    def _iter_stream_file_items(self, target_files: list[Path], layout) -> Iterator[dict[str, Any]]:
         for path in target_files:
             owner = layout.namespace_for_path_with_document_id_loader(
                 path,

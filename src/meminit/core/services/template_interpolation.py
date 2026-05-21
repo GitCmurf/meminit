@@ -41,38 +41,45 @@ class TemplateInterpolator:
 
     # All known variable names for single-pass regex and validation.
     _KNOWN_VARIABLES = (
-        'title', 'document_id', 'owner', 'status', 'date',
-        'repo_prefix', 'seq', 'type', 'area', 'description',
-        'keywords', 'related_ids',
+        "title",
+        "document_id",
+        "owner",
+        "status",
+        "date",
+        "repo_prefix",
+        "seq",
+        "type",
+        "area",
+        "description",
+        "keywords",
+        "related_ids",
     )
 
     # Single regex matching all known {{variable}} patterns.
     # Captures the variable name as group 1 for lookup-based replacement.
-    _ALL_VARIABLES_PATTERN = re.compile(
-        r'\{\{\s*(' + '|'.join(_KNOWN_VARIABLES) + r')\s*\}\}'
-    )
+    _ALL_VARIABLES_PATTERN = re.compile(r"\{\{\s*(" + "|".join(_KNOWN_VARIABLES) + r")\s*\}\}")
 
     # Legacy patterns to detect and reject - compiled on initialization
     _LEGACY_PATTERNS: tuple[re.Pattern[str], ...] = (
-        re.compile(r'(?<!\{)\{title\}(?!\})'),
-        re.compile(r'(?<!\{)\{status\}(?!\})'),
-        re.compile(r'(?<!\{)\{owner\}(?!\})'),
-        re.compile(r'(?<!\{)\{area\}(?!\})'),
-        re.compile(r'(?<!\{)\{description\}(?!\})'),
-        re.compile(r'(?<!\{)\{keywords\}(?!\})'),
-        re.compile(r'(?<!\{)\{related_ids\}(?!\})'),
-        re.compile(r'<REPO>'),
-        re.compile(r'<PROJECT>'),
-        re.compile(r'<SEQ>'),
-        re.compile(r'<YYYY-MM-DD>'),
-        re.compile(r'<Decision Title>'),
-        re.compile(r'<Feature Title>'),
-        re.compile(r'<Team or Person>'),
-        re.compile(r'<AREA>'),
+        re.compile(r"(?<!\{)\{title\}(?!\})"),
+        re.compile(r"(?<!\{)\{status\}(?!\})"),
+        re.compile(r"(?<!\{)\{owner\}(?!\})"),
+        re.compile(r"(?<!\{)\{area\}(?!\})"),
+        re.compile(r"(?<!\{)\{description\}(?!\})"),
+        re.compile(r"(?<!\{)\{keywords\}(?!\})"),
+        re.compile(r"(?<!\{)\{related_ids\}(?!\})"),
+        re.compile(r"<REPO>"),
+        re.compile(r"<PROJECT>"),
+        re.compile(r"<SEQ>"),
+        re.compile(r"<YYYY-MM-DD>"),
+        re.compile(r"<Decision Title>"),
+        re.compile(r"<Feature Title>"),
+        re.compile(r"<Team or Person>"),
+        re.compile(r"<AREA>"),
     )
 
     # Pattern to find all {{...}} variables to reject unknown or malformed ones
-    _UNKNOWN_PATTERN = re.compile(r'\{\{\s*([^{}]*?)\s*\}\}')
+    _UNKNOWN_PATTERN = re.compile(r"\{\{\s*([^{}]*?)\s*\}\}")
 
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""
@@ -80,11 +87,7 @@ class TemplateInterpolator:
         self._legacy = self._LEGACY_PATTERNS
         self._unknown = self._UNKNOWN_PATTERN
 
-    def interpolate(
-        self,
-        template: str,
-        **kwargs: Any
-    ) -> str:
+    def interpolate(self, template: str, **kwargs: Any) -> str:
         """Interpolate variables in a template.
 
         Replaces all {{variable}} placeholders with their values.
@@ -121,9 +124,14 @@ class TemplateInterpolator:
 
         def _replacer(match: re.Match[str]) -> str:
             var_name = match.group(1)
-            value = substitutions.get(var_name, '')
+            value = substitutions.get(var_name, "")
             # Sanitize to prevent injection attacks
-            return value.replace("<!--", "&lt;!--").replace("-->", "--&gt;").replace("\n", " ").replace("\r", " ")
+            return (
+                value.replace("<!--", "&lt;!--")
+                .replace("-->", "--&gt;")
+                .replace("\n", " ")
+                .replace("\r", " ")
+            )
 
         return self._ALL_VARIABLES_PATTERN.sub(_replacer, template)
 
@@ -135,8 +143,8 @@ class TemplateInterpolator:
         silent mangling (e.g. a string being iterated character-by-character).
         Coerces None values to empty strings to avoid literal "None" in output.
         """
-        keywords = kwargs.get('keywords', [])
-        related_ids = kwargs.get('related_ids', [])
+        keywords = kwargs.get("keywords", [])
+        related_ids = kwargs.get("related_ids", [])
 
         def _validate_list_field(value: Any, name: str) -> list[str]:
             if value is None:
@@ -157,22 +165,22 @@ class TemplateInterpolator:
                     )
             return value
 
-        validated_keywords = _validate_list_field(keywords, 'keywords')
-        validated_related_ids = _validate_list_field(related_ids, 'related_ids')
+        validated_keywords = _validate_list_field(keywords, "keywords")
+        validated_related_ids = _validate_list_field(related_ids, "related_ids")
 
         return {
-            'title': str(kwargs.get('title') or ''),
-            'document_id': str(kwargs.get('document_id') or ''),
-            'owner': str(kwargs.get('owner') or ''),
-            'status': str(kwargs.get('status') or ''),
-            'date': date.today().isoformat(),
-            'repo_prefix': str(kwargs.get('repo_prefix') or ''),
-            'seq': str(kwargs.get('seq')) if kwargs.get('seq') is not None else '',
-            'type': str(kwargs.get('doc_type') or ''),
-            'area': str(kwargs.get('area') or ''),
-            'description': str(kwargs.get('description') or ''),
-            'keywords': ', '.join(validated_keywords) if validated_keywords else '',
-            'related_ids': ', '.join(validated_related_ids) if validated_related_ids else '',
+            "title": str(kwargs.get("title") or ""),
+            "document_id": str(kwargs.get("document_id") or ""),
+            "owner": str(kwargs.get("owner") or ""),
+            "status": str(kwargs.get("status") or ""),
+            "date": date.today().isoformat(),
+            "repo_prefix": str(kwargs.get("repo_prefix") or ""),
+            "seq": str(kwargs.get("seq")) if kwargs.get("seq") is not None else "",
+            "type": str(kwargs.get("doc_type") or ""),
+            "area": str(kwargs.get("area") or ""),
+            "description": str(kwargs.get("description") or ""),
+            "keywords": ", ".join(validated_keywords) if validated_keywords else "",
+            "related_ids": ", ".join(validated_related_ids) if validated_related_ids else "",
         }
 
     def _raise_on_legacy_tokens(self, content: str) -> None:
@@ -189,8 +197,8 @@ class TemplateInterpolator:
                     details={
                         "legacy_syntax": match.group(0),
                         "use_syntax": "{{variable}}",
-                        "line": self._find_line_number(content, match.start())
-                    }
+                        "line": self._find_line_number(content, match.start()),
+                    },
                 )
 
     def _raise_on_unknown_variables(self, content: str) -> None:
@@ -210,13 +218,13 @@ class TemplateInterpolator:
                 message=f"Unknown template variables: {', '.join(sorted(unknown))}",
                 details={
                     "unknown_variables": sorted(unknown),
-                    "known_variables": sorted(self._known_vars)
-                }
+                    "known_variables": sorted(self._known_vars),
+                },
             )
 
     def _find_line_number(self, content: str, pos: int) -> int:
         """Find the line number for a position in the content."""
-        return content[:pos].count('\n') + 1
+        return content[:pos].count("\n") + 1
 
 
 @dataclass(frozen=True)
@@ -227,5 +235,6 @@ class InterpolationResult:
         content: The interpolated template content.
         warnings: Optional list of warnings (e.g., empty optional fields).
     """
+
     content: str
     warnings: List[str]

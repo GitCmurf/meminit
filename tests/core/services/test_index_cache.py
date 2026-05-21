@@ -93,9 +93,7 @@ def test_index_cache_explain_rejects_symlinked_manifest(tmp_path):
     cache = IndexCache(tmp_path)
     cache.manifest_path.parent.mkdir(parents=True)
     outside = tmp_path.parent / "outside-manifest.json"
-    outside.write_text(
-        '{"manifest_schema_version":"1.0","files":[]}', encoding="utf-8"
-    )
+    outside.write_text('{"manifest_schema_version":"1.0","files":[]}', encoding="utf-8")
     cache.manifest_path.symlink_to(outside)
 
     with pytest.raises(MeminitError) as exc_info:

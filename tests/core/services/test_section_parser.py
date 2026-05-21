@@ -62,7 +62,7 @@ class TestSectionParserCodeFenceProtection:
     def test_section_markers_inside_code_fences_ignored(self):
         """Section markers inside code fences are ignored."""
         parser = SectionParser()
-        content = '''# Document
+        content = """# Document
 
 <!-- MEMINIT_SECTION: real_section -->
 
@@ -83,7 +83,7 @@ This is example code, not a real section.
 <!-- MEMINIT_SECTION: another_section -->
 
 ## Another Section
-'''
+"""
 
         sections = parser.parse_sections(content)
 
@@ -96,7 +96,7 @@ This is example code, not a real section.
     def test_multiple_code_blocks_handled(self):
         """Multiple code blocks are tracked correctly."""
         parser = SectionParser()
-        content = '''<!-- MEMINIT_SECTION: section1 -->
+        content = """<!-- MEMINIT_SECTION: section1 -->
 
 ## Section 1
 
@@ -111,7 +111,7 @@ Code block 2
 <!-- MEMINIT_SECTION: section2 -->
 
 ## Section 2
-'''
+"""
 
         sections = parser.parse_sections(content)
         assert len(sections) == 2

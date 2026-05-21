@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -31,16 +30,13 @@ def _table_rows(text: str, heading: str) -> dict[str, str]:
 
 
 def test_prd_state_error_prefix_rule_documents_per_row_severity():
-    content = (ROOT / "docs/10-prd/prd-007-project-state-dashboard.md").read_text(
-        encoding="utf-8"
-    )
+    content = (ROOT / "docs/10-prd/prd-007-project-state-dashboard.md").read_text(encoding="utf-8")
     normalized = " ".join(content.split())
 
     assert "Severity is listed per row." in normalized
     assert (
         "The fatal rows in this table are `STATE_YAML_MALFORMED`, "
-        "`STATE_SCHEMA_VIOLATION`, and `STATE_INVALID_FILTER_VALUE`"
-        in normalized
+        "`STATE_SCHEMA_VIOLATION`, and `STATE_INVALID_FILTER_VALUE`" in normalized
     )
     assert "STATE_INVALID_PRIORITY" in normalized
     assert "STATE_DEPENDENCY_STATUS_CONFLICT" in normalized
@@ -63,6 +59,6 @@ def test_tech_debt_register_status_model_and_td002_are_aligned():
     assert "stream_events.py" in td002_rows["Evidence"]
     assert "CoreStreamingProducer" in td002_rows["Evidence"]
     assert "Closed on 2026-05-10" in td002_rows["Closure evidence"]
-    assert "first-item emission before public result materialization" in td002_rows[
-        "Closure evidence"
-    ]
+    assert (
+        "first-item emission before public result materialization" in td002_rows["Closure evidence"]
+    )

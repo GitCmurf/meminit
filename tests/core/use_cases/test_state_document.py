@@ -1438,7 +1438,9 @@ def test_get_state_excludes_invalid_priority(tmp_path):
 def test_get_state_includes_validation_warnings(tmp_path):
     """get_state includes validation warnings for valid documents."""
     use_case = StateDocumentUseCase(str(tmp_path))
-    use_case.set_state("MEMINIT-ADR-001", impl_state="Not Started", add_depends_on=["MEMINIT-ADR-002"])
+    use_case.set_state(
+        "MEMINIT-ADR-001", impl_state="Not Started", add_depends_on=["MEMINIT-ADR-002"]
+    )
     use_case.set_state("MEMINIT-ADR-002", impl_state="Not Started")
 
     # Introduce a dependency cycle (ADR-002 depends on ADR-001)
@@ -1508,9 +1510,7 @@ class TestMalformedDocumentId:
 
     def test_set_state_rejects_extra_suffix(self, tmp_path):
         """Malformed ID with extra suffix raises STATE_INVALID_FILTER_VALUE."""
-        (tmp_path / "docops.config.yaml").write_text(
-            "repo_prefix: TST\ndocs_root: docs\n"
-        )
+        (tmp_path / "docops.config.yaml").write_text("repo_prefix: TST\ndocs_root: docs\n")
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.set_state("TST-ADR-001-EXTRA", impl_state="Done")
@@ -1518,19 +1518,23 @@ class TestMalformedDocumentId:
 
     def test_set_state_rejects_no_sequence(self, tmp_path):
         """Prefixed ID without sequence number raises error."""
-        (tmp_path / "docops.config.yaml").write_text(
-            "repo_prefix: TST\ndocs_root: docs\n"
-        )
+        (tmp_path / "docops.config.yaml").write_text("repo_prefix: TST\ndocs_root: docs\n")
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.set_state("TST-ADR", impl_state="Done")
         assert exc_info.value.code == ErrorCode.INVALID_ID_FORMAT
 
+    def test_set_state_rejects_long_sequence(self, tmp_path):
+        """Prefixed ID with more than three sequence digits raises error."""
+        (tmp_path / "docops.config.yaml").write_text("repo_prefix: TST\ndocs_root: docs\n")
+        use_case = StateDocumentUseCase(str(tmp_path))
+        with pytest.raises(MeminitError) as exc_info:
+            use_case.set_state("TST-ADR-0001", impl_state="Done")
+        assert exc_info.value.code == ErrorCode.INVALID_ID_FORMAT
+
     def test_get_state_rejects_extra_suffix(self, tmp_path):
         """Malformed ID on get also raises error."""
-        (tmp_path / "docops.config.yaml").write_text(
-            "repo_prefix: TST\ndocs_root: docs\n"
-        )
+        (tmp_path / "docops.config.yaml").write_text("repo_prefix: TST\ndocs_root: docs\n")
         use_case = StateDocumentUseCase(str(tmp_path))
         with pytest.raises(MeminitError) as exc_info:
             use_case.get_state("TST-ADR-001-EXTRA")
@@ -1538,9 +1542,7 @@ class TestMalformedDocumentId:
 
     def test_shorthand_still_works(self, tmp_path):
         """Shorthand resolution (ADR-001) still works unaffected."""
-        (tmp_path / "docops.config.yaml").write_text(
-            "repo_prefix: TSTPRE\ndocs_root: docs\n"
-        )
+        (tmp_path / "docops.config.yaml").write_text("repo_prefix: TSTPRE\ndocs_root: docs\n")
         use_case = StateDocumentUseCase(str(tmp_path))
         result = use_case.set_state("ADR-005", impl_state="Done")
         assert result.document_id == "TSTPRE-ADR-005"

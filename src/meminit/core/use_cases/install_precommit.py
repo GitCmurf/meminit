@@ -51,22 +51,14 @@ class InstallPrecommitUseCase:
         }
 
         if not config_path.exists():
-            data: Dict[str, Any] = {
-                "repos": [{"repo": "local", "hooks": [hook, hook_doctor]}]
-            }
-            config_path.write_text(
-                yaml.safe_dump(data, sort_keys=False), encoding="utf-8"
-            )
-            return InstallPrecommitResult(
-                config_path=config_path, status="created", updated=True
-            )
+            data: Dict[str, Any] = {"repos": [{"repo": "local", "hooks": [hook, hook_doctor]}]}
+            config_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+            return InstallPrecommitResult(config_path=config_path, status="created", updated=True)
 
         data = self._load_config(config_path)
         repos = data.get("repos")
         if not isinstance(repos, list):
-            raise ValueError(
-                "Invalid .pre-commit-config.yaml: expected top-level 'repos' list."
-            )
+            raise ValueError("Invalid .pre-commit-config.yaml: expected top-level 'repos' list.")
 
         if self._has_meminit_hook(repos):
             return InstallPrecommitResult(
@@ -88,21 +80,15 @@ class InstallPrecommitUseCase:
             self._add_hook_if_missing(hooks, hook_doctor)
 
         config_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-        return InstallPrecommitResult(
-            config_path=config_path, status="installed", updated=True
-        )
+        return InstallPrecommitResult(config_path=config_path, status="installed", updated=True)
 
     def _load_config(self, path: Path) -> Dict[str, Any]:
         try:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         except Exception as exc:
-            raise ValueError(
-                "Invalid .pre-commit-config.yaml: unable to parse YAML."
-            ) from exc
+            raise ValueError("Invalid .pre-commit-config.yaml: unable to parse YAML.") from exc
         if not isinstance(data, dict):
-            raise ValueError(
-                "Invalid .pre-commit-config.yaml: expected a YAML mapping."
-            )
+            raise ValueError("Invalid .pre-commit-config.yaml: expected a YAML mapping.")
         return data
 
     def _find_local_repo(self, repos: List[Any]) -> Dict[str, Any] | None:
@@ -114,15 +100,15 @@ class InstallPrecommitUseCase:
     def _add_hook_if_missing(self, hooks: List[Any], new_hook: Dict[str, Any]) -> None:
         hook_id = new_hook.get("id")
         new_entry = new_hook.get("entry")
-        
+
         for hook in hooks:
             if not isinstance(hook, dict):
                 continue
-            
+
             # Match by ID
             if hook.get("id") == hook_id:
                 return
-                
+
             # Match by command entry text (substring match like _has_meminit_hook)
             existing_entry = hook.get("entry")
             if isinstance(existing_entry, str) and isinstance(new_entry, str):
@@ -132,7 +118,7 @@ class InstallPrecommitUseCase:
                 # If we're adding 'meminit doctor' and it's already there
                 if "meminit doctor" in new_entry and "meminit doctor" in existing_entry:
                     return
-                    
+
         hooks.append(new_hook)
 
     def _has_meminit_hook(self, repos: List[Any]) -> bool:
@@ -149,9 +135,7 @@ class InstallPrecommitUseCase:
                     continue
                 hook_id = hook.get("id")
                 entry = hook.get("entry")
-                if hook_id == HOOK_ID or (
-                    isinstance(entry, str) and "meminit check" in entry
-                ):
+                if hook_id == HOOK_ID or (isinstance(entry, str) and "meminit check" in entry):
                     has_check = True
                 if hook_id == HOOK_ID_DOCTOR or (
                     isinstance(entry, str) and "meminit doctor" in entry

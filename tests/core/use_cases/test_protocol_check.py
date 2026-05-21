@@ -13,16 +13,16 @@ from meminit.core.services.protocol_assets import (
 )
 from meminit.core.use_cases.protocol_check import ProtocolChecker
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-def _setup_config(tmp_path: Path, project_name: str = "TestProject", repo_prefix: str = "TEST") -> None:
+def _setup_config(
+    tmp_path: Path, project_name: str = "TestProject", repo_prefix: str = "TEST"
+) -> None:
     (tmp_path / "docops.config.yaml").write_text(
-        f"project_name: {project_name}\nrepo_prefix: {repo_prefix}\n"
-        f"docops_version: '2.0'\n",
+        f"project_name: {project_name}\nrepo_prefix: {repo_prefix}\n" f"docops_version: '2.0'\n",
         encoding="utf-8",
     )
 
@@ -184,7 +184,11 @@ class TestProtocolCheckDriftOutcomes:
         asset = registry.get_by_id("agents-md")
         assert asset is not None
         # Valid begin marker but no end marker
-        content = "<!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 sha256=" + "0" * 64 + " -->\nno end marker\n"
+        content = (
+            "<!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 sha256="
+            + "0" * 64
+            + " -->\nno end marker\n"
+        )
         _write_asset(tmp_path, asset, content)
 
         checker = ProtocolChecker(str(tmp_path))

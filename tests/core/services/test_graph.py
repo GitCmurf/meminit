@@ -14,7 +14,6 @@ from meminit.core.services.graph import (
     validate_graph_integrity,
 )
 
-
 # ---------------------------------------------------------------------------
 # Edge extraction
 # ---------------------------------------------------------------------------
@@ -28,8 +27,18 @@ class TestExtractFrontmatterEdges:
             superseded_by=None,
         )
         assert len(edges) == 2
-        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-PRD-001", edge_type="related", context="frontmatter.related_ids")
-        assert edges[1] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="related", context="frontmatter.related_ids")
+        assert edges[0] == Edge(
+            source="REPO-ADR-001",
+            target="REPO-PRD-001",
+            edge_type="related",
+            context="frontmatter.related_ids",
+        )
+        assert edges[1] == Edge(
+            source="REPO-ADR-001",
+            target="REPO-ADR-002",
+            edge_type="related",
+            context="frontmatter.related_ids",
+        )
 
     def test_superseded_by_produces_supersedes_edge(self):
         edges = extract_frontmatter_edges(
@@ -38,7 +47,12 @@ class TestExtractFrontmatterEdges:
             superseded_by="REPO-ADR-003",
         )
         assert len(edges) == 1
-        assert edges[0] == Edge(source="REPO-ADR-003", target="REPO-ADR-002", edge_type="supersedes", context="frontmatter.superseded_by")
+        assert edges[0] == Edge(
+            source="REPO-ADR-003",
+            target="REPO-ADR-002",
+            edge_type="supersedes",
+            context="frontmatter.superseded_by",
+        )
 
     def test_no_fields_produces_empty_list(self):
         edges = extract_frontmatter_edges("REPO-ADR-001", related_ids=None, superseded_by=None)
@@ -64,7 +78,12 @@ class TestExtractFrontmatterEdges:
             superseded_by="REPO-ADR-001",
         )
         assert len(edges) == 1
-        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-ADR-001", edge_type="supersedes", context="frontmatter.superseded_by")
+        assert edges[0] == Edge(
+            source="REPO-ADR-001",
+            target="REPO-ADR-001",
+            edge_type="supersedes",
+            context="frontmatter.superseded_by",
+        )
 
     def test_non_string_related_ids_filtered(self):
         edges = extract_frontmatter_edges(
@@ -82,16 +101,30 @@ class TestExtractReferenceEdges:
         path_to_doc_id = {"docs/45-adr/adr-002.md": "REPO-ADR-002"}
         body = "See [ADR-002](../45-adr/adr-002.md) for details."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/10-prd/prd-001.md", body, path_to_doc_id, root,
+            "REPO-ADR-001",
+            root / "docs/10-prd/prd-001.md",
+            body,
+            path_to_doc_id,
+            root,
         )
         assert len(edges) == 1
-        assert edges[0] == Edge(source="REPO-ADR-001", target="REPO-ADR-002", edge_type="references", guaranteed=False, context="body.markdown_link")
+        assert edges[0] == Edge(
+            source="REPO-ADR-001",
+            target="REPO-ADR-002",
+            edge_type="references",
+            guaranteed=False,
+            context="body.markdown_link",
+        )
 
     def test_ignores_external_links(self):
         root = Path("/repo")
         body = "See [external](https://example.com) and [mail](mailto:a@b.com)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/45-adr/adr-001.md", body, {}, root,
+            "REPO-ADR-001",
+            root / "docs/45-adr/adr-001.md",
+            body,
+            {},
+            root,
         )
         assert edges == []
 
@@ -99,7 +132,11 @@ class TestExtractReferenceEdges:
         root = Path("/repo")
         body = "See [section](#overview)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/45-adr/adr-001.md", body, {}, root,
+            "REPO-ADR-001",
+            root / "docs/45-adr/adr-001.md",
+            body,
+            {},
+            root,
         )
         assert edges == []
 
@@ -108,7 +145,11 @@ class TestExtractReferenceEdges:
         path_to_doc_id = {"docs/45-adr/adr-002.md": "REPO-ADR-002"}
         body = "See [link](../45-adr/adr-002.md#section)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/10-prd/prd-001.md", body, path_to_doc_id, root,
+            "REPO-ADR-001",
+            root / "docs/10-prd/prd-001.md",
+            body,
+            path_to_doc_id,
+            root,
         )
         assert len(edges) == 1
         assert edges[0].target == "REPO-ADR-002"
@@ -118,7 +159,11 @@ class TestExtractReferenceEdges:
         path_to_doc_id = {"docs/45-adr/adr-002.md": "REPO-ADR-002"}
         body = "See [A](../45-adr/adr-002.md) and [B](../45-adr/adr-002.md)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/10-prd/prd-001.md", body, path_to_doc_id, root,
+            "REPO-ADR-001",
+            root / "docs/10-prd/prd-001.md",
+            body,
+            path_to_doc_id,
+            root,
         )
         assert len(edges) == 1
 
@@ -126,7 +171,11 @@ class TestExtractReferenceEdges:
         root = Path("/repo")
         body = "See [unknown](../45-adr/adr-999.md)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/45-adr/adr-001.md", body, {}, root,
+            "REPO-ADR-001",
+            root / "docs/45-adr/adr-001.md",
+            body,
+            {},
+            root,
         )
         assert edges == []
 
@@ -135,7 +184,11 @@ class TestExtractReferenceEdges:
         path_to_doc_id = {"docs/45-adr/adr-001.md": "REPO-ADR-001"}
         body = "See [self](adr-001.md)."
         edges = extract_reference_edges(
-            "REPO-ADR-001", root / "docs/45-adr/adr-001.md", body, path_to_doc_id, root,
+            "REPO-ADR-001",
+            root / "docs/45-adr/adr-001.md",
+            body,
+            path_to_doc_id,
+            root,
         )
         assert edges == []
 
@@ -278,9 +331,7 @@ class TestCheckSupersessionCycle:
 
     def test_long_chain_no_cycle(self):
         """500-node chain with no cycle completes without error or stack overflow."""
-        edges = [
-            Edge(f"N{i:03d}", f"N{i+1:03d}", "supersedes") for i in range(500)
-        ]
+        edges = [Edge(f"N{i:03d}", f"N{i+1:03d}", "supersedes") for i in range(500)]
         errors = _check_cycles(edges)
         assert errors == []
 
@@ -363,7 +414,10 @@ class TestValidateGraphIntegrity:
             Edge("B", "A", "related"),
         ]
         warnings, advice, errors = validate_graph_integrity(
-            entries, edges, {"A", "B"}, {"A": ["a.md"], "B": ["b.md"]},
+            entries,
+            edges,
+            {"A", "B"},
+            {"A": ["a.md"], "B": ["b.md"]},
         )
         assert errors == []
         assert warnings == []
@@ -375,7 +429,10 @@ class TestValidateGraphIntegrity:
         ]
         edges = [Edge("A", "MISSING", "related")]
         warnings, _advice, errors = validate_graph_integrity(
-            entries, edges, {"A"}, {"A": ["a.md"]},
+            entries,
+            edges,
+            {"A"},
+            {"A": ["a.md"]},
         )
         assert errors == []
         assert len(warnings) == 1
@@ -387,7 +444,10 @@ class TestValidateGraphIntegrity:
         ]
         doc_id_paths = {"A": ["a.md", "b.md"]}
         warnings, _advice, errors = validate_graph_integrity(
-            entries, [], {"A"}, doc_id_paths,
+            entries,
+            [],
+            {"A"},
+            doc_id_paths,
         )
         assert len(errors) == 1
         assert errors[0]["code"] == "GRAPH_DUPLICATE_DOCUMENT_ID"
@@ -402,24 +462,29 @@ class TestValidateGraphIntegrity:
 
 def _check_dup(doc_id_paths):
     from meminit.core.services.graph import _check_duplicate_document_ids
+
     return _check_duplicate_document_ids(doc_id_paths)
 
 
 def _check_cycles(edges, doc_id_paths=None):
     from meminit.core.services.graph import _check_supersession_cycle
+
     return _check_supersession_cycle(edges, doc_id_paths or {})
 
 
 def _check_dangling(edges, known_ids, doc_id_paths=None):
     from meminit.core.services.graph import _check_dangling_targets
+
     return _check_dangling_targets(edges, known_ids, doc_id_paths or {})
 
 
 def _check_supersession_status(entries):
     from meminit.core.services.graph import _check_supersession_status_mismatch
+
     return _check_supersession_status_mismatch(entries)
 
 
 def _check_asymmetry(edges):
     from meminit.core.services.graph import _check_related_id_asymmetry
+
     return _check_related_id_asymmetry(edges)

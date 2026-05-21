@@ -69,7 +69,9 @@ class VendorOrgProfileUseCase:
     ) -> OrgVendorReport:
         profile = resolve_org_profile(profile_name=profile_name, env=self._env, prefer_global=True)
         layout = load_repo_layout(self._root)
-        repo_docs_root = layout.default_namespace().docs_root.strip("/").replace("\\", "/") or "docs"
+        repo_docs_root = (
+            layout.default_namespace().docs_root.strip("/").replace("\\", "/") or "docs"
+        )
 
         lock_path = self._root / ".meminit" / "org-profile.lock.json"
         if lock_path.exists() and not force:
@@ -139,7 +141,9 @@ class VendorOrgProfileUseCase:
             dest.write_bytes(profile.files[src_rel])
 
         # Update docops.config.yaml (do not overwrite; merge).
-        self._ensure_repo_config_for_org(profile, repo_docs_root=repo_docs_root, include_org_docs=include_org_docs)
+        self._ensure_repo_config_for_org(
+            profile, repo_docs_root=repo_docs_root, include_org_docs=include_org_docs
+        )
 
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         ensure_safe_write_path(root_dir=self._root, target_path=lock_path)
@@ -191,7 +195,9 @@ class VendorOrgProfileUseCase:
             # Make sure there's a "repo" namespace.
             if not any(isinstance(n, dict) and n.get("repo_prefix") for n in namespaces):
                 repo_prefix = data.get("repo_prefix") or "REPO"
-                namespaces.append({"name": "repo", "repo_prefix": str(repo_prefix), "docs_root": repo_docs_root})
+                namespaces.append(
+                    {"name": "repo", "repo_prefix": str(repo_prefix), "docs_root": repo_docs_root}
+                )
 
             if not any(isinstance(n, dict) and n.get("repo_prefix") == "ORG" for n in namespaces):
                 namespaces.append(

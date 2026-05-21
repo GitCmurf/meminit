@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "codex_review_remediation_loop.py"
 SPEC = importlib.util.spec_from_file_location("codex_review_remediation_loop", SCRIPT_PATH)
 assert SPEC is not None
@@ -461,7 +460,9 @@ def test_loop_caps_remediation_passes_and_runs_final_review(tmp_path):
     def runner(args, cwd, input_text=None, timeout_seconds=None):
         calls.append((list(args), input_text))
         if args[1] == "review":
-            return MODULE.CommandResult(list(args), 0, stdout="Still failing.\nREVIEW_STATUS: findings\n")
+            return MODULE.CommandResult(
+                list(args), 0, stdout="Still failing.\nREVIEW_STATUS: findings\n"
+            )
         return MODULE.CommandResult(list(args), 0, stdout="attempted remediation\n")
 
     config = MODULE.LoopConfig(
@@ -492,11 +493,13 @@ def test_loop_continues_after_check_failure_and_feeds_output_into_next_pass(tmp_
     """A failing --check must not abort the loop; its output is fed into the next remediation."""
     calls: list[tuple[list[str], str | None]] = []
     # review-1 → findings; review-2 → findings (triggers iter-2 exec); review-final → clear
-    review_outputs = iter([
-        "Missing coverage.\nREVIEW_STATUS: findings\n",
-        "Still some gaps.\nREVIEW_STATUS: findings\n",
-        "All good.\nREVIEW_STATUS: clear\n",
-    ])
+    review_outputs = iter(
+        [
+            "Missing coverage.\nREVIEW_STATUS: findings\n",
+            "Still some gaps.\nREVIEW_STATUS: findings\n",
+            "All good.\nREVIEW_STATUS: clear\n",
+        ]
+    )
     # check fails after iter-1, passes after iter-2
     check_outputs = iter([(1, "1 FAILED\n"), (0, "1 passed\n")])
 
@@ -534,11 +537,13 @@ def test_loop_continues_after_check_failure_and_feeds_output_into_next_pass(tmp_
 def test_pending_check_failure_blocks_early_clear_status(tmp_path):
     """A clear review cannot finish the loop while a previous --check failure is pending."""
     calls: list[tuple[list[str], str | None]] = []
-    review_outputs = iter([
-        "Missing coverage.\nREVIEW_STATUS: findings\n",
-        "All good.\nREVIEW_STATUS: clear\n",
-        "All good.\nREVIEW_STATUS: clear\n",
-    ])
+    review_outputs = iter(
+        [
+            "Missing coverage.\nREVIEW_STATUS: findings\n",
+            "All good.\nREVIEW_STATUS: clear\n",
+            "All good.\nREVIEW_STATUS: clear\n",
+        ]
+    )
     check_outputs = iter([(1, "1 FAILED\n"), (1, "still failing\n")])
 
     def runner(args, cwd, input_text=None, timeout_seconds=None):
@@ -572,9 +577,12 @@ def test_pending_check_failure_blocks_early_clear_status(tmp_path):
 
 def test_skip_final_review_reports_unknown_status(tmp_path):
     """With --skip-final-review the loop must not report a stale pre-remediation status."""
+
     def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
-            return MODULE.CommandResult(list(args), 0, stdout="Issues found.\nREVIEW_STATUS: findings\n")
+            return MODULE.CommandResult(
+                list(args), 0, stdout="Issues found.\nREVIEW_STATUS: findings\n"
+            )
         return MODULE.CommandResult(list(args), 0, stdout="fixed\n")
 
     config = MODULE.LoopConfig(
@@ -588,9 +596,9 @@ def test_skip_final_review_reports_unknown_status(tmp_path):
 
     summary = MODULE.run_loop(config, runner)
 
-    assert summary["final_status"] == "unknown", (
-        "status after last remediation is unknowable without a follow-up review"
-    )
+    assert (
+        summary["final_status"] == "unknown"
+    ), "status after last remediation is unknowable without a follow-up review"
     assert summary["stopped_reason"] == "max_iterations_reached"
 
 
@@ -627,8 +635,13 @@ def test_final_check_failure_prevents_clear_status(tmp_path):
 
 def test_detect_review_status_requires_explicit_status_line():
     """Fuzzy patterns must not flip ambiguous output to clear."""
-    assert MODULE.detect_review_status("no findings about style, but several about logic") == "unknown"
-    assert MODULE.detect_review_status("review is clear of syntax errors but not semantic") == "unknown"
+    assert (
+        MODULE.detect_review_status("no findings about style, but several about logic") == "unknown"
+    )
+    assert (
+        MODULE.detect_review_status("review is clear of syntax errors but not semantic")
+        == "unknown"
+    )
     assert MODULE.detect_review_status("") == "unknown"
 
 
@@ -647,7 +660,9 @@ def test_review_failure_detection_allows_nonzero_findings_without_stderr():
     )
     assert (
         MODULE.review_failed_to_run(
-            MODULE.CommandResult(["codex", "review"], 1, stdout="", stderr="Error: thread/start failed")
+            MODULE.CommandResult(
+                ["codex", "review"], 1, stdout="", stderr="Error: thread/start failed"
+            )
         )
         is True
     )
@@ -660,7 +675,9 @@ def test_review_failure_detection_allows_nonzero_findings_without_stderr():
 
 
 def test_actionable_review_output_drops_verbose_stderr_transcript():
-    output = "Full review comments:\n\n- [P1] Fix the bug\n\n[stderr]\n" + ("diff --git a/x b/x\n" * 100)
+    output = "Full review comments:\n\n- [P1] Fix the bug\n\n[stderr]\n" + (
+        "diff --git a/x b/x\n" * 100
+    )
 
     assert MODULE.actionable_review_output(output) == "Full review comments:\n\n- [P1] Fix the bug"
 
@@ -791,8 +808,12 @@ def test_progress_logs_review_and_finding_summaries(tmp_path, capsys):
     MODULE.run_loop(config, runner)
     captured = capsys.readouterr()
 
-    assert re.search(r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|start: codex review --base main", captured.err)
-    assert re.search(r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|issue: The query surfaces disagree\.", captured.err)
+    assert re.search(
+        r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|start: codex review --base main", captured.err
+    )
+    assert re.search(
+        r"\d{2}:\d{2}:\d{2}\|rev\|1\s{3}\|issue: The query surfaces disagree\.", captured.err
+    )
     assert "findings-summary" not in captured.err
     assert "|rev|1   |[P2]   Fix queue parity" in captured.err
     assert "|rem|1   |done" in captured.err
@@ -884,7 +905,9 @@ def test_quiet_progress_suppresses_progress_logs(tmp_path, capsys):
 def test_loop_writes_failure_summary_when_remediation_fails(tmp_path):
     def runner(args, cwd, input_text=None, timeout_seconds=None):
         if args[1] == "review":
-            return MODULE.CommandResult(list(args), 0, stdout="Full review comments:\n\n- [P1] Fix\n")
+            return MODULE.CommandResult(
+                list(args), 0, stdout="Full review comments:\n\n- [P1] Fix\n"
+            )
         return MODULE.CommandResult(list(args), 1, stderr="Error: turn/start failed\n")
 
     config = MODULE.LoopConfig(

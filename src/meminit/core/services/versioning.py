@@ -9,7 +9,6 @@ from typing import Final
 
 import tomllib
 
-
 PACKAGE_NAME: Final[str] = "meminit"
 
 

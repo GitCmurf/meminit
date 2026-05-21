@@ -48,7 +48,9 @@ def _load_manifest_from_dir(root: Path) -> dict:
     return json.loads((root / "profile.json").read_text(encoding="utf-8"))
 
 
-def _read_files_from_root(root: resources.abc.Traversable, rel_paths: Iterable[str]) -> Dict[str, bytes]:
+def _read_files_from_root(
+    root: resources.abc.Traversable, rel_paths: Iterable[str]
+) -> Dict[str, bytes]:
     out: Dict[str, bytes] = {}
     for rel in rel_paths:
         p = root.joinpath(rel)
@@ -78,7 +80,9 @@ def load_packaged_profile(profile_name: str = "default") -> OrgProfile:
     )
 
 
-def load_global_profile(profile_name: str = "default", env: Optional[Mapping[str, str]] = None) -> OrgProfile:
+def load_global_profile(
+    profile_name: str = "default", env: Optional[Mapping[str, str]] = None
+) -> OrgProfile:
     root = global_profile_dir(profile_name, env=env)
     manifest = _load_manifest_from_dir(root)
     rels = set(str(p) for p in (manifest.get("files", []) or []))
@@ -94,7 +98,9 @@ def load_global_profile(profile_name: str = "default", env: Optional[Mapping[str
 
 
 def resolve_org_profile(
-    profile_name: str = "default", env: Optional[Mapping[str, str]] = None, prefer_global: bool = True
+    profile_name: str = "default",
+    env: Optional[Mapping[str, str]] = None,
+    prefer_global: bool = True,
 ) -> OrgProfile:
     """
     Resolve which org profile should be used.
@@ -111,7 +117,9 @@ def resolve_org_profile(
     return load_packaged_profile(profile_name=profile_name)
 
 
-def diff_profile_to_repo(profile: OrgProfile, repo_root: Path, mapping: Mapping[str, str]) -> Tuple[int, int, int]:
+def diff_profile_to_repo(
+    profile: OrgProfile, repo_root: Path, mapping: Mapping[str, str]
+) -> Tuple[int, int, int]:
     """
     Compute a simple diff summary: (would_create, would_update, unchanged).
     """

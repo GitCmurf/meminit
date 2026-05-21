@@ -109,9 +109,8 @@ def with_log_silence():
                 verbose_value = ctx.parent.params.get("verbose", False)
 
             output_value = kwargs.get("output")
-            silence_logs = (
-                not verbose_value
-                and (format_value in {"json", "ndjson"} or bool(output_value))
+            silence_logs = not verbose_value and (
+                format_value in {"json", "ndjson"} or bool(output_value)
             )
             changed = False
             if silence_logs and previous != "1":
@@ -205,8 +204,12 @@ def register_capability(
 
 # Register all known commands. Each entry must correspond to a Click command
 # in main.py. The contract test enforces this invariant.
-register_capability("check", "Run compliance checks on the repository", needs_root=True, agent_facing=True)
-register_capability("doctor", "Diagnose common configuration issues", needs_root=True, agent_facing=True)
+register_capability(
+    "check", "Run compliance checks on the repository", needs_root=True, agent_facing=True
+)
+register_capability(
+    "doctor", "Diagnose common configuration issues", needs_root=True, agent_facing=True
+)
 register_capability("fix", "Auto-fix detected violations", needs_root=True, agent_facing=True)
 register_capability(
     "scan",
@@ -215,7 +218,9 @@ register_capability(
     agent_facing=True,
     supports_ndjson=True,
 )
-register_capability("install-precommit", "Install a pre-commit hook", needs_root=True, agent_facing=False)
+register_capability(
+    "install-precommit", "Install a pre-commit hook", needs_root=True, agent_facing=False
+)
 register_capability(
     "index",
     "Build the document index",
@@ -223,12 +228,24 @@ register_capability(
     agent_facing=True,
     supports_ndjson=True,
 )
-register_capability("resolve", "Resolve a document_id to a file path", needs_root=True, agent_facing=True)
-register_capability("identify", "Identify a document's metadata", needs_root=True, agent_facing=True)
-register_capability("link", "Print a Markdown link for a document_id", needs_root=True, agent_facing=True)
-register_capability("migrate-ids", "Migrate legacy document_id values", needs_root=True, agent_facing=True)
-register_capability("migrate-templates", "Migrate legacy template configs", needs_root=True, agent_facing=True)
-register_capability("init", "Initialize a new DocOps repository", needs_root=True, agent_facing=True)
+register_capability(
+    "resolve", "Resolve a document_id to a file path", needs_root=True, agent_facing=True
+)
+register_capability(
+    "identify", "Identify a document's metadata", needs_root=True, agent_facing=True
+)
+register_capability(
+    "link", "Print a Markdown link for a document_id", needs_root=True, agent_facing=True
+)
+register_capability(
+    "migrate-ids", "Migrate legacy document_id values", needs_root=True, agent_facing=True
+)
+register_capability(
+    "migrate-templates", "Migrate legacy template configs", needs_root=True, agent_facing=True
+)
+register_capability(
+    "init", "Initialize a new DocOps repository", needs_root=True, agent_facing=True
+)
 register_capability("new", "Create a new document", needs_root=True, agent_facing=True)
 register_capability("adr new", "Create a new ADR", needs_root=True, agent_facing=True)
 register_capability(
@@ -239,14 +256,34 @@ register_capability(
     supports_ndjson=True,
 )
 register_capability("org install", "Install org profile to XDG paths", agent_facing=False)
-register_capability("org vendor", "Vendor org profile into repo", needs_root=True, agent_facing=False)
+register_capability(
+    "org vendor", "Vendor org profile into repo", needs_root=True, agent_facing=False
+)
 register_capability("org status", "Show org profile status", needs_root=True, agent_facing=False)
-register_capability("state set", "Set document implementation state", needs_root=True, agent_facing=True)
-register_capability("state get", "Get document implementation state", needs_root=True, agent_facing=True)
+register_capability(
+    "state set", "Set document implementation state", needs_root=True, agent_facing=True
+)
+register_capability(
+    "state get", "Get document implementation state", needs_root=True, agent_facing=True
+)
 register_capability("state list", "List all document states", needs_root=True, agent_facing=True)
-register_capability("state next", "Select the next ready work item", needs_root=True, agent_facing=True)
-register_capability("state blockers", "List blocked work items and open blockers", needs_root=True, agent_facing=True)
+register_capability(
+    "state next", "Select the next ready work item", needs_root=True, agent_facing=True
+)
+register_capability(
+    "state blockers",
+    "List blocked work items and open blockers",
+    needs_root=True,
+    agent_facing=True,
+)
 register_capability("capabilities", "Show CLI capabilities descriptor", agent_facing=True)
 register_capability("explain", "Explain a Meminit error code", agent_facing=True)
-register_capability("protocol check", "Check protocol assets for drift", needs_root=True, agent_facing=True)
-register_capability("protocol sync", "Synchronize protocol assets with canonical contract", needs_root=True, agent_facing=True)
+register_capability(
+    "protocol check", "Check protocol assets for drift", needs_root=True, agent_facing=True
+)
+register_capability(
+    "protocol sync",
+    "Synchronize protocol assets with canonical contract",
+    needs_root=True,
+    agent_facing=True,
+)

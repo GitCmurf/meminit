@@ -122,11 +122,12 @@ class ProtocolSyncer:
                     continue
                 if action == "rewrite":
                     preserved_bytes = self._rewrite_asset(
-                        asset_desc, prior, project_name, repo_prefix,
+                        asset_desc,
+                        prior,
+                        project_name,
+                        repo_prefix,
                     )
-                    results[idx] = replace(
-                        results[idx], preserved_user_bytes=preserved_bytes
-                    )
+                    results[idx] = replace(results[idx], preserved_user_bytes=preserved_bytes)
                     rewrote_content = True
                     any_mutation = True
                     if prior == DriftOutcome.TAMPERED.value:
@@ -144,7 +145,9 @@ class ProtocolSyncer:
                 force_message += " (dry run; no assets were rewritten)"
             elif refuse_found:
                 if rewrote_content or mode_repaired:
-                    force_message += "; non-refused assets were synced; refused assets were left untouched"
+                    force_message += (
+                        "; non-refused assets were synced; refused assets were left untouched"
+                    )
                 else:
                     force_message += "; no assets were synced (all were refused or noop)"
             elif tampered_rewritten:
@@ -152,14 +155,18 @@ class ProtocolSyncer:
             elif rewrote_content:
                 force_message += "; no tampered assets required rewriting; safe assets were synced"
             elif mode_repaired:
-                force_message += "; no tampered assets required rewriting; registered file modes were repaired"
+                force_message += (
+                    "; no tampered assets required rewriting; registered file modes were repaired"
+                )
             else:
                 force_message += "; no tampered assets required rewriting"
-            warnings.append({
-                "code": WarningCode.PROTOCOL_SYNC_FORCE_USED,
-                "message": force_message,
-                "path": str(self._root_dir),
-            })
+            warnings.append(
+                {
+                    "code": WarningCode.PROTOCOL_SYNC_FORCE_USED,
+                    "message": force_message,
+                    "path": str(self._root_dir),
+                }
+            )
 
         rewritten = sum(1 for r in results if r.action == "rewrite")
         refused = sum(1 for r in results if r.action == "refuse")
@@ -220,9 +227,7 @@ class ProtocolSyncer:
                     preserved_bytes = len(user_bytes)
                 else:
                     existing_bytes = target.read_bytes()
-                    existing_text = existing_bytes.decode(
-                        "utf-8", errors="surrogateescape"
-                    )
+                    existing_text = existing_bytes.decode("utf-8", errors="surrogateescape")
                     parsed = parse_protocol_markers(existing_text)
                     if parsed is not None:
                         # Compute byte offset from raw bytes directly.
@@ -287,7 +292,8 @@ class ProtocolSyncer:
         target = self._root_dir / asset.target_path
         ensure_safe_write_path(root_dir=self._root_dir, target_path=target)
         ensure_existing_regular_file_path(
-            root_dir=self._root_dir, target_path=target,
+            root_dir=self._root_dir,
+            target_path=target,
         )
         try:
             current_mode = target.stat().st_mode & 0o777
@@ -299,8 +305,7 @@ class ProtocolSyncer:
             raise MeminitError(
                 code=ErrorCode.PROTOCOL_SYNC_WRITE_FAILED,
                 message=(
-                    f"Failed to apply file mode {oct(asset.file_mode)} to "
-                    f"{asset.target_path}"
+                    f"Failed to apply file mode {oct(asset.file_mode)} to {asset.target_path}"
                 ),
                 details={
                     "target_path": asset.target_path,

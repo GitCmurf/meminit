@@ -104,3 +104,23 @@ class TestNewDocumentParamsValidation:
         """Valid superseded_by passes validation."""
         params = NewDocumentParams(doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-099")
         assert params.superseded_by == "MEMINIT-ADR-099"
+
+    def test_rejects_invalid_document_id_format(self):
+        with pytest.raises(ValueError, match="document_id"):
+            NewDocumentParams(doc_type="ADR", title="Test", document_id="MEMINIT-ADR-001-EXTRA")
+
+    def test_rejects_document_id_with_wrong_type_segment(self):
+        with pytest.raises(ValueError, match="type segment"):
+            NewDocumentParams(doc_type="ADR", title="Test", document_id="MEMINIT-PRD-001")
+
+    def test_rejects_invalid_related_id_format(self):
+        with pytest.raises(ValueError, match="related_ids"):
+            NewDocumentParams(doc_type="ADR", title="Test", related_ids=["bad-id"])
+
+    def test_rejects_non_list_related_ids(self):
+        with pytest.raises(ValueError, match="related_ids"):
+            NewDocumentParams(doc_type="ADR", title="Test", related_ids="MEMINIT-ADR-001")
+
+    def test_rejects_invalid_superseded_by_format(self):
+        with pytest.raises(ValueError, match="superseded_by"):
+            NewDocumentParams(doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-0001")

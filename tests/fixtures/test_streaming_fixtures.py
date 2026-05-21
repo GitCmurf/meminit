@@ -12,7 +12,6 @@ import pytest
 from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 from tests.fixtures.streaming.generators import build_streaming_fixture, tree_sha256
 
-
 FIXTURE_ROOT = Path(__file__).parent / "streaming"
 
 
