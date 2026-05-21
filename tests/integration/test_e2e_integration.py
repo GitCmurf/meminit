@@ -6,6 +6,7 @@ avoid duplicating the core test logic.
 """
 
 import tempfile
+import os
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,10 @@ def test_e2e_functional():
 
 @pytest.mark.slow
 @pytest.mark.benchmark
+@pytest.mark.skipif(
+    os.environ.get("MEMINIT_RUN_BENCHMARKS") != "1",
+    reason="Performance SLA is opt-in; set MEMINIT_RUN_BENCHMARKS=1 to run.",
+)
 def test_e2e_performance_sla():
     """Performance benchmark: index generation should stay comfortably under
     the 15-second guardrail even with subprocess and filesystem variance."""

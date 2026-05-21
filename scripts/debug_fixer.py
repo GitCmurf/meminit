@@ -17,14 +17,12 @@ def run_debug():
         docs = repo / "docs" / "45-adr"
         docs.mkdir(parents=True)
         bad_file = docs / "Bad Name.md"
-        bad_file.write_text(
-            """---
+        bad_file.write_text("""---
 document_id: MEMINIT-ADR-005
 type: ADR
 ---
 # Content
-"""
-        )
+""")
 
         checker = CheckRepositoryUseCase(str(repo))
         violations = checker.execute()

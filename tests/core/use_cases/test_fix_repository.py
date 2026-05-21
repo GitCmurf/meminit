@@ -258,6 +258,75 @@ docops_version: 2.0
     assert not bad_pkg.exists(), "Original phyla file with spaces should no longer exist"
 
 
+def test_fix_namespace_uses_document_id_for_same_root_namespaces(tmp_path):
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
+    (gov / "metadata.schema.json").write_text(
+        '{"type": "object", "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],'
+        ' "properties": {"document_id": {"type": "string"}, "type": {"type": "string"}, "title": {"type": "string"},'
+        ' "status": {"type": "string"}, "version": {"type": "string"}, "last_updated": {"type": "string", "format": "date"},'
+        ' "owner": {"type": "string"}, "docops_version": {"type": "string"}}}'
+    )
+
+    (tmp_path / "docops.config.yaml").write_text(
+        """
+project_name: Example
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+namespaces:
+  - name: root
+    repo_prefix: AIDHA
+    docs_root: docs
+  - name: phyla
+    repo_prefix: PHYLA
+    docs_root: docs
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    adr_dir = tmp_path / "docs" / "45-adr"
+    adr_dir.mkdir(parents=True)
+    root_doc = adr_dir / "Root Bad.md"
+    root_doc.write_text(
+        """---
+document_id: AIDHA-ADR-001
+type: ADR
+title: Root
+status: Draft
+version: 0.1
+last_updated: 2025-12-28
+owner: GitCmurf
+docops_version: 2.0
+---
+# Root
+""",
+        encoding="utf-8",
+    )
+    phyla_doc = adr_dir / "Phyla Bad.md"
+    phyla_doc.write_text(
+        """---
+document_id: PHYLA-ADR-001
+type: ADR
+title: Phyla
+status: Draft
+version: 0.1
+last_updated: 2025-12-28
+owner: GitCmurf
+docops_version: 2.0
+---
+# Phyla
+""",
+        encoding="utf-8",
+    )
+
+    fixer = FixRepositoryUseCase(root_dir=str(tmp_path))
+    fixer.execute(dry_run=False, namespace="phyla")
+
+    assert root_doc.exists(), "Root document must not be changed by phyla-scoped fix"
+    assert not phyla_doc.exists(), "PHYLA document should be renamed by phyla-scoped fix"
+    assert (adr_dir / "phyla-bad.md").exists()
+
+
 def test_fix_refuses_symlink_escape_on_write(tmp_path: Path):
     repo_root = tmp_path / "repo"
     repo_root.mkdir(parents=True, exist_ok=True)

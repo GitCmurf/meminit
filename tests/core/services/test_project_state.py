@@ -24,10 +24,10 @@ from meminit.core.services.project_state import (
 )
 from meminit.core.services.warning_codes import WarningCode
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _write_state_file(root: Path, content: str) -> Path:
     """Write a project-state.yaml under the expected path."""
@@ -55,10 +55,15 @@ documents:
 # ImplState enum
 # ---------------------------------------------------------------------------
 
+
 def test_impl_state_canonical_values():
     """Canonical display names match PRD-007 FR-1 enum."""
     assert ImplState.canonical_values() == [
-        "Not Started", "In Progress", "Blocked", "QA Required", "Done",
+        "Not Started",
+        "In Progress",
+        "Blocked",
+        "QA Required",
+        "Done",
     ]
 
 
@@ -78,6 +83,7 @@ def test_impl_state_from_string_unknown():
 # ---------------------------------------------------------------------------
 # load_project_state
 # ---------------------------------------------------------------------------
+
 
 def test_load_project_state_valid(tmp_path):
     """Parse well-formed YAML and assert entries."""
@@ -184,22 +190,27 @@ def test_load_project_state_missing_documents_key_with_other_keys(tmp_path):
 # save_project_state
 # ---------------------------------------------------------------------------
 
+
 def test_save_project_state_sorted_keys(tmp_path):
     """Entries are written in alphabetical order by document_id."""
     state = ProjectState()
     now = datetime.now(timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="In Progress",
-        updated=now,
-        updated_by="GitCmurf",
-    ))
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-010",
-        impl_state="Done",
-        updated=now,
-        updated_by="GitCmurf",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="In Progress",
+            updated=now,
+            updated_by="GitCmurf",
+        )
+    )
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-010",
+            impl_state="Done",
+            updated=now,
+            updated_by="GitCmurf",
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     assert path.exists()
@@ -213,13 +224,15 @@ def test_save_project_state_roundtrip(tmp_path):
     """Save then load produces equivalent state."""
     state = ProjectState()
     now = datetime(2026, 3, 5, 14, 30, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-007",
-        impl_state="QA Required",
-        updated=now,
-        updated_by="GitCmurf",
-        notes="Testing roundtrip",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-007",
+            impl_state="QA Required",
+            updated=now,
+            updated_by="GitCmurf",
+            notes="Testing roundtrip",
+        )
+    )
 
     save_project_state(tmp_path, state)
     loaded = load_project_state(tmp_path)
@@ -236,15 +249,18 @@ def test_save_project_state_roundtrip(tmp_path):
 # validate_project_state
 # ---------------------------------------------------------------------------
 
+
 def test_validate_unknown_doc_id(tmp_path):
     """Emits W_STATE_UNKNOWN_DOC_ID for doc ID not in governed set."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-FAKE-999",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-FAKE-999",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -254,12 +270,14 @@ def test_validate_unknown_doc_id(tmp_path):
 def test_validate_unknown_impl_state(tmp_path):
     """Emits W_STATE_UNKNOWN_IMPL_STATE for unrecognised impl_state value."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Totally Made Up",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Totally Made Up",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -269,16 +287,16 @@ def test_validate_unknown_impl_state(tmp_path):
 def test_validate_impl_state_is_case_insensitive(tmp_path):
     """Built-in impl_state values should not warn when casing differs."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-    ))
-
-    issues = validate_project_state(
-        state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+        )
     )
+
+    issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert WarningCode.W_STATE_UNKNOWN_IMPL_STATE not in codes
 
@@ -310,12 +328,14 @@ def test_validate_unsorted_keys(tmp_path):
 def test_validate_invalid_actor(tmp_path):
     """Emits W_FIELD_SANITIZATION_FAILED for invalid updated_by value."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="bad<actor>",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="bad<actor>",
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -325,13 +345,15 @@ def test_validate_invalid_actor(tmp_path):
 def test_validate_invalid_priority(tmp_path):
     """Emits STATE_INVALID_PRIORITY for entries with invalid priority."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Not Started",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        priority="P9",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Not Started",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            priority="P9",
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -342,13 +364,15 @@ def test_validate_valid_priority_no_warning(tmp_path):
     """Valid priority values do not produce STATE_INVALID_PRIORITY."""
     state = ProjectState()
     for p in ("P0", "P1", "P2", "P3"):
-        state.set_entry(ProjectStateEntry(
-            document_id=f"MEMINIT-PRD-00{p[1]}",
-            impl_state="Not Started",
-            updated=datetime.now(timezone.utc),
-            updated_by="test",
-            priority=p,
-        ))
+        state.set_entry(
+            ProjectStateEntry(
+                document_id=f"MEMINIT-PRD-00{p[1]}",
+                impl_state="Not Started",
+                updated=datetime.now(timezone.utc),
+                updated_by="test",
+                priority=p,
+            )
+        )
 
     issues = validate_project_state(
         state,
@@ -362,13 +386,15 @@ def test_validate_valid_priority_no_warning(tmp_path):
 def test_validate_notes_too_long(tmp_path):
     """Emits W_FIELD_SANITIZATION_FAILED for notes exceeding MAX_NOTES_LENGTH."""
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        notes="x" * 501,
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            notes="x" * 501,
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -377,13 +403,15 @@ def test_validate_notes_too_long(tmp_path):
 
 def test_validate_assignee_too_long(tmp_path):
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        assignee="a" * 121,
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            assignee="a" * 121,
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -394,13 +422,15 @@ def test_validate_assignee_too_long(tmp_path):
 
 def test_validate_next_action_too_long(tmp_path):
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        next_action="x" * 501,
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            next_action="x" * 501,
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -411,13 +441,15 @@ def test_validate_next_action_too_long(tmp_path):
 
 def test_validate_next_action_contains_newline(tmp_path):
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        next_action="line one\nline two",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            next_action="line one\nline two",
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
@@ -428,27 +460,32 @@ def test_validate_next_action_contains_newline(tmp_path):
 
 def test_validate_assignee_and_next_action_within_bounds(tmp_path):
     state = ProjectState()
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-PRD-003",
-        impl_state="Done",
-        updated=datetime.now(timezone.utc),
-        updated_by="test",
-        assignee="a" * 120,
-        next_action="x" * 500,
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-PRD-003",
+            impl_state="Done",
+            updated=datetime.now(timezone.utc),
+            updated_by="test",
+            assignee="a" * 120,
+            next_action="x" * 500,
+        )
+    )
 
     issues = validate_project_state(state, known_doc_ids={"MEMINIT-PRD-003"}, root_dir=tmp_path)
     codes = [v.rule for v in issues]
     assert ErrorCode.STATE_FIELD_TOO_LONG.value not in codes
 
+
 def test_get_state_file_rel_path_custom_docs_root(tmp_path):
     (tmp_path / "docops.config.yaml").write_text("docs_root: handbook\n")
     from meminit.core.services.project_state import get_state_file_rel_path
+
     assert get_state_file_rel_path(tmp_path) == "handbook/01-indices/project-state.yaml"
 
 
 def test_get_state_file_rel_path_default(tmp_path):
     from meminit.core.services.project_state import get_state_file_rel_path
+
     assert get_state_file_rel_path(tmp_path) == "docs/01-indices/project-state.yaml"
 
 
@@ -486,10 +523,13 @@ docs_root: handbook
 
     from unittest import mock
 
-    with mock.patch(
-        "meminit.core.services.repo_config.load_repo_layout",
-        side_effect=ValueError("broken layout"),
-    ), pytest.raises(MeminitError) as exc_info:
+    with (
+        mock.patch(
+            "meminit.core.services.repo_config.load_repo_layout",
+            side_effect=ValueError("broken layout"),
+        ),
+        pytest.raises(MeminitError) as exc_info,
+    ):
         get_state_file_rel_path_strict(tmp_path)
 
     assert exc_info.value.code == ErrorCode.CONFIG_MISSING
@@ -643,12 +683,14 @@ def test_load_explicit_unknown_schema_version_surfaces_violation(tmp_path):
 def test_save_emits_schema_version_header(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -658,12 +700,14 @@ def test_save_emits_schema_version_header(tmp_path):
 def test_save_default_omission(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     content = path.read_text(encoding="utf-8")
@@ -679,13 +723,15 @@ def test_save_default_omission(tmp_path):
 def test_save_explicit_p2_omitted(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-        priority="P2",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+            priority="P2",
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -695,13 +741,15 @@ def test_save_explicit_p2_omitted(tmp_path):
 def test_save_non_default_priority_written(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-        priority="P0",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+            priority="P0",
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -711,18 +759,21 @@ def test_save_non_default_priority_written(tmp_path):
 def test_save_depends_on_sorted(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-        depends_on=("MEMINIT-PRD-009", "MEMINIT-ADR-042"),
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+            depends_on=("MEMINIT-PRD-009", "MEMINIT-ADR-042"),
+        )
+    )
 
     path = save_project_state(tmp_path, state)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert raw["documents"]["MEMINIT-ADR-001"]["depends_on"] == [
-        "MEMINIT-ADR-042", "MEMINIT-PRD-009"
+        "MEMINIT-ADR-042",
+        "MEMINIT-PRD-009",
     ]
 
 
@@ -800,17 +851,19 @@ def test_deduplicate_roundtrip_no_duplicates(tmp_path):
 def test_v2_roundtrip_preserves_planning_fields(tmp_path):
     state = ProjectState()
     now = datetime(2026, 4, 21, 12, 0, 0, tzinfo=timezone.utc)
-    state.set_entry(ProjectStateEntry(
-        document_id="MEMINIT-ADR-001",
-        impl_state="Not Started",
-        updated=now,
-        updated_by="test",
-        priority="P0",
-        depends_on=("MEMINIT-PLAN-011",),
-        blocked_by=(),
-        assignee="agent:codex",
-        next_action="Implement schema",
-    ))
+    state.set_entry(
+        ProjectStateEntry(
+            document_id="MEMINIT-ADR-001",
+            impl_state="Not Started",
+            updated=now,
+            updated_by="test",
+            priority="P0",
+            depends_on=("MEMINIT-PLAN-011",),
+            blocked_by=(),
+            assignee="agent:codex",
+            next_action="Implement schema",
+        )
+    )
 
     save_project_state(tmp_path, state)
     loaded = load_project_state(tmp_path)
@@ -843,10 +896,13 @@ def test_legacy_roundtrip_no_data_loss(tmp_path):
 
 
 def test_utc_normalization_on_load(tmp_path):
-    _write_state_file(tmp_path, (
-        "documents:\n  MEMINIT-ADR-001:\n    impl_state: Done\n"
-        "    updated: '2026-04-21T10:00:00'\n    updated_by: test\n"
-    ))
+    _write_state_file(
+        tmp_path,
+        (
+            "documents:\n  MEMINIT-ADR-001:\n    impl_state: Done\n"
+            "    updated: '2026-04-21T10:00:00'\n    updated_by: test\n"
+        ),
+    )
     state = load_project_state(tmp_path)
     assert state is not None
     entry = state.get("MEMINIT-ADR-001")
@@ -858,6 +914,7 @@ def test_utc_normalization_on_load(tmp_path):
 def test_load_project_state_converts_non_utc_offset_to_utc(tmp_path):
     from datetime import timedelta
     from meminit.core.services.project_state import load_project_state
+
     (tmp_path / "docs").mkdir()
     state_file = tmp_path / "docs" / "01-indices" / "project-state.yaml"
     state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -881,14 +938,18 @@ class TestProjectStateSchemaV2:
     @pytest.fixture
     def schema(self):
         import json as _json
+
         schema_path = (
             Path(__file__).resolve().parents[3]
-            / "docs" / "20-specs" / "project-state.schema.v2.json"
+            / "docs"
+            / "20-specs"
+            / "project-state.schema.v2.json"
         )
         return _json.loads(schema_path.read_text())
 
     def test_valid_v2_state_passes_schema(self, tmp_path, schema):
         import jsonschema
+
         state_dir = tmp_path / "docs" / "01-indices"
         state_dir.mkdir(parents=True)
         (state_dir / "project-state.yaml").write_text(
@@ -908,6 +969,7 @@ class TestProjectStateSchemaV2:
 
     def test_invalid_v2_state_fails_schema(self, tmp_path, schema):
         import jsonschema
+
         state_dir = tmp_path / "docs" / "01-indices"
         state_dir.mkdir(parents=True)
         (state_dir / "project-state.yaml").write_text(
@@ -922,6 +984,7 @@ class TestProjectStateSchemaV2:
 
     def test_v2_state_notes_over_500_chars_fails_schema(self, tmp_path, schema):
         import jsonschema
+
         state_dir = tmp_path / "docs" / "01-indices"
         state_dir.mkdir(parents=True)
         (state_dir / "project-state.yaml").write_text(
@@ -942,6 +1005,7 @@ class TestProjectStateSchemaV2:
 # Malformed planning fields surface as schema violations (Issue 1)
 # ---------------------------------------------------------------------------
 
+
 def _write_state_raw(tmp_path: Path, documents: dict) -> Path:
     state_dir = tmp_path / "docs" / "01-indices"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -949,7 +1013,9 @@ def _write_state_raw(tmp_path: Path, documents: dict) -> Path:
     state_path.write_text(
         yaml.dump(
             {"state_schema_version": "2.0", "documents": documents},
-            default_flow_style=False, allow_unicode=True, sort_keys=True,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=True,
         ),
         encoding="utf-8",
     )
@@ -999,14 +1065,17 @@ def test_unknown_entry_field_surfaces_schema_violation(tmp_path):
 
 
 def _make_state_with_entry(tmp_path: Path, **planning_overrides) -> ProjectState:
-    _write_state_raw(tmp_path, {
-        "TEST-ADR-001": {
-            "impl_state": "Not Started",
-            "updated_by": "test",
-            "updated": "2026-01-01T00:00:00+00:00",
-            **planning_overrides,
-        }
-    })
+    _write_state_raw(
+        tmp_path,
+        {
+            "TEST-ADR-001": {
+                "impl_state": "Not Started",
+                "updated_by": "test",
+                "updated": "2026-01-01T00:00:00+00:00",
+                **planning_overrides,
+            }
+        },
+    )
     return load_project_state(tmp_path)
 
 

@@ -39,7 +39,8 @@ class ContextResult:
 
 
 def _iter_ns_documents(
-    layout: RepoLayout, ns: RepoConfig,
+    layout: RepoLayout,
+    ns: RepoConfig,
 ) -> Iterator[Dict[str, Any]]:
     """Yield documents from a namespace as they are discovered."""
     import frontmatter
@@ -139,9 +140,7 @@ def _load_config_yaml(root_dir: Path) -> Dict[str, Any]:
         return {}
 
 
-def _resolve_default_owner(
-    config: Dict[str, Any], default_namespace_name: str
-) -> str | None:
+def _resolve_default_owner(config: Dict[str, Any], default_namespace_name: str) -> str | None:
     namespaces = config.get("namespaces")
     if isinstance(namespaces, list):
         for ns in namespaces:
@@ -200,7 +199,7 @@ class ContextRepositoryUseCase:
             # Merge legacy type_directories into document_types for compatibility
             for doc_type, directory in sorted(ns.type_directories.items()):
                 ns_entry["document_types"].setdefault(doc_type, {"directory": directory})
-            
+
             namespaces_data.append(ns_entry)
 
         # Build allowed_types from all namespaces (union of all type keys).
@@ -212,7 +211,7 @@ class ContextRepositoryUseCase:
         # Build templates from the default namespace.
         default_ns = layout.default_namespace()
         raw_config = _load_config_yaml(self.root_dir)
-        
+
         # Build global document_types for output based on default_ns
         global_document_types: Dict[str, Any] = {}
         for doc_type, dt_config in sorted(default_ns.document_types.items()):

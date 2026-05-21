@@ -11,7 +11,6 @@ from meminit.core.services.metadata_normalization import normalize_yaml_scalar_f
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
 
-
 _DOC_ID_LINE_RE = re.compile(r"^(> \*\*Document ID:\*\* )(.+?)(\s*)$", re.IGNORECASE)
 
 
@@ -122,7 +121,9 @@ class MigrateIdsUseCase:
                 if self._is_canonical_id(old_id):
                     continue
 
-                new_id = self._allocate_next_id(ns.repo_prefix, doc_type, used_numbers, next_numbers)
+                new_id = self._allocate_next_id(
+                    ns.repo_prefix, doc_type, used_numbers, next_numbers
+                )
                 updated_frontmatter = False
                 updated_metadata_block = False
                 updated_heading = False
@@ -138,7 +139,9 @@ class MigrateIdsUseCase:
                 updated_metadata_block = md_updated
 
                 # Update H1 if it embeds the old ID
-                content, heading_updated = self._replace_first_heading_id(post.content, old_id, new_id)
+                content, heading_updated = self._replace_first_heading_id(
+                    post.content, old_id, new_id
+                )
                 post.content = content
                 updated_heading = heading_updated
 
@@ -165,7 +168,9 @@ class MigrateIdsUseCase:
                     ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
                     path.write_text(frontmatter.dumps(post), encoding="utf-8")
 
-        return IdMigrationReport(dry_run=dry_run, actions=actions, skipped_files=sorted(set(skipped)))
+        return IdMigrationReport(
+            dry_run=dry_run, actions=actions, skipped_files=sorted(set(skipped))
+        )
 
     def _is_canonical_id(self, document_id: str) -> bool:
         # Keep in sync with current IdValidator default behavior.

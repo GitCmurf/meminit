@@ -66,19 +66,11 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     (tmp_path / "docs" / "nested" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs-other" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "a.md").write_text(
-        "---\n"
-        "document_id: DOC-A\n"
-        "type: ADR\n"
-        "title: A\n"
-        "---\n\n# A\n",
+        "---\n" "document_id: DOC-A\n" "type: ADR\n" "title: A\n" "---\n\n# A\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "00-governance" / "b.md").write_text(
-        "---\n"
-        "document_id: DOC-B\n"
-        "type: ADR\n"
-        "title: B\n"
-        "---\n\n# B\n",
+        "---\n" "document_id: DOC-B\n" "type: ADR\n" "title: B\n" "---\n\n# B\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "WIP-notes.md").write_text("# WIP\n", encoding="utf-8")
@@ -86,19 +78,11 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
         "# Template\n", encoding="utf-8"
     )
     (tmp_path / "docs-other" / "00-governance" / "c.md").write_text(
-        "---\n"
-        "document_id: DOC-C\n"
-        "type: ADR\n"
-        "title: C\n"
-        "---\n\n# C\n",
+        "---\n" "document_id: DOC-C\n" "type: ADR\n" "title: C\n" "---\n\n# C\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "nested" / "00-governance" / "d.md").write_text(
-        "---\n"
-        "document_id: DOC-D\n"
-        "type: ADR\n"
-        "title: D\n"
-        "---\n\n# D\n",
+        "---\n" "document_id: DOC-D\n" "type: ADR\n" "title: D\n" "---\n\n# D\n",
         encoding="utf-8",
     )
 
@@ -165,19 +149,11 @@ def test_context_repository_execute_deep_uses_document_id_for_same_root_namespac
     )
     (tmp_path / "docs" / "00-governance").mkdir(parents=True)
     (tmp_path / "docs" / "00-governance" / "root.md").write_text(
-        "---\n"
-        "document_id: TEST-ADR-001\n"
-        "type: ADR\n"
-        "title: Root\n"
-        "---\n\n# Root\n",
+        "---\n" "document_id: TEST-ADR-001\n" "type: ADR\n" "title: Root\n" "---\n\n# Root\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "00-governance" / "phyla.md").write_text(
-        "---\n"
-        "document_id: PHYLA-ADR-001\n"
-        "type: ADR\n"
-        "title: Phyla\n"
-        "---\n\n# Phyla\n",
+        "---\n" "document_id: PHYLA-ADR-001\n" "type: ADR\n" "title: Phyla\n" "---\n\n# Phyla\n",
         encoding="utf-8",
     )
 

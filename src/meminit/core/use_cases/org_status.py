@@ -70,4 +70,3 @@ class OrgStatusUseCase:
             current_profile_digest=profile.digest(),
             repo_lock_matches_current=matches,
         )
-

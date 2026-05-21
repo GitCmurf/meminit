@@ -1,4 +1,11 @@
-from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType, ActionPreconditions, ActionSafety
+from meminit.core.services.scan_plan import (
+    MigrationPlan,
+    PlanAction,
+    PlanActionType,
+    ActionPreconditions,
+    ActionSafety,
+)
+
 
 def test_plan_action_id_generation():
     action = PlanActionType.INSERT_METADATA_BLOCK.value
@@ -8,9 +15,10 @@ def test_plan_action_id_generation():
     id2 = PlanAction.generate_id(action, src, tgt)
     assert id1 == id2
     assert id1.startswith("PA_")
-    
+
     id3 = PlanAction.generate_id(PlanActionType.MOVE_FILE.value, src, "docs/README.md")
     assert id1 != id3
+
 
 def test_migration_plan_serialization():
     action = PlanAction(
@@ -21,16 +29,17 @@ def test_migration_plan_serialization():
         confidence=0.9,
         rationale=["Test"],
         preconditions=ActionPreconditions(source_sha256="abc"),
-        safety=ActionSafety(destructive=False, overwrites=False)
+        safety=ActionSafety(destructive=False, overwrites=False),
     )
     plan = MigrationPlan(config_fingerprint="xyz", actions=[action])
     d = plan.as_dict()
-    
+
     assert d["plan_version"] == "1.0"
     assert d["config_fingerprint"] == "xyz"
     assert len(d["actions"]) == 1
     assert d["actions"][0]["id"] == "PA_123"
     assert d["actions"][0]["action"] == "rename_file"
+
 
 def test_migration_plan_deserialization():
     data = {
@@ -45,9 +54,9 @@ def test_migration_plan_deserialization():
                 "confidence": 0.9,
                 "rationale": ["Test"],
                 "preconditions": {"source_sha256": "abc"},
-                "safety": {"destructive": False, "overwrites": False}
+                "safety": {"destructive": False, "overwrites": False},
             }
-        ]
+        ],
     }
     plan = MigrationPlan.from_dict(data)
     assert plan.plan_version == "1.0"
@@ -60,15 +69,43 @@ def test_migration_plan_deserialization():
     assert action.preconditions.source_sha256 == "abc"
     assert action.safety.destructive is False
 
+
 def test_migration_plan_sorting():
-    a1 = PlanAction(id="1", action=PlanActionType.RENAME_FILE, source_path="b.md", target_path="b.md", confidence=0.0, rationale=[], preconditions=ActionPreconditions(), safety=ActionSafety())
-    a2 = PlanAction(id="2", action=PlanActionType.MOVE_FILE, source_path="a.md", target_path="a.md", confidence=0.0, rationale=[], preconditions=ActionPreconditions(), safety=ActionSafety())
-    a3 = PlanAction(id="3", action=PlanActionType.INSERT_METADATA_BLOCK, source_path="a.md", target_path="a.md", confidence=0.0, rationale=[], preconditions=ActionPreconditions(), safety=ActionSafety())
-    
+    a1 = PlanAction(
+        id="1",
+        action=PlanActionType.RENAME_FILE,
+        source_path="b.md",
+        target_path="b.md",
+        confidence=0.0,
+        rationale=[],
+        preconditions=ActionPreconditions(),
+        safety=ActionSafety(),
+    )
+    a2 = PlanAction(
+        id="2",
+        action=PlanActionType.MOVE_FILE,
+        source_path="a.md",
+        target_path="a.md",
+        confidence=0.0,
+        rationale=[],
+        preconditions=ActionPreconditions(),
+        safety=ActionSafety(),
+    )
+    a3 = PlanAction(
+        id="3",
+        action=PlanActionType.INSERT_METADATA_BLOCK,
+        source_path="a.md",
+        target_path="a.md",
+        confidence=0.0,
+        rationale=[],
+        preconditions=ActionPreconditions(),
+        safety=ActionSafety(),
+    )
+
     plan = MigrationPlan(actions=[a1, a2, a3])
     plan.sort_actions()
-    
-    # Sort key is (source_path, action_priority, target_path, id). a.md before b.md. 
+
+    # Sort key is (source_path, action_priority, target_path, id). a.md before b.md.
     # For a.md: INSERT_METADATA_BLOCK (priority 0) before MOVE_FILE (priority 3).
     # insert < move
     assert plan.actions[0].id == "3"
@@ -79,6 +116,7 @@ def test_migration_plan_sorting():
 def test_from_dict_rejects_non_dict_data():
     """Non-dict data raises ValueError."""
     import pytest
+
     with pytest.raises(ValueError, match="MigrationPlan data must be a dict"):
         MigrationPlan.from_dict([])  # type: ignore
 
@@ -86,6 +124,7 @@ def test_from_dict_rejects_non_dict_data():
 def test_from_dict_rejects_non_dict_action():
     """Non-dict action raises ValueError."""
     import pytest
+
     with pytest.raises(ValueError, match="must be a dict"):
         MigrationPlan.from_dict({"actions": ["string"]})
 
@@ -93,24 +132,18 @@ def test_from_dict_rejects_non_dict_action():
 def test_from_dict_rejects_non_dict_preconditions():
     """Non-dict preconditions raises ValueError."""
     import pytest
+
     with pytest.raises(ValueError, match="preconditions.*must be a dict"):
-        MigrationPlan.from_dict({
-            "actions": [{
-                "action": "rename_file",
-                "preconditions": [],
-                "safety": {}
-            }]
-        })
+        MigrationPlan.from_dict(
+            {"actions": [{"action": "rename_file", "preconditions": [], "safety": {}}]}
+        )
 
 
 def test_from_dict_rejects_non_dict_safety():
     """Non-dict safety raises ValueError."""
     import pytest
+
     with pytest.raises(ValueError, match="safety.*must be a dict"):
-        MigrationPlan.from_dict({
-            "actions": [{
-                "action": "rename_file",
-                "preconditions": {},
-                "safety": []
-            }]
-        })
+        MigrationPlan.from_dict(
+            {"actions": [{"action": "rename_file", "preconditions": {}, "safety": []}]}
+        )

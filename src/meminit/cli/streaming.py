@@ -100,9 +100,7 @@ class StreamEmitter:
         if root is not None:
             header["root"] = root.resolve().as_posix()
         if include_timestamp:
-            header["started_at"] = (
-                datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            )
+            header["started_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         self._write(header)
 
     @property
@@ -208,9 +206,7 @@ def streaming_output_handler(
             include_timestamp=include_timestamp,
         )
         if open_error is not None:
-            emitter.emit_error(
-                open_error["code"], open_error["message"], open_error.get("details")
-            )
+            emitter.emit_error(open_error["code"], open_error["message"], open_error.get("details"))
             raise SystemExit(exit_code)
         previous_handlers = _register_interrupt_handlers(emitter)
         with log_operation(
@@ -272,9 +268,7 @@ def write_ndjson_error(
             include_timestamp=include_timestamp,
         )
         if open_error is not None:
-            emitter.emit_error(
-                open_error["code"], open_error["message"], open_error.get("details")
-            )
+            emitter.emit_error(open_error["code"], open_error["message"], open_error.get("details"))
             raise SystemExit(exit_code)
         emitter.emit_error(error.code, error.message, error.details)
     finally:
@@ -291,9 +285,7 @@ def unsupported_ndjson(command: str, message: str) -> MeminitError:
     )
 
 
-def _open_stream(
-    *, output: str | None
-) -> tuple[TextIO, bool, dict[str, Any] | None, int | None]:
+def _open_stream(*, output: str | None) -> tuple[TextIO, bool, dict[str, Any] | None, int | None]:
     if not output:
         return sys.stdout, False, None, None
     out_path = Path(output)
@@ -322,6 +314,7 @@ def _open_stream(
             },
             EX_CANTCREAT,
         )
+
 
 def _register_interrupt_handlers(
     emitter: StreamEmitter,

@@ -10,19 +10,16 @@ from tests.helpers import parse_first_json_line
 
 def test_every_error_code_has_explanation():
     """Every ErrorCode enum member must have a corresponding explanation."""
-    missing = [
-        code.value for code in ErrorCode
-        if code.value not in ERROR_EXPLANATIONS
-    ]
+    missing = [code.value for code in ErrorCode if code.value not in ERROR_EXPLANATIONS]
     assert not missing, f"ErrorCodes missing explanations: {sorted(missing)}"
 
 
 def test_explanation_categories_are_valid():
     valid_categories = {"shared", "templates", "state", "agent", "graph", "protocol"}
     for code, explanation in ERROR_EXPLANATIONS.items():
-        assert explanation.category in valid_categories, (
-            f"{code}: invalid category '{explanation.category}'"
-        )
+        assert (
+            explanation.category in valid_categories
+        ), f"{code}: invalid category '{explanation.category}'"
 
 
 def test_remediation_has_at_least_one_relevant_command_when_applicable():
@@ -30,9 +27,7 @@ def test_remediation_has_at_least_one_relevant_command_when_applicable():
         r = explanation.remediation
         # Codes with no relevant commands should still be valid (e.g. UNKNOWN_ERROR)
         # but most should have at least one.
-        assert isinstance(r.relevant_commands, list), (
-            f"{code}: relevant_commands is not a list"
-        )
+        assert isinstance(r.relevant_commands, list), f"{code}: relevant_commands is not a list"
 
 
 _VALID_RESOLUTION_TYPES = {"manual", "auto_fixable", "retryable", "config_change"}
@@ -45,16 +40,16 @@ def test_explanation_has_required_fields():
         assert explanation.summary, f"{code}: missing summary"
         assert explanation.cause, f"{code}: missing cause"
         assert explanation.remediation.action, f"{code}: missing remediation.action"
-        assert explanation.remediation.resolution_type, (
-            f"{code}: missing remediation.resolution_type"
-        )
+        assert (
+            explanation.remediation.resolution_type
+        ), f"{code}: missing remediation.resolution_type"
         assert explanation.remediation.resolution_type in _VALID_RESOLUTION_TYPES, (
             f"{code}: invalid resolution_type '{explanation.remediation.resolution_type}', "
             f"must be one of {sorted(_VALID_RESOLUTION_TYPES)}"
         )
-        assert isinstance(explanation.remediation.automatable, bool), (
-            f"{code}: remediation.automatable is not bool"
-        )
+        assert isinstance(
+            explanation.remediation.automatable, bool
+        ), f"{code}: remediation.automatable is not bool"
 
 
 def test_unknown_error_code_has_explanation():

@@ -53,8 +53,6 @@ class TestNormalizeTypeDirectories:
 
     def test_mixed_valid_and_invalid(self):
         """Valid entries survive alongside rejected traversal entries."""
-        result = _normalize_type_directories(
-            "docs", {"ADR": "adr", "PRD": "../prd", "GOV": "gov"}
-        )
+        result = _normalize_type_directories("docs", {"ADR": "adr", "PRD": "../prd", "GOV": "gov"})
         assert result == {"ADR": "adr", "GOV": "gov"}
         assert "PRD" not in result

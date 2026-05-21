@@ -40,7 +40,9 @@ def _make_layout(tmp_path: Path) -> RepoLayout:
     )
 
 
-def _make_service_with_doc(tmp_path: Path, rel_path: str, content: str) -> tuple[HeuristicsService, Path]:
+def _make_service_with_doc(
+    tmp_path: Path, rel_path: str, content: str
+) -> tuple[HeuristicsService, Path]:
     """Create a HeuristicsService and a document file in the repo."""
     doc_path = tmp_path / rel_path
     doc_path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,29 +76,29 @@ class TestGeneratePlanActions:
             "docops_version: 2.0\nlast_updated: 2026-01-01\n---\n# Test\n"
         )
         service, doc_path = _make_service_with_doc(
-            tmp_path, "docs/adr/adr-001.md", content,
+            tmp_path,
+            "docs/adr/adr-001.md",
+            content,
         )
         actions = service.generate_plan_actions([doc_path])
         # Only move/rename may appear; no metadata-only action
         metadata_actions = [
-            a for a in actions
+            a
+            for a in actions
             if a.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA)
         ]
         assert len(metadata_actions) == 0
 
     def test_partial_frontmatter_updates_metadata(self, tmp_path):
         """File with partial frontmatter gets UPDATE_METADATA for missing fields."""
-        content = (
-            "---\ntitle: Test\n---\n# Test\n"
-        )
+        content = "---\ntitle: Test\n---\n# Test\n"
         service, doc_path = _make_service_with_doc(
-            tmp_path, "docs/adr/adr-001.md", content,
+            tmp_path,
+            "docs/adr/adr-001.md",
+            content,
         )
         actions = service.generate_plan_actions([doc_path])
-        update_actions = [
-            a for a in actions
-            if a.action == PlanActionType.UPDATE_METADATA
-        ]
+        update_actions = [a for a in actions if a.action == PlanActionType.UPDATE_METADATA]
         assert len(update_actions) >= 1
         patch = update_actions[0].metadata_patch
         assert patch is not None
@@ -268,7 +270,9 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type("docs/misc/decision-log.md", config)
+        doc_type, confidence, rationale = service._infer_doc_type(
+            "docs/misc/decision-log.md", config
+        )
         assert doc_type == "ADR"
 
     def test_infer_from_filename_prd(self, tmp_path):
@@ -276,7 +280,9 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, confidence, rationale = service._infer_doc_type("docs/misc/product-requirements.md", config)
+        doc_type, confidence, rationale = service._infer_doc_type(
+            "docs/misc/product-requirements.md", config
+        )
         assert doc_type == "PRD"
 
     def test_infer_fallback_default(self, tmp_path):

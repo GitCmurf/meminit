@@ -81,7 +81,14 @@ def _get_schema_validator() -> Draft7Validator:
         )
         schema = json.loads(schema_text)
         _SCHEMA_VALIDATOR = Draft7Validator(schema, format_checker=FormatChecker())
-    except (OSError, FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, SchemaError, ValueError) as e:
+    except (
+        OSError,
+        FileNotFoundError,
+        ModuleNotFoundError,
+        json.JSONDecodeError,
+        SchemaError,
+        ValueError,
+    ) as e:
         raise RuntimeError("Failed to load or parse output schema") from e
     return _SCHEMA_VALIDATOR
 
@@ -203,9 +210,7 @@ def normalize_correlation_id(correlation_id: str | None) -> str | None:
     if correlation_id is None:
         return None
     if len(correlation_id) > 128:
-        raise ValueError(
-            f"correlation_id exceeds 128 characters (got {len(correlation_id)})"
-        )
+        raise ValueError(f"correlation_id exceeds 128 characters (got {len(correlation_id)})")
     if not correlation_id:
         raise ValueError("correlation_id must not be empty")
     if any(c.isspace() for c in correlation_id):
@@ -275,18 +280,14 @@ def format_envelope(
         envelope["correlation_id"] = cid
 
     if include_timestamp:
-        envelope["timestamp"] = (
-            datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        )
+        envelope["timestamp"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     if root is not None:
         envelope["root"] = Path(root).resolve().as_posix()
 
     envelope["data"] = recursively_sort_keys(data if data is not None else {})
     envelope["warnings"] = canonicalize_warning_list(warnings or [])
-    envelope["violations"] = [
-        recursively_sort_keys(v) for v in _sort_violations(violations or [])
-    ]
+    envelope["violations"] = [recursively_sort_keys(v) for v in _sort_violations(violations or [])]
     envelope["advice"] = canonicalize_advice_list(advice or [])
 
     if error is not None:
@@ -324,6 +325,7 @@ def format_envelope(
         _validate_envelope(ordered)
     except ValueError:
         import logging
+
         logging.getLogger(__name__).exception("Envelope schema validation failed")
         raise
 

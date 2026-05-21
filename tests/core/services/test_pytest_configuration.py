@@ -13,8 +13,7 @@ def test_pytest_runs_without_implicit_coverage_plugin(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[3]
     sample_test = tmp_path / "test_sample.py"
     sample_test.write_text(
-        "def test_sample():\n"
-        "    assert 1 + 1 == 2\n",
+        "def test_sample():\n" "    assert 1 + 1 == 2\n",
         encoding="utf-8",
     )
 

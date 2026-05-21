@@ -76,9 +76,7 @@ class ProtocolChecker:
                     target_path=target,
                 )
                 on_disk_mode = target.stat().st_mode & 0o777
-                on_disk_content = target.read_bytes().decode(
-                    "utf-8", errors="surrogateescape"
-                )
+                on_disk_content = target.read_bytes().decode("utf-8", errors="surrogateescape")
 
             canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
             status = classify_drift(
@@ -95,9 +93,7 @@ class ProtocolChecker:
         aligned = sum(1 for s in statuses if s.status == DriftOutcome.ALIGNED)
         unparseable = sum(1 for s in statuses if s.status == DriftOutcome.UNPARSEABLE)
         drifted = sum(
-            1
-            for s in statuses
-            if s.status not in (DriftOutcome.ALIGNED, DriftOutcome.UNPARSEABLE)
+            1 for s in statuses if s.status not in (DriftOutcome.ALIGNED, DriftOutcome.UNPARSEABLE)
         )
 
         asset_dicts = []

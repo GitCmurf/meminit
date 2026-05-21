@@ -75,7 +75,9 @@ class CheckRepositoryUseCase:
                 def load_document_id(current_path: Path = path) -> Optional[str]:
                     nonlocal document_post
                     if document_post is None:
-                        document_post, _ = self._load_document_post(current_path, document_load_cache)
+                        document_post, _ = self._load_document_post(
+                            current_path, document_load_cache
+                        )
                     return self._document_id_from_post(document_post)
 
                 validation_ns = self._resolve_validation_namespace(path, load_document_id)
@@ -263,14 +265,12 @@ class CheckRepositoryUseCase:
             def load_document_id(canonical_path=canonical_path) -> Optional[str]:
                 nonlocal document_post
                 if document_post is None:
-                    document_post, _ = self._load_document_post(
-                        canonical_path, document_load_cache
-                    )
+                    document_post, _ = self._load_document_post(canonical_path, document_load_cache)
                 return self._document_id_from_post(document_post)
 
-            validation_ns = self._resolve_validation_namespace(
-                canonical_path, load_document_id
-            ) or ns
+            validation_ns = (
+                self._resolve_validation_namespace(canonical_path, load_document_id) or ns
+            )
             if validation_ns.is_excluded(canonical_path):
                 continue
 
@@ -411,7 +411,9 @@ class CheckRepositoryUseCase:
                 def load_document_id(current_path: Path = path) -> Optional[str]:
                     nonlocal document_post
                     if document_post is None:
-                        document_post, _ = self._load_document_post(current_path, document_load_cache)
+                        document_post, _ = self._load_document_post(
+                            current_path, document_load_cache
+                        )
                     return self._document_id_from_post(document_post)
 
                 validation_ns = self._resolve_validation_namespace(path, load_document_id)
@@ -592,8 +594,7 @@ class CheckRepositoryUseCase:
                     line=0,
                     rule="FILENAME_CONVENTION",
                     message=(
-                        f"Filename '{path.name}' must be lowercase kebab-case "
-                        f"(e.g., my-doc.md)"
+                        f"Filename '{path.name}' must be lowercase kebab-case " f"(e.g., my-doc.md)"
                     ),
                     severity=Severity.WARNING,
                 )

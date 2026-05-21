@@ -126,7 +126,7 @@ def test_index_schema_fails_on_malformed_payload(index_artifact_schema):
         "data": {},
         "warnings": [],
         "violations": [],
-        "advice": []
+        "advice": [],
     }
     assert validator.is_valid(bad_payload) is False
 
@@ -159,14 +159,14 @@ def test_index_schema_fails_on_wrong_field_type(index_artifact_schema):
                     "document_id": 123,  # Invalid: should be string
                     "path": "docs/test.md",
                     "type": "ADR",
-                    "title": "Test"
+                    "title": "Test",
                 }
             ],
-            "edges": []
+            "edges": [],
         },
         "warnings": [],
         "violations": [],
-        "advice": []
+        "advice": [],
     }
     assert validator.is_valid(payload) is False
     errors = list(validator.iter_errors(payload))

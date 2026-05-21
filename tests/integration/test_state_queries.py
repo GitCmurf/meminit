@@ -339,15 +339,15 @@ def _setup_q21(tmp_path: Path) -> dict:
     _write_state(
         tmp_path,
         {
-            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P0"),
+            "FIX-ADR-001": _make_entry(impl_state="Not Started", priority="P2"),
             "FIX-ADR-002": _make_entry(impl_state="Not Started", priority="P3"),
         },
     )
     return {
         "id": "Q21",
-        "expected_reason": None,
-        "expected_doc": "FIX-ADR-001",
-        "filter_priority_at_least": "P0",
+        "expected_reason": "queue_empty",
+        "expected_doc": None,
+        "filter_priority_at_least": "P1",
     }
 
 

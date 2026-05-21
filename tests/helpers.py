@@ -47,9 +47,7 @@ def parse_json_envelope(output: str) -> dict:
         return candidates[0]
     if not candidates:
         raise ValueError("No JSON envelope found in output")
-    raise ValueError(
-        f"Expected exactly 1 JSON envelope, found {len(candidates)}"
-    )
+    raise ValueError(f"Expected exactly 1 JSON envelope, found {len(candidates)}")
 
 
 def stdout_text(result: "Result") -> str:

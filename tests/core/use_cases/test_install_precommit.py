@@ -35,11 +35,7 @@ def test_install_precommit_appends_to_existing_config(tmp_path):
     config_path = tmp_path / ".pre-commit-config.yaml"
     config_path.write_text(
         yaml.safe_dump(
-            {
-                "repos": [
-                    {"repo": "https://example.com/other", "rev": "v1", "hooks": []}
-                ]
-            },
+            {"repos": [{"repo": "https://example.com/other", "rev": "v1", "hooks": []}]},
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -92,9 +88,7 @@ def test_install_precommit_respects_existing_hook(tmp_path):
 
 
 def test_install_precommit_uses_custom_docs_root(tmp_path):
-    (tmp_path / "docops.config.yaml").write_text(
-        "docs_root: documentation\n", encoding="utf-8"
-    )
+    (tmp_path / "docops.config.yaml").write_text("docs_root: documentation\n", encoding="utf-8")
     use_case = InstallPrecommitUseCase(str(tmp_path))
     result = use_case.execute()
     assert result.status == "created"

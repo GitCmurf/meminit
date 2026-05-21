@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
-
 STATUS_RE = re.compile(r"^\s*REVIEW_STATUS:\s*(clear|findings)\s*$", re.IGNORECASE | re.MULTILINE)
 CODEX_FINDING_RE = re.compile(r"^\s*-\s*\[P[0-3]\]\s+", re.MULTILINE)
 CODEX_FINDING_LINE_RE = re.compile(r"^\s*-\s*(\[P[0-3]\]\s+.+)$")
@@ -156,7 +155,9 @@ def print_compact_progress(phase: str, label: str, text: str, *, head: str = "")
         print(line, file=sys.stderr, flush=True)
 
 
-def progress_event(config: LoopConfig, phase: str, label: str, status: str, detail: str = "") -> None:
+def progress_event(
+    config: LoopConfig, phase: str, label: str, status: str, detail: str = ""
+) -> None:
     if not config.progress:
         return
     if config.progress_style == "verbose":
@@ -169,7 +170,9 @@ def progress_event(config: LoopConfig, phase: str, label: str, status: str, deta
         print_compact_progress(phase, label, status)
 
 
-def progress_continuation(config: LoopConfig, phase: str, label: str, text: str, indent: int = 2) -> None:
+def progress_continuation(
+    config: LoopConfig, phase: str, label: str, text: str, indent: int = 2
+) -> None:
     if not config.progress:
         return
     if config.progress_style == "verbose":
@@ -186,7 +189,12 @@ def progress_continuation(config: LoopConfig, phase: str, label: str, text: str,
         print(f"{' ' * len(prefix)}{' ' * indent}{line}", file=sys.stderr, flush=True)
 
 
-def default_runner(args: Sequence[str], cwd: Path, input_text: str | None = None, timeout_seconds: Optional[float] = None) -> CommandResult:
+def default_runner(
+    args: Sequence[str],
+    cwd: Path,
+    input_text: str | None = None,
+    timeout_seconds: Optional[float] = None,
+) -> CommandResult:
     try:
         completed = subprocess.run(
             list(args),
@@ -344,7 +352,9 @@ def log_review_findings(config: LoopConfig, label: str, output: str) -> bool:
     summary = extract_review_summary(output)
     if summary:
         if compact_progress_label(label) == "init":
-            progress_continuation(config, "review", label, summary, indent=COMPACT_PROGRESS_DETAIL_INDENT)
+            progress_continuation(
+                config, "review", label, summary, indent=COMPACT_PROGRESS_DETAIL_INDENT
+            )
         else:
             print_progress_message(config, "review", label, summary, head="issue: ")
     else:
@@ -358,11 +368,15 @@ def log_review_findings(config: LoopConfig, label: str, output: str) -> bool:
             head=f"{strip_finding_priority(block[0])[0]:<7}",
         )
         for detail in block[1:]:
-            progress_continuation(config, "review", label, detail, indent=COMPACT_PROGRESS_DETAIL_INDENT)
+            progress_continuation(
+                config, "review", label, detail, indent=COMPACT_PROGRESS_DETAIL_INDENT
+            )
     return True
 
 
-def print_progress_message(config: LoopConfig, phase: str, label: str, text: str, *, head: str = "") -> None:
+def print_progress_message(
+    config: LoopConfig, phase: str, label: str, text: str, *, head: str = ""
+) -> None:
     if not config.progress:
         return
     if config.progress_style == "verbose":
@@ -398,7 +412,9 @@ def build_review_command(config: LoopConfig) -> list[str]:
     return command
 
 
-def build_remediation_command(config: LoopConfig, output_last_message: Path | None = None) -> list[str]:
+def build_remediation_command(
+    config: LoopConfig, output_last_message: Path | None = None
+) -> list[str]:
     command = [config.codex_bin, "exec"]
     command.extend(codex_config_args(config))
     if config.full_auto:
@@ -532,7 +548,9 @@ def run_checks(config: LoopConfig, runner: Runner, iteration: int) -> list[Comma
         if result.returncode == 0:
             progress_event(config, "check", f"{iteration}.{index}", "passed")
         else:
-            progress_event(config, "check", f"{iteration}.{index}", "failed", f"exit {result.returncode}")
+            progress_event(
+                config, "check", f"{iteration}.{index}", "failed", f"exit {result.returncode}"
+            )
     return results
 
 
@@ -566,11 +584,7 @@ def trim_for_prompt(text: str, max_chars: int) -> str:
     keep_total = max_chars - len(marker)
     keep_head = keep_total // 2
     keep_tail = keep_total - keep_head
-    return (
-        text[:keep_head]
-        + marker
-        + text[-keep_tail:]
-    )
+    return text[:keep_head] + marker + text[-keep_tail:]
 
 
 def excerpt_for_terminal(text: str, max_chars: int) -> str:
@@ -590,9 +604,7 @@ def add_artifact_paths(summary: dict[str, object], config: LoopConfig) -> None:
         "artifact_dir": str(artifact_dir),
         "summary": str(artifact_dir / "summary.json"),
         "reviews": [
-            str(path)
-            for path in files
-            if path.name.startswith("review-") and path.suffix == ".txt"
+            str(path) for path in files if path.name.startswith("review-") and path.suffix == ".txt"
         ],
         "remediations": [
             str(path)
@@ -655,7 +667,9 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
         "artifact_dir": str(config.artifact_dir),
         "iterations": iterations,
         "final_status": "unknown",
-        "initial_review_file": str(config.initial_review_file) if config.initial_review_file else None,
+        "initial_review_file": (
+            str(config.initial_review_file) if config.initial_review_file else None
+        ),
         "pending_check_failures": False,
         "stopped_reason": None,
     }
@@ -719,7 +733,9 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
 
         check_results = run_checks(config, runner, iteration)
         pending_check_failures = _format_check_failures(check_results)
-        iterations[-1]["check_failures"] = sum(1 for result in check_results if result.returncode != 0)
+        iterations[-1]["check_failures"] = sum(
+            1 for result in check_results if result.returncode != 0
+        )
 
     if config.final_review:
         status, final_review = run_codex_review(
@@ -739,7 +755,9 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
             summary["stopped_reason"] = "max_iterations_reached_with_check_failures"
         else:
             summary["final_status"] = status
-            summary["stopped_reason"] = "review_clear" if status == "clear" else "max_iterations_reached"
+            summary["stopped_reason"] = (
+                "review_clear" if status == "clear" else "max_iterations_reached"
+            )
     else:
         # Status after the last remediation is not known without a review.
         summary["final_status"] = "unknown"
@@ -752,7 +770,9 @@ def run_loop(config: LoopConfig, runner: Runner = default_runner) -> dict[str, o
 
 def write_summary(config: LoopConfig, summary: dict[str, object]) -> None:
     add_artifact_paths(summary, config)
-    write_artifact(config.artifact_dir / "summary.json", json.dumps(summary, indent=2, sort_keys=True))
+    write_artifact(
+        config.artifact_dir / "summary.json", json.dumps(summary, indent=2, sort_keys=True)
+    )
 
 
 def _combined_output(result: CommandResult) -> str:
@@ -782,7 +802,9 @@ def format_terminal_summary(summary: dict[str, object]) -> str:
             iteration = item.get("iteration")
             review_status = item.get("review_status", "unknown")
             check_failures = item.get("check_failures")
-            check_text = "checks not run" if check_failures is None else f"check failures: {check_failures}"
+            check_text = (
+                "checks not run" if check_failures is None else f"check failures: {check_failures}"
+            )
             failed = " remediation failed" if item.get("remediation_failed") else ""
             lines.append(f"  {iteration}: review={review_status}, {check_text}{failed}")
 
@@ -828,8 +850,12 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Maximum remediation passes before stopping. Default: 2.",
     )
     parser.add_argument("--codex-bin", default="codex", help="Codex executable path/name.")
-    parser.add_argument("--model", default=None, help="Optional model passed to both Codex review and remediation.")
-    parser.add_argument("--review-model", default=None, help="Optional model override for codex review only.")
+    parser.add_argument(
+        "--model", default=None, help="Optional model passed to both Codex review and remediation."
+    )
+    parser.add_argument(
+        "--review-model", default=None, help="Optional model override for codex review only."
+    )
     parser.add_argument(
         "--remediation-model",
         default=None,
@@ -879,7 +905,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=None,
         help="Directory for review/remediation/check transcripts.",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print the loop shape without running Codex.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print the loop shape without running Codex."
+    )
     parser.add_argument(
         "--skip-final-review",
         action="store_true",
@@ -946,6 +974,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def default_artifact_dir() -> Path:
     from uuid import uuid4
+
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     unique = uuid4().hex[:8]
     return Path("tmp") / "codex-review-remediation-loop" / f"{timestamp}-{unique}"

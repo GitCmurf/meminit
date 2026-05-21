@@ -19,10 +19,7 @@ def runner_no_mixed_stderr() -> CliRunner:
 @pytest.fixture(scope="module")
 def agent_output_schema():
     schema_path = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "20-specs"
-        / "agent-output.schema.v3.json"
+        Path(__file__).resolve().parents[2] / "docs" / "20-specs" / "agent-output.schema.v3.json"
     )
     return json.loads(schema_path.read_text(encoding="utf-8"))
 
@@ -249,7 +246,17 @@ def _case_org_install(_root: Path) -> list[str]:
 
 
 def _case_org_vendor(root: Path) -> list[str]:
-    return ["org", "vendor", "--root", str(root), "--profile", "default", "--dry-run", "--format", "json"]
+    return [
+        "org",
+        "vendor",
+        "--root",
+        str(root),
+        "--profile",
+        "default",
+        "--dry-run",
+        "--format",
+        "json",
+    ]
 
 
 def _case_org_status(root: Path) -> list[str]:

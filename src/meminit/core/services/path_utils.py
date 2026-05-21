@@ -4,20 +4,21 @@ import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 
-
-FILENAME_EXCEPTIONS = frozenset({
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "LICENSE.md",
-    "LICENCE",
-    "LICENCE.md",
-    "CODE_OF_CONDUCT.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
-    "NOTICE",
-    "NOTICE.md",
-})
+FILENAME_EXCEPTIONS = frozenset(
+    {
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSE.md",
+        "LICENCE",
+        "LICENCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "NOTICE",
+        "NOTICE.md",
+    }
+)
 
 
 def normalize_filename_to_kebab_case(original_path: Path) -> Path:
@@ -39,8 +40,8 @@ def normalize_filename_to_kebab_case(original_path: Path) -> Path:
 def compute_file_hash(path: Path) -> str:
     """Compute SHA256 hash of a file efficiently using chunked reading."""
     h = hashlib.sha256()
-    with open(path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return f"sha256:{h.hexdigest()}"
 
@@ -71,8 +72,17 @@ _SENSITIVE_HOME_DIRS = frozenset({".ssh", ".gnupg", ".aws", ".kube"})
 def is_safe_cli_output_path(path: Path) -> bool:
     """Return whether a CLI output path avoids protected system locations."""
     forbidden = [
-        "/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/root", "/var",
-        "/proc", "/sys", "/dev", "/boot",
+        "/etc",
+        "/bin",
+        "/sbin",
+        "/usr/bin",
+        "/usr/sbin",
+        "/root",
+        "/var",
+        "/proc",
+        "/sys",
+        "/dev",
+        "/boot",
     ]
     try:
         abs_path = path.resolve()

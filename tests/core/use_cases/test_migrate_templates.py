@@ -69,10 +69,7 @@ def test_migrate_templates_templates_only_preserves_default_directory(tmp_path: 
 def test_migrate_templates_dry_run_does_not_modify_files(tmp_path: Path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
-        "repo_prefix: TEST\n"
-        "docops_version: '2.0'\n"
-        "type_directories:\n"
-        "  ADR: '45-adr'\n",
+        "repo_prefix: TEST\n" "docops_version: '2.0'\n" "type_directories:\n" "  ADR: '45-adr'\n",
         encoding="utf-8",
     )
 
@@ -89,10 +86,7 @@ def test_migrate_templates_dry_run_does_not_modify_files(tmp_path: Path):
 def test_migrate_templates_applies_changes_when_not_dry_run(tmp_path: Path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
-        "repo_prefix: TEST\n"
-        "docops_version: '2.0'\n"
-        "type_directories:\n"
-        "  ADR: '45-adr'\n",
+        "repo_prefix: TEST\n" "docops_version: '2.0'\n" "type_directories:\n" "  ADR: '45-adr'\n",
         encoding="utf-8",
     )
 
@@ -155,17 +149,16 @@ def test_migrate_templates_placeholder_replacement_apply(tmp_path: Path):
     assert "{{title}}" in content
     # Check that standalone {title} patterns are gone (not inside {{title}})
     # Use word boundary pattern to avoid matching {title} inside {{title}}
-    assert not re.search(r'(?<!{){title}(?!})', content), "Standalone {title} placeholder should be replaced"
+    assert not re.search(
+        r"(?<!{){title}(?!})", content
+    ), "Standalone {title} placeholder should be replaced"
 
 
 def test_migrate_templates_idempotent_rerun(tmp_path: Path):
     templates_dir = tmp_path / "docs" / "00-governance" / "templates"
     templates_dir.mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
-        "repo_prefix: TEST\n"
-        "docops_version: '2.0'\n"
-        "type_directories:\n"
-        "  ADR: '45-adr'\n",
+        "repo_prefix: TEST\n" "docops_version: '2.0'\n" "type_directories:\n" "  ADR: '45-adr'\n",
         encoding="utf-8",
     )
 

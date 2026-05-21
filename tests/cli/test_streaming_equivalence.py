@@ -19,9 +19,7 @@ def _items_by_kind(stream_records, kind: str) -> list[dict]:
 
 def test_index_json_and_ndjson_are_equivalent(initialized_repo):
     runner = CliRunner()
-    json_result = runner.invoke(
-        cli, ["index", "--root", str(initialized_repo), "--format", "json"]
-    )
+    json_result = runner.invoke(cli, ["index", "--root", str(initialized_repo), "--format", "json"])
     stream_result = runner.invoke(
         cli, ["index", "--root", str(initialized_repo), "--format", "ndjson"]
     )
@@ -48,9 +46,7 @@ def test_index_json_and_ndjson_are_equivalent(initialized_repo):
 
 def test_scan_json_and_ndjson_summaries_are_equivalent(initialized_repo):
     runner = CliRunner()
-    json_result = runner.invoke(
-        cli, ["scan", "--root", str(initialized_repo), "--format", "json"]
-    )
+    json_result = runner.invoke(cli, ["scan", "--root", str(initialized_repo), "--format", "json"])
     stream_result = runner.invoke(
         cli, ["scan", "--root", str(initialized_repo), "--format", "ndjson"]
     )

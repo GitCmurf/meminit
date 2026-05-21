@@ -66,11 +66,25 @@ def extract_frontmatter_edges(
             related_ids = [related_ids]
         for rid in related_ids:
             if isinstance(rid, str) and rid.strip() and rid.strip() != doc_id:
-                edges.append(Edge(source=doc_id, target=rid.strip(), edge_type="related", context="frontmatter.related_ids"))
+                edges.append(
+                    Edge(
+                        source=doc_id,
+                        target=rid.strip(),
+                        edge_type="related",
+                        context="frontmatter.related_ids",
+                    )
+                )
 
     if superseded_by and isinstance(superseded_by, str) and superseded_by.strip():
         successor = superseded_by.strip()
-        edges.append(Edge(source=successor, target=doc_id, edge_type="supersedes", context="frontmatter.superseded_by"))
+        edges.append(
+            Edge(
+                source=successor,
+                target=doc_id,
+                edge_type="supersedes",
+                context="frontmatter.superseded_by",
+            )
+        )
 
     return edges
 
@@ -97,7 +111,9 @@ def extract_reference_edges(
         _, link_target = match.groups()
 
         lower_target = link_target.lower()
-        if lower_target.startswith(("http://", "https://", "mailto:", "javascript:", "data:", "tel:")) or lower_target.startswith("#"):
+        if lower_target.startswith(
+            ("http://", "https://", "mailto:", "javascript:", "data:", "tel:")
+        ) or lower_target.startswith("#"):
             continue
 
         # Strip fragments.
@@ -115,7 +131,15 @@ def extract_reference_edges(
 
         target_id = path_to_doc_id.get(rel)
         if target_id and target_id != doc_id and target_id not in seen_targets:
-            edges.append(Edge(source=doc_id, target=target_id, edge_type="references", guaranteed=False, context="body.markdown_link"))
+            edges.append(
+                Edge(
+                    source=doc_id,
+                    target=target_id,
+                    edge_type="references",
+                    guaranteed=False,
+                    context="body.markdown_link",
+                )
+            )
             seen_targets.add(target_id)
 
     return edges
@@ -233,8 +257,7 @@ def _check_supersession_cycle(
 
     def _canonical_cycle_key(cycle_nodes: Sequence[str]) -> Tuple[str, ...]:
         rotations = [
-            tuple(cycle_nodes[i:]) + tuple(cycle_nodes[:i])
-            for i in range(len(cycle_nodes))
+            tuple(cycle_nodes[i:]) + tuple(cycle_nodes[:i]) for i in range(len(cycle_nodes))
         ]
         return min(rotations)
 
@@ -310,9 +333,7 @@ def _check_dangling_targets(
 
     warnings: List[Dict[str, Any]] = []
     for edge in edges:
-        dangling_end = (
-            edge.target if edge.edge_type == "related" else edge.source
-        )
+        dangling_end = edge.target if edge.edge_type == "related" else edge.source
         if edge.edge_type in _CODE_MAP and dangling_end not in known_doc_ids:
             # For dangling related_ids, report the declaring document path: edge.source.
             # For dangling superseded_by, report the superseded document path: edge.target.

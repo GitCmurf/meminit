@@ -16,7 +16,11 @@ from meminit.core.services.safe_fs import ensure_safe_write_path
 from meminit.core.services.validators import SchemaValidator
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.services.scan_plan import MigrationPlan, PlanAction, PlanActionType
-from meminit.core.services.path_utils import FILENAME_EXCEPTIONS, normalize_filename_to_kebab_case, compute_file_hash
+from meminit.core.services.path_utils import (
+    FILENAME_EXCEPTIONS,
+    normalize_filename_to_kebab_case,
+    compute_file_hash,
+)
 from meminit.core.services.markdown_utils import extract_title_from_markdown, DEFAULT_DOCOPS_VERSION
 
 
@@ -42,7 +46,12 @@ class FixRepositoryUseCase:
     def _governed_today_iso(self) -> str:
         return self._governed_now().date().isoformat()
 
-    def execute(self, dry_run: bool = False, namespace: str | None = None, plan: Optional[MigrationPlan] = None) -> FixReport:
+    def execute(
+        self,
+        dry_run: bool = False,
+        namespace: str | None = None,
+        plan: Optional[MigrationPlan] = None,
+    ) -> FixReport:
         report = FixReport()
 
         target_ns = self._layout.get_namespace(namespace) if namespace else None
@@ -52,23 +61,22 @@ class FixRepositoryUseCase:
                     file="docops.config.yaml",
                     line=0,
                     rule="UNKNOWN_NAMESPACE",
-                    message=f"Namespace '{namespace}' is not defined in docops.config.yaml"
+                    message=f"Namespace '{namespace}' is not defined in docops.config.yaml",
                 )
             )
             return report
 
         if plan is not None:
             report = self._execute_plan(plan, dry_run)
-            
+
             # Post-plan compliance check to populate remaining violations
             violations = self.checker.execute()
-            
+
             if target_ns:
-                ns_root = target_ns.docs_root.strip("/")
-                ns_prefix = ns_root + "/" if ns_root and ns_root != "." else ""
-                if ns_prefix:
-                    violations = [v for v in violations if v.file.startswith(ns_prefix) or v.file == ns_root]
-            
+                violations = [
+                    v for v in violations if self._violation_belongs_to_namespace(v, target_ns)
+                ]
+
             report.remaining_violations.extend(violations)
             return report
 
@@ -77,16 +85,9 @@ class FixRepositoryUseCase:
         self._existing_document_ids = self._scan_existing_document_ids()
 
         if target_ns is not None:
-            filtered: list[Violation] = []
-            for v in violations:
-                p = self.root_dir / v.file
-                ns_for_path = self._layout.namespace_for_path(p)
-                if (
-                    ns_for_path
-                    and ns_for_path.namespace.lower() == target_ns.namespace.lower()
-                ):
-                    filtered.append(v)
-            violations = filtered
+            violations = [
+                v for v in violations if self._violation_belongs_to_namespace(v, target_ns)
+            ]
 
         renames = [v for v in violations if v.rule == "FILENAME_CONVENTION"]
         other_violations = [v for v in violations if v.rule != "FILENAME_CONVENTION"]
@@ -102,7 +103,7 @@ class FixRepositoryUseCase:
     def _execute_plan(self, plan: MigrationPlan, dry_run: bool) -> FixReport:
         report = FixReport()
         self._existing_document_ids = self._scan_existing_document_ids()
-        
+
         if plan.config_fingerprint:
             config_path = self.root_dir / "docops.config.yaml"
             if config_path.exists():
@@ -110,7 +111,12 @@ class FixRepositoryUseCase:
                     current_fp = compute_file_hash(config_path)
                     if current_fp != plan.config_fingerprint:
                         report.remaining_violations.append(
-                            Violation(file="docops.config.yaml", line=0, rule="DRIFT_DETECTED", message="Config fingerprint mismatch. Run 'scan --plan' again.")
+                            Violation(
+                                file="docops.config.yaml",
+                                line=0,
+                                rule="DRIFT_DETECTED",
+                                message="Config fingerprint mismatch. Run 'scan --plan' again.",
+                            )
                         )
                         return report
                 except (OSError, IOError):
@@ -140,7 +146,12 @@ class FixRepositoryUseCase:
             # 2. Non-Destructive Validation
             if action.safety.destructive:
                 report.remaining_violations.append(
-                    Violation(file=v_file, line=0, rule="UNSAFE_ACTION", message="Destructive actions are forbidden.")
+                    Violation(
+                        file=v_file,
+                        line=0,
+                        rule="UNSAFE_ACTION",
+                        message="Destructive actions are forbidden.",
+                    )
                 )
                 continue
 
@@ -150,12 +161,22 @@ class FixRepositoryUseCase:
                     current_sha256 = compute_file_hash(src_path)
                 except FileNotFoundError:
                     report.remaining_violations.append(
-                        Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file is missing.")
+                        Violation(
+                            file=v_file,
+                            line=0,
+                            rule="DRIFT_DETECTED",
+                            message="Source file is missing.",
+                        )
                     )
                     continue
                 if current_sha256 != action.preconditions.source_sha256:
                     report.remaining_violations.append(
-                        Violation(file=v_file, line=0, rule="DRIFT_DETECTED", message="Source file hash mismatch.")
+                        Violation(
+                            file=v_file,
+                            line=0,
+                            rule="DRIFT_DETECTED",
+                            message="Source file hash mismatch.",
+                        )
                     )
                     continue
 
@@ -167,15 +188,34 @@ class FixRepositoryUseCase:
             except (OSError, FileNotFoundError):
                 pass
 
-            if src_path != target_path and target_path.exists() and not action.safety.overwrites and not is_case_only_rename:
+            if (
+                src_path != target_path
+                and target_path.exists()
+                and not action.safety.overwrites
+                and not is_case_only_rename
+            ):
                 report.remaining_violations.append(
-                    Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists.")
+                    Violation(
+                        file=v_file,
+                        line=0,
+                        rule="COLLISION",
+                        message=f"Target path {action.target_path} exists.",
+                    )
                 )
                 continue
-                
-            if src_path != target_path and target_path in created_targets and not action.safety.overwrites:
+
+            if (
+                src_path != target_path
+                and target_path in created_targets
+                and not action.safety.overwrites
+            ):
                 report.remaining_violations.append(
-                    Violation(file=v_file, line=0, rule="COLLISION", message=f"Target path {action.target_path} exists from prior plan action.")
+                    Violation(
+                        file=v_file,
+                        line=0,
+                        rule="COLLISION",
+                        message=f"Target path {action.target_path} exists from prior plan action.",
+                    )
                 )
                 continue
 
@@ -189,50 +229,7 @@ class FixRepositoryUseCase:
                     modified_paths.add(src_path)
                     path_map[src_path] = target_path
                     created_targets.add(target_path)
-                    
-                    if not dry_run:
-                        log_event(
-                            operation="plan_action_applied",
-                            success=True,
-                            details={
-                                "action": str(action.action),
-                                "source": str(action.source_path),
-                                "target": str(action.target_path)
-                            }
-                        )
 
-                    report.fixed_violations.append(
-                        FixAction(file=v_file, action=str(action.action), description=f"Moved/Renamed {action.source_path} to {action.target_path}" if not dry_run else f"Would move/rename {action.source_path} to {action.target_path}")
-                    )
-
-                elif action.action in (PlanActionType.INSERT_METADATA_BLOCK, PlanActionType.UPDATE_METADATA):
-                    read_path = path_map.get(src_path, src_path)
-                    if not dry_run:
-                        # If the file was moved/renamed in a prior step, we need to read from its new location.
-                        content_bytes = read_path.read_bytes()
-                        post = safe_frontmatter_loads(content_bytes.decode('utf-8'))
-
-                        if not post.metadata:
-                            post.metadata = {}
-                        
-                        patch = action.metadata_patch or {}
-                        for k, v in patch.items():
-                            post.metadata[k] = v
-
-                        if "document_id" not in post.metadata or post.metadata.get("document_id") == "__TBD__":
-                            ns = self._layout.namespace_for_path(target_path)  # Use target_path for namespace context
-                            doc_type = post.metadata.get("type", "DOC")
-                            if ns:
-                                post.metadata["document_id"] = self._generate_unique_document_id(doc_type, ns)
-
-                        post.metadata = normalize_yaml_scalar_footguns(post.metadata)
-                        read_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(read_path, "w", encoding="utf-8") as f:
-                            f.write(frontmatter.dumps(post))
-                    
-                    modified_paths.add(read_path)
-                    modified_paths.add(src_path)
-                    
                     if not dry_run:
                         log_event(
                             operation="plan_action_applied",
@@ -241,36 +238,106 @@ class FixRepositoryUseCase:
                                 "action": str(action.action),
                                 "source": str(action.source_path),
                                 "target": str(action.target_path),
-                                "metadata_patch": action.metadata_patch
-                            }
+                            },
                         )
 
                     report.fixed_violations.append(
-                        FixAction(file=v_file, action=str(action.action), description="Applied metadata patch" if not dry_run else "Would apply metadata patch")
+                        FixAction(
+                            file=v_file,
+                            action=str(action.action),
+                            description=(
+                                f"Moved/Renamed {action.source_path} to {action.target_path}"
+                                if not dry_run
+                                else f"Would move/rename {action.source_path} to {action.target_path}"
+                            ),
+                        )
+                    )
+
+                elif action.action in (
+                    PlanActionType.INSERT_METADATA_BLOCK,
+                    PlanActionType.UPDATE_METADATA,
+                ):
+                    read_path = path_map.get(src_path, src_path)
+                    if not dry_run:
+                        # If the file was moved/renamed in a prior step, we need to read from its new location.
+                        content_bytes = read_path.read_bytes()
+                        post = safe_frontmatter_loads(content_bytes.decode("utf-8"))
+
+                        if not post.metadata:
+                            post.metadata = {}
+
+                        patch = action.metadata_patch or {}
+                        for k, v in patch.items():
+                            post.metadata[k] = v
+
+                        if (
+                            "document_id" not in post.metadata
+                            or post.metadata.get("document_id") == "__TBD__"
+                        ):
+                            ns = self._namespace_for_path(
+                                target_path, post.metadata.get("document_id")
+                            )
+                            doc_type = post.metadata.get("type", "DOC")
+                            if ns:
+                                post.metadata["document_id"] = self._generate_unique_document_id(
+                                    doc_type, ns
+                                )
+
+                        post.metadata = normalize_yaml_scalar_footguns(post.metadata)
+                        read_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(read_path, "w", encoding="utf-8") as f:
+                            f.write(frontmatter.dumps(post))
+
+                    modified_paths.add(read_path)
+                    modified_paths.add(src_path)
+
+                    if not dry_run:
+                        log_event(
+                            operation="plan_action_applied",
+                            success=True,
+                            details={
+                                "action": str(action.action),
+                                "source": str(action.source_path),
+                                "target": str(action.target_path),
+                                "metadata_patch": action.metadata_patch,
+                            },
+                        )
+
+                    report.fixed_violations.append(
+                        FixAction(
+                            file=v_file,
+                            action=str(action.action),
+                            description=(
+                                "Applied metadata patch"
+                                if not dry_run
+                                else "Would apply metadata patch"
+                            ),
+                        )
                     )
                 else:
                     report.remaining_violations.append(
-                        Violation(file=v_file, line=0, rule="UNKNOWN_ACTION", message=f"Unknown action {action.action}")
+                        Violation(
+                            file=v_file,
+                            line=0,
+                            rule="UNKNOWN_ACTION",
+                            message=f"Unknown action {action.action}",
+                        )
                     )
             except Exception as e:
                 log_event(
                     operation="plan_action_failed",
                     success=False,
-                    details={
-                        "action": str(action.action),
-                        "file": str(v_file),
-                        "error": str(e)
-                    }
+                    details={"action": str(action.action), "file": str(v_file), "error": str(e)},
                 )
                 report.remaining_violations.append(
-                    Violation(file=v_file, line=0, rule="APPLY_ERROR", message=f"Action failed: {e}")
+                    Violation(
+                        file=v_file, line=0, rule="APPLY_ERROR", message=f"Action failed: {e}"
+                    )
                 )
 
         return report
 
-    def _process_renames(
-        self, violations: List[Violation], report: FixReport, dry_run: bool
-    ):
+    def _process_renames(self, violations: List[Violation], report: FixReport, dry_run: bool):
         for v in violations:
             src_path = self.root_dir / v.file
             new_path = self._compute_renamed_path(src_path)
@@ -310,10 +377,7 @@ class FixRepositoryUseCase:
                     log_event(
                         operation="rename_failed",
                         success=False,
-                        details={
-                            "file": str(v.file),
-                            "error": str(e)
-                        }
+                        details={"file": str(v.file), "error": str(e)},
                     )
                     report.remaining_violations.append(v)
             else:
@@ -325,9 +389,7 @@ class FixRepositoryUseCase:
                 )
                 report.fixed_violations.append(action)
 
-    def _process_content_fixes(
-        self, violations: List[Violation], report: FixReport, dry_run: bool
-    ):
+    def _process_content_fixes(self, violations: List[Violation], report: FixReport, dry_run: bool):
         file_map = self._group_and_locate_files(violations, report)
 
         for path, file_violations in file_map.items():
@@ -357,9 +419,7 @@ class FixRepositoryUseCase:
 
         return file_map
 
-    def _resolve_target_path(
-        self, violation: Violation, report: FixReport
-    ) -> Optional[Path]:
+    def _resolve_target_path(self, violation: Violation, report: FixReport) -> Optional[Path]:
         target_path = self.root_dir / violation.file
 
         if target_path.exists():
@@ -428,10 +488,7 @@ class FixRepositoryUseCase:
             log_event(
                 operation="apply_fixes_failed",
                 success=False,
-                details={
-                    "file": str(path),
-                    "error": str(e)
-                }
+                details={"file": str(path), "error": str(e)},
             )
             report.remaining_violations.extend(violations)
 
@@ -486,12 +543,13 @@ class FixRepositoryUseCase:
             report.fixed_violations.append(action)
             modified = True
 
-        if (
-            "docops_version" in violation.message
-            and "docops_version" not in post.metadata
-        ):
+        if "docops_version" in violation.message and "docops_version" not in post.metadata:
             post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
-            action = FixAction(rel_path, "Update docops_version", f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}")
+            action = FixAction(
+                rel_path,
+                "Update docops_version",
+                f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}",
+            )
             report.fixed_violations.append(action)
             modified = True
 
@@ -504,12 +562,16 @@ class FixRepositoryUseCase:
         # Required schema fields
         if "docops_version" not in post.metadata:
             post.metadata["docops_version"] = str(ns.docops_version or DEFAULT_DOCOPS_VERSION)
-            actions.append(FixAction(rel_path, "Update docops_version", f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}"))
+            actions.append(
+                FixAction(
+                    rel_path,
+                    "Update docops_version",
+                    f"Set to {ns.docops_version or DEFAULT_DOCOPS_VERSION}",
+                )
+            )
         if "last_updated" not in post.metadata:
             post.metadata["last_updated"] = self._governed_today_iso()
-            actions.append(
-                FixAction(rel_path, "Update last_updated", "Set to today's date")
-            )
+            actions.append(FixAction(rel_path, "Update last_updated", "Set to today's date"))
         if "status" not in post.metadata:
             post.metadata["status"] = "Draft"
             actions.append(FixAction(rel_path, "Set status", "Set to Draft"))
@@ -529,17 +591,13 @@ class FixRepositoryUseCase:
         if "title" not in post.metadata:
             post.metadata["title"] = inferred_title
             actions.append(
-                FixAction(
-                    rel_path, "Set title", "Inferred from first heading or filename"
-                )
+                FixAction(rel_path, "Set title", "Inferred from first heading or filename")
             )
 
         if "document_id" not in post.metadata:
             new_id = self._generate_unique_document_id(inferred_type, ns)
             post.metadata["document_id"] = new_id
-            actions.append(
-                FixAction(rel_path, "Set document_id", "Generated a new unique ID")
-            )
+            actions.append(FixAction(rel_path, "Set document_id", "Generated a new unique ID"))
 
         return actions
 
@@ -582,11 +640,30 @@ class FixRepositoryUseCase:
         self._schema_validators[key] = v
         return v
 
-    def _normalize_metadata_for_schema(
-        self, metadata: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _normalize_metadata_for_schema(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         # Keep in sync with checker normalization to avoid YAML scalar false positives.
         return normalize_yaml_scalar_footguns(metadata)
+
+    def _document_id_for_path(self, path: Path) -> str | None:
+        try:
+            post = safe_frontmatter_loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        doc_id = post.metadata.get("document_id") if post.metadata else None
+        return doc_id if isinstance(doc_id, str) and doc_id.strip() else None
+
+    def _namespace_for_path(self, path: Path, document_id: str | None = None) -> RepoConfig | None:
+        if document_id is not None:
+            return self._layout.namespace_for_path_and_document_id(path, document_id)
+        return self._layout.namespace_for_path_with_document_id_loader(
+            path,
+            lambda: self._document_id_for_path(path),
+        )
+
+    def _violation_belongs_to_namespace(self, violation: Violation, target_ns: RepoConfig) -> bool:
+        path = self.root_dir / violation.file
+        owner = self._namespace_for_path(path)
+        return bool(owner and owner.namespace.lower() == target_ns.namespace.lower())
 
     def _scan_existing_document_ids(self) -> set[str]:
         ids: set[str] = set()
@@ -595,7 +672,8 @@ class FixRepositoryUseCase:
             if not docs_dir.exists():
                 continue
             for path in docs_dir.rglob("*.md"):
-                owner = self._layout.namespace_for_path(path)
+                doc_id = self._document_id_for_path(path)
+                owner = self._namespace_for_path(path, doc_id)
                 if owner is None or owner.namespace.lower() != ns.namespace.lower():
                     continue
                 if ns.is_excluded(path):
@@ -615,9 +693,7 @@ class FixRepositoryUseCase:
         repo_prefix = ns.repo_prefix
         id_type = self._id_type_segment(doc_type)
 
-        pattern = re.compile(
-            rf"^{re.escape(repo_prefix)}-{re.escape(id_type)}-(\d{{3}})$"
-        )
+        pattern = re.compile(rf"^{re.escape(repo_prefix)}-{re.escape(id_type)}-(\d{{3}})$")
         max_seq = 0
         for existing in self._existing_document_ids:
             match = pattern.match(existing)

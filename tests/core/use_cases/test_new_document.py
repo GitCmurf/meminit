@@ -243,28 +243,16 @@ class TestRelatedIdsValidation:
         assert len(result.related_ids) == 3
 
     def test_invalid_related_id_format_raises_error(self, repo_with_config_and_template):
-        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["invalid-id"])
-        result = use_case.execute_with_params(params)
-        assert result.success is False
-        assert isinstance(result.error, MeminitError)
-        assert result.error.code == ErrorCode.INVALID_RELATED_ID
+        with pytest.raises(ValueError, match="related_ids"):
+            NewDocumentParams(doc_type="ADR", title="Test", related_ids=["invalid-id"])
 
     def test_invalid_related_id_lowercase_raises_error(self, repo_with_config_and_template):
-        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["test-adr-001"])
-        result = use_case.execute_with_params(params)
-        assert result.success is False
-        assert isinstance(result.error, MeminitError)
-        assert result.error.code == ErrorCode.INVALID_RELATED_ID
+        with pytest.raises(ValueError, match="related_ids"):
+            NewDocumentParams(doc_type="ADR", title="Test", related_ids=["test-adr-001"])
 
     def test_invalid_related_id_missing_segment_raises_error(self, repo_with_config_and_template):
-        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", related_ids=["TEST-ADR"])
-        result = use_case.execute_with_params(params)
-        assert result.success is False
-        assert isinstance(result.error, MeminitError)
-        assert result.error.code == ErrorCode.INVALID_RELATED_ID
+        with pytest.raises(ValueError, match="related_ids"):
+            NewDocumentParams(doc_type="ADR", title="Test", related_ids=["TEST-ADR"])
 
     def test_empty_related_ids_is_valid(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
@@ -343,13 +331,8 @@ class TestDeterministicIdMode:
         assert doc_path.exists()
 
     def test_id_flag_with_mismatched_type_raises_error(self, repo_with_config_and_template):
-        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="TEST-PRD-042")
-        result = use_case.execute_with_params(params)
-        assert result.success is False
-        assert result.error.code == ErrorCode.INVALID_ID_FORMAT
-        assert "PRD" in result.error.message
-        assert "ADR" in result.error.message
+        with pytest.raises(ValueError, match="type segment"):
+            NewDocumentParams(doc_type="ADR", title="Test", document_id="TEST-PRD-042")
 
     def test_id_flag_with_wrong_prefix_raises_error(self, repo_with_config_and_template):
         use_case = NewDocumentUseCase(str(repo_with_config_and_template))
@@ -506,11 +489,8 @@ docops_version: 2.0
         assert result2.error.code == ErrorCode.DUPLICATE_ID
 
     def test_id_flag_with_invalid_format_raises_error(self, repo_with_config_and_template):
-        use_case = NewDocumentUseCase(str(repo_with_config_and_template))
-        params = NewDocumentParams(doc_type="ADR", title="Test", document_id="invalid-id-format")
-        result = use_case.execute_with_params(params)
-        assert result.success is False
-        assert result.error.code == ErrorCode.INVALID_ID_FORMAT
+        with pytest.raises(ValueError, match="document_id"):
+            NewDocumentParams(doc_type="ADR", title="Test", document_id="invalid-id-format")
 
     def test_id_flag_remains_idempotent_when_template_dates_change_by_day(
         self, tmp_path, monkeypatch

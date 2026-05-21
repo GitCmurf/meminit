@@ -20,7 +20,6 @@ from meminit.core.use_cases.index_repository import (
     _safe_css_slug,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -126,6 +125,7 @@ def test_index_use_cache_false_skips_cache_fingerprinting(monkeypatch, tmp_path)
 # ---------------------------------------------------------------------------
 # Basic backward compatibility
 # ---------------------------------------------------------------------------
+
 
 def test_index_repository_builds_index(tmp_path):
     """Existing behavior: builds JSON index with expected shape."""
@@ -297,9 +297,7 @@ def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path)
     assert second_report.index_path.read_bytes() == first_bytes
 
 
-def test_index_repository_warm_cache_single_namespace_skips_namespace_lookup(
-    tmp_path, monkeypatch
-):
+def test_index_repository_warm_cache_single_namespace_skips_namespace_lookup(tmp_path, monkeypatch):
     """Warm cache validation should keep the single-namespace fast path."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -469,14 +467,7 @@ def test_index_repository_incremental_detects_changed_added_and_removed(tmp_path
         "EXAMPLE-ADR-001",
         "EXAMPLE-ADR-003",
     }
-    removed_node = (
-        tmp_path
-        / ".meminit"
-        / "cache"
-        / "index"
-        / "nodes"
-        / "EXAMPLE-ADR-002.json"
-    )
+    removed_node = tmp_path / ".meminit" / "cache" / "index" / "nodes" / "EXAMPLE-ADR-002.json"
     assert not removed_node.exists()
 
 
@@ -501,9 +492,7 @@ def test_s08_index_repository_incremental_recomputes_changed_related_edges(tmp_p
 
     report = use_case.execute()
     payload = json.loads(report.index_path.read_text(encoding="utf-8"))
-    related_edges = [
-        edge for edge in payload["data"]["edges"] if edge["edge_type"] == "related"
-    ]
+    related_edges = [edge for edge in payload["data"]["edges"] if edge["edge_type"] == "related"]
 
     assert report.rebuild["mode"] == "incremental"
     assert report.rebuild["changed"] == 1
@@ -525,11 +514,11 @@ def test_index_repository_rebuild_cache_recovers_corrupt_node(tmp_path):
     node_path = (
         tmp_path
         / ".meminit"
-            / "cache"
-            / "index"
-            / "nodes"
-            / f"{_cache_key('EXAMPLE-ADR-001')}.json"
-        )
+        / "cache"
+        / "index"
+        / "nodes"
+        / f"{_cache_key('EXAMPLE-ADR-001')}.json"
+    )
     node_path.write_text("{bad json", encoding="utf-8")
     doc_two.write_text(
         doc_two.read_text(encoding="utf-8").replace("Second", "Second Revised"),
@@ -585,17 +574,21 @@ def test_index_repository_excludes_wip(tmp_path):
 # State merge
 # ---------------------------------------------------------------------------
 
+
 def test_index_merges_project_state(tmp_path):
     """When project-state.yaml exists, JSON includes impl_state fields."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
-    _setup_state_file(tmp_path, {
-        "EXAMPLE-ADR-001": {
-            "impl_state": "In Progress",
-            "updated": "2026-03-05T10:00:00Z",
-            "updated_by": "GitCmurf",
-            "notes": "Phase 1",
-        }
-    })
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+                "notes": "Phase 1",
+            }
+        },
+    )
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
     report = use_case.execute()
@@ -638,14 +631,17 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
     """Index-only governed documents preserve incoming unblocks from tracked entries."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     _setup_doc(tmp_path, "EXAMPLE-ADR-002")
-    _setup_state_file(tmp_path, {
-        "EXAMPLE-ADR-001": {
-            "impl_state": "Not Started",
-            "updated": "2026-04-20T10:00:00+00:00",
-            "updated_by": "test",
-            "depends_on": ["EXAMPLE-ADR-002"],
-        }
-    })
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Not Started",
+                "updated": "2026-04-20T10:00:00+00:00",
+                "updated_by": "test",
+                "depends_on": ["EXAMPLE-ADR-002"],
+            }
+        },
+    )
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
     report = use_case.execute()
@@ -664,6 +660,7 @@ def test_index_derived_fields_mixed_state_and_no_state(tmp_path):
 # ---------------------------------------------------------------------------
 # Catalog generation
 # ---------------------------------------------------------------------------
+
 
 def test_index_generates_catalogue_md_by_default(tmp_path):
     """catalogue.md is generated with --output-catalog by default."""
@@ -793,16 +790,20 @@ def test_index_generated_artifacts_respect_umask(tmp_path, monkeypatch):
 # Kanban generation
 # ---------------------------------------------------------------------------
 
+
 def test_index_generates_kanban_md(tmp_path):
     """kanban.md + kanban.css are generated with --output-kanban flag."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
-    _setup_state_file(tmp_path, {
-        "EXAMPLE-ADR-001": {
-            "impl_state": "In Progress",
-            "updated": "2026-03-05T10:00:00Z",
-            "updated_by": "GitCmurf",
-        }
-    })
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "GitCmurf",
+            }
+        },
+    )
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_kanban=True)
     report = use_case.execute()
@@ -896,21 +897,23 @@ def test_index_kanban_sanitizes_custom_impl_state_in_html(tmp_path):
     report = use_case.execute()
     kanban_content = report.kanban_path.read_text(encoding="utf-8")
 
-    assert '<section class="kanban-column kanban-on-hold-autofocus-onfocus-alert-1"' in kanban_content
+    assert (
+        '<section class="kanban-column kanban-on-hold-autofocus-onfocus-alert-1"' in kanban_content
+    )
     assert 'aria-label="On Hold&quot; autofocus onfocus=&quot;alert(1)"' in kanban_content
 
 
 def test_index_kanban_document_id_is_sanitized(tmp_path):
     _setup_doc(
         tmp_path,
-        'MALICIOUS-ADR-<script>alert(1)</script>',
+        "MALICIOUS-ADR-<script>alert(1)</script>",
         title="Normal Title",
         filename="malicious-doc.md",
     )
     _setup_state_file(
         tmp_path,
         {
-            'MALICIOUS-ADR-<script>alert(1)</script>': {
+            "MALICIOUS-ADR-<script>alert(1)</script>": {
                 "impl_state": "In Progress",
                 "updated": "2026-03-05T10:00:00Z",
                 "updated_by": "GitCmurf",
@@ -937,29 +940,34 @@ def test_safe_css_slug_sanitizes_attribute_breaking_chars():
 # Filtering
 # ---------------------------------------------------------------------------
 
+
 def test_index_filter_by_impl_state(tmp_path):
     """Filter by impl_state (case-insensitive)."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Active", status="Draft")
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-002", title="Done",
-        status="Approved", filename="adr-002.md",
+        tmp_path,
+        "EXAMPLE-ADR-002",
+        title="Done",
+        status="Approved",
+        filename="adr-002.md",
     )
-    _setup_state_file(tmp_path, {
-        "EXAMPLE-ADR-001": {
-            "impl_state": "In Progress",
-            "updated": "2026-03-05T10:00:00Z",
-            "updated_by": "test",
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "In Progress",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
+            "EXAMPLE-ADR-002": {
+                "impl_state": "Done",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            },
         },
-        "EXAMPLE-ADR-002": {
-            "impl_state": "Done",
-            "updated": "2026-03-05T10:00:00Z",
-            "updated_by": "test",
-        },
-    })
+    )
 
-    use_case = IndexRepositoryUseCase(
-        str(tmp_path), impl_state_filter="in progress"
-    )
+    use_case = IndexRepositoryUseCase(str(tmp_path), impl_state_filter="in progress")
     report = use_case.execute()
     assert report.document_count == 1
 
@@ -982,9 +990,7 @@ def test_index_filtered_catalog_header(tmp_path):
     """Filtered catalog includes filter info in header."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", status="Draft")
 
-    use_case = IndexRepositoryUseCase(
-        str(tmp_path), output_catalog=True, status_filter="Draft"
-    )
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True, status_filter="Draft")
     report = use_case.execute()
 
     content = report.catalog_path.read_text(encoding="utf-8")
@@ -996,11 +1002,10 @@ def test_index_filtered_catalog_header(tmp_path):
 # Sanitization
 # ---------------------------------------------------------------------------
 
+
 def test_index_sanitizes_html_in_catalog(tmp_path):
     """<script> in notes appears escaped in catalog output."""
-    _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001", title="<script>xss</script>"
-    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="<script>xss</script>")
 
     use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
     report = use_case.execute()
@@ -1014,16 +1019,20 @@ def test_index_sanitizes_html_in_catalog(tmp_path):
 # Backward compatibility: resolve/identify/link still work
 # ---------------------------------------------------------------------------
 
+
 def test_index_json_has_required_fields_for_resolve(tmp_path):
     """Index JSON has document_id + path for resolve/identify/link."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
-    _setup_state_file(tmp_path, {
-        "EXAMPLE-ADR-001": {
-            "impl_state": "Done",
-            "updated": "2026-03-05T10:00:00Z",
-            "updated_by": "test",
-        }
-    })
+    _setup_state_file(
+        tmp_path,
+        {
+            "EXAMPLE-ADR-001": {
+                "impl_state": "Done",
+                "updated": "2026-03-05T10:00:00Z",
+                "updated_by": "test",
+            }
+        },
+    )
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
     report = use_case.execute()
@@ -1051,7 +1060,8 @@ def test_index_json_has_required_fields_for_resolve(tmp_path):
 def test_index_generates_related_edges(tmp_path):
     """related_ids in frontmatter produces 'related' edges."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
@@ -1071,7 +1081,8 @@ def test_index_generates_related_edges(tmp_path):
 def test_index_generates_supersedes_edges(tmp_path):
     """superseded_by in frontmatter produces 'supersedes' edges."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         status="Superseded",
         extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
     )
@@ -1092,7 +1103,8 @@ def test_index_generates_supersedes_edges(tmp_path):
 def test_index_generates_reference_edges(tmp_path):
     """Body links to other governed docs produce 'references' edges."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         body="See [ADR-002](adr-002.md) for details.",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
@@ -1111,8 +1123,14 @@ def test_index_generates_reference_edges(tmp_path):
 
 def test_index_edges_sorted_deterministically(tmp_path):
     """Edges are sorted by (source, target, edge_type)."""
-    _setup_doc(tmp_path, "EXAMPLE-ADR-001", extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-003\n  - EXAMPLE-ADR-002\n")
-    _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", body="See [ADR 003](adr-003.md).")
+    _setup_doc(
+        tmp_path,
+        "EXAMPLE-ADR-001",
+        extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-003\n  - EXAMPLE-ADR-002\n",
+    )
+    _setup_doc(
+        tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md", body="See [ADR 003](adr-003.md)."
+    )
     _setup_doc(tmp_path, "EXAMPLE-ADR-003", filename="adr-003.md")
 
     use_case = IndexRepositoryUseCase(str(tmp_path))
@@ -1253,12 +1271,14 @@ def test_index_fatal_on_duplicate_document_id(tmp_path):
 def test_index_fatal_on_supersession_cycle(tmp_path):
     """Supersession cycle raises error and prevents artifact write."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         status="Superseded",
         extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
     )
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-002",
+        tmp_path,
+        "EXAMPLE-ADR-002",
         status="Superseded",
         filename="adr-002.md",
         extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
@@ -1273,7 +1293,8 @@ def test_index_fatal_on_supersession_cycle(tmp_path):
 def test_index_fatal_on_self_referential_superseded_by(tmp_path):
     """Self-referential superseded_by produces a cycle error and invalidates the index."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         status="Superseded",
         extra_frontmatter="superseded_by: EXAMPLE-ADR-001\n",
     )
@@ -1291,11 +1312,15 @@ def test_index_fatal_invalidates_stale_artifact(tmp_path):
     index_dir = tmp_path / "docs" / "01-indices"
     index_dir.mkdir(parents=True, exist_ok=True)
     (index_dir / "project-state.yaml").write_text(
-        "documents:\n", encoding="utf-8",
+        "documents:\n",
+        encoding="utf-8",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     use_case = IndexRepositoryUseCase(
-        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+        str(tmp_path),
+        output_catalog=True,
+        catalog_name="review-catalog.md",
+        output_kanban=True,
     )
     report = use_case.execute()
     index_dir = tmp_path / "docs" / "01-indices"
@@ -1311,7 +1336,10 @@ def test_index_fatal_invalidates_stale_artifact(tmp_path):
     # Now introduce a duplicate ID that triggers a fatal error (with default catalog name).
     _setup_doc(tmp_path, "EXAMPLE-ADR-001", filename="adr-dup.md")
     use_case2 = IndexRepositoryUseCase(
-        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+        str(tmp_path),
+        output_catalog=True,
+        catalog_name="catalog.md",
+        output_kanban=True,
     )
     with pytest.raises(MeminitError) as exc_info:
         use_case2.execute()
@@ -1331,7 +1359,10 @@ def test_index_success_cleanup_removes_stale_generated_views(tmp_path):
     index_dir = tmp_path / "docs" / "01-indices"
 
     first_report = IndexRepositoryUseCase(
-        str(tmp_path), output_catalog=True, catalog_name="review-catalog.md", output_kanban=True,
+        str(tmp_path),
+        output_catalog=True,
+        catalog_name="review-catalog.md",
+        output_kanban=True,
     ).execute()
     assert first_report.catalog_path is not None
     review_catalog = index_dir / "review-catalog.md"
@@ -1354,11 +1385,15 @@ def test_index_fatal_preserves_user_managed_files(tmp_path):
     index_dir = tmp_path / "docs" / "01-indices"
     index_dir.mkdir(parents=True, exist_ok=True)
     (index_dir / "project-state.yaml").write_text(
-        "documents:\n", encoding="utf-8",
+        "documents:\n",
+        encoding="utf-8",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     use_case = IndexRepositoryUseCase(
-        str(tmp_path), output_catalog=True, catalog_name="catalog.md", output_kanban=True,
+        str(tmp_path),
+        output_catalog=True,
+        catalog_name="catalog.md",
+        output_kanban=True,
     )
     use_case.execute()
 
@@ -1407,8 +1442,7 @@ def test_index_cleanup_ignores_marker_mentions_in_user_docs(tmp_path):
     index_dir.mkdir(parents=True, exist_ok=True)
     notes = index_dir / "notes.md"
     notes.write_text(
-        "# Notes\n\n"
-        "This file documents <!-- MEMINIT_GENERATED: catalog --> in prose.\n",
+        "# Notes\n\n" "This file documents <!-- MEMINIT_GENERATED: catalog --> in prose.\n",
         encoding="utf-8",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
@@ -1430,10 +1464,10 @@ def test_index_cleanup_removes_generated_marked_header_with_frontmatter(tmp_path
         "type: INDEX\n"
         "title: Project Dashboard\n"
         "status: Draft\n"
-        "version: \"1.0\"\n"
+        'version: "1.0"\n'
         "last_updated: 2026-04-01\n"
         "owner: __TBD__\n"
-        "docops_version: \"2.0\"\n"
+        'docops_version: "2.0"\n'
         "---\n\n"
         "<!-- MEMINIT_GENERATED: catalog -->\n\n"
         "# Project Dashboard\n",
@@ -1462,7 +1496,8 @@ def test_index_fatal_cleanup_missing_file_no_mask(tmp_path):
 def test_index_warns_on_dangling_related(tmp_path):
     """Dangling related_ids target produces a warning."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-999\n",
     )
 
@@ -1481,7 +1516,8 @@ def test_index_warns_on_dangling_related(tmp_path):
 def test_index_warns_on_supersession_status_mismatch(tmp_path):
     """superseded_by without Superseded status produces a warning."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         status="Draft",
         extra_frontmatter="superseded_by: EXAMPLE-ADR-002\n",
     )
@@ -1497,7 +1533,8 @@ def test_index_warns_on_supersession_status_mismatch(tmp_path):
 def test_index_advises_on_related_asymmetry(tmp_path):
     """Asymmetric related_ids produces advice."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         extra_frontmatter="related_ids:\n  - EXAMPLE-ADR-002\n",
     )
     _setup_doc(tmp_path, "EXAMPLE-ADR-002", filename="adr-002.md")
@@ -1524,9 +1561,7 @@ def test_index_graph_schema_version(tmp_path):
     assert "edges" in payload["data"]
 
 
-def test_index_single_namespace_bypasses_document_id_namespace_lookup(
-    tmp_path, monkeypatch
-):
+def test_index_single_namespace_bypasses_document_id_namespace_lookup(tmp_path, monkeypatch):
     """Single-namespace repositories should not pay the document-id tie-breaker cost."""
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
 
@@ -1568,6 +1603,7 @@ def test_index_handles_500_docs_within_phase_4_budget(tmp_path):
 # BV-C: Stored-XSS via priority in kanban class attribute
 # ---------------------------------------------------------------------------
 
+
 def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
     """A hand-edited priority with attribute-breaking chars must not escape
     the HTML class attribute in kanban cards (BV-C).
@@ -1598,13 +1634,14 @@ def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
     kanban_content = report.kanban_path.read_text(encoding="utf-8")
 
     assert "badge-priority-p0" in kanban_content
-    assert 'onclick' not in kanban_content
+    assert "onclick" not in kanban_content
 
 
 def test_index_kanban_title_notes_xss_sanitized(tmp_path):
     """Title and notes with HTML-breaking chars are sanitized in kanban HTML cards."""
     _setup_doc(
-        tmp_path, "EXAMPLE-ADR-001",
+        tmp_path,
+        "EXAMPLE-ADR-001",
         title='test" onmouseover="alert(1)',
     )
     _setup_state_file(
@@ -1626,10 +1663,10 @@ def test_index_kanban_title_notes_xss_sanitized(tmp_path):
     start = kanban_content.find('<div class="kanban-board"')
     html_section = kanban_content[start:] if start >= 0 else kanban_content
 
-    assert '<script>' not in html_section
+    assert "<script>" not in html_section
     assert 'onmouseover="' not in html_section
-    assert '&lt;script&gt;' in html_section
-    assert '&quot;' in html_section
+    assert "&lt;script&gt;" in html_section
+    assert "&quot;" in html_section
 
 
 def test_index_invalid_priority_emits_warning_and_is_dropped(tmp_path):
@@ -1734,8 +1771,19 @@ def test_index_excludes_invalid_priority_entries_before_deriving_readiness(tmp_p
 def test_kanban_sort_key_oldest_first():
     """Older entries sort before newer ones (matches state next queue contract)."""
     from meminit.core.use_cases.index_repository import _kanban_sort_key
-    newer = {"priority": "P2", "unblocks": [], "updated": "2026-04-20T12:00:00Z", "document_id": "A-001"}
-    older = {"priority": "P2", "unblocks": [], "updated": "2026-04-19T12:00:00Z", "document_id": "A-002"}
+
+    newer = {
+        "priority": "P2",
+        "unblocks": [],
+        "updated": "2026-04-20T12:00:00Z",
+        "document_id": "A-001",
+    }
+    older = {
+        "priority": "P2",
+        "unblocks": [],
+        "updated": "2026-04-19T12:00:00Z",
+        "document_id": "A-002",
+    }
     assert _kanban_sort_key(older) < _kanban_sort_key(newer)
 
 
@@ -1816,7 +1864,8 @@ def test_index_downgrades_planning_fatals_to_read_warnings(tmp_path):
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
     planning_warnings = [
-        w for w in payload.get("warnings", [])
+        w
+        for w in payload.get("warnings", [])
         if w["code"] in {"STATE_SELF_DEPENDENCY", "STATE_INVALID_DEPENDENCY_ID"}
     ]
     assert {w["code"] for w in planning_warnings} == {
@@ -1854,17 +1903,14 @@ def test_index_emits_status_conflict_advisory(tmp_path):
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
     conflicts = [
-        a for a in payload.get("advice", [])
-        if a["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
+        a for a in payload.get("advice", []) if a["code"] == "STATE_DEPENDENCY_STATUS_CONFLICT"
     ]
     assert len(conflicts) == 1
     assert conflicts[0]["severity"] == "advisory"
     assert "STATE_DEPENDENCY_STATUS_CONFLICT" not in {
         w["code"] for w in payload.get("warnings", [])
     }
-    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in {
-        a["code"] for a in report.advice
-    }
+    assert "STATE_DEPENDENCY_STATUS_CONFLICT" in {a["code"] for a in report.advice}
 
 
 def test_index_no_duplicate_field_too_long_warnings(tmp_path):
@@ -1888,8 +1934,5 @@ def test_index_no_duplicate_field_too_long_warnings(tmp_path):
     index_path = tmp_path / "docs" / "01-indices" / "meminit.index.json"
     payload = json.loads(index_path.read_text(encoding="utf-8"))
 
-    field_too_long = [
-        w for w in payload.get("warnings", [])
-        if w["code"] == "STATE_FIELD_TOO_LONG"
-    ]
+    field_too_long = [w for w in payload.get("warnings", []) if w["code"] == "STATE_FIELD_TOO_LONG"]
     assert len(field_too_long) == 1

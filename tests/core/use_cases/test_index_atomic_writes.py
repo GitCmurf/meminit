@@ -40,11 +40,7 @@ def test_index_writes_are_atomic(tmp_path):
     # 4. kanban.css
 
     with patch("meminit.core.use_cases.index_repository.atomic_write") as mock_atomic:
-        use_case = IndexRepositoryUseCase(
-            str(tmp_path),
-            output_catalog=True,
-            output_kanban=True
-        )
+        use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True, output_kanban=True)
         use_case.execute()
 
         # Check that atomic_write was called

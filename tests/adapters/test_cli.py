@@ -144,9 +144,7 @@ def test_cli_check_violations_text(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -175,9 +173,7 @@ def test_cli_check_violations_json(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -204,9 +200,7 @@ def test_cli_check_violations_json(mock_use_case):
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
-def test_cli_check_json_output_write_failure_returns_json_error(
-    mock_use_case, tmp_path
-):
+def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
         success=True,
@@ -247,9 +241,7 @@ def test_cli_check_json_output_write_failure_returns_json_error(
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
-def test_cli_check_json_output_write_failure_preserves_correlation_id(
-    mock_use_case, tmp_path
-):
+def test_cli_check_json_output_write_failure_preserves_correlation_id(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
         success=True,
@@ -331,9 +323,7 @@ def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp
 
 
 @patch("meminit.cli.main.CheckRepositoryUseCase")
-def test_cli_check_json_unsafe_output_path_preserves_correlation_id(
-    mock_use_case, tmp_path
-):
+def test_cli_check_json_unsafe_output_path_preserves_correlation_id(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
         success=True,
@@ -520,9 +510,7 @@ def test_cli_check_violations_md(mock_use_case):
         violations=[
             {
                 "path": "docs/bad.md",
-                "violations": [
-                    {"code": "TEST_RULE", "message": "Bad Thing", "line": 1}
-                ],
+                "violations": [{"code": "TEST_RULE", "message": "Bad Thing", "line": 1}],
             }
         ],
         warnings=[],
@@ -552,9 +540,7 @@ def test_cli_check_warnings_non_strict(mock_use_case):
         warnings=[
             {
                 "path": "docs/warn.md",
-                "warnings": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
-                ],
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
             }
         ],
         checked_paths=["docs/warn.md"],
@@ -582,9 +568,7 @@ def test_cli_check_warnings_quiet_is_silent(mock_use_case, tmp_path):
         warnings=[
             {
                 "path": "docs/warn.md",
-                "warnings": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
-                ],
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
             }
         ],
         checked_paths=["docs/warn.md"],
@@ -622,9 +606,7 @@ def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
         warnings=[
             {
                 "path": "docs/bad.md",
-                "warnings": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 5}
-                ],
+                "warnings": [{"code": "WARN_RULE", "message": "Needs attention", "line": 5}],
             }
         ],
         checked_paths=["docs/bad.md"],
@@ -656,9 +638,7 @@ def test_cli_check_warnings_strict(mock_use_case):
         violations=[
             {
                 "path": "docs/warn.md",
-                "violations": [
-                    {"code": "WARN_RULE", "message": "Needs attention", "line": 0}
-                ],
+                "violations": [{"code": "WARN_RULE", "message": "Needs attention", "line": 0}],
             }
         ],
         warnings=[],
@@ -694,9 +674,7 @@ def test_cli_install_precommit_md_output(mock_use_case, tmp_path):
     instance.execute.return_value = report
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["install-precommit", "--root", str(tmp_path), "--format", "md"]
-    )
+    result = runner.invoke(cli, ["install-precommit", "--root", str(tmp_path), "--format", "md"])
 
     assert result.exit_code == 0
     assert "# Meminit Install Precommit" in result.output
@@ -792,9 +770,7 @@ def test_cli_context_json_output(tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["context", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code == 0
     data = parse_json_envelope(result.output)
@@ -853,9 +829,7 @@ def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
         data={
             "project_name": "TestProject",
             "config_path": "docops.config.yaml",
-            "namespaces": [
-                {"name": "default", "docs_root": "docs", "document_count": None}
-            ],
+            "namespaces": [{"name": "default", "docs_root": "docs", "document_count": None}],
         },
         warnings=[
             {
@@ -867,9 +841,7 @@ def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["context", "--root", str(tmp_path), "--format", "md", "--deep"]
-    )
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "md", "--deep"])
 
     assert result.exit_code == 0
     assert "## Warnings" in result.output
@@ -888,9 +860,7 @@ def test_cli_context_text_emits_warnings(mock_use_case, tmp_path):
         data={
             "project_name": "TestProject",
             "config_path": "docops.config.yaml",
-            "namespaces": [
-                {"name": "default", "docs_root": "docs", "document_count": None}
-            ],
+            "namespaces": [{"name": "default", "docs_root": "docs", "document_count": None}],
         },
         warnings=[
             {
@@ -961,17 +931,11 @@ def test_cli_index_cache_flags_clear_existing_cache(tmp_path, flag):
     cache_root = tmp_path / ".meminit" / "cache" / "index"
     (cache_root / "nodes").mkdir(parents=True, exist_ok=True)
     (cache_root / "edges").mkdir(parents=True, exist_ok=True)
-    (cache_root / "manifest.json").write_text(
-        '{"manifest_schema_version":"1.0"}', encoding="utf-8"
-    )
-    (cache_root / "nodes" / "EXAMPLE-ADR-001.json").write_text(
-        "{}", encoding="utf-8"
-    )
+    (cache_root / "manifest.json").write_text('{"manifest_schema_version":"1.0"}', encoding="utf-8")
+    (cache_root / "nodes" / "EXAMPLE-ADR-001.json").write_text("{}", encoding="utf-8")
 
     runner = runner_no_mixed_stderr()
-    result = runner.invoke(
-        cli, ["index", "--root", str(tmp_path), flag, "--format", "json"]
-    )
+    result = runner.invoke(cli, ["index", "--root", str(tmp_path), flag, "--format", "json"])
 
     assert result.exit_code == 0
     if flag == "--no-cache":
@@ -1006,9 +970,7 @@ def test_cli_index_rejects_both_cache_clearing_flags(tmp_path):
     cache_root = tmp_path / ".meminit" / "cache" / "index"
     (cache_root / "nodes").mkdir(parents=True, exist_ok=True)
     (cache_root / "edges").mkdir(parents=True, exist_ok=True)
-    (cache_root / "manifest.json").write_text(
-        '{"manifest_schema_version":"1.0"}', encoding="utf-8"
-    )
+    (cache_root / "manifest.json").write_text('{"manifest_schema_version":"1.0"}', encoding="utf-8")
 
     runner = runner_no_mixed_stderr()
     result = runner.invoke(
@@ -1053,12 +1015,8 @@ def test_cli_index_explain_cache_rejects_cache_clearing_flags(tmp_path, flag):
     cache_root = tmp_path / ".meminit" / "cache" / "index"
     (cache_root / "nodes").mkdir(parents=True, exist_ok=True)
     (cache_root / "edges").mkdir(parents=True, exist_ok=True)
-    (cache_root / "manifest.json").write_text(
-        '{"manifest_schema_version":"1.0"}', encoding="utf-8"
-    )
-    (cache_root / "nodes" / "EXAMPLE-ADR-001.json").write_text(
-        "{}", encoding="utf-8"
-    )
+    (cache_root / "manifest.json").write_text('{"manifest_schema_version":"1.0"}', encoding="utf-8")
+    (cache_root / "nodes" / "EXAMPLE-ADR-001.json").write_text("{}", encoding="utf-8")
 
     runner = runner_no_mixed_stderr()
     result = runner.invoke(
@@ -1150,9 +1108,7 @@ def test_cli_index_explain_cache_reports_manifest_after_index_run(tmp_path):
     )
 
     runner = runner_no_mixed_stderr()
-    index_result = runner.invoke(
-        cli, ["index", "--root", str(tmp_path), "--format", "json"]
-    )
+    index_result = runner.invoke(cli, ["index", "--root", str(tmp_path), "--format", "json"])
     explain_result = runner.invoke(
         cli,
         [
@@ -1180,9 +1136,7 @@ def test_cli_index_explain_cache_reports_manifest_after_index_run(tmp_path):
         ("md", "# Error"),
     ],
 )
-def test_cli_index_explain_cache_rejects_non_json_formats(
-    tmp_path, format_name, expected_prefix
-):
+def test_cli_index_explain_cache_rejects_non_json_formats(tmp_path, format_name, expected_prefix):
     docs_dir = tmp_path / "docs" / "45-adr"
     docs_dir.mkdir(parents=True)
     (docs_dir / "adr-001.md").write_text(
@@ -1598,8 +1552,7 @@ class TestCliNewJsonOutput:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
-            """
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1619,10 +1572,8 @@ class TestCliNewJsonOutput:
     "superseded_by": { "type": "string" }
   }
 }
-""".strip()
-        )
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+""".strip())
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1630,8 +1581,7 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-"""
-        )
+""")
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -1741,8 +1691,7 @@ class TestCliNewListTypes:
     @pytest.fixture
     def repo_with_types(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
@@ -1752,8 +1701,7 @@ document_types:
     directory: 10-prd
   FDD:
     directory: 50-fdd
-"""
-        )
+""")
         return tmp_path
 
     def test_new_list_types_text(self, repo_with_types):
@@ -1810,8 +1758,7 @@ class TestCliNewDryRun:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
-            """
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1831,10 +1778,8 @@ class TestCliNewDryRun:
     "superseded_by": { "type": "string" }
   }
 }
-""".strip()
-        )
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+""".strip())
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1842,8 +1787,7 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-"""
-        )
+""")
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -1959,8 +1903,7 @@ class TestCliCheckTargeted:
     def repo_for_targeted_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -1975,24 +1918,20 @@ class TestCliCheckTargeted:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid
@@ -2003,11 +1942,9 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
 
-        (adr_dir / "adr-002-invalid.md").write_text(
-            """---
+        (adr_dir / "adr-002-invalid.md").write_text("""---
 document_id: BAD-ID
 type: ADR
 title: Invalid
@@ -2018,8 +1955,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Invalid
-"""
-        )
+""")
 
         return tmp_path
 
@@ -2157,12 +2093,10 @@ docops_version: 2.0
         data = parse_json_envelope(result.output)
         assert data["files_checked"] == 2
         assert all(
-            "docs/00-governance/templates" not in entry["path"]
-            for entry in data["violations"]
+            "docs/00-governance/templates" not in entry["path"] for entry in data["violations"]
         )
         assert all(
-            "docs/00-governance/templates" not in warning["path"]
-            for warning in data["warnings"]
+            "docs/00-governance/templates" not in warning["path"] for warning in data["warnings"]
         )
 
     def test_check_file_not_found_json(self, repo_for_targeted_check):
@@ -2194,15 +2128,13 @@ class TestCliFlagIncompatibilities:
     @pytest.fixture
     def repo_for_flags(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
         return tmp_path
 
     def test_interactive_and_json_incompatible(self, repo_for_flags):
@@ -2326,19 +2258,17 @@ def test_new_edit_parses_editor_command_with_args(
         encoding="utf-8",
     )
     result_path = tmp_path / "docs" / "45-adr" / "adr-001-test.md"
-    mock_new_document_use_case.return_value.execute_with_params.return_value = (
-        NewDocumentResult(
-            success=True,
-            path=result_path,
-            document_id="TEST-ADR-001",
-            doc_type="ADR",
-            title="Test",
-            status="Draft",
-            version="0.1",
-            owner="TestOwner",
-            last_updated="2026-02-19",
-            docops_version="2.0",
-        )
+    mock_new_document_use_case.return_value.execute_with_params.return_value = NewDocumentResult(
+        success=True,
+        path=result_path,
+        document_id="TEST-ADR-001",
+        doc_type="ADR",
+        title="Test",
+        status="Draft",
+        version="0.1",
+        owner="TestOwner",
+        last_updated="2026-02-19",
+        docops_version="2.0",
     )
     monkeypatch.setenv("EDITOR", "code --wait")
 
@@ -2362,8 +2292,7 @@ class TestCliJsonOutputFormat:
     def repo_for_json_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2378,24 +2307,20 @@ class TestCliJsonOutputFormat:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid
@@ -2406,8 +2331,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
 
         return tmp_path
@@ -2457,8 +2381,7 @@ class TestCliSinglePathNotFound:
     def repo_for_single_path_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2473,18 +2396,15 @@ class TestCliSinglePathNotFound:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
@@ -2492,9 +2412,7 @@ document_types:
 
         return tmp_path
 
-    def test_single_path_not_found_returns_error_envelope(
-        self, repo_for_single_path_check
-    ):
+    def test_single_path_not_found_returns_error_envelope(self, repo_for_single_path_check):
         """F10.6: Single missing path should return error envelope."""
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
@@ -2516,9 +2434,7 @@ document_types:
         assert "error" in data
         assert data["error"]["code"] == "FILE_NOT_FOUND"
 
-    def test_single_path_not_found_logs_failed_operation(
-        self, repo_for_single_path_check
-    ):
+    def test_single_path_not_found_logs_failed_operation(self, repo_for_single_path_check):
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
             cli,
@@ -2551,8 +2467,7 @@ class TestCliAbsolutePathEscape:
     def repo_for_path_escape_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2567,18 +2482,15 @@ class TestCliAbsolutePathEscape:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
@@ -2586,9 +2498,7 @@ document_types:
 
         return tmp_path
 
-    def test_absolute_path_outside_root_returns_path_escape(
-        self, repo_for_path_escape_check
-    ):
+    def test_absolute_path_outside_root_returns_path_escape(self, repo_for_path_escape_check):
         """F10.4: Absolute path outside root should return PATH_ESCAPE error."""
         runner = runner_no_mixed_stderr()
         result = runner.invoke(
@@ -2616,9 +2526,7 @@ def test_config_missing_when_docs_exists_but_no_config(tmp_path):
     (tmp_path / "docs" / "test.md").write_text("# Test")
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -2636,9 +2544,7 @@ def test_config_missing_when_config_path_is_directory(tmp_path):
     data = json.loads(result.output)
     assert data["success"] is False
     assert data["error"]["code"] == "CONFIG_MISSING"
-    assert (
-        data["error"]["details"]["required"] == "regular file (not directory/symlink)"
-    )
+    assert data["error"]["details"]["required"] == "regular file (not directory/symlink)"
 
 
 def test_new_rejects_non_file_config_path(tmp_path):
@@ -2647,9 +2553,7 @@ def test_new_rejects_non_file_config_path(tmp_path):
     (tmp_path / "docops.config.yaml").mkdir()
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["new", "ADR", "Test", "--root", str(tmp_path), "--format", "json"])
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -2689,9 +2593,7 @@ def test_config_missing_when_docops_version_is_null(tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["check", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["check", "--root", str(tmp_path), "--format", "json"])
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -2704,9 +2606,7 @@ def test_config_missing_when_config_is_invalid_utf8(tmp_path):
     (tmp_path / "docops.config.yaml").write_bytes(b"\xff\xfe\xfa")
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["check", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["check", "--root", str(tmp_path), "--format", "json"])
 
     data = json.loads(result.output)
     assert data["success"] is False
@@ -2863,9 +2763,7 @@ def test_cli_identify_json_output(mock_use_case, tmp_path):
 
 @patch("meminit.cli.main.ResolveDocumentUseCase")
 def test_cli_resolve_json_output(mock_use_case, tmp_path):
-    mock_use_case.return_value.execute.return_value = SimpleNamespace(
-        path="docs/45-adr/adr-001.md"
-    )
+    mock_use_case.return_value.execute.return_value = SimpleNamespace(path="docs/45-adr/adr-001.md")
 
     runner = runner_no_mixed_stderr()
     result = runner.invoke(
@@ -2881,9 +2779,7 @@ def test_cli_resolve_json_output(mock_use_case, tmp_path):
 
 @patch("meminit.cli.main.ResolveDocumentUseCase")
 def test_cli_link_json_output(mock_use_case, tmp_path):
-    mock_use_case.return_value.execute.return_value = SimpleNamespace(
-        path="docs/45-adr/adr-001.md"
-    )
+    mock_use_case.return_value.execute.return_value = SimpleNamespace(path="docs/45-adr/adr-001.md")
 
     runner = runner_no_mixed_stderr()
     result = runner.invoke(
@@ -2959,8 +2855,7 @@ class TestCliVerboseJsonStderr:
 # ADR
 """
         )
-        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
-            """
+        (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -2975,10 +2870,8 @@ class TestCliVerboseJsonStderr:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-        )
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+""".strip())
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -2986,8 +2879,7 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-"""
-        )
+""")
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").touch()
         return tmp_path
@@ -3012,9 +2904,7 @@ document_types:
         )
 
         lines = [line for line in result.output.splitlines() if line.strip()]
-        json_index = next(
-            i for i, line in enumerate(lines) if line.lstrip().startswith("{")
-        )
+        json_index = next(i for i, line in enumerate(lines) if line.lstrip().startswith("{"))
         data = json.loads(lines[json_index])
         stderr_output = result.stderr if getattr(result, "stderr", None) else ""
         if not stderr_output:
@@ -3022,9 +2912,7 @@ document_types:
         assert "reasoning" not in data
         assert data["success"] is True
 
-        assert (
-            "directory_selected" in stderr_output or "owner_resolved" in stderr_output
-        )
+        assert "directory_selected" in stderr_output or "owner_resolved" in stderr_output
 
 
 class TestCliEdgeCases:
@@ -3034,15 +2922,13 @@ class TestCliEdgeCases:
     def repo_for_edge_cases(self, tmp_path):
         (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
         (tmp_path / "docs" / "45-adr").mkdir(parents=True)
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
         return tmp_path
 
     def test_new_empty_title_returns_error_json(self, repo_for_edge_cases):
@@ -3118,11 +3004,7 @@ document_types:
         )
 
         assert result.exit_code != 0
-        records = [
-            json.loads(line)
-            for line in result.output.strip().splitlines()
-            if line.strip()
-        ]
+        records = [json.loads(line) for line in result.output.strip().splitlines() if line.strip()]
         assert records[0]["record_type"] == "header"
         assert records[-1]["record_type"] == "error"
         assert records[-1]["error"]["code"] == "INVALID_ROOT_PATH"
@@ -3242,9 +3124,7 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code == 0
     data = parse_json_envelope(result.output)
@@ -3359,9 +3239,7 @@ def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_pat
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--no-dry-run"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--no-dry-run"])
 
     assert result.exit_code == 0
     assert "DRY RUN" not in result.output
@@ -3371,9 +3249,7 @@ def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_pat
 def test_cli_migrate_templates_missing_config_json(tmp_path):
     """Test that migrate-templates returns proper error when config is missing."""
     runner = runner_no_mixed_stderr()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code != 0
     data = parse_json_envelope(result.output)
@@ -3412,9 +3288,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"])
 
     assert result.exit_code == 0
     assert "# Meminit Template Migration" in result.output
@@ -3430,9 +3304,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
 
 
 @patch("meminit.cli.main.MigrateTemplatesUseCase")
-def test_cli_migrate_templates_json_failure_returns_error_envelope(
-    mock_use_case, tmp_path
-):
+def test_cli_migrate_templates_json_failure_returns_error_envelope(mock_use_case, tmp_path):
     """JSON migrate-templates failures must remain schema-valid and machine-readable."""
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
@@ -3472,9 +3344,7 @@ def test_cli_migrate_templates_json_failure_returns_error_envelope(
     )
 
     runner = runner_no_mixed_stderr()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--format", "json"])
 
     assert result.exit_code == 1
     payload = parse_json_envelope(result.output)
@@ -3510,9 +3380,7 @@ def test_cli_migrate_templates_md_failure_exits_non_zero(mock_use_case, tmp_path
     )
 
     runner = runner_no_mixed_stderr()
-    result = runner.invoke(
-        cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"]
-    )
+    result = runner.invoke(cli, ["migrate-templates", "--root", str(tmp_path), "--format", "md"])
 
     assert result.exit_code == 1
     assert "# Meminit Template Migration" in result.output

@@ -3,12 +3,12 @@
 Returns a deterministic capability descriptor derived from code-level
 registrations — no filesystem scanning required.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from meminit.core.services.versioning import get_cli_version
-
 
 CAPABILITIES_VERSION = "1.0"
 
@@ -21,9 +21,7 @@ class CapabilitiesUseCase:
         from meminit.core.services.error_codes import ErrorCode
         from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
-        commands = sorted(
-            _CAPABILITIES_REGISTRY.values(), key=lambda c: c["name"]
-        )
+        commands = sorted(_CAPABILITIES_REGISTRY.values(), key=lambda c: c["name"])
 
         return {
             "capabilities_version": CAPABILITIES_VERSION,

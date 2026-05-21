@@ -65,12 +65,7 @@ def get_console() -> Console:
     """Helper to get the rich console from context if available."""
     try:
         ctx = click.get_current_context(silent=True)
-        if (
-            ctx
-            and hasattr(ctx, "obj")
-            and isinstance(ctx.obj, dict)
-            and "console" in ctx.obj
-        ):
+        if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict) and "console" in ctx.obj:
             return ctx.obj["console"]
     except Exception:
         pass
@@ -110,9 +105,7 @@ def command_output_handler(
             elif format == "ndjson":
                 write_ndjson_error(
                     command_name=command_name,
-                    error=MeminitError(
-                        ErrorCode.INVALID_FLAG_COMBINATION, error_msg
-                    ),
+                    error=MeminitError(ErrorCode.INVALID_FLAG_COMBINATION, error_msg),
                     output=output,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
@@ -171,9 +164,7 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(
-                    f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]"
-                )
+                get_console().print(f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]")
         raise SystemExit(exit_code_for_error(e.code)) from e
     except Exception as e:
         # Secure error handling (Item 2): Mask raw exceptions in user-facing message
@@ -213,14 +204,11 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(
-                    f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]"
-                )
+                get_console().print(f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]")
 
         # Always log the real error to stderr for operators
         click.echo(f"INTERNAL ERROR: {e}", err=True)
         raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR))
-
 
 
 def complete_document_types(ctx, param, incomplete: str):
@@ -246,7 +234,10 @@ def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
 
     Returns None if the string is not a valid envelope.
     """
-    from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3
+    from meminit.core.services.output_contracts import (
+        OUTPUT_SCHEMA_VERSION_V2,
+        OUTPUT_SCHEMA_VERSION_V3,
+    )
 
     try:
         payload = json.loads(output_str)
@@ -254,7 +245,8 @@ def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
         return None
     if (
         isinstance(payload, dict)
-        and payload.get("output_schema_version") in (OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3)
+        and payload.get("output_schema_version")
+        in (OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3)
         and isinstance(payload.get("command"), str)
     ):
         return payload
@@ -286,12 +278,16 @@ def _write_output(
                         message=f"Output path is considered unsafe: {output}",
                         details={"output_path": output},
                         include_timestamp="timestamp" in payload,
-                        run_id=payload.get("run_id")
-                        if isinstance(payload.get("run_id"), str)
-                        else None,
-                        correlation_id=payload.get("correlation_id")
-                        if isinstance(payload.get("correlation_id"), str)
-                        else None,
+                        run_id=(
+                            payload.get("run_id")
+                            if isinstance(payload.get("run_id"), str)
+                            else None
+                        ),
+                        correlation_id=(
+                            payload.get("correlation_id")
+                            if isinstance(payload.get("correlation_id"), str)
+                            else None
+                        ),
                     )
                 )
             else:
@@ -321,12 +317,16 @@ def _write_output(
                         message=f"Failed to write output file: {output}",
                         details={"output_path": output, "reason": str(exc)},
                         include_timestamp="timestamp" in payload,
-                        run_id=payload.get("run_id")
-                        if isinstance(payload.get("run_id"), str)
-                        else None,
-                        correlation_id=payload.get("correlation_id")
-                        if isinstance(payload.get("correlation_id"), str)
-                        else None,
+                        run_id=(
+                            payload.get("run_id")
+                            if isinstance(payload.get("run_id"), str)
+                            else None
+                        ),
+                        correlation_id=(
+                            payload.get("correlation_id")
+                            if isinstance(payload.get("correlation_id"), str)
+                            else None
+                        ),
                     )
                 )
             else:
@@ -401,8 +401,7 @@ def _filter_index_edges(
         return report.edges
     visible_ids = {n["document_id"] for n in report.documents}
     return [
-        e for e in report.edges
-        if e.get("source") in visible_ids and e.get("target") in visible_ids
+        e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
     ]
 
 
@@ -461,11 +460,21 @@ def _md_escape(value: object) -> str:
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
 
-_MD_INLINE_SPECIAL = str.maketrans({
-    "\\": "\\\\", "*": "\\*", "_": "\\_", "[": "\\[", "]": "\\]",
-    "`": "\\`", "|": "\\|", "<": "&lt;", ">": "&gt;",
-    "&": "&amp;", "\n": " ",
-})
+_MD_INLINE_SPECIAL = str.maketrans(
+    {
+        "\\": "\\\\",
+        "*": "\\*",
+        "_": "\\_",
+        "[": "\\[",
+        "]": "\\]",
+        "`": "\\`",
+        "|": "\\|",
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        "\n": " ",
+    }
+)
 
 
 def _md_inline(value: object) -> str:
@@ -580,6 +589,7 @@ def validate_initialized(
 
     if config_file.is_file() and not config_file.is_symlink():
         import yaml as _yaml
+
         try:
             raw = _yaml.safe_load(config_file.read_text(encoding="utf-8"))
             if isinstance(raw, dict) and raw.get("docops_version") is not None:
@@ -620,10 +630,7 @@ def validate_initialized(
             "required": "regular file (not directory/symlink)",
         }
     else:
-        msg = (
-            "Repository not initialized: missing docops.config.yaml. "
-            "Run 'meminit init' first."
-        )
+        msg = "Repository not initialized: missing docops.config.yaml. " "Run 'meminit init' first."
         details = {
             "reason": "missing",
             "hint": "meminit init",
@@ -686,9 +693,7 @@ def get_severity_value(violation: Violation) -> str:
     default=False,
     help="Disable ANSI colors in text output.",
 )
-@click.option(
-    "--verbose", is_flag=True, default=False, help="Enable verbose debug logging."
-)
+@click.option("--verbose", is_flag=True, default=False, help="Enable verbose debug logging.")
 @click.pass_context
 def cli(ctx: click.Context, no_color: bool, verbose: bool):
     """Meminit DocOps CLI"""
@@ -714,9 +719,7 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
 @cli.command()
 @click.argument("paths", nargs=-1, required=False)
 @agent_repo_options()
-@click.option(
-    "--quiet", is_flag=True, default=False, help="Only show failures (text output)"
-)
+@click.option("--quiet", is_flag=True, default=False, help="Only show failures (text output)")
 @click.option(
     "--strict",
     is_flag=True,
@@ -733,7 +736,12 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "check", format, output, include_timestamp, run_id, root_path,
+        "check",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         if format == "text" and not quiet and not paths:
@@ -825,9 +833,7 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
             for item in result.violations:
                 path = item.get("path")
                 for v in item.get("violations", []):
-                    rows.append(
-                        ["error", v.get("code"), path, v.get("line"), v.get("message")]
-                    )
+                    rows.append(["error", v.get("code"), path, v.get("line"), v.get("message")])
             for item in result.warnings:
                 path = item.get("path")
                 for w in item.get("warnings", []):
@@ -855,60 +861,36 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
             raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
         with maybe_capture(output, format):
-            violations_by_path = {
-                item["path"]: item["violations"] for item in result.violations
-            }
-            warnings_by_path = {
-                item["path"]: item["warnings"] for item in result.warnings
-            }
+            violations_by_path = {item["path"]: item["violations"] for item in result.violations}
+            warnings_by_path = {item["path"]: item["warnings"] for item in result.warnings}
 
             if quiet:
                 for path in sorted(violations_by_path.keys()):
                     for v in violations_by_path[path]:
-                        line_info = (
-                            f" (line {v['line']})" if v.get("line") is not None else ""
-                        )
-                        get_console().print(
-                            f"FAIL {path}: [{v['code']}] {v['message']}{line_info}"
-                        )
+                        line_info = f" (line {v['line']})" if v.get("line") is not None else ""
+                        get_console().print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
                 raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
             if paths:
                 label = "file" if result.files_checked == 1 else "files"
-                get_console().print(
-                    f"Checking {result.files_checked} existing {label}..."
-                )
+                get_console().print(f"Checking {result.files_checked} existing {label}...")
                 for path in result.checked_paths:
                     if path in violations_by_path:
                         get_console().print(f"FAIL {path}")
                         for v in violations_by_path[path]:
-                            line_info = (
-                                f" (line {v['line']})"
-                                if v.get("line") is not None
-                                else ""
-                            )
-                            get_console().print(
-                                f"  - [{v['code']}] {v['message']}{line_info}"
-                            )
+                            line_info = f" (line {v['line']})" if v.get("line") is not None else ""
+                            get_console().print(f"  - [{v['code']}] {v['message']}{line_info}")
                         continue
                     if path in warnings_by_path:
                         get_console().print(f"WARN {path}")
                         for w in warnings_by_path[path]:
-                            line_info = (
-                                f" (line {w['line']})"
-                                if w.get("line") is not None
-                                else ""
-                            )
-                            get_console().print(
-                                f"  - [{w['code']}] {w['message']}{line_info}"
-                            )
+                            line_info = f" (line {w['line']})" if w.get("line") is not None else ""
+                            get_console().print(f"  - [{w['code']}] {w['message']}{line_info}")
                         continue
                     get_console().print(f"OK {path}")
             else:
                 table_title = (
-                    "Compliance Violations"
-                    if result.violations_count
-                    else "Compliance Warnings"
+                    "Compliance Violations" if result.violations_count else "Compliance Warnings"
                 )
                 table = Table(title=table_title)
                 table.add_column("Severity")
@@ -944,9 +926,7 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
                     f"\n[bold yellow]Found {result.warnings_count} warning(s).[/bold yellow]"
                 )
             else:
-                get_console().print(
-                    "[bold green]Success! No violations found.[/bold green]"
-                )
+                get_console().print("[bold green]Success! No violations found.[/bold green]")
             raise SystemExit(0)
 
 
@@ -963,7 +943,12 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "doctor", format, output, include_timestamp, run_id, root_path,
+        "doctor",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -982,14 +967,12 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
         errors = [
             i
             for i in issues
-            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
-            == "error"
+            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "error"
         ]
         warnings = [
             i
             for i in issues
-            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
-            == "warning"
+            if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "warning"
         ]
 
         status = "ok"
@@ -1036,9 +1019,9 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
             # Include original issues in data for backward compatibility (PRD §15.1)
             issues_payload = [
                 {
-                    "severity": i.severity.value
-                    if hasattr(i.severity, "value")
-                    else str(i.severity),
+                    "severity": (
+                        i.severity.value if hasattr(i.severity, "value") else str(i.severity)
+                    ),
                     "rule": i.rule,
                     "file": i.file,
                     "line": i.line,
@@ -1065,9 +1048,7 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
         if format == "md":
             rows = [
                 [
-                    v.severity.value
-                    if hasattr(v.severity, "value")
-                    else str(v.severity),
+                    v.severity.value if hasattr(v.severity, "value") else str(v.severity),
                     v.rule,
                     v.file,
                     v.line,
@@ -1096,9 +1077,7 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
             get_console().print(f"Root: {root_path}")
 
             if not issues:
-                get_console().print(
-                    "[bold green]OK: meminit is ready to run here.[/bold green]"
-                )
+                get_console().print("[bold green]OK: meminit is ready to run here.[/bold green]")
                 return
 
             table = Table(title="Doctor Findings")
@@ -1108,11 +1087,7 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
             table.add_column("Message", overflow="fold")
 
             for v in issues:
-                severity_val = (
-                    v.severity.value
-                    if hasattr(v.severity, "value")
-                    else str(v.severity)
-                )
+                severity_val = v.severity.value if hasattr(v.severity, "value") else str(v.severity)
                 severity_color = "red" if severity_val == "error" else "yellow"
                 table.add_row(
                     f"[{severity_color}]{severity_val}[/{severity_color}]",
@@ -1127,9 +1102,7 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
                     f"\n[bold red]{len(errors)} error(s), {len(warnings)} warning(s).[/bold red]"
                 )
             else:
-                get_console().print(
-                    f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]"
-                )
+                get_console().print(f"\n[bold yellow]{len(warnings)} warning(s).[/bold yellow]")
             raise SystemExit(exit_code)
 
 
@@ -1141,9 +1114,7 @@ def doctor(root, format, output, include_timestamp, correlation_id, strict):
     default=None,
     help="Apply a deterministic migration plan",
 )
-@click.option(
-    "--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files"
-)
+@click.option("--dry-run/--no-dry-run", default=True, help="Simulate fixes without changing files")
 @click.option(
     "--namespace",
     default=None,
@@ -1155,7 +1126,12 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp, corre
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "fix", format, output, include_timestamp, run_id, root_path,
+        "fix",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         if format == "text":
@@ -1182,9 +1158,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp, corre
             try:
                 with open(plan, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                plan_data = (
-                    data.get("data", {}).get("plan") or data
-                )  # Handle envelope or direct
+                plan_data = data.get("data", {}).get("plan") or data  # Handle envelope or direct
                 plan_obj = MigrationPlan.from_dict(plan_data)
             except Exception as e:
                 if format == "json":
@@ -1201,9 +1175,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp, corre
                         output,
                     )
                 else:
-                    get_console().print(
-                        f"[bold red]Failed to load plan: {e}[/bold red]"
-                    )
+                    get_console().print(f"[bold red]Failed to load plan: {e}[/bold red]")
                 raise SystemExit(1) from e
 
         use_case = FixRepositoryUseCase(root_dir=str(root_path))
@@ -1257,9 +1229,7 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp, corre
         with maybe_capture(output, format):
             # Print fixed actions
             if report.fixed_violations:
-                table = Table(
-                    title="Actions Taken" if not dry_run else "Proposed Actions"
-                )
+                table = Table(title="Actions Taken" if not dry_run else "Proposed Actions")
                 table.add_column("File")
                 table.add_column("Action", style="green")
                 table.add_column("Description")
@@ -1285,12 +1255,8 @@ def fix(root, plan, dry_run, namespace, format, output, include_timestamp, corre
                 for v in report.remaining_violations[:5]:
                     get_console().print(f"- {v.file}: {v.message}")
                 if len(report.remaining_violations) > 5:
-                    get_console().print(
-                        f"... and {len(report.remaining_violations) - 5} more."
-                    )
-                get_console().print(
-                    "\nRun [bold]meminit check[/bold] for full details."
-                )
+                    get_console().print(f"... and {len(report.remaining_violations) - 5} more.")
+                get_console().print("\nRun [bold]meminit check[/bold] for full details.")
                 raise SystemExit(exit_code)
             else:
                 get_console().print("\n[bold green]All clear![/bold green]")
@@ -1311,7 +1277,12 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "scan", format, output, include_timestamp, run_id, root_path,
+        "scan",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -1451,16 +1422,12 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     [
                         "## Overlapping Namespace Roots (review)",
                         "",
-                        _md_table(
-                            ["Parent", "Parent Root", "Child", "Child Root"], rows
-                        ),
+                        _md_table(["Parent", "Parent Root", "Child", "Child Root"], rows),
                         "",
                     ]
                 )
             if report.suggested_type_directories:
-                rows = [
-                    [k, v] for k, v in sorted(report.suggested_type_directories.items())
-                ]
+                rows = [[k, v] for k, v in sorted(report.suggested_type_directories.items())]
                 lines.extend(
                     [
                         "## Suggested `type_directories` overrides",
@@ -1471,8 +1438,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 )
             if report.ambiguous_types:
                 rows = [
-                    [k, ", ".join(sorted(v))]
-                    for k, v in sorted(report.ambiguous_types.items())
+                    [k, ", ".join(sorted(v))] for k, v in sorted(report.ambiguous_types.items())
                 ]
                 lines.extend(
                     [
@@ -1561,9 +1527,7 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                     table.add_row(k, v)
                 get_console().print(table)
             if report.ambiguous_types:
-                table = Table(
-                    title="Ambiguous type_directories (manual decision required)"
-                )
+                table = Table(title="Ambiguous type_directories (manual decision required)")
                 table.add_column("Type")
                 table.add_column("Candidates")
                 for k, v in sorted(report.ambiguous_types.items()):
@@ -1595,7 +1559,12 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "install-precommit", format, output, include_timestamp, run_id, root_path,
+        "install-precommit",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -1643,9 +1612,7 @@ def install_precommit(root, format, output, include_timestamp, correlation_id):
 
         with maybe_capture(output, format):
             if result.status == "already_installed":
-                get_console().print(
-                    "[yellow]meminit pre-commit hook already installed.[/yellow]"
-                )
+                get_console().print("[yellow]meminit pre-commit hook already installed.[/yellow]")
                 return
             if result.status == "created":
                 get_console().print(
@@ -1729,7 +1696,12 @@ def index(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "index", format, output, include_timestamp, run_id, root_path,
+        "index",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -1754,11 +1726,7 @@ def index(
                 details={
                     "flags": [
                         "--explain-cache",
-                        *(
-                            ["--no-cache"]
-                            if no_cache
-                            else ["--rebuild-cache"]
-                        ),
+                        *(["--no-cache"] if no_cache else ["--rebuild-cache"]),
                     ]
                 },
             )
@@ -1826,8 +1794,7 @@ def index(
                     raise SystemExit(exit_code_for_error(e.code)) from e
                 raise
             has_error = any(
-                w.get("severity") == Severity.ERROR.value
-                for w in stream_result.summary.warnings
+                w.get("severity") == Severity.ERROR.value for w in stream_result.summary.warnings
             )
             if has_error:
                 raise SystemExit(1)
@@ -1853,7 +1820,11 @@ def index(
                             root=str(root_path),
                             success=False,
                             violations=violations,
-                            error={"code": e.code.value, "message": e.message, "details": e.details},
+                            error={
+                                "code": e.code.value,
+                                "message": e.message,
+                                "details": e.details,
+                            },
                             include_timestamp=include_timestamp,
                             run_id=run_id,
                             correlation_id=correlation_id,
@@ -1880,9 +1851,7 @@ def index(
             raise
 
         warnings_list = getattr(report, "warnings", [])
-        has_error = any(
-            w.get("severity") == Severity.ERROR.value for w in warnings_list
-        )
+        has_error = any(w.get("severity") == Severity.ERROR.value for w in warnings_list)
         status = "error" if has_error else ("warn" if warnings_list else "ok")
         data = _index_output_data(
             report,
@@ -1935,15 +1904,12 @@ def index(
                     ]
                     for w in warnings_list
                 ]
-                lines.append(
-                    _md_table(["Severity", "Code", "Path", "Line", "Message"], rows)
-                )
+                lines.append(_md_table(["Severity", "Code", "Path", "Line", "Message"], rows))
             advice_list = getattr(report, "advice", [])
             if advice_list:
                 lines.extend(["", "## Advice", ""])
                 advice_rows = [
-                    ["INFO", str(a.get("code")), str(a.get("message"))]
-                    for a in advice_list
+                    ["INFO", str(a.get("code")), str(a.get("message"))] for a in advice_list
                 ]
                 lines.append(_md_table(["Severity", "Code", "Message"], advice_rows))
             lines.append("")
@@ -1985,7 +1951,12 @@ def resolve(document_id, root, format, output, include_timestamp, correlation_id
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "resolve", format, output, include_timestamp, run_id, root_path,
+        "resolve",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2044,7 +2015,12 @@ def identify(path, root, format, output, include_timestamp, correlation_id):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "identify", format, output, include_timestamp, run_id, root_path,
+        "identify",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2103,7 +2079,12 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "link", format, output, include_timestamp, run_id, root_path,
+        "link",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2130,9 +2111,11 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
                     success=True,
                     data={
                         "document_id": document_id,
-                        "link": f"[{document_id}]({result.path.replace('\\', '/')})"
-                        if result.path
-                        else None,
+                        "link": (
+                            f"[{document_id}]({result.path.replace('\\', '/')})"
+                            if result.path
+                            else None
+                        ),
                     },
                     include_timestamp=include_timestamp,
                     run_id=run_id,
@@ -2157,21 +2140,26 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
 
 @cli.command("migrate-ids")
 @agent_repo_options()
-@click.option(
-    "--dry-run/--no-dry-run", default=True, help="Preview changes without writing files"
-)
+@click.option("--dry-run/--no-dry-run", default=True, help="Preview changes without writing files")
 @click.option(
     "--rewrite-references/--no-rewrite-references",
     default=False,
     help="Rewrite old IDs in document bodies",
 )
-def migrate_ids(root, dry_run, rewrite_references, format, output, include_timestamp, correlation_id):
+def migrate_ids(
+    root, dry_run, rewrite_references, format, output, include_timestamp, correlation_id
+):
     """Migrate legacy document_id values into REPO-TYPE-SEQ format."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "migrate-ids", format, output, include_timestamp, run_id, root_path,
+        "migrate-ids",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2185,9 +2173,7 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
         )
 
         use_case = MigrateIdsUseCase(root_dir=str(root_path))
-        report = use_case.execute(
-            dry_run=dry_run, rewrite_references=rewrite_references
-        )
+        report = use_case.execute(dry_run=dry_run, rewrite_references=rewrite_references)
 
         if format == "json":
             _write_output(
@@ -2217,9 +2203,7 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
                 f"- Skipped: {len(report.skipped_files)}\n\n"
                 "## Actions\n\n"
                 + (
-                    _md_table(
-                        ["File", "Type", "Old ID", "New ID", "Refs Rewritten"], rows
-                    )
+                    _md_table(["File", "Type", "Old ID", "New ID", "Refs Rewritten"], rows)
                     if rows
                     else "_None_\n"
                 ),
@@ -2239,12 +2223,8 @@ def migrate_ids(root, dry_run, rewrite_references, format, output, include_times
 
 @cli.command("migrate-templates")
 @agent_repo_options()
-@click.option(
-    "--dry-run/--no-dry-run", default=True, help="Preview changes without writing files"
-)
-@click.option(
-    "--backup/--no-backup", default=True, help="Create backup before modifying files"
-)
+@click.option("--dry-run/--no-dry-run", default=True, help="Preview changes without writing files")
+@click.option("--backup/--no-backup", default=True, help="Create backup before modifying files")
 @click.option(
     "--legacy-type-dirs/--no-legacy-type-dirs",
     default=True,
@@ -2283,7 +2263,12 @@ def migrate_templates(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "migrate-templates", format, output, include_timestamp, run_id, root_path,
+        "migrate-templates",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2342,9 +2327,9 @@ def migrate_templates(
                     warnings=warning_entries,
                     error={
                         "code": ErrorCode.VALIDATION_ERROR.value,
-                        "message": report.warnings[0]
-                        if report.warnings
-                        else "Template migration failed.",
+                        "message": (
+                            report.warnings[0] if report.warnings else "Template migration failed."
+                        ),
                         "details": payload_data,
                     },
                     include_timestamp=include_timestamp,
@@ -2402,16 +2387,10 @@ def migrate_templates(
             get_console().print(f"Root: {root_path}")
             get_console().print(f"Mode: {'DRY RUN' if dry_run else 'APPLY'}")
             get_console().print(f"Config entries found: {report.config_entries_found}")
-            get_console().print(
-                f"Config entries migrated: {report.config_entries_migrated}"
-            )
+            get_console().print(f"Config entries migrated: {report.config_entries_migrated}")
             get_console().print(f"Template files found: {report.template_files_found}")
-            get_console().print(
-                f"Template files renamed: {report.template_files_renamed}"
-            )
-            get_console().print(
-                f"Placeholder replacements: {report.placeholder_replacements}"
-            )
+            get_console().print(f"Template files renamed: {report.template_files_renamed}")
+            get_console().print(f"Placeholder replacements: {report.placeholder_replacements}")
             if report.warnings:
                 get_console().print("\nWarnings:")
                 for warning in report.warnings:
@@ -2441,7 +2420,12 @@ def init(root, format, output, include_timestamp, correlation_id, repo_prefix):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "init", format, output, include_timestamp, run_id, root_path,
+        "init",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         use_case = InitRepositoryUseCase(str(root_path), repo_prefix=repo_prefix)
@@ -2488,9 +2472,7 @@ def init(root, format, output, include_timestamp, correlation_id, repo_prefix):
             return
 
         with maybe_capture(output, format):
-            get_console().print(
-                f"[bold green]Initialized DocOps repository at {root}[/bold green]"
-            )
+            get_console().print(f"[bold green]Initialized DocOps repository at {root}[/bold green]")
             get_console().print("- Created directory structure (docs/)")
             get_console().print("- Created docops.config.yaml")
             get_console().print("- Created AGENTS.md")
@@ -2500,9 +2482,7 @@ def init(root, format, output, include_timestamp, correlation_id, repo_prefix):
 @click.argument("doc_type", required=False, shell_complete=complete_document_types)
 @click.argument("title", required=False)
 @agent_repo_options()
-@click.option(
-    "--namespace", default=None, help="Namespace to create the doc in (monorepo mode)"
-)
+@click.option("--namespace", default=None, help="Namespace to create the doc in (monorepo mode)")
 @click.option("--owner", default=None, help="Set owner frontmatter field")
 @click.option("--area", default=None, help="Set area frontmatter field")
 @click.option("--description", default=None, help="Set description frontmatter field")
@@ -2535,9 +2515,7 @@ def init(root, format, output, include_timestamp, correlation_id, repo_prefix):
     default=False,
     help="Output decision reasoning (stderr for JSON)",
 )
-@click.option(
-    "--list-types", is_flag=True, default=False, help="List valid document types"
-)
+@click.option("--list-types", is_flag=True, default=False, help="List valid document types")
 @click.option(
     "--edit",
     is_flag=True,
@@ -2577,7 +2555,12 @@ def new_doc(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "new", format, output, include_timestamp, run_id, root_path,
+        "new",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         if interactive and format == "json":
@@ -2642,13 +2625,19 @@ def new_doc(
                 with maybe_capture(output, format):
                     get_console().print("[bold blue]Valid Document Types:[/bold blue]")
                     for item in types_list:
-                        get_console().print(
-                            f"  {item['type']:10} → {item['directory']}"
-                        )
+                        get_console().print(f"  {item['type']:10} → {item['directory']}")
             return
 
         if interactive:
-            validate_root_path(root_path, format=format, command="new", output=output, include_timestamp=include_timestamp, run_id=run_id, correlation_id=correlation_id)
+            validate_root_path(
+                root_path,
+                format=format,
+                command="new",
+                output=output,
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                correlation_id=correlation_id,
+            )
             use_case = NewDocumentUseCase(str(root_path))
             valid_types = use_case.get_valid_types(namespace)
             if not doc_type:
@@ -2656,15 +2645,11 @@ def new_doc(
             if not title:
                 title = click.prompt("Document title")
             if not owner:
-                owner = click.prompt(
-                    "Owner (optional)", default="__TBD__", show_default=True
-                )
+                owner = click.prompt("Owner (optional)", default="__TBD__", show_default=True)
             if not area:
                 area = click.prompt("Area (optional)", default="", show_default=False)
             if not description:
-                description = click.prompt(
-                    "Description (optional)", default="", show_default=False
-                )
+                description = click.prompt("Description (optional)", default="", show_default=False)
 
         if not doc_type or not title:
             raise MeminitError(
@@ -2731,9 +2716,7 @@ def new_doc(
                     sys.stderr.write("\n")
                 sys.stderr.flush()
             response_data = {
-                "path": result.path.relative_to(root_path).as_posix()
-                if result.path
-                else None,
+                "path": result.path.relative_to(root_path).as_posix() if result.path else None,
                 "document_id": result.document_id,
                 "type": result.doc_type,
                 "title": result.title,
@@ -2776,9 +2759,7 @@ def new_doc(
                 output,
             )
         elif format == "md":
-            rel_path = (
-                result.path.relative_to(root_path).as_posix() if result.path else None
-            )
+            rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
             lines = [
                 "# Meminit New",
                 "",
@@ -2830,16 +2811,19 @@ def adr():
 @adr.command(name="new")
 @click.argument("title")
 @agent_repo_options()
-@click.option(
-    "--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)"
-)
+@click.option("--namespace", default=None, help="Namespace to create the ADR in (monorepo mode)")
 def adr_new(title, root, format, output, include_timestamp, correlation_id, namespace):
     """Create a new ADR (alias for 'meminit new ADR')."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "adr new", format, output, include_timestamp, run_id, root_path,
+        "adr new",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -2878,9 +2862,7 @@ def adr_new(title, root, format, output, include_timestamp, correlation_id, name
                 str(result.error) if result.error else "Unknown error",
             )
 
-        rel_path = (
-            result.path.relative_to(root_path).as_posix() if result.path else None
-        )
+        rel_path = result.path.relative_to(root_path).as_posix() if result.path else None
         if format == "json":
             response_data = {
                 "path": rel_path,
@@ -2921,9 +2903,7 @@ def adr_new(title, root, format, output, include_timestamp, correlation_id, name
             _write_output("\n".join(lines), output)
         else:
             with maybe_capture(output, format):
-                get_console().print(
-                    f"[bold green]Created ADR: {result.path}[/bold green]"
-                )
+                get_console().print(f"[bold green]Created ADR: {result.path}[/bold green]")
 
 
 @cli.command()
@@ -2933,7 +2913,11 @@ def capabilities(format, output, include_timestamp, correlation_id):
     run_id = get_current_run_id()
 
     with command_output_handler(
-        "capabilities", format, output, include_timestamp, run_id,
+        "capabilities",
+        format,
+        output,
+        include_timestamp,
+        run_id,
         correlation_id=correlation_id,
     ):
         from meminit.core.use_cases.capabilities import CapabilitiesUseCase
@@ -3012,14 +2996,19 @@ def capabilities(format, output, include_timestamp, correlation_id):
 @cli.command()
 @agent_output_options()
 @click.argument("error_code", required=False)
-@click.option("--list", "list_codes", is_flag=True, default=False,
-              help="List all known error codes.")
+@click.option(
+    "--list", "list_codes", is_flag=True, default=False, help="List all known error codes."
+)
 def explain(error_code, list_codes, format, output, include_timestamp, correlation_id):
     """Explain a Meminit error code in detail."""
     run_id = get_current_run_id()
 
     with command_output_handler(
-        "explain", format, output, include_timestamp, run_id,
+        "explain",
+        format,
+        output,
+        include_timestamp,
+        run_id,
         correlation_id=correlation_id,
     ):
         from meminit.core.use_cases.explain_error import ExplainErrorUseCase
@@ -3048,8 +3037,7 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
                 lines.append("|------|----------|---------|")
                 for entry in codes:
                     lines.append(
-                        f"| `{entry['code']}` | {entry['category']} "
-                        f"| {entry['summary']} |"
+                        f"| `{entry['code']}` | {entry['category']} " f"| {entry['summary']} |"
                     )
                 _write_output("\n".join(lines) + "\n", output)
                 return
@@ -3096,9 +3084,7 @@ def explain(error_code, list_codes, format, output, include_timestamp, correlati
                 )
             else:
                 with maybe_capture(output, format):
-                    get_console().print(
-                        f"[bold red]Unknown error code: {error_code}[/bold red]"
-                    )
+                    get_console().print(f"[bold red]Unknown error code: {error_code}[/bold red]")
             raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR_CODE))
 
         if format == "json":
@@ -3175,7 +3161,12 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "context", format, output, include_timestamp, run_id, root_path,
+        "context",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -3259,9 +3250,7 @@ def context(root, deep, format, output, include_timestamp, correlation_id):
             if result.warnings:
                 get_console().print("Warnings:")
                 for warning in result.warnings:
-                    get_console().print(
-                        f"  - {warning.get('code')}: {warning.get('message')}"
-                    )
+                    get_console().print(f"  - {warning.get('code')}: {warning.get('message')}")
 
 
 @cli.group()
@@ -3272,18 +3261,18 @@ def org():
 
 @org.command("install")
 @click.option("--profile", default="default", help="Org profile name to install")
-@click.option(
-    "--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths"
-)
-@click.option(
-    "--force/--no-force", default=False, help="Overwrite an existing installed profile"
-)
+@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing to XDG paths")
+@click.option("--force/--no-force", default=False, help="Overwrite an existing installed profile")
 @agent_output_options()
 def org_install(profile, dry_run, force, format, output, include_timestamp, correlation_id):
     """Install the packaged org profile into XDG user data directories."""
     run_id = get_current_run_id()
     with command_output_handler(
-        "org install", format, output, include_timestamp, run_id,
+        "org install",
+        format,
+        output,
+        include_timestamp,
+        run_id,
         correlation_id=correlation_id,
     ):
         use_case = InstallOrgProfileUseCase()
@@ -3312,9 +3301,7 @@ def org_install(profile, dry_run, force, format, output, include_timestamp, corr
 @org.command("vendor")
 @agent_repo_options()
 @click.option("--profile", default="default", help="Org profile name to vendor")
-@click.option(
-    "--dry-run/--no-dry-run", default=True, help="Preview without writing files"
-)
+@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing files")
 @click.option(
     "--force/--no-force",
     default=False,
@@ -3326,14 +3313,27 @@ def org_install(profile, dry_run, force, format, output, include_timestamp, corr
     help="Vendor ORG governance markdown docs too",
 )
 def org_vendor(
-    root, profile, dry_run, force, include_org_docs, format, output, include_timestamp, correlation_id
+    root,
+    profile,
+    dry_run,
+    force,
+    include_org_docs,
+    format,
+    output,
+    include_timestamp,
+    correlation_id,
 ):
     """Vendor (copy + pin) org standards into a repo to prevent unintentional drift."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "org vendor", format, output, include_timestamp, run_id, root_path,
+        "org vendor",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -3383,7 +3383,12 @@ def org_status(root, profile, format, output, include_timestamp, correlation_id)
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "org status", format, output, include_timestamp, run_id, root_path,
+        "org status",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -3426,21 +3431,31 @@ def state():
     pass
 
 
-def _validate_mutation_exclusivity(
-    replace, add, remove, clear, field_name
-):
+def _validate_mutation_exclusivity(replace, add, remove, clear, field_name):
     from meminit.core.use_cases.state_document import _assert_single_mutation_mode
 
     try:
         _assert_single_mutation_mode(field_name, replace, add, remove, clear)
     except MeminitError as exc:
         flag_names = {
-            "depends_on": ("--depends-on", "--add-depends-on/--remove-depends-on", "--clear-depends-on"),
-            "blocked_by": ("--blocked-by", "--add-blocked-by/--remove-blocked-by", "--clear-blocked-by"),
+            "depends_on": (
+                "--depends-on",
+                "--add-depends-on/--remove-depends-on",
+                "--clear-depends-on",
+            ),
+            "blocked_by": (
+                "--blocked-by",
+                "--add-blocked-by/--remove-blocked-by",
+                "--clear-blocked-by",
+            ),
         }
-        active = [flag_names[field_name][i] for i, m in enumerate(
-            [replace is not None, (add is not None or remove is not None), clear]
-        ) if m]
+        active = [
+            flag_names[field_name][i]
+            for i, m in enumerate(
+                [replace is not None, (add is not None or remove is not None), clear]
+            )
+            if m
+        ]
         raise MeminitError(
             ErrorCode.STATE_MIXED_MUTATION_MODE,
             f"Conflicting mutation modes for {field_name}: "
@@ -3458,10 +3473,20 @@ def _normalize_mutation_arg(value):
 
 
 def _state_set_validate_args(
-    impl_state, notes, clear, priority,
-    depends_on, add_depends_on, remove_depends_on, clear_depends_on,
-    blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
-    assignee, next_action,
+    impl_state,
+    notes,
+    clear,
+    priority,
+    depends_on,
+    add_depends_on,
+    remove_depends_on,
+    clear_depends_on,
+    blocked_by,
+    add_blocked_by,
+    remove_blocked_by,
+    clear_blocked_by,
+    assignee,
+    next_action,
 ):
     # Normalize empty tuples/lists from Click to None
     depends_on = _normalize_mutation_arg(depends_on)
@@ -3471,11 +3496,21 @@ def _state_set_validate_args(
     add_blocked_by = _normalize_mutation_arg(add_blocked_by)
     remove_blocked_by = _normalize_mutation_arg(remove_blocked_by)
 
-    has_planning_flags = any([
-        priority, depends_on, add_depends_on, remove_depends_on,
-        clear_depends_on, blocked_by, add_blocked_by, remove_blocked_by,
-        clear_blocked_by, assignee is not None, next_action is not None,
-    ])
+    has_planning_flags = any(
+        [
+            priority,
+            depends_on,
+            add_depends_on,
+            remove_depends_on,
+            clear_depends_on,
+            blocked_by,
+            add_blocked_by,
+            remove_blocked_by,
+            clear_blocked_by,
+            assignee is not None,
+            next_action is not None,
+        ]
+    )
     if not clear and not impl_state and notes is None and not has_planning_flags:
         raise MeminitError(
             ErrorCode.STATE_NO_MUTATION_PROVIDED,
@@ -3488,20 +3523,39 @@ def _state_set_validate_args(
             details={"clear": True},
         )
     _validate_mutation_exclusivity(
-        depends_on, add_depends_on, remove_depends_on, clear_depends_on,
+        depends_on,
+        add_depends_on,
+        remove_depends_on,
+        clear_depends_on,
         "depends_on",
     )
     _validate_mutation_exclusivity(
-        blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
+        blocked_by,
+        add_blocked_by,
+        remove_blocked_by,
+        clear_blocked_by,
         "blocked_by",
     )
 
 
 def _state_set_execute(
-    root_path, document_id, impl_state, notes, actor, clear, priority,
-    depends_on, add_depends_on, remove_depends_on, clear_depends_on,
-    blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
-    assignee, next_action,
+    root_path,
+    document_id,
+    impl_state,
+    notes,
+    actor,
+    clear,
+    priority,
+    depends_on,
+    add_depends_on,
+    remove_depends_on,
+    clear_depends_on,
+    blocked_by,
+    add_blocked_by,
+    remove_blocked_by,
+    clear_blocked_by,
+    assignee,
+    next_action,
 ):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
@@ -3527,7 +3581,12 @@ def _state_set_execute(
 
 
 def _render_state_set_json(
-    result, root_path, include_timestamp, run_id, correlation_id, output,
+    result,
+    root_path,
+    include_timestamp,
+    run_id,
+    correlation_id,
+    output,
 ):
     data: dict = {"action": result.action, "document_id": result.document_id}
     if result.entry:
@@ -3583,9 +3642,7 @@ def _render_state_set_text(result, format, output):
                 f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
             )
         else:
-            get_console().print(
-                f"[bold green]Updated state for {result.document_id}[/bold green]"
-            )
+            get_console().print(f"[bold green]Updated state for {result.document_id}[/bold green]")
             get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
             get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
             if result.entry.get("priority"):
@@ -3605,9 +3662,7 @@ def _render_state_set_text(result, format, output):
 @click.option("--impl-state", help="Set implementation state (e.g., 'In Progress').")
 @click.option("--notes", help="Set notes (max 500 chars).")
 @click.option("--actor", help="Override the updated_by actor identity.")
-@click.option(
-    "--clear", "-c", is_flag=True, help="Clear the tracking state for this document."
-)
+@click.option("--clear", "-c", is_flag=True, help="Clear the tracking state for this document.")
 @click.option("--priority", help="Set priority (P0, P1, P2, P3).")
 @click.option("--depends-on", multiple=True, help="Replace depends_on list (repeatable).")
 @click.option("--add-depends-on", multiple=True, help="Add to depends_on (repeatable).")
@@ -3647,33 +3702,77 @@ def state_set(
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state set", format, output, include_timestamp, run_id, root_path,
+        "state set",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
-        validate_root_path(root_path, format=format, command="state set",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id)
-        validate_initialized(root_path, format=format, command="state set",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id)
+        validate_root_path(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
+        )
+        validate_initialized(
+            root_path,
+            format=format,
+            command="state set",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
+        )
 
         _state_set_validate_args(
-            impl_state, notes, clear, priority,
-            depends_on, add_depends_on, remove_depends_on, clear_depends_on,
-            blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
-            assignee, next_action,
+            impl_state,
+            notes,
+            clear,
+            priority,
+            depends_on,
+            add_depends_on,
+            remove_depends_on,
+            clear_depends_on,
+            blocked_by,
+            add_blocked_by,
+            remove_blocked_by,
+            clear_blocked_by,
+            assignee,
+            next_action,
         )
         result = _state_set_execute(
-            root_path, document_id, impl_state, notes, actor, clear, priority,
-            depends_on, add_depends_on, remove_depends_on, clear_depends_on,
-            blocked_by, add_blocked_by, remove_blocked_by, clear_blocked_by,
-            assignee, next_action,
+            root_path,
+            document_id,
+            impl_state,
+            notes,
+            actor,
+            clear,
+            priority,
+            depends_on,
+            add_depends_on,
+            remove_depends_on,
+            clear_depends_on,
+            blocked_by,
+            add_blocked_by,
+            remove_blocked_by,
+            clear_blocked_by,
+            assignee,
+            next_action,
         )
 
         if format == "json":
             _render_state_set_json(
-                result, root_path, include_timestamp, run_id,
-                correlation_id, output,
+                result,
+                root_path,
+                include_timestamp,
+                run_id,
+                correlation_id,
+                output,
             )
             return
         _render_state_set_text(result, format, output)
@@ -3690,7 +3789,12 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state get", format, output, include_timestamp, run_id, root_path,
+        "state get",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -3751,7 +3855,9 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
                 get_console().print(f"Notes: {result.entry.get('notes')}")
 
 
-def _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
+def _state_list_validate_filters(
+    ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
+):
     if ready and no_ready:
         raise MeminitError(
             code=ErrorCode.STATE_INVALID_FILTER_VALUE,
@@ -3778,8 +3884,19 @@ def _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee,
     return ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list
 
 
-def _state_list_execute(root_path, format, include_timestamp, run_id, output, correlation_id,
-                        ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list):
+def _state_list_execute(
+    root_path,
+    format,
+    include_timestamp,
+    run_id,
+    output,
+    correlation_id,
+    ready_filter,
+    blocked_filter,
+    assignee_list,
+    priority_list,
+    impl_state_list,
+):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
     from meminit.core.services.repo_config import load_repo_layout
     from meminit.core.services.project_state import ImplState
@@ -3825,8 +3942,16 @@ def _state_list_execute(root_path, format, include_timestamp, run_id, output, co
     return result, valid_impl_states, valid_doc_statuses
 
 
-def _render_state_list_json(result, valid_impl_states, valid_doc_statuses, root_path,
-                            include_timestamp, run_id, correlation_id, output):
+def _render_state_list_json(
+    result,
+    valid_impl_states,
+    valid_doc_statuses,
+    root_path,
+    include_timestamp,
+    run_id,
+    correlation_id,
+    output,
+):
     json_data = {
         "entries": result.entries,
         "valid_impl_states": valid_impl_states,
@@ -3856,7 +3981,9 @@ def _render_warnings_text(warnings, fmt, output):
     if fmt == "md":
         lines = ["\n## Warnings\n"]
         for w in warnings:
-            lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+            lines.append(
+                f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
+            )
         lines.append("")
         _write_output("\n".join(lines), output)
         return
@@ -3869,12 +3996,8 @@ def _render_warnings_text(warnings, fmt, output):
 def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
     if format == "md":
         lines = ["# Meminit State List\n"]
-        lines.append(
-            f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  "
-        )
-        lines.append(
-            f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n"
-        )
+        lines.append(f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  ")
+        lines.append(f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n")
         if not result.entries:
             lines.append("_No entries found._\n")
         else:
@@ -3899,12 +4022,16 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
         if result.warnings:
             lines.append("## Warnings\n")
             for w in result.warnings:
-                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+                lines.append(
+                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
+                )
             lines.append("")
         if result.advice:
             lines.append("## Advisories\n")
             for a in result.advice:
-                lines.append(f"- **{_md_inline(a.get('code', 'UNKNOWN'))}**: {_md_inline(a.get('message', ''))}")
+                lines.append(
+                    f"- **{_md_inline(a.get('code', 'UNKNOWN'))}**: {_md_inline(a.get('message', ''))}"
+                )
             lines.append("")
         _write_output("\n".join(lines), output)
         return
@@ -3916,9 +4043,7 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
             f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n"
         )
         if not result.entries:
-            get_console().print(
-                "[yellow]No entries found in project-state.yaml[/yellow]"
-            )
+            get_console().print("[yellow]No entries found in project-state.yaml[/yellow]")
             _render_warnings_text(result.warnings, format, output)
             return
         table = Table(title="Project State Entries")
@@ -3954,30 +4079,66 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
 @click.option("--no-blocked", is_flag=True, default=False, help="Show only non-blocked entries.")
 @click.option("--assignee", multiple=True, help="Filter by assignee (repeatable).")
 @click.option("--priority", multiple=True, help="Filter by priority (repeatable, e.g., P0 P1).")
-@click.option("--impl-state", "impl_state", multiple=True, help="Filter by impl_state (repeatable).")
-def state_list(root, format, output, include_timestamp, correlation_id,
-               ready, no_ready, blocked, no_blocked, assignee, priority, impl_state):
+@click.option(
+    "--impl-state", "impl_state", multiple=True, help="Filter by impl_state (repeatable)."
+)
+def state_list(
+    root,
+    format,
+    output,
+    include_timestamp,
+    correlation_id,
+    ready,
+    no_ready,
+    blocked,
+    no_blocked,
+    assignee,
+    priority,
+    impl_state,
+):
     """List entries in project-state.yaml with optional filters."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state list", format, output, include_timestamp, run_id, root_path,
+        "state list",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list = (
-            _state_list_validate_filters(ready, no_ready, blocked, no_blocked, assignee, priority, impl_state)
+            _state_list_validate_filters(
+                ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
+            )
         )
 
         result, valid_impl_states, valid_doc_statuses = _state_list_execute(
-            root_path, format, include_timestamp, run_id, output, correlation_id,
-            ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list,
+            root_path,
+            format,
+            include_timestamp,
+            run_id,
+            output,
+            correlation_id,
+            ready_filter,
+            blocked_filter,
+            assignee_list,
+            priority_list,
+            impl_state_list,
         )
 
         if format == "json":
             _render_state_list_json(
-                result, valid_impl_states, valid_doc_statuses, root_path,
-                include_timestamp, run_id, correlation_id, output,
+                result,
+                valid_impl_states,
+                valid_doc_statuses,
+                root_path,
+                include_timestamp,
+                run_id,
+                correlation_id,
+                output,
             )
             return
 
@@ -4023,21 +4184,23 @@ def _render_state_next_text(result, fmt, output):
                 lines.append(f"- **Assignee**: {_md_inline(result.entry.get('assignee'))}")
             if result.entry.get("next_action"):
                 lines.append(f"- **Next Action**: {_md_inline(result.entry.get('next_action'))}")
-            lines.append(f"- **Candidates Considered**: {result.selection.get('candidates_considered', 0)}")
+            lines.append(
+                f"- **Candidates Considered**: {result.selection.get('candidates_considered', 0)}"
+            )
         else:
             lines.append(f"_No ready items: {result.reason}_")
         if result.warnings:
             lines.append("\n## Warnings\n")
             for w in result.warnings:
-                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+                lines.append(
+                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
+                )
             lines.append("")
         _write_output("\n".join(lines) + "\n", output)
         return
     with maybe_capture(output, fmt):
         if result.entry:
-            get_console().print(
-                f"[bold green]Next: {result.entry.get('document_id')}[/bold green]"
-            )
+            get_console().print(f"[bold green]Next: {result.entry.get('document_id')}[/bold green]")
             get_console().print(f"Impl State: {result.entry.get('impl_state')}")
             if result.entry.get("priority"):
                 get_console().print(f"Priority: {result.entry.get('priority')}")
@@ -4049,9 +4212,7 @@ def _render_state_next_text(result, fmt, output):
                 f"Candidates considered: {result.selection.get('candidates_considered', 0)}"
             )
         else:
-            get_console().print(
-                f"[yellow]No ready items: {result.reason}[/yellow]"
-            )
+            get_console().print(f"[yellow]No ready items: {result.reason}[/yellow]")
         _render_warnings_text(result.warnings, fmt, output)
 
 
@@ -4062,7 +4223,9 @@ def _state_blockers_execute(root_path, assignee):
     return use_case.blockers_state(assignee=assignee)
 
 
-def _render_state_blockers_json(result, root_path, include_timestamp, run_id, correlation_id, output):
+def _render_state_blockers_json(
+    result, root_path, include_timestamp, run_id, correlation_id, output
+):
     _write_output(
         format_envelope(
             command="state blockers",
@@ -4097,15 +4260,21 @@ def _render_state_blockers_text(result, fmt, output):
                 lines.append("- **Open Blockers**:")
                 for ob in b.get("open_blockers", []):
                     known = "known" if ob.get("known") else "unknown"
-                    lines.append(f"  - `{ob['id']}` ({_md_inline(ob.get('impl_state', 'N/A'))}, {known})")
+                    lines.append(
+                        f"  - `{ob['id']}` ({_md_inline(ob.get('impl_state', 'N/A'))}, {known})"
+                    )
                 lines.append("")
-        lines.append(f"**Summary**: {result.summary.get('total_entries', 0)} entries, "
-                     f"{result.summary.get('blocked', 0)} blocked, "
-                     f"{result.summary.get('ready', 0)} ready")
+        lines.append(
+            f"**Summary**: {result.summary.get('total_entries', 0)} entries, "
+            f"{result.summary.get('blocked', 0)} blocked, "
+            f"{result.summary.get('ready', 0)} ready"
+        )
         if result.warnings:
             lines.append("\n## Warnings\n")
             for w in result.warnings:
-                lines.append(f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}")
+                lines.append(
+                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
+                )
             lines.append("")
         _write_output("\n".join(lines) + "\n", output)
         return
@@ -4133,28 +4302,45 @@ def _render_state_blockers_text(result, fmt, output):
 @agent_repo_options()
 @click.option("--assignee", help="Restrict candidates to a specific assignee.")
 @click.option("--priority-at-least", help="Restrict to priorities at or above threshold (P0-P3).")
-def state_next(root, format, output, include_timestamp, correlation_id, assignee, priority_at_least):
+def state_next(
+    root, format, output, include_timestamp, correlation_id, assignee, priority_at_least
+):
     """Return the deterministically-selected next work item."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state next", format, output, include_timestamp, run_id, root_path,
+        "state next",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
-            root_path, format=format, command="state next",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id,
+            root_path,
+            format=format,
+            command="state next",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
-            root_path, format=format, command="state next",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id,
+            root_path,
+            format=format,
+            command="state next",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
         )
         result = _state_next_execute(root_path, assignee, priority_at_least)
         if format == "json":
-            _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output)
+            _render_state_next_json(
+                result, root_path, include_timestamp, run_id, correlation_id, output
+            )
             return
         _render_state_next_text(result, format, output)
 
@@ -4168,22 +4354,37 @@ def state_blockers(root, format, output, include_timestamp, correlation_id, assi
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "state blockers", format, output, include_timestamp, run_id, root_path,
+        "state blockers",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
-            root_path, format=format, command="state blockers",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id,
+            root_path,
+            format=format,
+            command="state blockers",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
         )
         validate_initialized(
-            root_path, format=format, command="state blockers",
-            include_timestamp=include_timestamp, run_id=run_id,
-            output=output, correlation_id=correlation_id,
+            root_path,
+            format=format,
+            command="state blockers",
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            output=output,
+            correlation_id=correlation_id,
         )
         result = _state_blockers_execute(root_path, assignee)
         if format == "json":
-            _render_state_blockers_json(result, root_path, include_timestamp, run_id, correlation_id, output)
+            _render_state_blockers_json(
+                result, root_path, include_timestamp, run_id, correlation_id, output
+            )
             return
         _render_state_blockers_text(result, format, output)
 
@@ -4205,12 +4406,14 @@ def _drift_violations(assets, status_field):
         status = a[status_field]
         code = _DRIFT_ERROR_CODE.get(status)
         if code:
-            violations.append({
-                "code": code,
-                "message": f"{status}: {a['target_path']}",
-                "path": a["target_path"],
-                "severity": "error" if status in _DRIFT_ERROR_STATES else "warning",
-            })
+            violations.append(
+                {
+                    "code": code,
+                    "message": f"{status}: {a['target_path']}",
+                    "path": a["target_path"],
+                    "severity": "error" if status in _DRIFT_ERROR_STATES else "warning",
+                }
+            )
     return violations
 
 
@@ -4234,7 +4437,12 @@ def protocol_check(asset_ids, root, format, output, include_timestamp, correlati
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "protocol check", format, output, include_timestamp, run_id, root_path,
+        "protocol check",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -4295,7 +4503,9 @@ def protocol_check(asset_ids, root, format, output, include_timestamp, correlati
                         get_console().print(f"  OK {a['target_path']}")
                     else:
                         color = "red" if not a["auto_fixable"] else "yellow"
-                        get_console().print(f"  [{color}]{a['status'].upper()}[/{color}] {a['target_path']}")
+                        get_console().print(
+                            f"  [{color}]{a['status'].upper()}[/{color}] {a['target_path']}"
+                        )
         raise SystemExit(exit_code)
 
 
@@ -4307,15 +4517,24 @@ def protocol_check(asset_ids, root, format, output, include_timestamp, correlati
     multiple=True,
     help="Restrict sync to specific asset IDs (repeatable).",
 )
-@click.option("--dry-run/--no-dry-run", default=True, help="Preview without writing (default: dry-run).")
+@click.option(
+    "--dry-run/--no-dry-run", default=True, help="Preview without writing (default: dry-run)."
+)
 @click.option("--force/--no-force", default=False, help="Allow overwriting tampered assets.")
-def protocol_sync(asset_ids, dry_run, force, root, format, output, include_timestamp, correlation_id):
+def protocol_sync(
+    asset_ids, dry_run, force, root, format, output, include_timestamp, correlation_id
+):
     """Synchronize protocol assets with the canonical contract."""
     run_id = get_current_run_id()
     root_path = Path(root).resolve()
 
     with command_output_handler(
-        "protocol sync", format, output, include_timestamp, run_id, root_path,
+        "protocol sync",
+        format,
+        output,
+        include_timestamp,
+        run_id,
+        root_path,
         correlation_id=correlation_id,
     ):
         validate_root_path(
@@ -4337,7 +4556,9 @@ def protocol_sync(asset_ids, dry_run, force, root, format, output, include_times
         exit_code = 0 if report.success else EX_COMPLIANCE_FAIL
 
         if report.dry_run:
-            sync_violations = _drift_violations(report.assets, "prior_status") if not report.success else []
+            sync_violations = (
+                _drift_violations(report.assets, "prior_status") if not report.success else []
+            )
         else:
             refused = [a for a in report.assets if a["action"] == "refuse"]
             sync_violations = _drift_violations(refused, "prior_status") if refused else []
@@ -4377,7 +4598,9 @@ def protocol_sync(asset_ids, dry_run, force, root, format, output, include_times
 
         with maybe_capture(output, format):
             label = "DRY RUN" if dry_run else "APPLY"
-            get_console().print(f"[bold blue]Meminit Protocol Sync[/bold blue] [yellow]({label})[/yellow]")
+            get_console().print(
+                f"[bold blue]Meminit Protocol Sync[/bold blue] [yellow]({label})[/yellow]"
+            )
             for a in report.assets:
                 if a["action"] == "noop":
                     get_console().print(f"  [dim]noop[/dim] {a['target_path']}")

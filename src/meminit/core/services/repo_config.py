@@ -141,6 +141,7 @@ class DocumentTypeConfig:
         description: Optional human-readable description of this document
             type.
     """
+
     directory: str
     template: Optional[str] = None
     description: Optional[str] = None
@@ -373,7 +374,9 @@ def _normalize_string_list(raw: Any) -> list[str]:
 
 
 def _normalize_document_type_directory(
-    root: Path, docs_root: str, raw: Any,
+    root: Path,
+    docs_root: str,
+    raw: Any,
 ) -> Optional[str]:
     """Normalize a document type directory path for use in RepoConfig."""
     if not isinstance(raw, str):
@@ -405,12 +408,8 @@ def _build_namespace_config(
     else:
         repo_prefix_norm = derive_repo_prefix(project_name)
 
-    docops_version_raw = raw_namespace.get(
-        "docops_version", defaults.get("docops_version")
-    )
-    if isinstance(docops_version_raw, (int, float)) and not isinstance(
-        docops_version_raw, bool
-    ):
+    docops_version_raw = raw_namespace.get("docops_version", defaults.get("docops_version"))
+    if isinstance(docops_version_raw, (int, float)) and not isinstance(docops_version_raw, bool):
         docops_version_norm = str(docops_version_raw)
     elif isinstance(docops_version_raw, str) and docops_version_raw.strip():
         docops_version_norm = docops_version_raw.strip()
@@ -431,9 +430,7 @@ def _build_namespace_config(
         if schema_path_raw is not None
         else f"{docs_root_norm}/00-governance/metadata.schema.json"
     )
-    schema_path_norm = (
-        schema_path or f"{docs_root_norm}/00-governance/metadata.schema.json"
-    )
+    schema_path_norm = schema_path or f"{docs_root_norm}/00-governance/metadata.schema.json"
 
     excluded_paths: list[str] = []
     for item in _normalize_string_list(defaults.get("excluded_paths")):
@@ -464,38 +461,38 @@ def _build_namespace_config(
         _normalize_type_directories(docs_root_norm, defaults.get("type_directories"))
     )
     type_directories.update(
-        _normalize_type_directories(
-            docs_root_norm, raw_namespace.get("type_directories")
-        )
+        _normalize_type_directories(docs_root_norm, raw_namespace.get("type_directories"))
     )
 
     # Parse document_types (Templates v2 - single source of truth)
     # Merge defaults and namespace entries (namespace entries override defaults)
     document_types: Dict[str, DocumentTypeConfig] = {}
-    
+
     def parse_document_types(target: Optional[Mapping]) -> None:
         if isinstance(target, Mapping):
             for k, v in target.items():
                 doc_type = _normalize_type_key(k)
                 if not isinstance(v, Mapping):
                     continue
-                directory_norm = _normalize_document_type_directory(root, docs_root_norm, v.get("directory"))
+                directory_norm = _normalize_document_type_directory(
+                    root, docs_root_norm, v.get("directory")
+                )
                 if not directory_norm:
                     continue
 
                 # Reject directory values that escape docs_root via ..
                 if ".." in Path(directory_norm).parts:
                     continue
-                    
+
                 template_norm = _safe_repo_relative_path(root, v.get("template"))
-                description = v.get("description") if isinstance(v.get("description"), str) else None
+                description = (
+                    v.get("description") if isinstance(v.get("description"), str) else None
+                )
                 document_types[doc_type] = DocumentTypeConfig(
-                    directory=directory_norm,
-                    template=template_norm,
-                    description=description
+                    directory=directory_norm, template=template_norm, description=description
                 )
                 type_directories[doc_type] = directory_norm
-    
+
     parse_document_types(defaults.get("document_types"))
     parse_document_types(raw_namespace.get("document_types"))
 
@@ -515,7 +512,7 @@ def _build_namespace_config(
 
     # Parse excluded_files (exact file paths, e.g., project-state.yaml).
     excluded_files: list[str] = []
-    
+
     # Add defaults
     indices_dir = Path(docs_root_norm) / "01-indices"
     excluded_files.append((indices_dir / "project-state.yaml").as_posix())
@@ -534,6 +531,7 @@ def _build_namespace_config(
 
     # Parse valid_impl_states from config or use defaults
     from meminit.core.services.project_state import ImplState
+
     valid_impl_states = _normalize_string_list(
         raw_namespace.get("valid_impl_states", defaults.get("valid_impl_states"))
     )
@@ -587,6 +585,7 @@ def _validate_no_legacy_config_keys(config_data: Dict[str, Any]) -> None:
 
     if legacy_keys:
         import warnings
+
         warnings.warn(
             f"Legacy config keys detected: {', '.join(legacy_keys)}. "
             "Use 'meminit migrate-templates' to convert to 'document_types'.",
@@ -637,9 +636,7 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
 
     namespaces: list[RepoConfig] = []
     raw_namespaces = data.get("namespaces")
-    if isinstance(raw_namespaces, Sequence) and not isinstance(
-        raw_namespaces, (str, bytes)
-    ):
+    if isinstance(raw_namespaces, Sequence) and not isinstance(raw_namespaces, (str, bytes)):
         for i, item in enumerate(raw_namespaces):
             if not isinstance(item, Mapping):
                 continue
@@ -667,9 +664,7 @@ def load_repo_layout(root_dir: str | Path) -> RepoLayout:
 
     index_path_raw = data.get("index_path")
     index_path = (
-        _safe_repo_relative_path(root, index_path_raw)
-        if index_path_raw is not None
-        else None
+        _safe_repo_relative_path(root, index_path_raw) if index_path_raw is not None else None
     )
     if not index_path:
         chosen = None

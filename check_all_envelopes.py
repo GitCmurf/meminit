@@ -21,21 +21,21 @@ def check_command(cmd_args, expected_data_keys=None):
     print(f"Checking: {' '.join(cmd_args)}")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
-    
+
     full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
     try:
         result = subprocess.run(full_cmd, env=env, capture_output=True, text=True, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
         print(f"  FAILED: command timed out after {TIMEOUT}s")
         return False
-    
+
     # Check command exit status (Finding #2)
     if result.returncode != 0:
         print(f"  FAILED: command exited with code {result.returncode}")
         print(f"  STDOUT: {result.stdout}")
         print(f"  STDERR: {result.stderr}")
         return False
-    
+
     # Try to parse JSON from stdout
     try:
         envelope = json.loads(result.stdout)
@@ -45,25 +45,37 @@ def check_command(cmd_args, expected_data_keys=None):
         print(f"  STDERR: {result.stderr}")
         return False
 
-    required_fields = ["output_schema_version", "success", "command", "run_id", "root", "data", "warnings", "violations", "advice"]
+    required_fields = [
+        "output_schema_version",
+        "success",
+        "command",
+        "run_id",
+        "root",
+        "data",
+        "warnings",
+        "violations",
+        "advice",
+    ]
     missing = [f for f in required_fields if f not in envelope]
     if missing:
         print(f"  FAILED: missing fields: {missing}")
         return False
-    
+
     # Check success field (Finding #2)
     if not envelope.get("success", False):
         print("  FAILED: envelope indicates failure (success=false)")
         print(f"  DATA: {envelope}")
         return False
-    
+
     try:
         ver_current = Version(envelope["output_schema_version"])
     except InvalidVersion:
         print(f"  FAILED: invalid schema version '{envelope['output_schema_version']}'")
         return False
     if ver_current < Version(MIN_SUPPORTED_SCHEMA_VERSION):
-        print(f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}")
+        print(
+            f"  FAILED: schema version {envelope['output_schema_version']} is below minimum supported {MIN_SUPPORTED_SCHEMA_VERSION}"
+        )
         return False
 
     if expected_data_keys:
@@ -76,6 +88,7 @@ def check_command(cmd_args, expected_data_keys=None):
     print("  OK")
     return True
 
+
 # Setup test repo with unique temp directory (Finding #12)
 original_cwd = Path.cwd()
 _test_dir_ctx = tempfile.TemporaryDirectory(prefix="meminit_test_envelope_")
@@ -87,8 +100,13 @@ try:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
     try:
-        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "init"],
-                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+        result = subprocess.run(
+            [VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
     except subprocess.TimeoutExpired:
         print(f"init failed: command timed out after {TIMEOUT}s")
         sys.exit(1)
@@ -118,8 +136,13 @@ try:
 
     # Run index to create index file
     try:
-        result = subprocess.run([VENV_PYTHON, "-m", "meminit.cli.main", "index"],
-                                env=env, capture_output=True, text=True, timeout=TIMEOUT)
+        result = subprocess.run(
+            [VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
     except subprocess.TimeoutExpired:
         print(f"index failed: command timed out after {TIMEOUT}s")
         sys.exit(1)
@@ -134,7 +157,7 @@ try:
         (["doctor"], ["issues"]),
         (["scan"], ["report"]),
         (["index"], ["index_path"]),
-        (["resolve", "MEMINIT-ADR-001"], []), 
+        (["resolve", "MEMINIT-ADR-001"], []),
         (["identify", "docs/45-adr/adr-001-test.md"], []),
         (["link", "MEMINIT-ADR-001"], []),
         (["migrate-ids"], ["report"]),

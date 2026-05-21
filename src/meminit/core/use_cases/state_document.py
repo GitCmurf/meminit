@@ -105,7 +105,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
     for prefix in prefixes:
         if document_id.startswith(f"{prefix}-"):
             # Validate full canonical shape: REPO-TYPE-NNN
-            if re.match(rf"^{re.escape(prefix)}-[A-Z]{{1,10}}-\d{{3,}}$", document_id):
+            if re.match(rf"^{re.escape(prefix)}-[A-Z]{{1,10}}-\d{{3}}$", document_id):
                 return document_id
             # Malformed prefixed ID — raise instead of silently persisting
             raise MeminitError(
@@ -214,7 +214,11 @@ def _collect_read_validation_warnings(
         if entry.priority is not None and entry.priority not in VALID_PRIORITIES:
             skip_doc_ids.add(doc_id)
 
-    _COVERED_BY_ENTRY_VALIDATORS = {"STATE_INVALID_PRIORITY", "STATE_FIELD_TOO_LONG", "STATE_FIELD_INVALID_FORMAT"}
+    _COVERED_BY_ENTRY_VALIDATORS = {
+        "STATE_INVALID_PRIORITY",
+        "STATE_FIELD_TOO_LONG",
+        "STATE_FIELD_INVALID_FORMAT",
+    }
 
     for doc_id, entry in state.entries.items():
         planning_issues = validate_planning_fields(entry, fs_known)
@@ -618,10 +622,7 @@ class StateDocumentUseCase:
         temp_state = ProjectState(entries=dict(state.entries))
         temp_state.set_entry(entry)
         component_doc_ids = _dependency_component_doc_ids(temp_state.entries, document_id)
-        cycle_entries = {
-            doc_id: temp_state.entries[doc_id]
-            for doc_id in component_doc_ids
-        }
+        cycle_entries = {doc_id: temp_state.entries[doc_id] for doc_id in component_doc_ids}
         cycle_issues = check_dependency_cycle(cycle_entries)
         if cycle_issues:
             summary = "; ".join(i.message for i in cycle_issues)

@@ -15,6 +15,23 @@ VALID_STATUSES = frozenset({"Draft", "In Review", "Approved", "Superseded"})
 _DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 
 
+def _validate_document_id(value: str, field_name: str) -> None:
+    if not _DOCUMENT_ID_PATTERN.fullmatch(value):
+        raise ValueError(
+            f"Invalid {field_name} '{value}': must match REPO-TYPE-NNN "
+            "(for example MEMINIT-ADR-001)"
+        )
+
+
+def _validate_document_id_list(values: List[str], field_name: str) -> None:
+    for value in values:
+        if not isinstance(value, str):
+            raise ValueError(
+                f"Invalid {field_name} item {value!r}: each item must be a document ID string"
+            )
+        _validate_document_id(value, field_name)
+
+
 @dataclass
 class Frontmatter:
     document_id: str
@@ -127,6 +144,20 @@ class NewDocumentParams:
             raise ValueError(
                 f"Invalid status '{self.status}': must be one of {sorted(VALID_STATUSES)}"
             )
+        if self.document_id is not None:
+            _validate_document_id(self.document_id, "document_id")
+            id_type = self.document_id.split("-", 2)[1]
+            if id_type != self.doc_type.upper():
+                raise ValueError(
+                    f"Invalid document_id '{self.document_id}': type segment "
+                    f"'{id_type}' must match doc_type '{self.doc_type.upper()}'"
+                )
+        if self.related_ids is not None:
+            if not isinstance(self.related_ids, list):
+                raise ValueError("Invalid related_ids: must be a list of document IDs")
+            _validate_document_id_list(self.related_ids, "related_ids")
+        if self.superseded_by is not None:
+            _validate_document_id(self.superseded_by, "superseded_by")
 
 
 @dataclass

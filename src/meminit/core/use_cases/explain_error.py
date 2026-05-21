@@ -15,11 +15,13 @@ class ExplainErrorUseCase:
         """Return summary info for all known error codes, sorted by code."""
         results = []
         for explanation in sorted(ERROR_EXPLANATIONS.values(), key=lambda e: e.code):
-            results.append({
-                "code": explanation.code,
-                "category": explanation.category,
-                "summary": explanation.summary,
-            })
+            results.append(
+                {
+                    "code": explanation.code,
+                    "category": explanation.category,
+                    "summary": explanation.summary,
+                }
+            )
         return results
 
     def explain(self, code: str) -> Optional[Dict[str, Any]]:

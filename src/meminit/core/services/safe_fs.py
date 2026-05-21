@@ -25,18 +25,14 @@ class MeminitPathEscapeError(MeminitError, UnsafePathError):
     """
 
     def __init__(self, message: str, details: dict | None = None):
-        super().__init__(
-            code=ErrorCode.PATH_ESCAPE, message=message, details=details or {}
-        )
+        super().__init__(code=ErrorCode.PATH_ESCAPE, message=message, details=details or {})
 
 
 class MeminitFileTypeError(MeminitError):
     """Error raised when a path exists but is not a regular file."""
 
     def __init__(self, message: str, details: dict | None = None):
-        super().__init__(
-            code=ErrorCode.NOT_A_REGULAR_FILE, message=message, details=details or {}
-        )
+        super().__init__(code=ErrorCode.NOT_A_REGULAR_FILE, message=message, details=details or {})
 
 
 def ensure_safe_write_path(*, root_dir: Path, target_path: Path) -> None:

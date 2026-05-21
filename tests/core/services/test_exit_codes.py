@@ -91,8 +91,7 @@ def test_exit_code_for_error_mappings():
     for code, expected_exit_code in expected_mappings.items():
         actual_exit_code = exit_code_for_error(code)
         assert actual_exit_code == expected_exit_code, (
-            f"ErrorCode.{code.name} mapped to {actual_exit_code}, "
-            f"expected {expected_exit_code}"
+            f"ErrorCode.{code.name} mapped to {actual_exit_code}, " f"expected {expected_exit_code}"
         )
 
 

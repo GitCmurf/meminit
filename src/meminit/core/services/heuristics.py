@@ -6,9 +6,25 @@ import frontmatter
 
 from meminit.core.services.repo_config import RepoConfig, RepoLayout
 from meminit.core.services.safe_yaml import safe_frontmatter_loads
-from meminit.core.services.scan_plan import PlanAction, PlanActionType, ActionPreconditions, ActionSafety
-from meminit.core.services.path_utils import FILENAME_EXCEPTIONS, normalize_filename_to_kebab_case, compute_file_hash
-from meminit.core.services.markdown_utils import extract_title_from_markdown, DEFAULT_DOCOPS_VERSION, DEFAULT_STATUS, DEFAULT_VERSION, DEFAULT_OWNER
+from meminit.core.services.scan_plan import (
+    PlanAction,
+    PlanActionType,
+    ActionPreconditions,
+    ActionSafety,
+)
+from meminit.core.services.path_utils import (
+    FILENAME_EXCEPTIONS,
+    normalize_filename_to_kebab_case,
+    compute_file_hash,
+)
+from meminit.core.services.markdown_utils import (
+    extract_title_from_markdown,
+    DEFAULT_DOCOPS_VERSION,
+    DEFAULT_STATUS,
+    DEFAULT_VERSION,
+    DEFAULT_OWNER,
+)
+
 
 class HeuristicsService:
 
@@ -32,7 +48,7 @@ class HeuristicsService:
                 continue
 
             rel_path = path.relative_to(self.root_dir).as_posix()
-            
+
             # Infer Type
             if post.metadata and "type" in post.metadata and post.metadata["type"]:
                 inferred_type = str(post.metadata["type"]).strip().upper()
@@ -40,14 +56,14 @@ class HeuristicsService:
                 type_rationale = "frontmatter:type"
             else:
                 inferred_type, type_conf, type_rationale = self._infer_doc_type(rel_path, ns)
-            
+
             # Infer Title
             inferred_title = extract_title_from_markdown(post.content, path.stem)
 
             # Path computation
             # 1. Check if filename matches standard (like fix does)
             expected_filename = normalize_filename_to_kebab_case(path).name
-            
+
             # 2. Check if it's in the right type directory
             expected_dir = ns.expected_subdir_for_type(inferred_type)
             if expected_dir:
@@ -57,15 +73,15 @@ class HeuristicsService:
                 expected_dir_path = expected_dir_path / expected_dir
             else:
                 expected_dir_path = path.parent
-            
+
             target_path_obj = expected_dir_path / expected_filename
             target_path_rel = target_path_obj.relative_to(self.root_dir).as_posix()
-            
+
             requires_move = target_path_obj.parent != path.parent
             requires_rename = target_path_obj.name != path.name
-            
+
             preconditions = ActionPreconditions(source_sha256=source_sha256)
-            
+
             # Generate Metadata block action
             if not post.metadata:
                 # Note: document_id uses "__TBD__" placeholder because unique ID generation
@@ -83,9 +99,11 @@ class HeuristicsService:
                 rationale = ["File lacks a frontmatter block."]
                 if type_rationale:
                     rationale.append(f"type: {type_rationale}")
-                
+
                 action = PlanAction(
-                    id=PlanAction.generate_id(PlanActionType.INSERT_METADATA_BLOCK.value, rel_path, rel_path),
+                    id=PlanAction.generate_id(
+                        PlanActionType.INSERT_METADATA_BLOCK.value, rel_path, rel_path
+                    ),
                     action=PlanActionType.INSERT_METADATA_BLOCK,
                     source_path=rel_path,
                     target_path=rel_path,  # Metadata insert doesn't change path
@@ -93,7 +111,7 @@ class HeuristicsService:
                     rationale=rationale,
                     preconditions=preconditions,
                     safety=ActionSafety(destructive=False, overwrites=False),
-                    metadata_patch=metadata_patch
+                    metadata_patch=metadata_patch,
                 )
                 actions.append(action)
             else:
@@ -101,26 +119,44 @@ class HeuristicsService:
                 # Note: document_id uses "__TBD__" placeholder because unique ID generation
                 # requires full repository context. It will be replaced during plan execution.
                 fields_to_patch = [
-                    ("document_id", lambda: DEFAULT_OWNER, "document_id: placeholder replaced during execution with unique ID"),
-                    ("type", lambda: inferred_type, f"type: {type_rationale}" if type_rationale else "type: inferred"),
+                    (
+                        "document_id",
+                        lambda: DEFAULT_OWNER,
+                        "document_id: placeholder replaced during execution with unique ID",
+                    ),
+                    (
+                        "type",
+                        lambda: inferred_type,
+                        f"type: {type_rationale}" if type_rationale else "type: inferred",
+                    ),
                     ("title", lambda: inferred_title, "title: Inferred from heading or filename"),
                     ("status", lambda: DEFAULT_STATUS, "status: set to Draft default"),
                     ("version", lambda: DEFAULT_VERSION, "version: set to 0.1 default"),
                     ("owner", lambda: DEFAULT_OWNER, "owner: set to __TBD__ placeholder"),
-                    ("docops_version", lambda: ns.docops_version or DEFAULT_DOCOPS_VERSION, "docops_version: set to default version"),
-                    ("last_updated", lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"), "last_updated: set to today"),
+                    (
+                        "docops_version",
+                        lambda: ns.docops_version or DEFAULT_DOCOPS_VERSION,
+                        "docops_version: set to default version",
+                    ),
+                    (
+                        "last_updated",
+                        lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                        "last_updated: set to today",
+                    ),
                 ]
-                
+
                 patch = {}
                 rationale = []
                 for field, default_factory, rationale_msg in fields_to_patch:
                     if field not in post.metadata:
                         patch[field] = default_factory()
                         rationale.append(rationale_msg)
-                
+
                 if patch:
                     action = PlanAction(
-                        id=PlanAction.generate_id(PlanActionType.UPDATE_METADATA.value, rel_path, rel_path),
+                        id=PlanAction.generate_id(
+                            PlanActionType.UPDATE_METADATA.value, rel_path, rel_path
+                        ),
                         action=PlanActionType.UPDATE_METADATA,
                         source_path=rel_path,
                         target_path=rel_path,
@@ -128,21 +164,27 @@ class HeuristicsService:
                         rationale=rationale,
                         preconditions=preconditions,
                         safety=ActionSafety(destructive=False, overwrites=False),
-                        metadata_patch=patch
+                        metadata_patch=patch,
                     )
                     actions.append(action)
 
             # Move or Rename actions
             if requires_move or requires_rename:
-                action_type = PlanActionType.MOVE_FILE if requires_move else PlanActionType.RENAME_FILE
+                action_type = (
+                    PlanActionType.MOVE_FILE if requires_move else PlanActionType.RENAME_FILE
+                )
                 rationale = []
                 conf = 0.95
                 if requires_move:
-                    rationale.append(f"Move to conform with target directory for type '{inferred_type}'.")
-                    conf = min(conf, type_conf) 
+                    rationale.append(
+                        f"Move to conform with target directory for type '{inferred_type}'."
+                    )
+                    conf = min(conf, type_conf)
                 if requires_rename:
-                    rationale.append(f"Rename to '{expected_filename}' to match standard filename conventions.")
-                
+                    rationale.append(
+                        f"Rename to '{expected_filename}' to match standard filename conventions."
+                    )
+
                 action = PlanAction(
                     id=PlanAction.generate_id(action_type.value, rel_path, target_path_rel),
                     action=action_type,
@@ -151,7 +193,7 @@ class HeuristicsService:
                     confidence=conf,
                     rationale=rationale,
                     preconditions=preconditions,
-                    safety=ActionSafety(destructive=False, overwrites=False)
+                    safety=ActionSafety(destructive=False, overwrites=False),
                 )
                 actions.append(action)
 
@@ -161,7 +203,7 @@ class HeuristicsService:
         # Check against type directories first, as it's the highest confidence signal.
         # This is relative to the namespace's docs_dir.
         abs_path = Path(self.root_dir) / rel_path
-        
+
         # Determine the full docs directory for this namespace
         if ns.docs_root:
             docs_dir = Path(self.root_dir) / ns.docs_root.strip("/").replace("\\", "/")

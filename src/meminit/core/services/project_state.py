@@ -36,17 +36,19 @@ STATE_SCHEMA_VERSION_LEGACY = "1.0"
 VALID_PRIORITIES: Tuple[str, ...] = ("P0", "P1", "P2", "P3")
 DEFAULT_PRIORITY = "P2"
 DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
-PROJECT_STATE_ENTRY_FIELDS = frozenset({
-    "impl_state",
-    "updated",
-    "updated_by",
-    "notes",
-    "priority",
-    "depends_on",
-    "blocked_by",
-    "assignee",
-    "next_action",
-})
+PROJECT_STATE_ENTRY_FIELDS = frozenset(
+    {
+        "impl_state",
+        "updated",
+        "updated_by",
+        "notes",
+        "priority",
+        "depends_on",
+        "blocked_by",
+        "assignee",
+        "next_action",
+    }
+)
 
 
 def _config_missing_error(root_dir: Path, message: str, reason: str) -> MeminitError:
@@ -221,74 +223,90 @@ class ProjectState:
 
 
 def _parse_planning_fields(
-    fields: dict, doc_id: str, state_file_rel: str,
+    fields: dict,
+    doc_id: str,
+    state_file_rel: str,
 ) -> Tuple[dict, List[Violation]]:
     violations: List[Violation] = []
 
-    unknown_fields = sorted(
-        str(key) for key in fields.keys() - PROJECT_STATE_ENTRY_FIELDS
-    )
+    unknown_fields = sorted(str(key) for key in fields.keys() - PROJECT_STATE_ENTRY_FIELDS)
     if unknown_fields:
         fields_csv = ", ".join(unknown_fields)
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Entry for '{doc_id}' contains unknown field(s): {fields_csv}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Entry for '{doc_id}' contains unknown field(s): {fields_csv}.",
+            )
+        )
 
     priority = fields.get("priority")
     if priority is not None and not isinstance(priority, str):
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Field 'priority' for '{doc_id}' must be a string, got {type(priority).__name__}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Field 'priority' for '{doc_id}' must be a string, got {type(priority).__name__}.",
+            )
+        )
         priority = str(priority)
 
     raw_depends = fields.get("depends_on")
     depends_on: Tuple[str, ...] = ()
     if raw_depends is not None and not isinstance(raw_depends, list):
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Field 'depends_on' for '{doc_id}' must be a list, got {type(raw_depends).__name__}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Field 'depends_on' for '{doc_id}' must be a list, got {type(raw_depends).__name__}.",
+            )
+        )
     elif isinstance(raw_depends, list):
         dropped = [d for d in raw_depends if not isinstance(d, str)]
         if dropped:
-            violations.append(_schema_violation(
-                state_file_rel,
-                f"Field 'depends_on' for '{doc_id}' contains non-string items: {dropped}.",
-            ))
+            violations.append(
+                _schema_violation(
+                    state_file_rel,
+                    f"Field 'depends_on' for '{doc_id}' contains non-string items: {dropped}.",
+                )
+            )
         depends_on = tuple(sorted(set(str(d) for d in raw_depends if isinstance(d, str))))
 
     raw_blocked = fields.get("blocked_by")
     blocked_by: Tuple[str, ...] = ()
     if raw_blocked is not None and not isinstance(raw_blocked, list):
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Field 'blocked_by' for '{doc_id}' must be a list, got {type(raw_blocked).__name__}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Field 'blocked_by' for '{doc_id}' must be a list, got {type(raw_blocked).__name__}.",
+            )
+        )
     elif isinstance(raw_blocked, list):
         dropped = [b for b in raw_blocked if not isinstance(b, str)]
         if dropped:
-            violations.append(_schema_violation(
-                state_file_rel,
-                f"Field 'blocked_by' for '{doc_id}' contains non-string items: {dropped}.",
-            ))
+            violations.append(
+                _schema_violation(
+                    state_file_rel,
+                    f"Field 'blocked_by' for '{doc_id}' contains non-string items: {dropped}.",
+                )
+            )
         blocked_by = tuple(sorted(set(str(b) for b in raw_blocked if isinstance(b, str))))
 
     assignee = fields.get("assignee")
     if assignee is not None and not isinstance(assignee, str):
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Field 'assignee' for '{doc_id}' must be a string, got {type(assignee).__name__}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Field 'assignee' for '{doc_id}' must be a string, got {type(assignee).__name__}.",
+            )
+        )
         assignee = None
 
     next_action = fields.get("next_action")
     if next_action is not None and not isinstance(next_action, str):
-        violations.append(_schema_violation(
-            state_file_rel,
-            f"Field 'next_action' for '{doc_id}' must be a string, got {type(next_action).__name__}.",
-        ))
+        violations.append(
+            _schema_violation(
+                state_file_rel,
+                f"Field 'next_action' for '{doc_id}' must be a string, got {type(next_action).__name__}.",
+            )
+        )
         next_action = None
 
     return {
@@ -306,23 +324,32 @@ def _validate_top_level_structure(
     if raw is None:
         return None, None, [], ProjectState()
     if not isinstance(raw, dict):
-        return None, None, [], ProjectState(
-            schema_violations=[
-                _schema_violation(state_file_rel, "Top-level project-state.yaml value must be a mapping.")
-            ]
+        return (
+            None,
+            None,
+            [],
+            ProjectState(
+                schema_violations=[
+                    _schema_violation(
+                        state_file_rel, "Top-level project-state.yaml value must be a mapping."
+                    )
+                ]
+            ),
         )
 
     non_critical_violations: List[Violation] = []
     if "state_schema_version" in raw:
         schema_version_raw = raw["state_schema_version"]
         if str(schema_version_raw) != STATE_SCHEMA_VERSION:
-            non_critical_violations.append(_schema_violation(
-                state_file_rel,
-                (
-                    "Field 'state_schema_version' must be exactly "
-                    f"'{STATE_SCHEMA_VERSION}', got {schema_version_raw!r}."
-                ),
-            ))
+            non_critical_violations.append(
+                _schema_violation(
+                    state_file_rel,
+                    (
+                        "Field 'state_schema_version' must be exactly "
+                        f"'{STATE_SCHEMA_VERSION}', got {schema_version_raw!r}."
+                    ),
+                )
+            )
         schema_version = str(schema_version_raw)
     else:
         schema_version = STATE_SCHEMA_VERSION_LEGACY
@@ -331,11 +358,10 @@ def _validate_top_level_structure(
     allowed_keys = {"state_schema_version", "documents"}
     unknown = set(raw.keys()) - allowed_keys
     if unknown:
-        unknown_str = ', '.join(sorted(str(k) for k in unknown))
-        non_critical_violations.append(_schema_violation(
-            state_file_rel,
-            f"Unknown top-level keys: {unknown_str}"
-        ))
+        unknown_str = ", ".join(sorted(str(k) for k in unknown))
+        non_critical_violations.append(
+            _schema_violation(state_file_rel, f"Unknown top-level keys: {unknown_str}")
+        )
 
     if "documents" not in raw:
         if raw:
@@ -349,17 +375,27 @@ def _validate_top_level_structure(
                 ),
                 details={"file": state_file_rel},
             )
-        return None, None, [], ProjectState(
-            schema_violations=non_critical_violations,
-            schema_version=schema_version,
+        return (
+            None,
+            None,
+            [],
+            ProjectState(
+                schema_violations=non_critical_violations,
+                schema_version=schema_version,
+            ),
         )
 
     documents = raw.get("documents")
     if not isinstance(documents, dict):
-        return None, None, [], ProjectState(
-            schema_violations=non_critical_violations
-            + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")],
-            schema_version=schema_version,
+        return (
+            None,
+            None,
+            [],
+            ProjectState(
+                schema_violations=non_critical_violations
+                + [_schema_violation(state_file_rel, "Field 'documents' must be a mapping.")],
+                schema_version=schema_version,
+            ),
         )
 
     return schema_version, documents, non_critical_violations, None
@@ -374,7 +410,9 @@ def _parse_entry_identity(
 
     if not isinstance(doc_id, str):
         violations.append(
-            _schema_violation(state_file_rel, f"Document key must be a string, got {type(doc_id).__name__}.")
+            _schema_violation(
+                state_file_rel, f"Document key must be a string, got {type(doc_id).__name__}."
+            )
         )
         return None, violations
 
@@ -387,7 +425,9 @@ def _parse_entry_identity(
     impl_state = fields.get("impl_state")
     if not isinstance(impl_state, str):
         violations.append(
-            _schema_violation(state_file_rel, f"Field 'impl_state' for '{doc_id}' must be a string.")
+            _schema_violation(
+                state_file_rel, f"Field 'impl_state' for '{doc_id}' must be a string."
+            )
         )
         return None, violations
 
@@ -405,7 +445,10 @@ def _parse_entry_timestamp(
 
     if isinstance(updated_raw, date) and not isinstance(updated_raw, datetime):
         violations.append(
-            _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.")
+            _schema_violation(
+                state_file_rel,
+                f"Field 'updated' for '{doc_id}' must be a full datetime, not a date.",
+            )
         )
         return None, violations
     elif isinstance(updated_raw, datetime):
@@ -415,13 +458,19 @@ def _parse_entry_timestamp(
             return _ensure_utc(datetime.fromisoformat(updated_raw)), violations
         except ValueError:
             violations.append(
-                _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.")
+                _schema_violation(
+                    state_file_rel,
+                    f"Field 'updated' for '{doc_id}' has an invalid format and cannot be parsed.",
+                )
             )
             return None, violations
     else:
         if default_now is None:
             violations.append(
-                _schema_violation(state_file_rel, f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.")
+                _schema_violation(
+                    state_file_rel,
+                    f"Field 'updated' for '{doc_id}' is missing or not a valid datetime.",
+                )
             )
             return None, violations
         return _ensure_utc(default_now), violations
@@ -437,7 +486,9 @@ def _parse_entry_text_fields(
     updated_by = fields.get("updated_by", "")
     if not isinstance(updated_by, str):
         violations.append(
-            _schema_violation(state_file_rel, f"Field 'updated_by' for '{doc_id}' must be a string.")
+            _schema_violation(
+                state_file_rel, f"Field 'updated_by' for '{doc_id}' must be a string."
+            )
         )
         updated_by = ""
 
@@ -520,7 +571,9 @@ def load_project_state(
             details={"path": str(state_path)},
         ) from exc
 
-    schema_version, documents, non_critical_violations, early = _validate_top_level_structure(raw, state_file_rel)
+    schema_version, documents, non_critical_violations, early = _validate_top_level_structure(
+        raw, state_file_rel
+    )
     if early is not None:
         return early
 
@@ -587,9 +640,7 @@ def save_project_state(
         "state_schema_version": STATE_SCHEMA_VERSION,
         "documents": documents,
     }
-    content = yaml.dump(
-        payload, default_flow_style=False, sort_keys=False, allow_unicode=True
-    )
+    content = yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
     atomic_write(state_path, content, encoding="utf-8")
     return state_path
@@ -744,7 +795,11 @@ def _validate_entry_fields(
 ) -> List[Violation]:
     issues: List[Violation] = []
     issues.extend(_validate_entry_identity(doc_id, known_doc_ids, state_file_rel))
-    issues.extend(_validate_entry_status(entry, doc_id, normalized_valid_states, all_valid_states, state_file_rel))
+    issues.extend(
+        _validate_entry_status(
+            entry, doc_id, normalized_valid_states, all_valid_states, state_file_rel
+        )
+    )
     issues.extend(_validate_entry_planning(entry, doc_id, state_file_rel))
     issues.extend(_validate_entry_text_bounds(entry, doc_id, state_file_rel))
     return issues
@@ -794,7 +849,12 @@ def validate_project_state(
     for doc_id, entry in state.entries.items():
         issues.extend(
             _validate_entry_fields(
-                entry, doc_id, known_doc_ids, normalized_valid_states, all_valid_states, state_file_rel
+                entry,
+                doc_id,
+                known_doc_ids,
+                normalized_valid_states,
+                all_valid_states,
+                state_file_rel,
             )
         )
 

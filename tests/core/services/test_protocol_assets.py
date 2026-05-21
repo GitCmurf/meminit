@@ -20,7 +20,6 @@ from meminit.core.services.protocol_assets import (
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import derive_repo_prefix
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -42,9 +41,7 @@ def _render_with_markers(asset, project_name="", repo_prefix=""):
 
 
 def _hash(content: str) -> str:
-    return hashlib.sha256(
-        normalize_protocol_payload(content).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(normalize_protocol_payload(content).encode("utf-8")).hexdigest()
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +198,7 @@ class TestParseProtocolMarkers:
         assert result is not None
         assert result.asset_id == "x"
 
+
 # ---------------------------------------------------------------------------
 # classify_drift
 # ---------------------------------------------------------------------------
@@ -265,7 +263,7 @@ class TestClassifyDrift:
         assert parsed is not None
         # Rebuild with edited content but original hash
         lines = canonical.split("\n")
-        edited_lines = lines[: parsed.begin_line + 1] + ["TAMPERED LINE"] + lines[parsed.end_line:]
+        edited_lines = lines[: parsed.begin_line + 1] + ["TAMPERED LINE"] + lines[parsed.end_line :]
         edited = "\n".join(edited_lines)
         status = classify_drift(asset, canonical, edited)
         assert status.status == DriftOutcome.TAMPERED
@@ -292,7 +290,12 @@ class TestClassifyDrift:
     def test_mixed_unparseable_duplicate_begin(self):
         asset = _make_asset(ownership=AssetOwnership.MIXED)
         canonical = asset.render(project_name="Test")
-        content = canonical.replace("<!-- MEMINIT_PROTOCOL:", "<!-- MEMINIT_PROTOCOL: begin id=x version=0.1 sha256=" + "0" * 64 + " -->\n<!-- MEMINIT_PROTOCOL:")
+        content = canonical.replace(
+            "<!-- MEMINIT_PROTOCOL:",
+            "<!-- MEMINIT_PROTOCOL: begin id=x version=0.1 sha256="
+            + "0" * 64
+            + " -->\n<!-- MEMINIT_PROTOCOL:",
+        )
         status = classify_drift(asset, canonical, content)
         assert status.status == DriftOutcome.UNPARSEABLE
         assert status.auto_fixable is False
@@ -354,7 +357,12 @@ class TestProtocolAssetRegistry:
         assert registry.get_by_id("nonexistent") is None
 
     def test_duplicate_ids_rejected(self):
-        asset = ProtocolAsset(id="dup", target_path="a", package_resource="AGENTS.md", ownership=AssetOwnership.GENERATED)
+        asset = ProtocolAsset(
+            id="dup",
+            target_path="a",
+            package_resource="AGENTS.md",
+            ownership=AssetOwnership.GENERATED,
+        )
         with pytest.raises(ValueError, match="Duplicate"):
             ProtocolAssetRegistry(assets=(asset, asset))
 

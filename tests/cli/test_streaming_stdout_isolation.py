@@ -42,7 +42,4 @@ def test_streaming_commands_emit_only_json_lines_on_stdout(
         assert parsed
         assert parsed[0]["record_type"] == "header"
         assert parsed[-1]["record_type"] == "summary"
-        assert all(
-            not list(stream_schema_validator.iter_errors(record))
-            for record in parsed
-        )
+        assert all(not list(stream_schema_validator.iter_errors(record)) for record in parsed)

@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 from meminit.core.services.repo_config import RepoConfig
 
-
 DEFAULT_DOCOPS_VERSION = "2.0"
 DEFAULT_STATUS = "Draft"
 DEFAULT_VERSION = "0.1"
@@ -20,7 +19,9 @@ def extract_title_from_markdown(body: str, fallback_stem: str) -> str:
     return fallback_stem.replace("-", " ").strip().title() or "Untitled"
 
 
-def build_default_frontmatter_patch(ns: RepoConfig, doc_type: str, inferred_title: str) -> Dict[str, Any]:
+def build_default_frontmatter_patch(
+    ns: RepoConfig, doc_type: str, inferred_title: str
+) -> Dict[str, Any]:
     """
     Build a default frontmatter patch with all required fields.
 

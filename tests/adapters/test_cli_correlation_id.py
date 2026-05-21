@@ -25,8 +25,15 @@ def test_correlation_id_echoed_in_json_output(initialized_repo):
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo),
-         "--correlation-id", "trace-abc-42"],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo),
+            "--correlation-id",
+            "trace-abc-42",
+        ],
     )
     assert result.exit_code == 0
     data = json.loads(result.output.strip())
@@ -59,8 +66,15 @@ def test_correlation_id_cli_flag_overrides_env_var(initialized_repo):
     runner = CliRunner(env={"MEMINIT_CORRELATION_ID": "env-trace-99"})
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo),
-         "--correlation-id", "cli-trace-77"],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo),
+            "--correlation-id",
+            "cli-trace-77",
+        ],
     )
     assert result.exit_code == 0
     data = json.loads(result.output.strip())
@@ -71,8 +85,15 @@ def test_correlation_id_whitespace_rejected_as_json_envelope(initialized_repo):
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo),
-         "--correlation-id", "has space"],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo),
+            "--correlation-id",
+            "has space",
+        ],
     )
     assert result.exit_code != 0
     data = json.loads(result.output.strip().splitlines()[0])
@@ -86,8 +107,15 @@ def test_correlation_id_too_long_rejected_as_json_envelope(initialized_repo):
     long_cid = "a" * 129
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo),
-         "--correlation-id", long_cid],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo),
+            "--correlation-id",
+            long_cid,
+        ],
     )
     assert result.exit_code != 0
     data = json.loads(result.output.strip().splitlines()[0])
@@ -100,8 +128,15 @@ def test_correlation_id_appears_after_run_id_in_key_order(initialized_repo):
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo),
-         "--correlation-id", "order-test"],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo),
+            "--correlation-id",
+            "order-test",
+        ],
     )
     assert result.exit_code == 0
     data = json.loads(result.output.strip())
@@ -113,8 +148,15 @@ def test_correlation_id_echoed_in_error_envelope(initialized_repo):
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["context", "--format", "json", "--root", str(initialized_repo) + "/nonexistent",
-         "--correlation-id", "err-trace-1"],
+        [
+            "context",
+            "--format",
+            "json",
+            "--root",
+            str(initialized_repo) + "/nonexistent",
+            "--correlation-id",
+            "err-trace-1",
+        ],
     )
     assert result.exit_code != 0
     data = json.loads(result.output.strip())

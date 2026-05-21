@@ -84,9 +84,7 @@ def test_init_creates_agent_skills_directory(empty_repo):
     assert "meminit-docops" in skill_path.read_text()
 
     # Verify brownfield helper script is installed with executable permissions
-    script_path = (
-        empty_repo / ".agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh"
-    )
+    script_path = empty_repo / ".agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh"
     assert script_path.exists()
     assert script_path.read_text(encoding="utf-8").startswith("#!/usr/bin/env bash")
     # Check script is executable (owner has execute permission)
@@ -200,9 +198,9 @@ def test_init_writes_canonical_protocol_assets(empty_repo):
 
         canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
         on_disk = target.read_text(encoding="utf-8")
-        assert on_disk == canonical, (
-            f"Asset {asset.id} on-disk content does not match canonical render"
-        )
+        assert (
+            on_disk == canonical
+        ), f"Asset {asset.id} on-disk content does not match canonical render"
 
 
 def test_init_agents_md_has_protocol_markers(empty_repo):
@@ -253,9 +251,9 @@ def test_init_brownfield_script_is_executable(empty_repo):
     target = empty_repo / script_asset.target_path
     assert target.exists()
     actual_mode = target.stat().st_mode & 0o777
-    assert actual_mode == script_asset.file_mode, (
-        f"Expected mode {oct(script_asset.file_mode)}, got {oct(actual_mode)}"
-    )
+    assert (
+        actual_mode == script_asset.file_mode
+    ), f"Expected mode {oct(script_asset.file_mode)}, got {oct(actual_mode)}"
 
 
 # --- Golden-path fixes (greenfield dogfood run #0) ---

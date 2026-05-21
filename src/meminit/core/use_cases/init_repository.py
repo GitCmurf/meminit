@@ -93,9 +93,7 @@ class InitRepositoryUseCase:
         self.docs_dir = self.root_dir / "docs"
         self._env = env
         self._repo_prefix = (
-            self._normalize_repo_prefix(repo_prefix)
-            if repo_prefix is not None
-            else None
+            self._normalize_repo_prefix(repo_prefix) if repo_prefix is not None else None
         )
 
     @staticmethod
@@ -176,7 +174,10 @@ class InitRepositoryUseCase:
                     "GOV": {"directory": "00-governance"},
                     "RFC": {"directory": "00-governance"},
                     "STRAT": {"directory": "02-strategy"},
-                    "PRD": {"directory": "10-prd", "template": "docs/00-governance/templates/prd.template.md"},
+                    "PRD": {
+                        "directory": "10-prd",
+                        "template": "docs/00-governance/templates/prd.template.md",
+                    },
                     "RESEARCH": {"directory": "10-prd"},
                     "PLAN": {"directory": "05-planning"},
                     "TASK": {"directory": "05-planning/tasks"},
@@ -184,8 +185,14 @@ class InitRepositoryUseCase:
                     "SPEC": {"directory": "20-specs"},
                     "DESIGN": {"directory": "30-design"},
                     "DECISION": {"directory": "40-decisions"},
-                    "ADR": {"directory": "45-adr", "template": "docs/00-governance/templates/adr.template.md"},
-                    "FDD": {"directory": "50-fdd", "template": "docs/00-governance/templates/fdd.template.md"},
+                    "ADR": {
+                        "directory": "45-adr",
+                        "template": "docs/00-governance/templates/adr.template.md",
+                    },
+                    "FDD": {
+                        "directory": "50-fdd",
+                        "template": "docs/00-governance/templates/fdd.template.md",
+                    },
                     "INDEX": {"directory": "01-indices"},
                     "TESTING": {"directory": "55-testing"},
                     "LOG": {"directory": "58-logs"},
@@ -215,12 +222,8 @@ class InitRepositoryUseCase:
         # This must still behave reasonably even if packaged resources are unavailable (e.g., in
         # constrained environments or tests that simulate missing assets).
         try:
-            profile = resolve_org_profile(
-                profile_name="default", env=self._env, prefer_global=True
-            )
-            schema_bytes = (
-                profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
-            )
+            profile = resolve_org_profile(profile_name="default", env=self._env, prefer_global=True)
+            schema_bytes = profile.files.get("metadata.schema.json") or _FALLBACK_SCHEMA_JSON
             template_bytes = {
                 rel: (profile.files.get(rel) or _FALLBACK_TEMPLATES[rel])
                 for rel in _FALLBACK_TEMPLATES
@@ -268,9 +271,7 @@ class InitRepositoryUseCase:
                 continue
 
             try:
-                canonical = asset.render(
-                    project_name=project_name, repo_prefix=repo_prefix
-                )
+                canonical = asset.render(project_name=project_name, repo_prefix=repo_prefix)
             except OSError:
                 canonical = None
 

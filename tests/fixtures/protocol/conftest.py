@@ -23,10 +23,11 @@ def _previous_version() -> str:
 _PREVIOUS_VERSION = _previous_version()
 
 
-def _setup_config(tmp_path: Path, project_name: str = "TestProject", repo_prefix: str = "TEST") -> None:
+def _setup_config(
+    tmp_path: Path, project_name: str = "TestProject", repo_prefix: str = "TEST"
+) -> None:
     (tmp_path / "docops.config.yaml").write_text(
-        f"project_name: {project_name}\nrepo_prefix: {repo_prefix}\n"
-        f"docops_version: '2.0'\n",
+        f"project_name: {project_name}\nrepo_prefix: {repo_prefix}\n" f"docops_version: '2.0'\n",
         encoding="utf-8",
     )
 
@@ -82,7 +83,11 @@ def setup_f02_missing_agents_md(tmp_path: Path) -> Dict[str, str]:
         if asset.id == "agents-md":
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_missing": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_missing": "agents-md",
+    }
 
 
 def setup_f03_missing_skill_manifest(tmp_path: Path) -> Dict[str, str]:
@@ -93,7 +98,11 @@ def setup_f03_missing_skill_manifest(tmp_path: Path) -> Dict[str, str]:
         if asset.id == "meminit-docops-skill":
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_missing": "meminit-docops-skill"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_missing": "meminit-docops-skill",
+    }
 
 
 def setup_f04_legacy_agents_md(tmp_path: Path) -> Dict[str, str]:
@@ -105,7 +114,11 @@ def setup_f04_legacy_agents_md(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "# Legacy AGENTS.md\n\nOld content here.\n")
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_legacy": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_legacy": "agents-md",
+    }
 
 
 def setup_f05_stale_version(tmp_path: Path) -> Dict[str, str]:
@@ -121,7 +134,11 @@ def setup_f05_stale_version(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, content)
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_stale": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_stale": "agents-md",
+    }
 
 
 def setup_f06_stale_hash(tmp_path: Path) -> Dict[str, str]:
@@ -142,9 +159,11 @@ def setup_f06_stale_hash(tmp_path: Path) -> Dict[str, str]:
             modified_lines[begin_idx + 1] = modified_lines[begin_idx + 1] + " (old version)"
             # Recompute sha256 for the modified managed payload
             from meminit.core.services.protocol_assets import normalize_protocol_payload
-            modified_payload = "\n".join(modified_lines[begin_idx + 1:end_idx])
+
+            modified_payload = "\n".join(modified_lines[begin_idx + 1 : end_idx])
             normalized = normalize_protocol_payload(modified_payload)
             import hashlib
+
             new_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
             # Update the begin marker with new hash
             modified_lines[begin_idx] = modified_lines[begin_idx].replace(
@@ -154,7 +173,11 @@ def setup_f06_stale_hash(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(modified_lines))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_stale": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_stale": "agents-md",
+    }
 
 
 def setup_f07_tampered(tmp_path: Path) -> Dict[str, str]:
@@ -169,7 +192,11 @@ def setup_f07_tampered(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "1", "expected_tampered": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "1",
+        "expected_tampered": "agents-md",
+    }
 
 
 def setup_f08_duplicate_begin_marker(tmp_path: Path) -> Dict[str, str]:
@@ -184,7 +211,11 @@ def setup_f08_duplicate_begin_marker(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "0",
+        "expected_unparseable": "agents-md",
+    }
 
 
 def setup_f09_missing_end_marker(tmp_path: Path) -> Dict[str, str]:
@@ -199,7 +230,11 @@ def setup_f09_missing_end_marker(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(filtered))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "0",
+        "expected_unparseable": "agents-md",
+    }
 
 
 def setup_f10_stale_with_user_content(tmp_path: Path) -> Dict[str, str]:
@@ -294,7 +329,11 @@ def setup_f16_preamble_before_begin(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "0",
+        "expected_unparseable": "agents-md",
+    }
 
 
 def setup_f17_duplicate_end_marker(tmp_path: Path) -> Dict[str, str]:
@@ -311,7 +350,11 @@ def setup_f17_duplicate_end_marker(tmp_path: Path) -> Dict[str, str]:
             _write_asset(tmp_path, asset.id, "\n".join(lines))
             continue
         _write_canonical(tmp_path, asset)
-    return {"expected_check_success": "false", "expected_drifted": "0", "expected_unparseable": "agents-md"}
+    return {
+        "expected_check_success": "false",
+        "expected_drifted": "0",
+        "expected_unparseable": "agents-md",
+    }
 
 
 # Fixture registry: name → (setup_fn, description)

@@ -48,6 +48,7 @@ class TemplateResolution:
         path: The filesystem path to the template, or None for builtin/skeleton.
         content: The template content as a string, or None if not found.
     """
+
     source: str
     path: Optional[Path]
     content: Optional[str]
@@ -140,11 +141,7 @@ class TemplateResolver:
             self._validate_template_file(full_path, allow_root=True)
             # Read content after validation to avoid duplicate reads
             content = self._read_template_text(full_path)
-            return TemplateResolution(
-                source=SOURCE_CONFIG,
-                path=full_path,
-                content=content
-            )
+            return TemplateResolution(source=SOURCE_CONFIG, path=full_path, content=content)
         return None
 
     def _resolve_from_convention(self, doc_type: str) -> Optional[TemplateResolution]:
@@ -159,11 +156,7 @@ class TemplateResolver:
             self._validate_template_file(new_path, allow_root=False)
             # Read content after validation to avoid duplicate reads
             content = self._read_template_text(new_path)
-            return TemplateResolution(
-                source=SOURCE_CONVENTION,
-                path=new_path,
-                content=content
-            )
+            return TemplateResolution(source=SOURCE_CONVENTION, path=new_path, content=content)
         return None
 
     def _read_template_text(self, path: Path) -> str:
@@ -198,24 +191,21 @@ class TemplateResolver:
         if "/" in type_key or "\\" in type_key or ".." in type_key:
             return None
         try:
-            template_content = files("meminit.core.assets.org_profiles.default.templates").joinpath(
-                f"{type_key}.template.md"
-            ).read_text(encoding="utf-8")
+            template_content = (
+                files("meminit.core.assets.org_profiles.default.templates")
+                .joinpath(f"{type_key}.template.md")
+                .read_text(encoding="utf-8")
+            )
             return TemplateResolution(
                 source=SOURCE_BUILTIN,
                 path=None,  # Built-in has no filesystem path
-                content=template_content
+                content=template_content,
             )
         except (FileNotFoundError, AttributeError):
             # AttributeError for cases where files() doesn't support joinpath
             return None
 
-    def _validate_template_file(
-        self,
-        path: Path,
-        *,
-        allow_root: bool = False
-    ) -> None:
+    def _validate_template_file(self, path: Path, *, allow_root: bool = False) -> None:
         """Validate template file characteristics (FR-10, FR-17).
 
         Security checks:
@@ -238,13 +228,13 @@ class TemplateResolver:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template is a symbolic link (not allowed): {relative_path_string(path, self._repo_root)}",
-                details={"file_type": "symlink", "path": str(path)}
+                details={"file_type": "symlink", "path": str(path)},
             )
         if not path.is_file():
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template path is not a regular file: {relative_path_string(path, self._repo_root)}",
-                details={"file_type": "non_regular", "path": str(path)}
+                details={"file_type": "non_regular", "path": str(path)},
             )
 
         # Check extension
@@ -252,7 +242,7 @@ class TemplateResolver:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template must be a .md file: {relative_path_string(path, self._repo_root)}",
-                details={"actual_extension": path.suffix, "path": str(path)}
+                details={"actual_extension": path.suffix, "path": str(path)},
             )
 
         # Check size (256 KiB cap)
@@ -262,14 +252,14 @@ class TemplateResolver:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template file is inaccessible: {relative_path_string(path, self._repo_root)}",
-                details={"error": str(exc), "path": str(path)}
+                details={"error": str(exc), "path": str(path)},
             ) from exc
 
         if size > _MAX_TEMPLATE_SIZE:
             raise MeminitError(
                 code=ErrorCode.INVALID_TEMPLATE_FILE,
                 message=f"Template exceeds size limit ({_MAX_TEMPLATE_SIZE / 1024} KiB): {relative_path_string(path, self._repo_root)}",
-                details={"actual_size": size, "max_size": _MAX_TEMPLATE_SIZE, "path": str(path)}
+                details={"actual_size": size, "max_size": _MAX_TEMPLATE_SIZE, "path": str(path)},
             )
 
         # For convention-discovered templates, ensure they're under the templates directory
@@ -278,16 +268,20 @@ class TemplateResolver:
                 rel_to_docs = path.relative_to(self.config.docs_dir)
                 parts = rel_to_docs.parts
                 # Must be under docs/00-governance/templates/
-                if len(parts) < 3 or parts[0] != _CONVENTION_DIR.split('/')[0] or parts[1] != _CONVENTION_DIR.split('/')[1]:
+                if (
+                    len(parts) < 3
+                    or parts[0] != _CONVENTION_DIR.split("/")[0]
+                    or parts[1] != _CONVENTION_DIR.split("/")[1]
+                ):
                     raise MeminitError(
                         code=ErrorCode.INVALID_TEMPLATE_FILE,
                         message=f"Convention templates must be under docs/{_CONVENTION_DIR}/: {relative_path_string(path, self._repo_root)}",
-                        details={"path": str(path)}
+                        details={"path": str(path)},
                     )
             except ValueError as exc:
                 # path.relative_to failed - outside docs_dir
                 raise MeminitError(
                     code=ErrorCode.INVALID_TEMPLATE_FILE,
                     message=f"Convention template outside docs directory: {relative_path_string(path, self._repo_root)}",
-                    details={"path": str(path)}
+                    details={"path": str(path)},
                 ) from exc

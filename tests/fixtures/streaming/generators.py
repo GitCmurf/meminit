@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path
 from random import Random
 
-
 DOC_TYPES = [
     ("ADR", "45-adr", "Architectural Decision"),
     ("PRD", "10-prd", "Product Requirement"),
@@ -35,8 +34,7 @@ def build_streaming_fixture(root: Path, *, count: int, seed: int = 14) -> None:
             previous_type = DOC_TYPES[(index - 2) % len(DOC_TYPES)][0]
             rel_ids.append(f"FIXTURE-{previous_type}-{index - 1:04d}")
         related = (
-            "related_ids:\n"
-            + "".join(f"  - {item}\n" for item in rel_ids)
+            "related_ids:\n" + "".join(f"  - {item}\n" for item in rel_ids)
             if rel_ids
             else "related_ids: []\n"
         )

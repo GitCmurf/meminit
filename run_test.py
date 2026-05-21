@@ -9,6 +9,7 @@ from tests.helpers import parse_json_envelope
 
 def _runner():
     import inspect
+
     kwargs = {}
     if "mix_stderr" in inspect.signature(CliRunner).parameters:
         kwargs["mix_stderr"] = False
