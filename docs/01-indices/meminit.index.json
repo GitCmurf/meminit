@@ -356,6 +356,18 @@
     },
     {
       "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-016' lists 'MEMINIT-PLAN-003' in related_ids but 'MEMINIT-PLAN-003' does not list 'MEMINIT-PLAN-016'",
+      "source": "MEMINIT-PLAN-016",
+      "target": "MEMINIT-PLAN-003"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
+      "message": "'MEMINIT-PLAN-016' lists 'MEMINIT-STRAT-001' in related_ids but 'MEMINIT-STRAT-001' does not list 'MEMINIT-PLAN-016'",
+      "source": "MEMINIT-PLAN-016",
+      "target": "MEMINIT-STRAT-001"
+    },
+    {
+      "code": "GRAPH_RELATED_ID_ASYMMETRY",
       "message": "'MEMINIT-PRD-003' lists 'MEMINIT-GOV-003' in related_ids but 'MEMINIT-GOV-003' does not list 'MEMINIT-PRD-003'",
       "source": "MEMINIT-PRD-003",
       "target": "MEMINIT-GOV-003"
@@ -729,8 +741,8 @@
   ],
   "command": "index",
   "data": {
-    "document_count": 79,
-    "edge_count": 238,
+    "document_count": 80,
+    "edge_count": 244,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -983,6 +995,13 @@
         "guaranteed": false,
         "source": "MEMINIT-PLAN-003",
         "target": "MEMINIT-PLAN-014"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-003",
+        "target": "MEMINIT-PLAN-016"
       },
       {
         "context": "body.markdown_link",
@@ -1382,6 +1401,41 @@
         "guaranteed": true,
         "source": "MEMINIT-PLAN-014",
         "target": "MEMINIT-SPEC-008"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-GOV-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-PLAN-003"
+      },
+      {
+        "context": "body.markdown_link",
+        "edge_type": "references",
+        "guaranteed": false,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-STRAT-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-STRAT-001"
       },
       {
         "context": "body.markdown_link",
@@ -2413,7 +2467,7 @@
         "repo_prefix": "ORG"
       }
     ],
-    "node_count": 79,
+    "node_count": 80,
     "nodes": [
       {
         "area": null,
@@ -2822,7 +2876,7 @@
         "description": null,
         "document_id": "MEMINIT-FDD-005",
         "keywords": null,
-        "last_updated": "2026-03-01",
+        "last_updated": "2026-05-18",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3014,7 +3068,7 @@
           "index",
           "cache"
         ],
-        "last_updated": "2026-05-06",
+        "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3143,7 +3197,7 @@
           "cache",
           "external-testbed"
         ],
-        "last_updated": "2026-05-09",
+        "last_updated": "2026-05-17",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3155,7 +3209,7 @@
           "MEMINIT-RUNBOOK-006"
         ],
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Phase 5 External Testbed Evidence",
         "type": "LOG",
@@ -3550,7 +3604,7 @@
           "state",
           "index"
         ],
-        "last_updated": "2026-05-08",
+        "last_updated": "2026-05-17",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3561,6 +3615,35 @@
         "status": "Draft",
         "superseded_by": null,
         "title": "Next Improvements Sprint Plan",
+        "type": "PLAN",
+        "unblocks": []
+      },
+      {
+        "area": "ADOPT",
+        "description": "Defines the dogfood-first adoption sequence, engineering workstreams, verification gates, and release-readiness criteria for Meminit's first public package launch.",
+        "document_id": "MEMINIT-PLAN-016",
+        "keywords": [
+          "adoption",
+          "dogfooding",
+          "release-readiness",
+          "templates-v2",
+          "agent-skill",
+          "brownfield"
+        ],
+        "last_updated": "2026-05-21",
+        "namespace": "meminit",
+        "open_blockers": [],
+        "owner": "GitCmurf",
+        "path": "docs/05-planning/plan-016-adoption-and-dogfooding-sequencing.md",
+        "ready": false,
+        "related_ids": [
+          "MEMINIT-PLAN-003",
+          "MEMINIT-STRAT-001"
+        ],
+        "repo_prefix": "MEMINIT",
+        "status": "Draft",
+        "superseded_by": null,
+        "title": "Adoption and Dogfooding Sequencing",
         "type": "PLAN",
         "unblocks": []
       },
@@ -4099,7 +4182,7 @@
           "migration",
           "brownfield"
         ],
-        "last_updated": "2026-03-01",
+        "last_updated": "2026-05-18",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",
@@ -4127,7 +4210,7 @@
           "agent",
           "contract"
         ],
-        "last_updated": "2026-04-28",
+        "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",
@@ -4187,7 +4270,7 @@
           "cli",
           "templates-v2"
         ],
-        "last_updated": "2026-05-06",
+        "last_updated": "2026-05-18",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "Product Team",
@@ -4248,7 +4331,7 @@
           "agent",
           "output"
         ],
-        "last_updated": "2026-05-03",
+        "last_updated": "2026-05-09",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
