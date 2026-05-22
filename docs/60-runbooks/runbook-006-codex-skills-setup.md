@@ -26,14 +26,14 @@ Meminit scaffolds a vendor-neutral agent skill at:
 
 - `.agents/skills/meminit-docops/SKILL.md`
 
-Some tools (like Codex) may require a projection into a tool-specific folder (e.g., `.codex/skills/`).
+Some tools (like Codex) may require a projection into a tool-specific folder (e.g., `.agents/skills/`).
 
 ### Verification
 
 Steps:
 
 1. Confirm the skill directory exists: `.agents/skills/meminit-docops/`
-2. If your tool expects a different path (e.g., `.codex/skills/meminit-docops/`), confirm that path exists as a symlink or projection of the canonical folder.
+2. If your tool expects a different path (e.g., `.agents/skills/meminit-docops/`), confirm that path exists as a symlink or projection of the canonical folder.
 
 Self-check:
 
@@ -46,7 +46,7 @@ test -f .agents/skills/meminit-docops/SKILL.md && echo "OK: meminit-docops skill
 1. Start Codex from the repo (preferably the repo root).
 2. In the Codex TUI, run `/skills` to list available skills.
 3. Confirm `meminit-docops` appears in the list.
-4. If it does not appear, your version of Codex may require the `.codex/` projection. Use `meminit protocol sync` to ensure projections are up to date.
+4. If it does not appear, verify your agent environment configuration. Use `meminit protocol check` to verify alignment.
 
 Important: skills are typically loaded once per Codex session. If you add or edit skills, **restart Codex**.
 
@@ -61,8 +61,8 @@ If `/skills` only lists built-in skills (e.g., `skill-creator`, `skill-installer
 
 1. Confirm you launched Codex **inside the git repository**:
    - Start Codex from the repo root directory where `.git/` and `.agents/` exist.
-2. Confirm the skill is in a supported repo location. For Codex, ensure the `.codex/` projection exists:
-   - `$REPO_ROOT/.codex/skills/meminit-docops`
+2. Confirm the skill is in a supported repo location. Ensure the `.agents/` directory exists:
+   - `$REPO_ROOT/.agents/skills/meminit-docops`
 3. Confirm `SKILL.md` is valid:
    - filename must be exactly `SKILL.md`
    - YAML frontmatter must parse
@@ -87,7 +87,7 @@ Steps (conceptual for Codex):
 1. Locate your Codex global skills directory (varies by OS/installation).
 2. Copy the folder:
    - source: `.agents/skills/meminit-docops/`
-   - destination: `~/.codex/skills/meminit-docops/` (Mac/Linux default per Codex docs)
+   - destination: `~/.agents/skills/meminit-docops/` (Mac/Linux default per agent environment docs)
 3. Restart Codex and verify discovery.
 
 Security note:
