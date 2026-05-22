@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-verify:
+    name: Build and Verify Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Validate package metadata using twine
+        run: |
+          uv pip install twine
+          uv run twine check dist/*
+
+      - name: Run verification in clean virtual environment
+        run: |
+          uv venv test_env
+          . test_env/bin/activate
+          # Install the built wheel plus dev dependencies for testing
+          uv pip install dist/*.whl
+          uv pip install pytest pytest-cov pydantic pyyaml rich jsonschema python-frontmatter click
+          # Smoke test the CLI
+          meminit --version
+          meminit doctor --root . --format json
+          meminit check --root . --format json
+          # Run tests against the installed package
+          pytest
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+
+  dry-run-publish:
+    name: Dry-run Publish Check
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Dry-run check distribution files
+        run: |
+          echo "Simulating PyPI publishing dry-run..."
+          if [ ! -f dist/*.whl ] || [ ! -f dist/*.tar.gz ]; then
+            echo "Error: Missing build artifacts."
+            exit 1
+          fi
+          echo "Package build artifacts confirmed:"
+          ls -la dist/
+          echo "All validation gates passed. Dry-run publish check successful."
+
+  github-release:
+    name: Create GitHub Release
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Create GitHub Release (Draft)
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            dist/*
+          draft: true
+          prerelease: false
+          body: |
+            ## Meminit Release
+
+            A new version of Meminit has been built and verified.
+            Please review the release artifacts and publish them when ready.
+
+  production-publish:
+    name: Publish to Production PyPI (Gated)
+    needs: [build-and-verify, dry-run-publish]
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/project/meminit/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Publish to PyPI
+        # Uses trusted publishing. Needs the 'release' environment configured on GitHub with OIDC permissions.
+        # This will only execute when the release environment approval is granted.
+        run: |
+          uv publish dist/*
