@@ -22,7 +22,9 @@ def test_no_legacy_codex_paths():
     for directory in [src_dir, docs_dir]:
         for root, dirs, files in os.walk(directory):
             # Skip build and metadata directories
-            dirs[:] = [d for d in dirs if not d.endswith(".egg-info") and d not in ("build", "dist")]
+            dirs[:] = [
+                d for d in dirs if not d.endswith(".egg-info") and d not in ("build", "dist")
+            ]
             for file in files:
                 file_path = Path(root) / file
                 rel_path = file_path.relative_to(repo_root).as_posix()

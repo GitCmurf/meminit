@@ -50,7 +50,6 @@ def check_command(cmd_args, expected_data_keys=None):
         "success",
         "command",
         "run_id",
-        "root",
         "data",
         "warnings",
         "violations",
@@ -60,6 +59,17 @@ def check_command(cmd_args, expected_data_keys=None):
     if missing:
         print(f"  FAILED: missing fields: {missing}")
         return False
+
+    # root is conditional: present for repo-aware commands, absent for repo-agnostic (org install)
+    is_repo_agnostic = len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
+    if is_repo_agnostic:
+        if "root" in envelope:
+            print("  FAILED: root field should be absent for repo-agnostic command")
+            return False
+    else:
+        if "root" not in envelope:
+            print("  FAILED: root field is required for repo-aware command")
+            return False
 
     # Check success field (Finding #2)
     if not envelope.get("success", False):
