@@ -28,7 +28,7 @@ Activate this skill when the user asks to:
 ## Safety rules (non-negotiable)
 
 1. Prefer read-only commands first: `scan`, `doctor`, `check`.
-2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, or any rename/rewrite) without:
+2. Never run a write operation (`fix --no-dry-run`, `fix --plan <PLAN_PATH> --no-dry-run`, `migrate-ids --no-dry-run`, `migrate-ids --rewrite-references`, `protocol sync --no-dry-run`, or any rename/rewrite) without:
    - showing a dry-run preview, and
    - explicit user confirmation.
 3. Never attempt to “fix” semantic governance manually (ownership, approvals, status promotion) without asking.
@@ -42,30 +42,26 @@ Activate this skill when the user asks to:
 - Repo readiness: `meminit doctor --format json`
 - Repo discovery: `meminit context --format json` (add `--deep` for per-namespace document counts)
 - Compliance: `meminit check --format json` (add `--strict` to promote warnings to errors)
-- Generate migration plan: `meminit scan --plan <PLAN_PATH> --format json` (use `--plan <PLAN_PATH>` to generate a plan file)
+- Generate migration plan: `meminit scan --plan <PLAN_PATH> --format json`
 - Safe preview: `meminit fix --dry-run --format json`
 - Safe preview from plan: `meminit fix --plan <PLAN_PATH> --format json` (add `--namespace <NS>` for monorepo safety)
 - Apply mechanical fixes: `meminit fix --no-dry-run --format json`
 - Apply plan: `meminit fix --plan <PLAN_PATH> --no-dry-run --format json` (add `--namespace <NS>` for monorepo safety)
+- Migration planning: `meminit scan --format json`
 - Create governed doc: `meminit new <TYPE> <TITLE> --format json` (key flags: `--owner`, `--area`, `--description`, `--status`, `--keywords`, `--related-ids`, `--id`, `--dry-run`, `--namespace`)
 - Type discovery: `meminit new --list-types --format json`
 - ADR shortcut: `meminit adr new <TITLE> --format json`
 - Migrate legacy IDs: `meminit migrate-ids --dry-run --format json` (add `--rewrite-references` to update cross-refs)
 - Pre-commit hook: `meminit install-precommit --root .`
 - Org profile helpers (optional): `meminit org status --format json`, `meminit org vendor --format json`
-- State management:
-  - `meminit state set <DOCUMENT_ID> --impl-state "In Progress" --notes "Optional notes" --format json`
-  - `meminit state set <DOCUMENT_ID> --priority P1 --assignee agent:codex --next-action "Draft FDD" --format json`
-  - `meminit state set <DOCUMENT_ID> --add-depends-on MEMINIT-PLAN-013 --add-blocked-by MEMINIT-SPEC-006 --format json`
-  - `meminit state get <DOCUMENT_ID> --format json`
-  - `meminit state list --format json`
-  - `meminit state next --format json` — deterministic next work item
-  - `meminit state blockers --format json` — list blocked entries and open blockers
 - Index + resolution:
   - `meminit index --output-catalog --output-kanban --format json`
   - `meminit resolve <DOCUMENT_ID> --format json`
   - `meminit identify <PATH> --format json`
   - `meminit link <DOCUMENT_ID> --format json`
+- Protocol governance:
+  - `meminit protocol check --format json` (drift detection for governed assets)
+  - `meminit protocol sync --format json` (preview-only by default; add `--no-dry-run` to apply)
 
 > [!TIP]
 > Use `--output <path>` to capture JSON artifacts for CI or downstream tools. All commands support `--include-timestamp` if timing data is needed in the envelope.
@@ -85,7 +81,7 @@ Default flow:
 If you want a quick brownfield bootstrap, use the bundled helper script:
 
 ```bash
-bash .agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh .
+bash .agents/skills/meminit-docops/scripts/meminit_brownfield_plan.sh . /tmp/meminit-migration-plan.json
 ```
 
 ## Decision tree (brownfield migration)
@@ -275,12 +271,12 @@ All `meminit` commands support `--format json`. When used, the CLI emits a singl
 
 | Field                   | Description                                                         |
 | ----------------------- | ------------------------------------------------------------------- |
-| `output_schema_version` | `"2.0"`                                                             |
+| `output_schema_version` | `"3.0"`                                                             |
 | `success`               | `true` on success; `false` on operational errors or gating failures |
 | `command`               | Canonical subcommand name                                           |
 | `run_id`                | UUIDv4 correlation token                                            |
 | `timestamp`             | ISO 8601 UTC timestamp when `--include-timestamp` is used           |
-| `root`                  | Absolute path to repo root                                          |
+| `root`                  | Absolute path to repo root (repo-aware commands only)               |
 | `data`                  | Command-specific payload (`{}` when empty)                          |
 | `warnings`              | Structured warning array                                            |
 | `violations`            | Structured violation array                                          |
@@ -310,6 +306,34 @@ Two distinct failure modes:
 Always check `success` first, then inspect `error` vs. `violations` to determine the failure type.
 
 Use the live CLI behavior and tests as the source of truth when docs lag. `MEMINIT-SPEC-008` is the normative v3 output contract (superseding MEMINIT-SPEC-004).
+
+## Project State Queue
+
+Phase 4 adds a repo-local work queue layered on `project-state.yaml`.
+Agents should use it for deterministic task selection instead of inventing
+their own planner.
+
+### Queue commands
+
+```bash
+meminit state next --root . --format json
+meminit state blockers --root . --format json
+meminit state list --root . --format json
+```
+
+### Recommended agent loop
+
+1. Run `meminit state next --root . --format json`.
+2. If `data.reason == "queue_empty"`, stop.
+3. If `data.entry` exists, do exactly that work item.
+4. Persist the mutation with `meminit state set`.
+5. Repeat until the queue is empty.
+
+### Safety rules
+
+- Queue commands require an initialized repo config.
+- Missing `project-state.yaml` is an empty queue, not an error.
+- Malformed `project-state.yaml` is fatal and must be corrected before use.
 
 ## References (in this repo)
 
