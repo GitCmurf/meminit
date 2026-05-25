@@ -61,3 +61,10 @@ document_types:
     directory: "58-logs"
     template: "docs/00-governance/templates/log.template.md"
     description: "Execution Log"
+  TASK:
+    description: "Implementation Task"
+    directory: "05-planning/tasks"
+    template: "docs/00-governance/templates/task.template.md"
+  DEVEX:
+    description: "Developer Experience"
+    directory: "70-devex"

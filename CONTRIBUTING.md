@@ -35,16 +35,17 @@ safe, and aligned with our DocOps-first approach.
 
 ## Development Workflow
 
-1. Fork/clone and set up per `README.md` (Python venv, Node tooling if needed).
+1. Fork/clone and set up per `README.md` (Python venv, `uv` for dependencies).
 2. Make focused commits; keep PRs small and purposeful.
 3. Update docs alongside code. Governed docs must include YAML frontmatter that
-   matches `docs/00-governance/metadata.schema.json` and display the metadata
-   block per the Constitution.
+    matches `docs/00-governance/metadata.schema.json` and display the metadata
+    block per the Constitution.
 4. Add or update tests under `tests/` for new behavior or bug fixes.
-5. Run lint/format tools that apply to your changes (e.g., `ruff`, `eslint`,
-   `prettier`, `black`).
-6. Run the pre-push hygiene checklist (secrets scan, `.gitignore` audit,
-   history check) before opening a PR.
+5. Run lint/format tools that apply to your changes (black, isort, prettier).
+6. Run the pre-commit hooks: `uv run pre-commit run --all-files`.
+7. Run tests: `uv run pytest` (default excludes slow tests).
+8. Run the pre-push hygiene checklist (secrets scan, `.gitignore` audit,
+    history check) before opening a PR.
 
 ## Pull Request Checklist
 
