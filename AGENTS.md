@@ -21,8 +21,6 @@ Document IDs follow `MEMINIT-TYPE-SEQ` (e.g., `MEMINIT-ADR-001`).
 - All code changes must include documentation and tests.
 - Never commit secrets or PII.
 <!-- MEMINIT_PROTOCOL: end id=agents-md -->
-# Agentic Coding Rules
-
 This file defines the operational parameters for AI agents working within the Meminit repository.
 
 The **rules of this repository** are:
