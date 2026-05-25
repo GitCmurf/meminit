@@ -96,3 +96,51 @@ def test_new_fdd_interpolation(tmp_path, monkeypatch):
 
     assert "{{document_id}}" not in content
     assert "Regression Test FDD" in content
+
+
+def test_template_placeholder_syntax_regression(tmp_path, monkeypatch):
+    """
+    Regression test: templates should use {{variable}} syntax, not { { variable } }.
+    This ensures malformed placeholders are not introduced in future template edits.
+    """
+    from meminit.core.services.repo_config import load_repo_config
+
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    result_init = runner.invoke(cli, ["init"])
+    assert result_init.exit_code == 0
+
+    repo_config = load_repo_config(str(tmp_path))
+
+    launch_critical_types = ["ADR", "PRD", "FDD", "PLAN", "SPEC", "RUNBOOK", "DESIGN", "LOG", "TASK"]
+
+    for doc_type in launch_critical_types:
+        type_config = repo_config.document_types.get(doc_type)
+        if not type_config:
+            continue
+
+        template_path = None
+        if hasattr(type_config, "template") and type_config.template:
+            template_path = tmp_path / type_config.template
+
+        if not template_path or not template_path.exists():
+            continue
+
+        content = template_path.read_text(encoding="utf-8")
+
+        frontmatter_end = content.find("\n---\n")
+        if frontmatter_end == -1:
+            continue
+
+        frontmatter = content[:frontmatter_end]
+
+        assert "{ { " not in frontmatter, (
+            f"Template for {doc_type} at {template_path} contains malformed "
+            "placeholder syntax with spaces. Use '{{variable}}' instead."
+        )
+
+        assert "} }" not in frontmatter, (
+            f"Template for {doc_type} at {template_path} contains malformed "
+            "placeholder syntax with spaces. Use '{{variable}}' instead."
+        )
