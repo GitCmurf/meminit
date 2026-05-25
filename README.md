@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/python-≥3.11-blue)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
-**Quick links:** [Docs](docs/) · [Runbooks](docs/60-runbooks/) · [Issues](https://github.com/GitCmurf/meminit/issues) ·
+**Quick links:** [Docs](docs/) · [Runbooks](docs/60-runbooks/) · [Release Notes](docs/70-devex/devex-001-release-notes.md) · [Issues](https://github.com/GitCmurf/meminit/issues) ·
 [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 ## Why Meminit?

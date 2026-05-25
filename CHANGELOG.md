@@ -7,19 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Protocol asset governance:** `meminit protocol check` and `meminit protocol sync` commands
+  for drift detection and remediation of governed assets (AGENTS.md, SKILL.md, scripts).
+- **Templates v2:** New template system with section markers (`<!-- MEMINIT_SECTION: ... -->`)
+  and agent prompts for machine-fillable content.
+- **NDJSON streaming:** Large output support via `--format ndjson` for agent-friendly
+  streaming (see [MEMINIT-SPEC-011](docs/20-specs/spec-011-ndjson-streaming-contract.md)).
+- **Incremental cache:** Faster `meminit index` with namespace-aware caching and change detection.
+- **Catalog and kanban artifacts:** `meminit index --output-catalog --output-kanban` generates
+  markdown catalog and HTML kanban board with XSS sanitization.
+- **Project state queue:** `meminit state set/list/next/blockers` for deterministic work item
+  selection with dependency management and multi-agent routing.
+- **Tag-triggered release workflow:** GitHub Actions workflow for automated PyPI publishing
+  via OIDC trusted publishing.
+- **Secret scanning:** gitleaks integration in pre-commit and CI for automated credential detection.
+
 ### Changed
 
 - Normalized state-related public error codes to the `STATE_*` convention:
   `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
   `STATE_INVALID_FILTER_VALUE` replace the previous mixed-prefix names. No
   compatibility aliases are retained before the first stable release.
+- Output contract v3: All commands now use unified JSON envelope with
+  `output_schema_version: "3.0"`, standardized error/violation/advice structure,
+  and run_id correlation tokens.
+- Brownfield migration: `meminit scan --plan` generates deterministic plan artifacts,
+  and `meminit fix --plan <PLAN_PATH>` applies plan-driven changes for safer migrations.
+- **Breaking:** Legacy placeholder syntax `{title}`, `<REPO>`, `<SEQ>` is now rejected.
+  Only `{{variable}}` syntax is supported.
 
-### Added
+### Fixed
 
-- Initial repository setup.
-- Directory structure following DocOps Constitution.
-- Basic governance documentation.
-- Development environment configuration.
+- Targeted `check` now honors exclusions consistently for broad glob inputs (for example `docs/**/*.md`) and non-canonical paths.
+- Improved portability and reliability of `new` command error/lock handling and deterministic creation edge cases.
+- Template placeholder syntax: Fixed 112 malformed `{ { variable } }` placeholders across 16 template files.
+
+### Removed
+
+- Legacy `_apply_common_template_substitutions()` function (Templates v1 superseded).
 
 ## [0.2.0] - 2026-02-20
 
