@@ -81,6 +81,64 @@ Notes:
 - Default to PR-only enforcement (avoid duplicate runs and unexpected compute cost).
 - Add a `push` trigger for `main` only if your workflow includes direct pushes or automation that bypasses PRs.
 
+## Release workflow setup
+
+The `.github/workflows/release.yml` workflow is triggered on version tags (`v*`) and supports manual dispatch.
+
+### GitHub environment setup
+
+Before the release workflow can publish to PyPI:
+
+1. **Configure TestPyPI environment** (for dry-run testing):
+   - Go to repository Settings > Environments > New environment
+   - Name: `testpypi`
+   - No protection rules needed (dry-run only)
+
+2. **Configure production PyPI environment** (for actual releases):
+   - Go to repository Settings > Environments > New environment
+   - Name: `release`
+   - Add required reviewers (at least one)
+   - Environment URL: `https://pypi.org/project/meminit/`
+
+3. **Enable OIDC trusted publishing in PyPI**:
+   - Log in to PyPI (https://pypi.org)
+   - Go to Account settings > Publishing
+   - Add a new publisher:
+     - PyPI Project Name: `meminit`
+     - Owner: `GitCmurf` (or your PyPI username)
+     - Repository: `GitCmurf/meminit`
+     - Workflow name: `release.yml`
+     - Environment: `release`
+   - The workflow uses `id-token: write` permission for OIDC auth
+
+4. **Optional: Gitleaks license** (for enhanced secret detection):
+   - Get a license from https://github.com/gitleaks/gitleaks
+   - Add to repository Settings > Secrets and variables > Actions > New repository secret
+   - Name: `GITLEAKS_LICENSE`
+   - Value: your license key
+
+### Release process
+
+1. Update CHANGELOG.md and create release notes in `docs/70-devex/devex-001-release-notes.md`
+2. Update version in `pyproject.toml`
+3. Commit changes: `git commit -m "chore: bump version to vX.Y.Z"`
+4. Tag release: `git tag vX.Y.Z`
+5. Push tag: `git push origin vX.Y.Z`
+6. Monitor the release workflow:
+   - Build-and-verify: Runs gitleaks scan, verifies release notes, builds and tests
+   - Dry-run-publish: Publishes to TestPyPI (testpypi environment)
+   - GitHub-release: Creates draft GitHub release with artifacts
+   - Production-publish: Requires environment approval, publishes to PyPI
+
+### Testing a release without publishing
+
+For testing the release workflow without actual PyPI publishing:
+
+1. Create a test tag: `git tag v0.0.0-test`
+2. Push tag: `git push origin v0.0.0-test`
+3. The workflow will run through TestPyPI publishing
+4. Delete test tag after: `git tag -d v0.0.0-test && git push origin :refs/tags/v0.0.0-test`
+
 ## Existing AGENTS.md merge guidance (brownfield)
 
 If your repo already has an `AGENTS.md`, avoid replacing it. Merge by **adding** a Meminit section:

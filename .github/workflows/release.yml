@@ -11,12 +11,29 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-verify:
-    name: Build and Verify Packages
-    runs-on: ubuntu-latest
+   build-and-verify:
+     name: Build and Verify Packages
+     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Secret scan with gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .gitleaks.toml
+          verbose: true
+
+      - name: Verify release notes exist
+        run: |
+          if [ ! -f "docs/70-devex/devex-001-release-notes.md" ]; then
+            echo "Error: Release notes not found at docs/70-devex/devex-001-release-notes.md"
+            exit 1
+          fi
+          echo "Release notes verified."
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -57,10 +74,15 @@ jobs:
           name: dist-packages
           path: dist/
 
-  dry-run-publish:
-    name: Dry-run Publish Check
-    needs: build-and-verify
-    runs-on: ubuntu-latest
+   dry-run-publish:
+     name: Dry-run Publish to TestPyPI
+     needs: build-and-verify
+     runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/meminit/
+    permissions:
+      id-token: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -68,16 +90,32 @@ jobs:
           name: dist-packages
           path: dist
 
-      - name: Dry-run check distribution files
+      - name: Verify build artifacts exist
         run: |
-          echo "Simulating PyPI publishing dry-run..."
-          if [ ! -f dist/*.whl ] || [ ! -f dist/*.tar.gz ]; then
-            echo "Error: Missing build artifacts."
+          echo "Verifying build artifacts..."
+          whl_files=$(find dist -name "*.whl" -type f | wc -l)
+          sdist_files=$(find dist -name "*.tar.gz" -type f | wc -l)
+          if [ "$whl_files" -eq 0 ] || [ "$sdist_files" -eq 0 ]; then
+            echo "Error: Missing build artifacts. Found $whl_files wheel(s) and $sdist_files source distribution(s)."
             exit 1
           fi
-          echo "Package build artifacts confirmed:"
+          echo "Build artifacts confirmed:"
           ls -la dist/
-          echo "All validation gates passed. Dry-run publish check successful."
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Publish to TestPyPI (Dry-run)
+        run: |
+          uv publish --index https://test.pypi.org/simple/ dist/*
 
   github-release:
     name: Create GitHub Release
