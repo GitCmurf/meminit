@@ -71,7 +71,7 @@ These findings were verified against the repository on 2026-05-21.
   through to lower-quality skeleton behavior unless a repo-local template exists.
 - `meminit init` and protocol governance now use `.agents/skills/meminit-docops`
   as the canonical scaffolded skill path. Some user-facing prose still refers to
-  `.codex/skills/meminit-docops`; that drift must be resolved before launch.
+  `.agents/skills/meminit-docops`; that drift must be resolved before launch.
 - The repo has Apache-2.0 licensing, public-facing README content, and CI for
   `meminit doctor`, `meminit check`, and `pytest`, but no tag-triggered release
   workflow exists yet.
