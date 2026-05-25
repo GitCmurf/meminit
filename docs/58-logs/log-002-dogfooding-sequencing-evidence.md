@@ -3,12 +3,12 @@ document_id: MEMINIT-LOG-002
 type: LOG
 title: Dogfooding Sequencing Evidence
 status: Draft
-version: '0.1'
-last_updated: '2026-05-22'
+version: "0.1"
+last_updated: "2026-05-22"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 template_type: log-standard
-template_version: '2.0'
+template_version: "2.0"
 ---
 
 > **Document ID:** MEMINIT-LOG-002
@@ -35,15 +35,15 @@ This log document records the execution evidence for the Greenfield and Brownfie
 
 ## 1. Environment and Parameters
 
-| Parameter | Value |
-| --------- | ----- |
-| Attestation Date | 2026-05-22 |
-| Executor / Operator | Antigravity AI Agent |
-| Meminit Version | 0.2.0 |
-| Python Version | 3.12.x / 3.13.x |
-| OS Version | Linux |
-| Greenfield Path | `tmp/dogfood-greenfield` |
-| Brownfield Path | `tmp/dogfood-brownfield` |
+| Parameter           | Value                    |
+| ------------------- | ------------------------ |
+| Attestation Date    | 2026-05-22               |
+| Executor / Operator | Antigravity AI Agent     |
+| Meminit Version     | 0.2.0                    |
+| Python Version      | 3.12.x / 3.13.x          |
+| OS Version          | Linux                    |
+| Greenfield Path     | `tmp/dogfood-greenfield` |
+| Brownfield Path     | `tmp/dogfood-brownfield` |
 
 <!-- MEMINIT_SECTION: decision -->
 <!-- AGENT: List the commands run and key decision points or events. -->
@@ -82,6 +82,7 @@ meminit index --root . --format json
 ```
 
 Results:
+
 - `scan` successfully identified 3 violating files and generated a deterministic `.meminit/adoption-plan.json` containing 4 actions (rename, metadata patch, move files).
 - `fix --dry-run` successfully reported the simulated fixes (fixed: 4, remaining: 5, status: false/exit code 1 as expected since dry-run does not write to disk).
 - `fix --no-dry-run` successfully applied the 4 plan actions, writing/moving the files correctly.
@@ -101,6 +102,6 @@ Results:
 
 ## 4. Version History
 
-| Version | Date       | Author      | Changes |
-| ------- | ---------- | ----------- | ------- |
+| Version | Date       | Author      | Changes                                                                   |
+| ------- | ---------- | ----------- | ------------------------------------------------------------------------- |
 | 0.1     | 2026-05-22 | Antigravity | Recorded Greenfield and Brownfield simulation execution logs and results. |

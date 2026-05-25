@@ -53,22 +53,22 @@ See the full project vision:
 ### Prerequisites
 
 - Python ≥ 3.11
-- [pipx](https://pipx.pypa.io/) (recommended) or pip
+- [uv](https://docs.astral.sh/uv/) (recommended)
 
 ### Install
 
 Meminit is not published on PyPI yet. Install from GitHub (or a local
-checkout):
+checkout) using `uv`:
 
 ```bash
-# Via pipx (recommended)
-pipx install git+https://github.com/GitCmurf/meminit.git@main
+# Recommended: Install as a tool via uv
+uv tool install git+https://github.com/GitCmurf/meminit.git@main
 meminit --version
 
 # Or from a local clone
 git clone https://github.com/GitCmurf/meminit.git
 cd meminit
-pip install -e .
+uv pip install -e .
 ```
 
 Note: `@main` is the latest development version. Use a tagged release once tags are published.
@@ -77,28 +77,28 @@ Note: `@main` is the latest development version. Use a tagged release once tags 
 
 When developing Meminit locally, you have two options:
 
-**Run directly from source (no install):**
+**Run directly via uv (no install needed):**
 
 ```bash
-PYTHONPATH=src python -m meminit --help
-PYTHONPATH=src python -m meminit new ADR "Test" --dry-run
+uv run meminit --help
+uv run meminit new ADR "Test" --dry-run
 ```
 
 **Install in editable mode:**
 
 ```bash
-pip install -e .
-meminit --help
+uv pip install -e .
+uv run meminit --help
 ```
 
-Note: If you have a globally installed `meminit` via pipx, it may be older than the source code. When testing new features, always use `python -m meminit` or reinstall with `pip install -e .` to pick up your changes.
+Note: If you have a globally installed `meminit` via `uv tool`, it may be older than the source code. When testing new features, always use `uv run meminit` or reinstall with `uv pip install -e .` to pick up your changes.
 
 ### New repository (greenfield)
 
 ```bash
-meminit init        # scaffold docs/ tree and config
-meminit new ADR "My Decision"   # create a governed document
-meminit check       # validate everything
+uv run meminit init        # scaffold docs/ tree and config
+uv run meminit new ADR "My Decision"   # create a governed document
+uv run meminit check       # validate everything
 ```
 
 Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
@@ -106,10 +106,10 @@ Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
 ### Existing repository (brownfield)
 
 ```bash
-meminit doctor      # diagnose current state
-meminit scan        # discover existing docs
-meminit check       # validate against rules
-meminit fix --dry-run   # preview auto-fixes
+uv run meminit doctor      # diagnose current state
+uv run meminit scan        # discover existing docs
+uv run meminit check       # validate against rules
+uv run meminit fix --dry-run   # preview auto-fixes
 ```
 
 Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
@@ -124,7 +124,7 @@ types (PRDs, FDDs, specs, runbooks, and more).
 Your muscle memory still works:
 
 ```bash
-meminit adr new "Use Postgres for persistence"
+uv run meminit adr new "Use Postgres for persistence"
 ```
 
 Under the hood you get structured governance, JSON Schema validation, stable
@@ -156,16 +156,16 @@ docops_version: 2.0
 
 Meminit follows a simple loop: **scaffold → author → check → fix → index**.
 
-1. `meminit init` creates a standard `docs/` directory tree and a
+1. `uv run meminit init` creates a standard `docs/` directory tree and a
    `docops.config.yaml` that defines your project's naming conventions,
    namespaces, and templates.
-2. Authors create governed documents via `meminit new`, which stamps each file
+2. Authors create governed documents via `uv run meminit new`, which stamps each file
    with YAML frontmatter (stable ID, type, status, dates).
-3. `meminit check` and `meminit doctor` validate every doc against the
+3. `uv run meminit check` and `uv run meminit doctor` validate every doc against the
    project's governance rules — in CI, in pre-commit hooks, or on demand.
-4. `meminit fix` auto-corrects common violations (dry-run first, so nothing
+4. `uv run meminit fix` auto-corrects common violations (dry-run first, so nothing
    changes until you say so).
-5. `meminit index` builds a lookup table from stable IDs to file paths, making
+5. `uv run meminit index` builds a lookup table from stable IDs to file paths, making
    docs machine-resolvable.
 
 ## Documentation
@@ -211,8 +211,8 @@ Meminit is intentionally narrow in scope:
 
 ## Automation
 
-- **Pre-commit**: `meminit install-precommit` can install a local `meminit check` hook into `.pre-commit-config.yaml`.
-- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running `meminit doctor` and `meminit check`.
+- **Pre-commit**: `uv run meminit install-precommit` can install a local `meminit check` hook into `.pre-commit-config.yaml`.
+- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running `uv run meminit doctor` and `uv run meminit check`.
 
 ## Security
 
@@ -222,18 +222,17 @@ Meminit is intentionally narrow in scope:
 ## Development
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-pytest
-pytest --cov=meminit
-meminit doctor --root .
-meminit check --root .
+uv sync
+uv run pre-commit install
+uv run pytest
+uv run pytest --cov=meminit
+uv run meminit doctor --root .
+uv run meminit check --root .
 ```
 
 The coverage report is optional and requires the `pytest-cov` extra.
 `npm test` is an optional compatibility shim for tooling that discovers test
-commands from `package.json`; it delegates to `python -m pytest`.
+commands from `package.json`; it delegates to `uv run pytest`.
 
 ## Contributing
 

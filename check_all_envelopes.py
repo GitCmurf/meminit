@@ -12,7 +12,6 @@ from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
 REPO_ROOT = Path(os.getcwd())
 TIMEOUT = 300
-VENV_PYTHON = sys.executable
 
 MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 
@@ -20,9 +19,8 @@ MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 def check_command(cmd_args, expected_data_keys=None):
     print(f"Checking: {' '.join(cmd_args)}")
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "src")
 
-    full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
+    full_cmd = ["uv", "run", "meminit"] + cmd_args + ["--format", "json"]
     try:
         result = subprocess.run(full_cmd, env=env, capture_output=True, text=True, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
@@ -108,10 +106,9 @@ try:
 
     # Initialize
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "src")
     try:
         result = subprocess.run(
-            [VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+            ["uv", "run", "meminit", "init"],
             env=env,
             capture_output=True,
             text=True,
@@ -147,7 +144,7 @@ try:
     # Run index to create index file
     try:
         result = subprocess.run(
-            [VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+            ["uv", "run", "meminit", "index"],
             env=env,
             capture_output=True,
             text=True,
