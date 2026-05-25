@@ -68,6 +68,20 @@ def test_fix_dry_run(repo_for_fix):
     assert "last_updated" not in post.metadata
 
 
+def test_fix_idempotent(repo_for_fix):
+    """P1-01: Verify fix is idempotent - second run emits no new fixes."""
+    fixed_now = datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc)
+    fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix), default_now=fixed_now)
+
+    # First run: apply fixes
+    report1 = fixer.execute(dry_run=False)
+    assert len(report1.fixed_violations) > 0
+
+    # Second run: should be no-op
+    report2 = fixer.execute(dry_run=False)
+    assert len(report2.fixed_violations) == 0, "Second fix run should find no violations"
+
+
 def test_fix_apply(repo_for_fix):
     fixed_now = datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc)
     fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix), default_now=fixed_now)
