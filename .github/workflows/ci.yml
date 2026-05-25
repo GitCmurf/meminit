@@ -45,6 +45,14 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv pip install -e ".[dev]"
+      - name: Secret scan with gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .gitleaks.toml
+          verbose: true
       - name: Enforce pre-commit rules
         run: |
           uv run pre-commit run --all-files
