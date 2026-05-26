@@ -2,7 +2,7 @@
 document_id: MEMINIT-LOG-004
 type: LOG
 title: Security Scan Evidence
-status: Approved
+status: Draft
 version: "0.2"
 last_updated: "2026-05-25"
 owner: GitCmurf
@@ -125,7 +125,8 @@ rg "(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}" . | grep 
 
 ## 6. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-25 | GitCmurf | Initial security scan infrastructure documentation |
-| 0.2 | 2026-05-25 | GitCmurf | Completed manual baseline scan, confirmed clean status, promoted to Approved |
+| Version | Date       | Author        | Changes                                                                 |
+| ------- | ---------- | ------------- | ----------------------------------------------------------------------- |
+| 0.3     | 2026-05-26 | AI Agent      | Downgraded to Draft: manual ripgrep not equivalent to gitleaks CI       |
+| 0.2     | 2026-05-25 | GitCmurf      | Completed manual baseline scan, confirmed clean status                  |
+| 0.1     | 2026-05-25 | GitCmurf      | Initial security scan infrastructure documentation                     |
