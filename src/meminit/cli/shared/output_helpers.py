@@ -1,28 +1,27 @@
 """Shared output helpers for Meminit CLI commands.
 
-Extracted from main.py to improve modularity and reduce monolith risk.
-Contains ~500 lines of formatting, rendering, and error handling utilities.
+Extracted from src/meminit/cli/main.py to improve modularity.
+Contains ~513 lines of formatting, rendering, and error handling utilities.
 """
 
 from __future__ import annotations
 
-import click
 import contextlib
 import json
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional
 
-from click import get_current_context
+import click
 from rich.console import Console
 
-from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3
-from meminit.core.services.output_formatter import format_error_envelope
+from meminit.core.services.output_contracts import (
+    OUTPUT_SCHEMA_VERSION_V2,
+    OUTPUT_SCHEMA_VERSION_V3,
+)
+from meminit.core.services.output_formatter import format_envelope, format_error_envelope
 from meminit.core.services.error_codes import ErrorCode
-from meminit.core.exceptions import MeminitError
-from meminit.core.services.observability import get_current_run_id
-from meminit.cli.streaming import write_ndjson_error, unsupported_ndjson
-from meminit.core.services.output_formatter import normalize_correlation_id
+from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
+from meminit.core.services.path_utils import is_safe_cli_output_path
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ console = Console()
 def get_console() -> Console:
     """Helper to get the rich console from context if available."""
     try:
-        ctx = get_current_context(silent=True)
+        ctx = click.get_current_context(silent=True)
         if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict) and "console" in ctx.obj:
             return ctx.obj["console"]
     except Exception:
@@ -52,6 +51,11 @@ def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
 
     Returns None if the string is not a valid envelope.
     """
+    from meminit.core.services.output_contracts import (
+        OUTPUT_SCHEMA_VERSION_V2,
+        OUTPUT_SCHEMA_VERSION_V3,
+    )
+
     try:
         payload = json.loads(output_str)
     except Exception:
@@ -71,24 +75,6 @@ def _unexpected_error_details(exc: Exception) -> Dict[str, Any]:
     return {"exception": exc.__class__.__name__}
 
 
-# ---------------------------------------------------------------------------
-# Output Writing and Capture
-# ---------------------------------------------------------------------------
-
-def is_safe_cli_output_path(path: Path) -> bool:
-    """Validate that a CLI output path does not escape the intended directory."""
-    try:
-        resolved = path.resolve()
-        # Simple safety: reject if path tries to escape parent directories
-        parts = resolved.parts
-        for part in parts:
-            if part == "..":
-                return False
-        return True
-    except Exception:
-        return False
-
-
 def _write_output(
     output_str: str,
     output: Optional[str] = None,
@@ -99,15 +85,72 @@ def _write_output(
     if output:
         out_path = Path(output)
         if not is_safe_cli_output_path(out_path):
-            raise SystemExit(1)
-        mode = "a" if append else "w"
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, mode, encoding="utf-8") as f:
-            f.write(output_str)
-            if add_newline:
-                f.write("\n")
-    else:
-        click.echo(output_str, nl=add_newline)
+            payload = _extract_envelope_metadata(output_str)
+            if payload is not None:
+                click.echo(
+                    format_error_envelope(
+                        command=payload["command"],
+                        root=payload.get("root"),
+                        error_code=ErrorCode.PATH_ESCAPE,
+                        message=f"Output path is considered unsafe: {output}",
+                        details={"output_path": output},
+                        include_timestamp="timestamp" in payload,
+                        run_id=(
+                            payload.get("run_id")
+                            if isinstance(payload.get("run_id"), str)
+                            else None
+                        ),
+                        correlation_id=(
+                            payload.get("correlation_id")
+                            if isinstance(payload.get("correlation_id"), str)
+                            else None
+                        ),
+                    )
+                )
+            else:
+                click.echo(
+                    f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
+                    err=True,
+                )
+            raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
+
+        try:
+            mode = "a" if append else "w"
+            with out_path.open(mode, encoding="utf-8") as handle:
+                if add_newline:
+                    handle.write(output_str + "\n")
+                else:
+                    handle.write(output_str)
+            return
+        except OSError as exc:
+            # Preserve machine-safe behavior for JSON output when file writes fail.
+            payload = _extract_envelope_metadata(output_str)
+            if payload is not None:
+                click.echo(
+                    format_error_envelope(
+                        command=payload["command"],
+                        root=payload.get("root"),
+                        error_code=ErrorCode.UNKNOWN_ERROR,
+                        message=f"Failed to write output file: {output}",
+                        details={"output_path": output, "reason": str(exc)},
+                        include_timestamp="timestamp" in payload,
+                        run_id=(
+                            payload.get("run_id")
+                            if isinstance(payload.get("run_id"), str)
+                            else None
+                        ),
+                        correlation_id=(
+                            payload.get("correlation_id")
+                            if isinstance(payload.get("correlation_id"), str)
+                            else None
+                        ),
+                    )
+                )
+            else:
+                # Fallback to click.echo
+                click.echo(f"Error writing output file '{output}': {exc}", err=True)
+            raise SystemExit(EX_CANTCREAT)
+    click.echo(output_str, nl=add_newline)
 
 
 @contextlib.contextmanager
@@ -122,6 +165,7 @@ def maybe_capture(output: Optional[str], format: str):
         finally:
             if capture_obj:
                 captured_text = capture_obj.get()
+                # Avoid clobbering a file with empty content in nested capture flows.
                 if captured_text.strip():
                     _write_output(
                         captured_text,
@@ -138,7 +182,6 @@ def maybe_capture(output: Optional[str], format: str):
 # ---------------------------------------------------------------------------
 
 def _md_escape(value: object) -> str:
-    """Escape characters for safe embedding inside Markdown table cells."""
     text = "" if value is None else str(value)
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
@@ -161,163 +204,94 @@ _MD_INLINE_SPECIAL = str.maketrans(
 
 
 def _md_inline(value: object) -> str:
-    """Escape a value for safe embedding inside Markdown inline contexts."""
     text = "" if value is None else str(value)
     return text.translate(_MD_INLINE_SPECIAL)
 
 
-def _md_table(headers: List[str], rows: List[List[str]]) -> str:
-    """Build a complete Markdown pipe-delimited table string."""
-    lines = []
-    lines.append("| " + " | ".join(headers) + " |")
-    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-    for row in rows:
-        escaped = [_md_escape(cell) for cell in row]
-        lines.append("| " + " | ".join(escaped) + " |")
-    return "\n".join(lines)
+def _md_table(headers: list[str], rows: list[list[object]]) -> str:
+    head = "| " + " | ".join(_md_escape(h) for h in headers) + " |"
+    sep = "| " + " | ".join(["---"] * len(headers)) + " |"
+    body = ["| " + " | ".join(_md_escape(c) for c in row) + " |" for row in rows]
+    return "\n".join([head, sep, *body])
 
 
 # ---------------------------------------------------------------------------
-# Index Data Shaping Utilities
+# Warning and Severity Utilities
 # ---------------------------------------------------------------------------
 
-@dataclass(frozen=True)
-class IndexEdge:
-    """Lightweight edge representation for filtering."""
-    source: str
-    target: str
-    type_: str
-
-
-def _filter_index_edges(
-    edges: List[IndexEdge], visible_ids: set
-) -> List[IndexEdge]:
-    """Filter index edges to only include edges whose source/target are visible."""
-    return [
-        e
-        for e in edges
-        if e.source in visible_ids and e.target in visible_ids
-    ]
-
-
-def _flatten_warning_groups(warning_groups: List[Dict]) -> List[Dict]:
-    """Flatten grouped warnings into flat list."""
-    flat = []
-    for group in warning_groups:
-        path = group.get("path")
-        for w in group.get("warnings", []):
-            flat.append(
-                {
-                    "code": w.get("code"),
-                    "path": path,
-                    "message": w.get("message"),
-                    "line": w.get("line"),
-                }
-            )
+def _flatten_warning_groups(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    flat: list[dict[str, Any]] = []
+    for item in warnings:
+        path = item.get("path")
+        for warning in item.get("warnings", []):
+            entry: Dict[str, Any] = {
+                "code": warning.get("code"),
+                "path": path,
+                "message": warning.get("message"),
+            }
+            if "line" in warning and warning.get("line") is not None:
+                entry["line"] = warning.get("line")
+            flat.append(entry)
     return flat
 
 
-def get_severity_value(severity: Any) -> str:
-    """Extract string value from severity enum or plain string."""
-    if isinstance(severity, str):
-        return severity
-    if hasattr(severity, "value"):
-        return severity.value
-    return str(severity)
+def get_severity_value(violation):
+    return (
+        violation.severity.value
+        if hasattr(violation.severity, "value")
+        else str(violation.severity)
+    )
 
 
 # ---------------------------------------------------------------------------
 # State Rendering Functions
 # ---------------------------------------------------------------------------
 
-def _render_warnings_text(warnings, format, output):
-    """Render a list of warnings in Markdown or Rich console format."""
+def _render_warnings_text(warnings, fmt, output):
     if not warnings:
         return
-    if format == "md":
-        lines = "\n## Warnings\n"
+    if fmt == "md":
+        lines = ["\n## Warnings\n"]
         for w in warnings:
-            lines += f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}\n"
-        _write_output(lines, output)
-    else:
-        for w in warnings:
-            get_console().print(
-                f"[yellow][{w.get('code', 'UNKNOWN')}] {w.get('message', '')}[/yellow]"
+            lines.append(
+                f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
             )
+        lines.append("")
+        _write_output("\n".join(lines), output)
+        return
+    for w in warnings:
+        get_console().print(
+            f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
+        )
 
 
-def _render_state_set_json(result, output):
-    """Format a state set result into a JSON envelope and write it."""
-    from meminit.core.services.output_formatter import format_envelope
-
+def _render_state_set_json(
+    result,
+    root_path,
+    include_timestamp,
+    run_id,
+    correlation_id,
+    output,
+):
+    data: dict = {"action": result.action, "document_id": result.document_id}
+    if result.entry:
+        data.update(result.entry)
     _write_output(
         format_envelope(
             command="state set",
-            data={
-                "document_id": result.document_id,
-                "action": result.action,
-                "entry": result.entry,
-                "warnings": result.warnings or [],
-            },
-        ),
-        output,
-    )
-
-
-def _render_state_list_json(result, output):
-    """Format a state list result into a JSON envelope and write it."""
-    from meminit.core.services.output_formatter import format_envelope
-
-    _write_output(
-        format_envelope(
-            command="state list",
-            data={
-                "document_id": result.document_id,
-                "entry": result.entry,
-                "warnings": result.warnings or [],
-            },
-        ),
-        output,
-    )
-
-
-def _render_state_next_json(result, output):
-    """Format a state next result into a JSON envelope and write it."""
-    from meminit.core.services.output_formatter import format_envelope
-
-    _write_output(
-        format_envelope(
-            command="state next",
-            data={
-                "document_id": result.document_id,
-                "next_action": result.next_action,
-                "assignee": result.assignee,
-                "priority": result.priority,
-            },
-        ),
-        output,
-    )
-
-
-def _render_state_blockers_json(result, output):
-    """Format a state blockers result into a JSON envelope and write it."""
-    from meminit.core.services.output_formatter import format_envelope
-
-    _write_output(
-        format_envelope(
-            command="state blockers",
-            data={
-                "document_id": result.document_id,
-                "blockers": result.blockers or [],
-                "blocked_by": result.blocked_by or [],
-            },
+            root=str(root_path),
+            success=True,
+            data=data,
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
         ),
         output,
     )
 
 
 def _render_state_set_text(result, format, output):
-    """Render the state set result as Markdown or Rich console text."""
     if format == "md":
         if result.action == "clear":
             lines = (
@@ -367,8 +341,31 @@ def _render_state_set_text(result, format, output):
         _render_warnings_text(result.warnings, format, output)
 
 
-def _render_state_list_text(result, format, output):
-    """Render the state list result as Markdown or Rich console text."""
+def _render_state_list_json(
+    result, valid_impl_states, valid_doc_statuses, root_path, include_timestamp, run_id, correlation_id, output
+):
+    data = {"document_id": result.document_id, "entry": result.entry}
+    if valid_impl_states:
+        data["valid_impl_states"] = list(valid_impl_states)
+    if valid_doc_statuses:
+        data["valid_doc_statuses"] = list(valid_doc_statuses)
+    data["summary"] = result.summary
+    _write_output(
+        format_envelope(
+            command="state list",
+            root=str(root_path),
+            success=True,
+            data=data,
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
     if format == "md":
         lines = f"# Meminit State for {result.document_id}\n\n"
         lines += f"- Impl State: {_md_inline(result.entry.get('impl_state', 'None'))}\n"
@@ -405,53 +402,99 @@ def _render_state_list_text(result, format, output):
         _render_warnings_text(result.warnings, format, output)
 
 
-def _render_state_next_text(result, format, output):
-    """Render the state next result as Markdown or Rich console text."""
-    if format == "md":
+def _render_state_next_json(
+    result, root_path, include_timestamp, run_id, correlation_id, output
+):
+    entry = result.entry or {}
+    _write_output(
+        format_envelope(
+            command=" state next",
+            root=str(root_path),
+            success=True,
+            data={
+                "document_id": result.document_id,
+                "entry": entry,
+                "selection": result.selection,
+                "reason": result.reason,
+            },
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_next_text(result, fmt, output):
+    if fmt == "md":
         lines = f"# Next Action for {result.document_id}\n\n"
-        lines += f"- Next Action: {_md_inline(result.next_action)}\n"
-        lines += f"- Assignee: {_md_inline(result.assignee)}\n"
-        lines += f"- Priority: {_md_inline(result.priority)}\n"
+        lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
+        lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
+        lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
         _write_output(lines, output)
         return
 
-    with maybe_capture(output, format):
+    with maybe_capture(output, fmt):
         get_console().print(f"[bold]Next Action for {result.document_id}[/bold]")
-        get_console().print(f"  Next Action: {result.next_action}")
-        get_console().print(f"  Assignee: {result.assignee}")
-        get_console().print(f"  Priority: {result.priority}")
+        get_console().print(f"  Next Action: {result.entry.get('next_action')}")
+        get_console().print(f"  Assignee: {result.entry.get('assignee')}")
+        get_console().print(f"  Priority: {result.entry.get('priority')}")
+        _render_warnings_text(result.warnings, fmt, output)
 
 
-def _render_state_blockers_text(result, format, output):
-    """Render the state blockers result as Markdown or Rich console text."""
-    if format == "md":
+def _render_state_blockers_json(
+    result, root_path, include_timestamp, run_id, correlation_id, output
+):
+    _write_output(
+        format_envelope(
+            command="state blockers",
+            root=str(root_path),
+            success=True,
+            data={
+                "document_id": result.document_id,
+                "blocked": result.blocked,
+                "summary": result.summary,
+            },
+            warnings=result.warnings,
+            include_timestamp=include_timestamp,
+            run_id=run_id,
+            correlation_id=correlation_id,
+        ),
+        output,
+    )
+
+
+def _render_state_blockers_text(result, fmt, output):
+    if fmt == "md":
         lines = f"# Blockers for {result.document_id}\n\n"
-        if result.blockers:
+        if result.blocked:
             lines += "## This Document Blocks\n\n"
-            for blocker in result.blockers:
+            for blocker in result.blocked:
                 lines += f"- {_md_inline(blocker)}\n"
         else:
             lines += "## This Document Blocks\n\nNone\n"
-        if result.blocked_by:
+        if result.summary.get("blocked_by"):
             lines += "\n## This Document Is Blocked By\n\n"
-            for blocked in result.blocked_by:
-                lines += f"- {_md_inline(blocked)}\n"
+            for blocked in result.summary.get("blocked_by", []):
+                lines += f"- {_md_inline(blocked.get('doc_id'))}: {_md_inline(blocked.get('reason', ''))}\n"
         else:
             lines += "\n## This Document Is Blocked By\n\nNone\n"
         _write_output(lines, output)
         return
 
-    with maybe_capture(output, format):
+    with maybe_capture(output, fmt):
         get_console().print(f"[bold]Blockers for {result.document_id}[/bold]")
         get_console().print("\n[bold]This Document Blocks:[/bold]")
-        if result.blockers:
-            for blocker in result.blockers:
+        if result.blocked:
+            for blocker in result.blocked:
                 get_console().print(f"  - {blocker}")
         else:
             get_console().print("  None")
         get_console().print("\n[bold]This Document Is Blocked By:[/bold]")
-        if result.blocked_by:
-            for blocked in result.blocked_by:
-                get_console().print(f"  - {blocked}")
+        if result.summary.get("blocked_by"):
+            for blocked in result.summary.get("blocked_by", []):
+                get_console().print(f"  - {blocked.get('doc_id')}: {blocked.get('reason', '')}")
         else:
             get_console().print("  None")
+        _render_warnings_text(result.warnings, fmt, output)
