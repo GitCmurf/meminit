@@ -56,6 +56,9 @@ jobs:
       - name: Enforce pre-commit rules
         run: |
           uv run pre-commit run --all-files
+      - name: Check all frontmatter envelopes
+        run: |
+          uv run python check_all_envelopes.py
       - name: Test with pytest
         run: |
           uv run pytest
