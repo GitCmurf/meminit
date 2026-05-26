@@ -113,7 +113,17 @@ def test_template_placeholder_syntax_regression(tmp_path, monkeypatch):
 
     repo_config = load_repo_config(str(tmp_path))
 
-    launch_critical_types = ["ADR", "PRD", "FDD", "PLAN", "SPEC", "RUNBOOK", "DESIGN", "LOG", "TASK"]
+    launch_critical_types = [
+        "ADR",
+        "PRD",
+        "FDD",
+        "PLAN",
+        "SPEC",
+        "RUNBOOK",
+        "DESIGN",
+        "LOG",
+        "TASK",
+    ]
 
     for doc_type in launch_critical_types:
         type_config = repo_config.document_types.get(doc_type)

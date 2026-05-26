@@ -145,7 +145,9 @@ class MigrateIdsUseCase:
                         updated_frontmatter = True
 
                         # Update visible metadata block (if present)
-                        content, md_updated = self._replace_metadata_block_id(post.content, old_id, new_id)
+                        content, md_updated = self._replace_metadata_block_id(
+                            post.content, old_id, new_id
+                        )
                         post.content = content
                         updated_metadata_block = md_updated
 
@@ -157,7 +159,9 @@ class MigrateIdsUseCase:
                         updated_heading = heading_updated
 
                         if rewrite_references:
-                            content, count = self._replace_id_references(post.content, old_id, new_id)
+                            content, count = self._replace_id_references(
+                                post.content, old_id, new_id
+                            )
                             post.content = content
                             rewritten_refs = count
 

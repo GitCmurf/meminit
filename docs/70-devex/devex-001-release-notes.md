@@ -34,6 +34,7 @@ Meminit v0.3.0-alpha introduces protocol asset governance, Templates v2, NDJSON 
 ## Supported Commands
 
 ### Core Commands
+
 - `meminit init` — scaffold governed docs tree
 - `meminit doctor` — repo readiness diagnostics
 - `meminit check` — validate doc compliance
@@ -46,11 +47,13 @@ Meminit v0.3.0-alpha introduces protocol asset governance, Templates v2, NDJSON 
 - `meminit adr new <TITLE>` — ADR shortcut
 
 ### Resolution Commands
+
 - `meminit resolve <DOCUMENT_ID>` — ID → path lookup
 - `meminit identify <PATH>` — path → ID lookup
 - `meminit link <DOCUMENT_ID>` — check links
 
 ### State Management
+
 - `meminit state set <DOCUMENT_ID> --impl-state <STATE>` — set implementation state
 - `meminit state set <DOCUMENT_ID> --priority <P1|P2|P3>` — set priority
 - `meminit state set <DOCUMENT_ID> --add-depends-on <ID>` — add dependency
@@ -61,10 +64,12 @@ Meminit v0.3.0-alpha introduces protocol asset governance, Templates v2, NDJSON 
 - `meminit state blockers` — list blocked entries
 
 ### Protocol Governance
+
 - `meminit protocol check` — detect drift in governed assets
 - `meminit protocol sync` — remediate drift (dry-run by default)
 
 ### Discovery
+
 - `meminit context` — discover repo shape and types
 - `meminit new --list-types` — list configured document types
 
@@ -79,6 +84,7 @@ The following surfaces are planned but not yet implemented:
 ## Install Methods
 
 ### From GitHub (current, pre-PyPI)
+
 ```bash
 # Install as a tool via uv
 uv tool install git+https://github.com/GitCmurf/meminit.git@main
@@ -90,6 +96,7 @@ uv pip install -e .
 ```
 
 ### From PyPI (after v0.3.0 release)
+
 ```bash
 # Standard pip install
 pip install meminit
@@ -137,6 +144,6 @@ See [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md), [ME
 
 ## Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha |
+| Version | Date       | Author   | Changes                                |
+| ------- | ---------- | -------- | -------------------------------------- |
+| 0.1     | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha |

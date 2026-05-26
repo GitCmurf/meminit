@@ -35,19 +35,19 @@ Agent-orchestrator validation of Meminit commands on the Architext repository (c
 
 ## 1. Environment and Parameters
 
-| Parameter | Value |
-| --- | --- |
-| Attestation Date | 2026-05-26 |
-| Executor | AI Agent (adversarial remediation) |
-| Meminit Version | 0.3.0a1 |
-| Meminit SHA (pinned) | f2dee7ba51696470d2c9c224ef244bcf9b72e5a5 |
-| Target Repo | Architext (https://github.com/GitCmurf/Architext) |
-| Target Commit | `12b5d0091b92c0e816cc4e3e75ffa1ebf55ebaf5` |
-| Target Repo SHA | `12b5d0091b92c0e816cc4e3e75ffa1ebf55ebaf5` |
-| Python Version | 3.12.x |
-| OS Version | Linux |
-| Governed Documents Found | 65 |
-| Docs Structure | Full (00-governance through 70-devex) |
+| Parameter                | Value                                             |
+| ------------------------ | ------------------------------------------------- |
+| Attestation Date         | 2026-05-26                                        |
+| Executor                 | AI Agent (adversarial remediation)                |
+| Meminit Version          | 0.3.0a1                                           |
+| Meminit SHA (pinned)     | f2dee7ba51696470d2c9c224ef244bcf9b72e5a5          |
+| Target Repo              | Architext (https://github.com/GitCmurf/Architext) |
+| Target Commit            | `12b5d0091b92c0e816cc4e3e75ffa1ebf55ebaf5`        |
+| Target Repo SHA          | `12b5d0091b92c0e816cc4e3e75ffa1ebf55ebaf5`        |
+| Python Version           | 3.12.x                                            |
+| OS Version               | Linux                                             |
+| Governed Documents Found | 65                                                |
+| Docs Structure           | Full (00-governance through 70-devex)             |
 
 ## 2. Command Execution Log / Events
 
@@ -59,6 +59,7 @@ cd /home/cmf/code/Architext
 ```
 
 **Result:** `success: true`
+
 - Output schema version: `3.0`
 - repo_prefix: `ARCHITEXT`
 - 19 document types configured
@@ -73,6 +74,7 @@ cd /home/cmf/code/Architext
 ```
 
 **Result:** `success: false`
+
 - Files checked: 55
 - Files passed: 1 (docs/00-governance/docops-constitution.md)
 - Files failed: 54
@@ -80,6 +82,7 @@ cd /home/cmf/code/Architext
 - Warnings: 33 (all FILENAME_CONVENTION)
 
 **Sample violations:**
+
 - `docs/.archive/AGENTS_initial.md`: FRONTMATTER_MISSING, FILENAME_CONVENTION
 - `docs/45-adr/0000-monorepo-web-bootstrap.md`: FRONTMATTER_MISSING
 - `docs/10-prd/Architext_PRD-TDD_v1.0.0.md`: FRONTMATTER_MISSING, FILENAME_CONVENTION
@@ -93,6 +96,7 @@ cd /home/cmf/code/Architext
 ```
 
 **Result:** `success: true`
+
 - Document ID: `ARCHITEXT-ADR-001`
 - Output schema version: `3.0`
 - Path: `docs/45-adr/adr-001-meminit-integration-pilot.md`
@@ -107,6 +111,7 @@ cd /home/cmf/code/Architext
 ```
 
 **Result:** `success: false`
+
 - Error: `CONFIG_MISSING` - `docops.config.yaml` not found
 - Error: `SCHEMA_MISSING` - schema file missing
 
@@ -119,6 +124,7 @@ cd /home/cmf/code/Architext
 ```
 
 **Output:**
+
 ```
 Initialized DocOps repository at .
 - Created directory structure (docs/)
@@ -127,6 +133,7 @@ Initialized DocOps repository at .
 ```
 
 **Verification:**
+
 ```bash
 /home/cmf/code/Meminit/.venv/bin/meminit doctor --format json
 ```
@@ -152,7 +159,7 @@ Initialized DocOps repository at .
 
 ## 5. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.2 | 2026-05-26 | AI Agent | Added Phase 3 full pilot with pinned SHAs, context/check evidence |
-| 0.1 | 2026-05-25 | GitCmurf | Initial Architext pilot evidence recording |
+| Version | Date       | Author   | Changes                                                           |
+| ------- | ---------- | -------- | ----------------------------------------------------------------- |
+| 0.2     | 2026-05-26 | AI Agent | Added Phase 3 full pilot with pinned SHAs, context/check evidence |
+| 0.1     | 2026-05-25 | GitCmurf | Initial Architext pilot evidence recording                        |

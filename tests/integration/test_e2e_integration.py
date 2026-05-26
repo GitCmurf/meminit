@@ -76,7 +76,17 @@ def test_stranger_simulation_readme_quickstart():
 
         # 2. uv run meminit new ADR "My Decision"
         result = subprocess.run(
-            [*cli_cmd, "new", "ADR", "My Decision", "--root", str(repo_dir), "--dry-run", "--format", "json"],
+            [
+                *cli_cmd,
+                "new",
+                "ADR",
+                "My Decision",
+                "--root",
+                str(repo_dir),
+                "--dry-run",
+                "--format",
+                "json",
+            ],
             cwd=repo_dir,
             env=env,
             capture_output=True,

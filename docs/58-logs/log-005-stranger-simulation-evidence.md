@@ -37,14 +37,14 @@ README quickstart validation from a clean checkout without private maintainer in
 
 ## 1. Environment and Parameters
 
-| Parameter | Value |
-| --- | --- |
-| Attestation Date | 2026-05-26 |
-| Executor | Meminit QA Agent (self, simulating stranger) |
-| Meminit Version | 0.3.0-alpha (test/ branch) |
-| Target Repo | Temporary clean directory (greenfield) |
-| Python Version | 3.12.x |
-| OS Version | Linux |
+| Parameter         | Value                                             |
+| ----------------- | ------------------------------------------------- |
+| Attestation Date  | 2026-05-26                                        |
+| Executor          | Meminit QA Agent (self, simulating stranger)      |
+| Meminit Version   | 0.3.0-alpha (test/ branch)                        |
+| Target Repo       | Temporary clean directory (greenfield)            |
+| Python Version    | 3.12.x                                            |
+| OS Version        | Linux                                             |
 | Simulation Method | pytest test_stranger_simulation_readme_quickstart |
 
 ## 2. Command Execution Log / Events
@@ -63,6 +63,7 @@ The stranger simulation test validates the README greenfield workflow:
 **Test Code Location:** `tests/integration/test_e2e_integration.py`
 
 **Execution Results:**
+
 - `init`: returncode=0, success
 - `new ADR (dry-run)`: returncode=0, JSON output contains "success"
 - `check --format json`: returncode=0, JSON output contains `"success": true`
@@ -83,6 +84,6 @@ The stranger simulation test validates the README greenfield workflow:
 
 ## 5. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-26 | GitCmurf | Initial stranger simulation evidence recording |
+| Version | Date       | Author   | Changes                                        |
+| ------- | ---------- | -------- | ---------------------------------------------- |
+| 0.1     | 2026-05-26 | GitCmurf | Initial stranger simulation evidence recording |

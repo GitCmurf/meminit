@@ -90,17 +90,20 @@ The `.github/workflows/release.yml` workflow is triggered on version tags (`v*`)
 Before the release workflow can publish to PyPI:
 
 1. **Configure TestPyPI environment** (for dry-run testing):
+
    - Go to repository Settings > Environments > New environment
    - Name: `testpypi`
    - No protection rules needed (dry-run only)
 
 2. **Configure production PyPI environment** (for actual releases):
+
    - Go to repository Settings > Environments > New environment
    - Name: `release`
    - Add required reviewers (at least one)
    - Environment URL: `https://pypi.org/project/meminit/`
 
 3. **Enable OIDC trusted publishing in PyPI**:
+
    - Log in to PyPI (https://pypi.org)
    - Go to Account settings > Publishing
    - Add a new publisher:

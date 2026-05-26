@@ -174,9 +174,9 @@ def test_migrate_ids_duplicate_id_collision(tmp_path: Path):
 
     report = MigrateIdsUseCase(str(tmp_path)).execute(dry_run=False, rewrite_references=False)
 
-    assert len(report.actions) == 1, (
-        "First duplicate should keep its ID, second should be renumbered"
-    )
+    assert (
+        len(report.actions) == 1
+    ), "First duplicate should keep its ID, second should be renumbered"
     action = report.actions[0]
     assert action.old_id == "AIDHA-ADR-001"
     assert action.new_id != "AIDHA-ADR-001", "Second doc should get a new ID"
@@ -191,7 +191,9 @@ def test_migrate_ids_duplicate_id_collision(tmp_path: Path):
 def test_migrate_ids_idempotent_apply(tmp_path: Path):
     """Verify apply is idempotent: second run produces empty report."""
     (tmp_path / "docs" / "45-adr").mkdir(parents=True)
-    (tmp_path / "docops.config.yaml").write_text("repo_prefix: AIDHA\ndocops_version: '2.0'\n", encoding="utf-8")
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: AIDHA\ndocops_version: '2.0'\n", encoding="utf-8"
+    )
 
     doc = tmp_path / "docs" / "45-adr" / "legacy-adr.md"
     doc.write_text(
@@ -213,15 +215,15 @@ def test_migrate_ids_idempotent_apply(tmp_path: Path):
     assert len(report1.actions) == 1
 
     report2 = MigrateIdsUseCase(str(tmp_path)).execute(dry_run=False, rewrite_references=False)
-    assert len(report2.actions) == 0, (
-        "Second apply should find no documents needing migration"
-    )
+    assert len(report2.actions) == 0, "Second apply should find no documents needing migration"
 
 
 def test_migrate_ids_duplicate_noncanonical_collision(tmp_path: Path):
     """Test that non-canonical duplicates get different new IDs."""
     (tmp_path / "docs" / "45-adr").mkdir(parents=True)
-    (tmp_path / "docops.config.yaml").write_text("repo_prefix: AIDHA\ndocops_version: '2.0'\n", encoding="utf-8")
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: AIDHA\ndocops_version: '2.0'\n", encoding="utf-8"
+    )
 
     # Two docs with same non-canonical ID
     for i in range(1, 3):

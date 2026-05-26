@@ -8,10 +8,10 @@ paths = [
   '''venv/''',
   '''__pycache__/''',
   '''.pytest_cache/''',
-  '''*.pyc''',
+  '''\.pyc''',
   '''dist/''',
   '''build/''',
-  '''*.egg-info/''',
+  '''\.egg-info/''',
 ]
 
 [[rules]]

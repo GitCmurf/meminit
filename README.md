@@ -1,247 +1,426 @@
-# Meminit
+# Gitleaks
 
-**DocOps for the Agentic Age:** governed docs, compliance checks, and automation.
+```
+┌─○───┐
+│ │╲  │
+│ │ ○ │
+│ ○ ░ │
+└─░───┘
+```
 
-[![CI](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml/badge.svg)](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/GitCmurf/meminit)](LICENSE)
-![Python](https://img.shields.io/badge/python-≥3.11-blue)
-![Status](https://img.shields.io/badge/status-alpha-orange)
+<p align="left">
+  <p align="left">
+	  <a href="https://github.com/zricethezav/gitleaks/actions/workflows/test.yml">
+		  <img alt="Github Test" src="https://github.com/zricethezav/gitleaks/actions/workflows/test.yml/badge.svg">
+	  </a>
+	  <a href="https://hub.docker.com/r/zricethezav/gitleaks">
+		  <img src="https://img.shields.io/docker/pulls/zricethezav/gitleaks.svg" />
+	  </a>
+	  <a href="https://github.com/zricethezav/gitleaks-action">
+        	<img alt="gitleaks badge" src="https://img.shields.io/badge/protected%20by-gitleaks-blue">
+    	 </a>
+	  <a href="https://twitter.com/intent/follow?screen_name=zricethezav">
+		  <img src="https://img.shields.io/twitter/follow/zricethezav?label=Follow%20zricethezav&style=social&color=blue" alt="Follow @zricethezav" />
+	  </a>
+  </p>
+</p>
 
-**Quick links:** [Docs](docs/) · [Runbooks](docs/60-runbooks/) · [Release Notes](docs/70-devex/devex-001-release-notes.md) · [Issues](https://github.com/GitCmurf/meminit/issues) ·
-[Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+### Join our Discord! [![Discord](https://img.shields.io/discord/1102689410522284044.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/8Hzbrnkr7E)
 
-## Why Meminit?
+Gitleaks is a SAST tool for **detecting** and **preventing** hardcoded secrets like passwords, api keys, and tokens in git repos. Gitleaks is an **easy-to-use, all-in-one solution** for detecting secrets, past or present, in your code.
 
-Documentation in modern, AI-assisted codebases drifts fast. Docs lose their
-governance metadata, go stale, break naming conventions, and fall out of sync
-with the code they describe. Manual reviews don't scale, and most linting tools
-ignore docs entirely.
+```
+➜  ~/code(master) gitleaks detect --source . -v
 
-**Meminit fixes that.** It is a CLI that scaffolds, governs, and validates
-documentation — so your docs stay machine-readable, policy-compliant, and in
-sync with your code.
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
 
-### Built for the Agentic Age
 
-Meminit is designed to work _with_ AI coding agents, not just alongside them:
+Finding:     "export BUNDLE_ENTERPRISE__CONTRIBSYS__COM=cafebabe:deadbeef",
+Secret:      cafebabe:deadbeef
+RuleID:      sidekiq-secret
+Entropy:     2.609850
+File:        cmd/generate/config/rules/sidekiq.go
+Line:        23
+Commit:      cd5226711335c68be1e720b318b7bc3135a30eb2
+Author:      John
+Email:       john@users.noreply.github.com
+Date:        2022-08-03T12:31:40Z
+Fingerprint: cd5226711335c68be1e720b318b7bc3135a30eb2:cmd/generate/config/rules/sidekiq.go:sidekiq-secret:23
+```
 
-- **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without
-  guessing filenames.
-- **JSON Schema-validated frontmatter** gives agents structured metadata they
-  can parse and trust.
-- **`meminit init` scaffolds an `AGENTS.md`** — a ready-made agentic coding
-  rules file that teaches agents how to create, validate, and maintain governed
-  docs in your repo.
-- **Ships with a vendor-neutral agent skill** (`.agents/skills/meminit-docops/`)
-  that agents can load to run the full DocOps workflow autonomously.
+## Getting Started
 
-## What It Does
+Gitleaks can be installed using Homebrew, Docker, or Go. Gitleaks is also available in binary form for many popular platforms and OS types on the [releases page](https://github.com/zricethezav/gitleaks/releases). In addition, Gitleaks can be implemented as a pre-commit hook directly in your repo or as a GitHub action using [Gitleaks-Action](https://github.com/gitleaks/gitleaks-action).
 
-- **Scaffold a governed docs tree in seconds** — `meminit init`
-- **Create documents with stable, traceable IDs** — `meminit new`
-- **Enforce repo rules in CI and pre-commit** — `meminit doctor`, `meminit check`
-- **Auto-fix common violations** (dry-run by default) — `meminit fix`
-- **Build an index for stable ID → path resolution** — `meminit index`, `meminit resolve`
-- **Stream large agent payloads** — `meminit index --format ndjson`, specified by
-  [MEMINIT-SPEC-011](docs/20-specs/spec-011-ndjson-streaming-contract.md)
-
-See the full project vision:
-[MEMINIT-STRAT-001](docs/02-strategy/strat-001-project-meminit-vision.md).
-
-## Quickstart
-
-### Prerequisites
-
-- Python ≥ 3.11
-- [uv](https://docs.astral.sh/uv/) (recommended)
-
-### Install
-
-Meminit is not published on PyPI yet. Install from GitHub (or a local
-checkout) using `uv`:
+### Installing
 
 ```bash
-# Recommended: Install as a tool via uv
-uv tool install git+https://github.com/GitCmurf/meminit.git@main
-meminit --version
+# MacOS
+brew install gitleaks
 
-# Or from a local clone
-git clone https://github.com/GitCmurf/meminit.git
-cd meminit
-uv pip install -e .
+# Docker (DockerHub)
+docker pull zricethezav/gitleaks:latest
+docker run -v ${path_to_host_folder_to_scan}:/path zricethezav/gitleaks:latest [COMMAND] --source="/path" [OPTIONS]
+
+# Docker (ghcr.io)
+docker pull ghcr.io/gitleaks/gitleaks:latest
+docker run -v ${path_to_host_folder_to_scan}:/path ghcr.io/gitleaks/gitleaks:latest [COMMAND] --source="/path" [OPTIONS]
+
+# From Source
+git clone https://github.com/gitleaks/gitleaks.git
+cd gitleaks
+make build
 ```
 
-Note: `@main` is the latest development version. Use a tagged release once tags are published.
+### GitHub Action
 
-### Local Development
+Check out the official [Gitleaks GitHub Action](https://github.com/gitleaks/gitleaks-action)
 
-When developing Meminit locally, you have two options:
-
-**Run directly via uv (no install needed):**
-
-```bash
-uv run meminit --help
-uv run meminit new ADR "Test" --dry-run
+```
+name: gitleaks
+on: [pull_request, push, workflow_dispatch]
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}} # Only required for Organizations, not personal accounts.
 ```
 
-**Install in editable mode:**
+### Pre-Commit
 
-```bash
-uv pip install -e .
-uv run meminit --help
+1. Install pre-commit from https://pre-commit.com/#install
+2. Create a `.pre-commit-config.yaml` file at the root of your repository with the following content:
+
+   ```
+   repos:
+     - repo: https://github.com/gitleaks/gitleaks
+       rev: v8.16.1
+       hooks:
+         - id: gitleaks
+   ```
+
+   for a [native execution of GitLeaks](https://github.com/zricethezav/gitleaks/releases) or use the [`gitleaks-docker` pre-commit ID](https://github.com/zricethezav/gitleaks/blob/master/.pre-commit-hooks.yaml) for executing GitLeaks using the [official Docker images](#docker)
+
+3. Auto-update the config to the latest repos' versions by executing `pre-commit autoupdate`
+4. Install with `pre-commit install`
+5. Now you're all set!
+
+```
+➜ git commit -m "this commit contains a secret"
+Detect hardcoded secrets.................................................Failed
 ```
 
-Note: If you have a globally installed `meminit` via `uv tool`, it may be older than the source code. When testing new features, always use `uv run meminit` or reinstall with `uv pip install -e .` to pick up your changes.
+Note: to disable the gitleaks pre-commit hook you can prepend `SKIP=gitleaks` to the commit command
+and it will skip running gitleaks
 
-### New repository (greenfield)
-
-```bash
-uv run meminit init        # scaffold docs/ tree and config
-uv run meminit new ADR "My Decision"   # create a governed document
-uv run meminit check       # validate everything
+```
+➜ SKIP=gitleaks git commit -m "skip gitleaks check"
+Detect hardcoded secrets................................................Skipped
 ```
 
-Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
+## Usage
 
-### Existing repository (brownfield)
+```
+Usage:
+  gitleaks [command]
 
-```bash
-uv run meminit doctor      # diagnose current state
-uv run meminit scan        # discover existing docs
-uv run meminit check       # validate against rules
-uv run meminit fix --dry-run   # preview auto-fixes
+Available Commands:
+  completion  generate the autocompletion script for the specified shell
+  detect      detect secrets in code
+  help        Help about any command
+  protect     protect secrets in code
+  version     display gitleaks version
+
+Flags:
+  -b, --baseline-path string       path to baseline with issues that can be ignored
+  -c, --config string              config file path
+                                   order of precedence:
+                                   1. --config/-c
+                                   2. env var GITLEAKS_CONFIG
+                                   3. (--source/-s)/.gitleaks.toml
+                                   If none of the three options are used, then gitleaks will use the default config
+      --exit-code int              exit code when leaks have been encountered (default 1)
+  -h, --help                       help for gitleaks
+  -l, --log-level string           log level (trace, debug, info, warn, error, fatal) (default "info")
+      --max-target-megabytes int   files larger than this will be skipped
+      --no-color                   turn off color for verbose output
+      --no-banner                  suppress banner
+      --redact                     redact secrets from logs and stdout
+  -f, --report-format string       output format (json, csv, junit, sarif) (default "json")
+  -r, --report-path string         report file
+  -s, --source string              path to source (default ".")
+  -v, --verbose                    show verbose output from scan
+
+Use "gitleaks [command] --help" for more information about a command.
 ```
 
-Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
+### Commands
 
-### Coming from `adr-tools`?
+There are two commands you will use to detect secrets; `detect` and `protect`.
 
-Meminit extends the ideas pioneered by
-[adr-tools](https://github.com/npryce/adr-tools) — lightweight, plain-text
-Architecture Decision Records — and generalizes them to _all_ governed document
-types (PRDs, FDDs, specs, runbooks, and more).
+#### Detect
 
-Your muscle memory still works:
+The `detect` command is used to scan repos, directories, and files. This command can be used on developer machines and in CI environments.
 
-```bash
-uv run meminit adr new "Use Postgres for persistence"
+When running `detect` on a git repository, gitleaks will parse the output of a `git log -p` command (you can see how this executed
+[here](https://github.com/zricethezav/gitleaks/blob/7240e16769b92d2a1b137c17d6bf9d55a8562899/git/git.go#L17-L25)).
+[`git log -p` generates patches](https://git-scm.com/docs/git-log#_generating_patch_text_with_p) which gitleaks will use to detect secrets.
+You can configure what commits `git log` will range over by using the `--log-opts` flag. `--log-opts` accepts any option for `git log -p`.
+For example, if you wanted to run gitleaks on a range of commits you could use the following command: `gitleaks detect --source . --log-opts="--all commitA..commitB"`.
+See the `git log` [documentation](https://git-scm.com/docs/git-log) for more information.
+
+You can scan files and directories by using the `--no-git` option.
+
+If you want to run only specific rules you can do so by using the `--enable-rule` option (with a rule ID as a parameter), this flag can be used multiple times. For example: `--enable-rule=atlassian-api-token` will only apply that rule. You can find a list of rules [here](config/gitleaks.toml).
+
+#### Protect
+
+The `protect` command is used to scan uncommitted changes in a git repo. This command should be used on developer machines in accordance with
+[shifting left on security](https://cloud.google.com/architecture/devops/devops-tech-shifting-left-on-security).
+When running `protect` on a git repository, gitleaks will parse the output of a `git diff` command (you can see how this executed
+[here](https://github.com/zricethezav/gitleaks/blob/7240e16769b92d2a1b137c17d6bf9d55a8562899/git/git.go#L48-L49)). You can set the
+`--staged` flag to check for changes in commits that have been `git add`ed. The `--staged` flag should be used when running Gitleaks
+as a pre-commit.
+
+**NOTE**: the `protect` command can only be used on git repos, running `protect` on files or directories will result in an error message.
+
+### Creating a baseline
+
+When scanning large repositories or repositories with a long history, it can be convenient to use a baseline. When using a baseline,
+gitleaks will ignore any old findings that are present in the baseline. A baseline can be any gitleaks report. To create a gitleaks report, run gitleaks with the `--report-path` parameter.
+
+```
+gitleaks detect --report-path gitleaks-report.json # This will save the report in a file called gitleaks-report.json
 ```
 
-Under the hood you get structured governance, JSON Schema validation, stable
-IDs, and cross-platform Python — no Bash required.
+Once as baseline is created it can be applied when running the detect command again:
 
-> **Note:** Meminit is an independent project licensed under Apache 2.0. It was
-> developed without reference to `adr-tools` source code (which is GPL-3.0).
-
-## Key Concepts
-
-- **Governed docs**: Markdown with required YAML frontmatter, validated by JSON Schema.
-- **Stable IDs**: documents are referenced by `REPO-TYPE-SEQ` identifiers (e.g., `MEMINIT-ADR-001`), not filenames.
-- **Namespaces**: support monorepos by defining multiple governed doc roots.
-
-Example frontmatter (simplified):
-
-```yaml
-document_id: MEMINIT-ADR-001
-type: ADR
-title: Use Apache-2.0 License
-status: Approved
-version: 1.0
-last_updated: 2025-12-30
-owner: Repo Maintainers
-docops_version: 2.0
+```
+gitleaks detect --baseline-path gitleaks-report.json --report-path findings.json
 ```
 
-## How It Works
+After running the detect command with the --baseline-path parameter, report output (findings.json) will only contain new issues.
 
-Meminit follows a simple loop: **scaffold → author → check → fix → index**.
+### Verify Findings
 
-1. `uv run meminit init` creates a standard `docs/` directory tree and a
-   `docops.config.yaml` that defines your project's naming conventions,
-   namespaces, and templates.
-2. Authors create governed documents via `uv run meminit new`, which stamps each file
-   with YAML frontmatter (stable ID, type, status, dates).
-3. `uv run meminit check` and `uv run meminit doctor` validate every doc against the
-   project's governance rules — in CI, in pre-commit hooks, or on demand.
-4. `uv run meminit fix` auto-corrects common violations (dry-run first, so nothing
-   changes until you say so).
-5. `uv run meminit index` builds a lookup table from stable IDs to file paths, making
-   docs machine-resolvable.
+You can verify a finding found by gitleaks using a `git log` command.
+Example output:
 
-## Documentation
-
-**Governance & Runbooks**
-
-- [Org setup](docs/60-runbooks/runbook-001-org-setup.md)
-- [Greenfield repo](docs/60-runbooks/runbook-002-greenfield-repo.md)
-- [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md)
-- [CI/CD enforcement](docs/60-runbooks/runbook-004-ci-cd-enforcement.md)
-
-**Specs & Decisions**
-
-- [Compliance checker spec](docs/20-specs/spec-003-compliance-checker.md)
-- [Architecture decisions](docs/45-adr/)
-
-Browse the full [docs/](docs/) tree for governance, specs, ADRs, feature
-designs, and runbooks.
-
-## Getting Help
-
-- Ask questions / report bugs: [GitHub Issues](https://github.com/GitCmurf/meminit/issues)
-- Security issues: see [SECURITY.md](SECURITY.md)
-- Contact: `maintainers@meminit.io`
-
-## Roadmap & Changelog
-
-- Roadmap: [MEMINIT-PLAN-003](docs/05-planning/plan-003-roadmap.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-
-## Project Status
-
-> **Alpha (v0.2.0)** — the CLI is functional and under active development. It
-> is not yet published on PyPI. Expect breaking changes before v1.0.
-
-## Non-goals
-
-Meminit is intentionally narrow in scope:
-
-- Not a documentation CMS (we govern Markdown in git)
-- Not a project management tool
-- No Node.js requirement for the core CLI (a `package.json` may exist for adjacent tooling)
-
-## Automation
-
-- **Pre-commit**: `uv run meminit install-precommit` can install a local `meminit check` hook into `.pre-commit-config.yaml`.
-- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running `uv run meminit doctor` and `uv run meminit check`.
-
-## Security
-
-- Security policy: [SECURITY.md](SECURITY.md)
-- Pre-public checklist: [MEMINIT-GOV-003](docs/00-governance/gov-003-security-practices.md)
-
-## Development
-
-```bash
-uv sync
-uv run pre-commit install
-uv run pytest
-uv run pytest --cov=meminit
-uv run meminit doctor --root .
-uv run meminit check --root .
+```
+Finding:     aws_secret="AKIAIMNOJVGFDXXXE4OA"
+RuleID:      aws-access-token
+Secret       AKIAIMNOJVGFDXXXE4OA
+Entropy:     3.65
+File:        checks_test.go
+Line:        37
+Commit:      ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+Author:      Zachary Rice
+Email:       z@email.com
+Date:        2018-01-28T17:39:00Z
+Fingerprint: ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29:checks_test.go:aws-access-token:37
 ```
 
-The coverage report is optional and requires the `pytest-cov` extra.
-`npm test` is an optional compatibility shim for tooling that discovers test
-commands from `package.json`; it delegates to `uv run pytest`.
+We can use the following format to verify the leak:
 
-## Contributing
+```
+git log -L {StartLine,EndLine}:{File} {Commit}
+```
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+So in this example it would look like:
 
-Found a bug or have an idea?
-[Open an issue](https://github.com/GitCmurf/meminit/issues).
+```
+git log -L 37,37:checks_test.go ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+```
 
-## License
+Which gives us:
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+```
+commit ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+Author: zricethezav <thisispublicanyways@gmail.com>
+Date:   Sun Jan 28 17:39:00 2018 -0500
+
+    [update] entropy check
+
+diff --git a/checks_test.go b/checks_test.go
+--- a/checks_test.go
++++ b/checks_test.go
+@@ -28,0 +37,1 @@
++               "aws_secret= \"AKIAIMNOJVGFDXXXE4OA\"":          true,
+
+```
+
+## Pre-Commit hook
+
+You can run Gitleaks as a pre-commit hook by copying the example `pre-commit.py` script into
+your `.git/hooks/` directory.
+
+## Configuration
+
+Gitleaks offers a configuration format you can follow to write your own secret detection rules:
+
+```toml
+# Title for the gitleaks configuration file.
+title = "Gitleaks title"
+
+# Extend the base (this) configuration. When you extend a configuration
+# the base rules take precedence over the extended rules. I.e., if there are
+# duplicate rules in both the base configuration and the extended configuration
+# the base rules will override the extended rules.
+# Another thing to know with extending configurations is you can chain together
+# multiple configuration files to a depth of 2. Allowlist arrays are appended
+# and can contain duplicates.
+# useDefault and path can NOT be used at the same time. Choose one.
+[extend]
+# useDefault will extend the base configuration with the default gitleaks config:
+# https://github.com/zricethezav/gitleaks/blob/master/config/gitleaks.toml
+useDefault = true
+# or you can supply a path to a configuration. Path is relative to where gitleaks
+# was invoked, not the location of the base config.
+path = "common_config.toml"
+
+# An array of tables that contain information that define instructions
+# on how to detect secrets
+[[rules]]
+
+# Unique identifier for this rule
+id = "awesome-rule-1"
+
+# Short human readable description of the rule.
+description = "awesome rule 1"
+
+# Golang regular expression used to detect secrets. Note Golang's regex engine
+# does not support lookaheads.
+regex = '''one-go-style-regex-for-this-rule'''
+
+# Golang regular expression used to match paths. This can be used as a standalone rule or it can be used
+# in conjunction with a valid `regex` entry.
+path = '''a-file-path-regex'''
+
+# Array of strings used for metadata and reporting purposes.
+tags = ["tag","another tag"]
+
+# Int used to extract secret from regex match and used as the group that will have
+# its entropy checked if `entropy` is set.
+secretGroup = 3
+
+# Float representing the minimum shannon entropy a regex group must have to be considered a secret.
+entropy = 3.5
+
+# Keywords are used for pre-regex check filtering. Rules that contain
+# keywords will perform a quick string compare check to make sure the
+# keyword(s) are in the content being scanned. Ideally these values should
+# either be part of the idenitifer or unique strings specific to the rule's regex
+# (introduced in v8.6.0)
+keywords = [
+  "auth",
+  "password",
+  "token",
+]
+
+# You can include an allowlist table for a single rule to reduce false positives or ignore commits
+# with known/rotated secrets
+[rules.allowlist]
+description = "ignore commit A"
+commits = [ "commit-A", "commit-B"]
+paths = [
+  '''go\.mod''',
+  '''go\.sum'''
+]
+# note: (rule) regexTarget defaults to check the _Secret_ in the finding.
+# if regexTarget is not specified then _Secret_ will be used.
+# Acceptable values for regexTarget are "match" and "line"
+regexTarget = "match"
+regexes = [
+  '''process''',
+  '''getenv''',
+]
+# note: stopwords targets the extracted secret, not the entire regex match
+# like 'regexes' does. (stopwords introduced in 8.8.0)
+stopwords = [
+  '''client''',
+  '''endpoint''',
+]
+
+
+# This is a global allowlist which has a higher order of precedence than rule-specific allowlists.
+# If a commit listed in the `commits` field below is encountered then that commit will be skipped and no
+# secrets will be detected for said commit. The same logic applies for regexes and paths.
+[allowlist]
+description = "global allow list"
+commits = [ "commit-A", "commit-B", "commit-C"]
+paths = [
+  '''gitleaks\.toml''',
+  '''(.*?)(jpg|gif|doc)'''
+]
+
+# note: (global) regexTarget defaults to check the _Secret_ in the finding.
+# if regexTarget is not specified then _Secret_ will be used.
+# Acceptable values for regexTarget are "match" and "line"
+regexTarget = "match"
+
+regexes = [
+  '''219-09-9999''',
+  '''078-05-1120''',
+  '''(9[0-9]{2}|666)-\d{2}-\d{4}''',
+]
+# note: stopwords targets the extracted secret, not the entire regex match
+# like 'regexes' does. (stopwords introduced in 8.8.0)
+stopwords = [
+  '''client''',
+  '''endpoint''',
+]
+```
+
+Refer to the default [gitleaks config](https://github.com/zricethezav/gitleaks/blob/master/config/gitleaks.toml) for examples or follow the [contributing guidelines](https://github.com/gitleaks/gitleaks/blob/master/CONTRIBUTING.md) if you would like to contribute to the default configuration. Additionally, you can check out [this gitleaks blog post](https://blog.gitleaks.io/stop-leaking-secrets-configuration-2-3-aeed293b1fbf) which covers advanced configuration setups.
+
+### Additional Configuration
+
+#### gitleaks:allow
+
+If you are knowingly committing a test secret that gitleaks will catch you can add a `gitleaks:allow` comment to that line which will instruct gitleaks
+to ignore that secret. Ex:
+
+```
+class CustomClass:
+    discord_client_secret = '8dyfuiRyq=vVc3RRr_edRk-fK__JItpZ'  #gitleaks:allow
+
+```
+
+#### .gitleaksignore
+
+You can ignore specific findings by creating a `.gitleaksignore` file at the root of your repo. In release v8.10.0 Gitleaks added a `Fingerprint` value to the Gitleaks report. Each leak, or finding, has a Fingerprint that uniquely identifies a secret. Add this fingerprint to the `.gitleaksignore` file to ignore that specific secret. See Gitleaks' [.gitleaksignore](https://github.com/zricethezav/gitleaks/blob/master/.gitleaksignore) for an example. Note: this feature is experimental and is subject to change in the future.
+
+## Sponsorships
+<p align="left">
+	<h3><a href="https://coderabbit.ai/?utm_source=oss&utm_medium=sponsorship&utm_campaign=gitleaks">coderabbit.ai</h3>
+	  <a href="https://coderabbit.ai/?utm_source=oss&utm_medium=sponsorship&utm_campaign=gitleaks">
+		  <img alt="CodeRabbit.ai Sponsorship" src="https://github.com/gitleaks/gitleaks/assets/15034943/76c30a85-887b-47ca-9956-17a8e55c6c41" width=200>
+	  </a>
+</p>
+<p align="left">
+	  <a href="https://www.tines.com/?utm_source=oss&utm_medium=sponsorship&utm_campaign=gitleaks">
+		  <img alt="Tines Sponsorship" src="https://user-images.githubusercontent.com/15034943/146411864-4878f936-b4f7-49a0-b625-f9f40c704bfa.png" width=200>
+	  </a>
+  </p>
+
+
+## Exit Codes
+
+You can always set the exit code when leaks are encountered with the --exit-code flag. Default exit codes below:
+
+```
+0 - no leaks present
+1 - leaks or error encountered
+126 - unknown flag
+```

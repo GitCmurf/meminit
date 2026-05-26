@@ -10,7 +10,8 @@ area: ADOPT
 docops_version: "2.0"
 template_type: task-standard
 template_version: "2.0"
-description: Consolidated implementation, QA, documentation, and launch-readiness
+description:
+  Consolidated implementation, QA, documentation, and launch-readiness
   remediation task for MEMINIT-PLAN-016.
 keywords:
   - plan-016
@@ -66,17 +67,17 @@ Inputs consolidated into this task:
 
 Live verification performed before creating this task:
 
-| Check | Result | Notes |
-| --- | --- | --- |
-| `git status --short` | Not clean | Untracked `docs/58-logs/.meminit.lock` existed before this task. |
-| `./.venv/bin/meminit check --format json` | Passed | 81 governed docs checked, 0 violations. This is structural only. |
-| `./.venv/bin/meminit protocol check --format json` | Failed | All three protocol assets drifted. See P0-01. |
-| `./.venv/bin/pytest -q` | Passed | Default suite completed; reported pytest hang is stale. |
-| `rg --files .github/workflows` | Release workflow present | `.github/workflows/release.yml` exists. Quality gaps remain. |
-| Template inventory | 8 launch-critical templates present | ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG exist in repo and package assets. |
-| LOG evidence inventory | `MEMINIT-LOG-002` present | Draft evidence for greenfield and brownfield simulations only. |
-| Script inventory | `scripts/codex_review_remediation_loop.py` present | Missing-script report is stale. |
-| `git ls-files` WIP scan | No tracked `WIP-*` files | Ignored local `docs/05-planning/WIP-notes-on-tagging.md` exists. |
+| Check                                              | Result                                             | Notes                                                                             |
+| -------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `git status --short`                               | Not clean                                          | Untracked `docs/58-logs/.meminit.lock` existed before this task.                  |
+| `./.venv/bin/meminit check --format json`          | Passed                                             | 81 governed docs checked, 0 violations. This is structural only.                  |
+| `./.venv/bin/meminit protocol check --format json` | Failed                                             | All three protocol assets drifted. See P0-01.                                     |
+| `./.venv/bin/pytest -q`                            | Passed                                             | Default suite completed; reported pytest hang is stale.                           |
+| `rg --files .github/workflows`                     | Release workflow present                           | `.github/workflows/release.yml` exists. Quality gaps remain.                      |
+| Template inventory                                 | 8 launch-critical templates present                | ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG exist in repo and package assets. |
+| LOG evidence inventory                             | `MEMINIT-LOG-002` present                          | Draft evidence for greenfield and brownfield simulations only.                    |
+| Script inventory                                   | `scripts/codex_review_remediation_loop.py` present | Missing-script report is stale.                                                   |
+| `git ls-files` WIP scan                            | No tracked `WIP-*` files                           | Ignored local `docs/05-planning/WIP-notes-on-tagging.md` exists.                  |
 
 <!-- MEMINIT_SECTION: current_state -->
 
@@ -114,18 +115,18 @@ Do not spend remediation time on these as stated:
 
 ### 2.3 Current Launch Gate Assessment
 
-| PLAN-016 gate | Current status | Required remediation |
-| --- | --- | --- |
-| doctor/check/protocol/pytest pass | Fails | Protocol assets must align; keep full pytest passing. |
-| Greenfield adoption evidence | Partial | Harden `MEMINIT-LOG-002` with reproducible evidence references. |
-| Brownfield adoption evidence | Partial | Harden `MEMINIT-LOG-002`; add idempotence and dry-run parity tests. |
-| Architext pilot evidence | Missing | Run and record a governed pilot evidence LOG. |
-| Launch-critical templates | Partial | Fix LOG placeholders and add template validation coverage. |
-| `.agents` / `.codex` reconciliation | Partial | Sync protocol assets and tighten legacy path lint exclusions. |
-| README stranger simulation | Missing | Add automated or scripted README-only validation and evidence. |
-| Tag-triggered release workflow | Partial | Workflow exists; harden TestPyPI/dry-run/secret-scan behavior. |
-| Security/PII scan evidence | Missing | Add scanner and record clean baseline. |
-| Release notes | Missing | Create governed release notes or runbook/reference artifact. |
+| PLAN-016 gate                       | Current status | Required remediation                                                |
+| ----------------------------------- | -------------- | ------------------------------------------------------------------- |
+| doctor/check/protocol/pytest pass   | Fails          | Protocol assets must align; keep full pytest passing.               |
+| Greenfield adoption evidence        | Partial        | Harden `MEMINIT-LOG-002` with reproducible evidence references.     |
+| Brownfield adoption evidence        | Partial        | Harden `MEMINIT-LOG-002`; add idempotence and dry-run parity tests. |
+| Architext pilot evidence            | Missing        | Run and record a governed pilot evidence LOG.                       |
+| Launch-critical templates           | Partial        | Fix LOG placeholders and add template validation coverage.          |
+| `.agents` / `.codex` reconciliation | Partial        | Sync protocol assets and tighten legacy path lint exclusions.       |
+| README stranger simulation          | Missing        | Add automated or scripted README-only validation and evidence.      |
+| Tag-triggered release workflow      | Partial        | Workflow exists; harden TestPyPI/dry-run/secret-scan behavior.      |
+| Security/PII scan evidence          | Missing        | Add scanner and record clean baseline.                              |
+| Release notes                       | Missing        | Create governed release notes or runbook/reference artifact.        |
 
 <!-- MEMINIT_SECTION: definition_of_done -->
 
@@ -198,7 +199,7 @@ Required work:
 Definition of done:
 
 - Every launch-critical type renders through `meminit new --dry-run --format
-  json`.
+json`.
 - Template interpolation tests cover malformed spaced placeholders.
 - No template falls back to skeleton for a launch-critical type.
 
@@ -494,15 +495,15 @@ git diff --check
 
 Focused gates by area:
 
-| Area | Required focused checks |
-| --- | --- |
-| Templates | `./.venv/bin/pytest -q tests/core/services/test_template_interpolation.py tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py tests/integration/test_template_regressions.py` |
-| Protocol assets | `./.venv/bin/pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py` |
-| Brownfield migration | `./.venv/bin/pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py` |
-| Index and resolution | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py` |
-| CLI output contract | `./.venv/bin/pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py` |
-| Release packaging | Build sdist/wheel, install wheel in a clean venv, run `meminit --version`, `meminit doctor --format json`, `meminit check --format json`, and release workflow dry-run/TestPyPI rehearsal. |
-| Security | Selected secret scanner via pre-commit and CI; record command and clean result in governed LOG evidence. |
+| Area                 | Required focused checks                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Templates            | `./.venv/bin/pytest -q tests/core/services/test_template_interpolation.py tests/core/services/test_template_resolver.py tests/core/services/test_section_parser.py tests/core/use_cases/test_new_document.py tests/integration/test_template_regressions.py` |
+| Protocol assets      | `./.venv/bin/pytest -q tests/core/services/test_protocol_assets.py tests/core/use_cases/test_protocol_check.py tests/core/use_cases/test_protocol_sync.py tests/core/use_cases/test_init_repository_assets.py`                                               |
+| Brownfield migration | `./.venv/bin/pytest -q tests/core/use_cases/test_scan_repository.py tests/core/use_cases/test_plan_driven_migration.py tests/core/use_cases/test_fix_repository.py tests/core/use_cases/test_migrate_ids.py`                                                 |
+| Index and resolution | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py`                                                                                                   |
+| CLI output contract  | `./.venv/bin/pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py`                                                                                                              |
+| Release packaging    | Build sdist/wheel, install wheel in a clean venv, run `meminit --version`, `meminit doctor --format json`, `meminit check --format json`, and release workflow dry-run/TestPyPI rehearsal.                                                                   |
+| Security             | Selected secret scanner via pre-commit and CI; record command and clean result in governed LOG evidence.                                                                                                                                                     |
 
 Evidence requirements:
 
@@ -516,20 +517,20 @@ Evidence requirements:
 
 ## 6. Completion Log
 
-| Item | Status | PR/Commit | Verification Evidence |
-| --- | --- | --- | --- |
-| P0-01 Protocol assets aligned | Complete | 384438d | `meminit protocol check --format json` returns success (3/3 aligned) |
-| P0-02 Template placeholders fixed | Complete | 4dbe7b7 + 395f4e7 | All 16 templates use {{variable}} syntax; SPEC-007 §3.6 fixed |
-| P0-03 Changelog and release notes current | Complete | 5a03a3f + 395f4e7 | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created; pyproject.toml 0.3.0a1 |
-| P0-04 Secret scanning implemented | Complete | 0f82101 + 16da233 | gitleaks in pre-commit and CI; GOV-003 updated; LOG-004 downgraded to Draft (manual ripgrep) |
-| P0-05 Adoption evidence complete | Complete | 8713f25 + 1a5b351 + f2dee7b + 16da233 | LOG-002 v0.2 (bedtime-alexa 4 docs 0 violations), LOG-003 v0.2 (Architext brownfield 54 violations), LOG-004 v0.3 (Draft) |
-| P0-06 Release workflow hardened | Complete | 1a5b350 | TestPyPI dry-run, secret scan gate, release-notes check |
-| P1-01 Missing tests added | Complete | aec5729 + d6d82d8 | Fix idempotence, migrate_ids expansion tests, duplicate-canonical detection |
-| P1-02 Legacy path lint tightened | Complete | 26b77b5 + 395f4e7 | PLAN-016 removed from exclusions; .codex references fixed; .meminit.lock added to gitignore |
-| P1-03 Test suite speed protected | Complete | 26b77b5 | Slow markers verified; CI gates to scheduled runs |
-| Adversarial review (review-001) | Complete | d6d82d8, 4f21bbd, 395f4e7, f2dee7b, 16da233 | 5 waves: duplicate-canonical detection, CI envelope check, version/docs fixes, real evidence, honest downgrades |
-| P2 architecture items | Deferred | 2fd1e69 | Moved to MEMINIT-TASK-002 with acceptance criteria |
-| P3 polish items | Complete | 334dfdf | DEVEX/TASK descriptions added; CONTRIBUTING aligned |
+| Item                                      | Status   | PR/Commit                                   | Verification Evidence                                                                                                     |
+| ----------------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| P0-01 Protocol assets aligned             | Complete | 384438d                                     | `meminit protocol check --format json` returns success (3/3 aligned)                                                      |
+| P0-02 Template placeholders fixed         | Complete | 4dbe7b7 + 395f4e7                           | All 16 templates use {{variable}} syntax; SPEC-007 §3.6 fixed                                                             |
+| P0-03 Changelog and release notes current | Complete | 5a03a3f + 395f4e7                           | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created; pyproject.toml 0.3.0a1                                       |
+| P0-04 Secret scanning implemented         | Complete | 0f82101 + 16da233                           | gitleaks in pre-commit and CI; GOV-003 updated; LOG-004 downgraded to Draft (manual ripgrep)                              |
+| P0-05 Adoption evidence complete          | Complete | 8713f25 + 1a5b351 + f2dee7b + 16da233       | LOG-002 v0.2 (bedtime-alexa 4 docs 0 violations), LOG-003 v0.2 (Architext brownfield 54 violations), LOG-004 v0.3 (Draft) |
+| P0-06 Release workflow hardened           | Complete | 1a5b350                                     | TestPyPI dry-run, secret scan gate, release-notes check                                                                   |
+| P1-01 Missing tests added                 | Complete | aec5729 + d6d82d8                           | Fix idempotence, migrate_ids expansion tests, duplicate-canonical detection                                               |
+| P1-02 Legacy path lint tightened          | Complete | 26b77b5 + 395f4e7                           | PLAN-016 removed from exclusions; .codex references fixed; .meminit.lock added to gitignore                               |
+| P1-03 Test suite speed protected          | Complete | 26b77b5                                     | Slow markers verified; CI gates to scheduled runs                                                                         |
+| Adversarial review (review-001)           | Complete | d6d82d8, 4f21bbd, 395f4e7, f2dee7b, 16da233 | 5 waves: duplicate-canonical detection, CI envelope check, version/docs fixes, real evidence, honest downgrades           |
+| P2 architecture items                     | Deferred | 2fd1e69                                     | Moved to MEMINIT-TASK-002 with acceptance criteria                                                                        |
+| P3 polish items                           | Complete | 334dfdf                                     | DEVEX/TASK descriptions added; CONTRIBUTING aligned                                                                       |
 
 **NOTE:** PLAN-016 §8 gates remain unchecked until honest gate markings are applied (expected completion in separate follow-up to avoid overstating reality).
 
@@ -537,6 +538,6 @@ Evidence requirements:
 
 ## 7. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-25 | Codex | Consolidated two adversarial reports with live verification into an implementation-ready PLAN-016 QA remediation task. |
+| Version | Date       | Author | Changes                                                                                                                |
+| ------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-05-25 | Codex  | Consolidated two adversarial reports with live verification into an implementation-ready PLAN-016 QA remediation task. |

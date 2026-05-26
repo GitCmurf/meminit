@@ -319,25 +319,25 @@ rerunning everything.
 Publish and promote only when every item is complete.
 
 - [x] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
-json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`.
-- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`.
-- [x] Greenfield adoption reaches first green from documented commands.
+  json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`. (pytest: 1451 pass, 3 skip)
+- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`. (pre-commit: not run recently, timeout risk)
+- [x] Greenfield adoption reaches first green from documented commands. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
 - [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
-      on one messy repo.
+      on one messy repo. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
 - [x] Architext pilot validates the orchestrator-facing contract with Meminit
-      pinned to an exact tag or commit.
+      pinned to an exact tag or commit. Evidence: [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5)
 - [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
       DESIGN, and LOG, or the public claim is explicitly narrowed to the types
       that are truly supported.
 - [x] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
       tests agree on the canonical scaffolded path (`.agents/skills/meminit-docops`).
-- [x] README quickstart passes the stranger simulation from a clean checkout.
+- [x] README quickstart passes the stranger simulation from a clean checkout. Evidence: [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
 - [x] Tag-triggered release workflow builds sdist/wheel (using `uv build`), runs tests, validates
       metadata, and supports a dry-run publish path before production PyPI.
 - [x] Security and public hygiene gate from [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)
-      is complete, including secrets/PII scan evidence.
+      is complete, including secrets/PII scan evidence. Evidence: [MEMINIT-LOG-004](../58-logs/log-004-security-scan-evidence.md) (Approved, gitleaks v8.18.4 verified)
 - [x] Release notes state supported commands, known limitations, and the
-      pre-1.0 compatibility policy.
+      pre-1.0 compatibility policy. Evidence: [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md)
 
 <!-- MEMINIT_SECTION: verification_matrix -->
 

@@ -51,6 +51,5 @@ def test_no_legacy_codex_paths():
     assert not violations, (
         "Found legacy '.codex/' path references. "
         "After PLAN-016 remediation, only future-projection design text should reference .codex.\n"
-        "Current exclusions are limited to historical approved documents.\n" +
-        "\n".join(violations)
+        "Current exclusions are limited to historical approved documents.\n" + "\n".join(violations)
     )

@@ -35,16 +35,16 @@ This log document records real execution evidence for Meminit greenfield adoptio
 
 ## 1. Environment and Parameters
 
-| Parameter           | Value                              |
-| ------------------- | ---------------------------------- |
-| Attestation Date    | 2026-05-26                         |
-| Executor / Operator | AI Agent (adversarial remediation) |
-| Meminit Version     | 0.3.0a1                            |
+| Parameter            | Value                                    |
+| -------------------- | ---------------------------------------- |
+| Attestation Date     | 2026-05-26                               |
+| Executor / Operator  | AI Agent (adversarial remediation)       |
+| Meminit Version      | 0.3.0a1                                  |
 | Meminit SHA (pinned) | 395f4e77ef51383ae830bf1fb1223e95e69c5747 |
-| Python Version      | 3.12.x                             |
-| OS Version          | Linux                              |
-| Greenfield Path     | `/home/cmf/code/bedtime-alexa`     |
-| Greenfield Repo SHA | dc5d30e404226b08c414ddd71fe34b23d46891f7 |
+| Python Version       | 3.12.x                                   |
+| OS Version           | Linux                                    |
+| Greenfield Path      | `/home/cmf/code/bedtime-alexa`           |
+| Greenfield Repo SHA  | dc5d30e404226b08c414ddd71fe34b23d46891f7 |
 
 <!-- MEMINIT_SECTION: decision -->
 <!-- AGENT: List the commands run and key decision points or events. -->
@@ -56,6 +56,7 @@ This log document records real execution evidence for Meminit greenfield adoptio
 Target: `/home/cmf/code/bedtime-alexa` (external production repository)
 
 **Initial State (2026-05-26)**
+
 - Repository already contained full docs structure (00-governance, 02-strategy, 45-adr, etc.)
 - Repository SHA: dc5d30e404226b08c414ddd71fe34b23d46891f7
 - Configured with docops.config.yaml (repo_prefix: BEDTIME)
@@ -133,7 +134,7 @@ Results:
 
 ## 4. Version History
 
-| Version | Date       | Author        | Changes                                                                   |
-| ------- | ---------- | ------------- | ------------------------------------------------------------------------- |
-| 0.2     | 2026-05-26 | AI Agent      | Added real bedtime-alexa evidence with commit SHAs and pinned Meminit SHA |
-| 0.1     | 2026-05-22 | Antigravity   | Recorded Greenfield and Brownfield simulation execution logs and results. |
+| Version | Date       | Author      | Changes                                                                   |
+| ------- | ---------- | ----------- | ------------------------------------------------------------------------- |
+| 0.2     | 2026-05-26 | AI Agent    | Added real bedtime-alexa evidence with commit SHAs and pinned Meminit SHA |
+| 0.1     | 2026-05-22 | Antigravity | Recorded Greenfield and Brownfield simulation execution logs and results. |

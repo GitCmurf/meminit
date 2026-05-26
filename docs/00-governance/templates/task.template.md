@@ -17,12 +17,8 @@ keywords:
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Version:** 0.1
-> **Last Updated:** {{date}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1
+> **Last Updated:** {{date}} > **Type:** {{type}}
 
 <!-- MEMINIT_SECTION: title -->
 <!-- AGENT: The title should state the implementation objective clearly. -->
@@ -69,6 +65,6 @@ keywords:
 
 ## 5. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | {{date}} | {{owner}} | Initial draft |
+| Version | Date     | Author    | Changes       |
+| ------- | -------- | --------- | ------------- |
+| 0.1     | {{date}} | {{owner}} | Initial draft |
