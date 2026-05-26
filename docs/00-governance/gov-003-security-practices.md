@@ -44,7 +44,7 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 
 ### 2.1 Secrets & Credentials
 
-- [ ] **Scan for Keys:** Run `grep -r "API_KEY" .` or use a tool like `trufflehog` or `git-secrets`.
+- [ ] **Scan for Keys:** Run `gitleaks detect --source . --config .gitleaks.toml --verbose` or use pre-commit hook.
 - [ ] **Check Configs:** Ensure no real credentials are in `config.yaml` or `setup.py`. Use environment variables instead.
 - [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, and `secrets/` are ignored.
 

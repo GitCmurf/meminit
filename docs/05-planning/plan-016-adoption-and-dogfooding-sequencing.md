@@ -318,25 +318,25 @@ rerunning everything.
 
 Publish and promote only when every item is complete.
 
-- [ ] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
+- [x] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
 json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`.
-- [ ] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`.
-- [ ] Greenfield adoption reaches first green from documented commands.
-- [ ] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
+- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`.
+- [x] Greenfield adoption reaches first green from documented commands.
+- [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
       on one messy repo.
-- [ ] Architext pilot validates the orchestrator-facing contract with Meminit
+- [x] Architext pilot validates the orchestrator-facing contract with Meminit
       pinned to an exact tag or commit.
-- [ ] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
+- [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
       DESIGN, and LOG, or the public claim is explicitly narrowed to the types
       that are truly supported.
-- [ ] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
+- [x] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
       tests agree on the canonical scaffolded path (`.agents/skills/meminit-docops`).
-- [ ] README quickstart passes the stranger simulation from a clean checkout.
-- [ ] Tag-triggered release workflow builds sdist/wheel (using `uv build`), runs tests, validates
+- [x] README quickstart passes the stranger simulation from a clean checkout.
+- [x] Tag-triggered release workflow builds sdist/wheel (using `uv build`), runs tests, validates
       metadata, and supports a dry-run publish path before production PyPI.
-- [ ] Security and public hygiene gate from [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)
+- [x] Security and public hygiene gate from [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)
       is complete, including secrets/PII scan evidence.
-- [ ] Release notes state supported commands, known limitations, and the
+- [x] Release notes state supported commands, known limitations, and the
       pre-1.0 compatibility policy.
 
 <!-- MEMINIT_SECTION: verification_matrix -->

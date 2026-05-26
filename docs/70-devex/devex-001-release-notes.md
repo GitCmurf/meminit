@@ -126,7 +126,7 @@ After v1.0, standard semantic versioning will be strictly observed.
 
 ## Validation Evidence
 
-See [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md) for greenfield and brownfield adoption simulation evidence. Architext pilot and stranger simulation evidence will be added in v0.3.0 release.
+See [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md), [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md), and [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md) for adoption evidence.
 
 ## Related Documents
 

@@ -11,9 +11,9 @@ permissions:
   id-token: write
 
 jobs:
-   build-and-verify:
-     name: Build and Verify Packages
-     runs-on: ubuntu-latest
+  build-and-verify:
+    name: Build and Verify Packages
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,10 +74,10 @@ jobs:
           name: dist-packages
           path: dist/
 
-   dry-run-publish:
-     name: Dry-run Publish to TestPyPI
-     needs: build-and-verify
-     runs-on: ubuntu-latest
+  dry-run-publish:
+    name: Dry-run Publish to TestPyPI
+    needs: build-and-verify
+    runs-on: ubuntu-latest
     environment:
       name: testpypi
       url: https://test.pypi.org/project/meminit/

@@ -522,7 +522,7 @@ Evidence requirements:
 | P0-02 Template placeholders fixed | Complete | 4dbe7b7 | All 16 templates use {{variable}} syntax; regression test added |
 | P0-03 Changelog and release notes current | Complete | 5a03a3f | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created |
 | P0-04 Secret scanning implemented | Complete | 0f82101 | gitleaks in pre-commit and CI; GOV-003 updated |
-| P0-05 Adoption evidence complete | Complete | 8713f25 | MEMINIT-LOG-003 (Architext), MEMINIT-LOG-004 (security) |
+| P0-05 Adoption evidence complete | Complete | 8713f25 + 1a5b351 | MEMINIT-LOG-003 (Architext), MEMINIT-LOG-004 (security), MEMINIT-LOG-005 (stranger simulation) |
 | P0-06 Release workflow hardened | Complete | 1a5b350 | TestPyPI dry-run, secret scan gate, release-notes check |
 | P1-01 Missing tests added | Complete | aec5729 | Fix idempotence, migrate_ids expansion tests |
 | P1-02 Legacy path lint tightened | Complete | 26b77b5 | PLAN-016 removed from exclusions; .codex references fixed |

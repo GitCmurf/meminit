@@ -77,6 +77,9 @@ class MigrateIdsUseCase:
             key: (max(nums) + 1 if nums else 1) for key, nums in used_numbers.items()
         }
 
+        canonical_id_counts = self._collect_canonical_id_counts()
+        seen_canonical_ids: Set[str] = set()
+
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 skipped.append(f"{ns.namespace}:docs_root_missing:{ns.docs_root}")
@@ -118,9 +121,70 @@ class MigrateIdsUseCase:
                 else:
                     doc_type = doc_type.strip().upper()
 
+                # Check for canonical ID
                 if self._is_canonical_id(old_id):
-                    continue
+                    # Check for duplicate canonical IDs
+                    if canonical_id_counts.get(old_id, 0) > 1:
+                        # This is a duplicate canonical ID situation
+                        if old_id not in seen_canonical_ids:
+                            # First occurrence - keep the ID, mark as seen
+                            seen_canonical_ids.add(old_id)
+                            continue
+                        # Duplicate occurrence - renumber it
+                        seen_canonical_ids.add(old_id)
+                        new_id = self._allocate_next_id(
+                            ns.repo_prefix, doc_type, used_numbers, next_numbers
+                        )
+                        updated_frontmatter = False
+                        updated_metadata_block = False
+                        updated_heading = False
+                        rewritten_refs = 0
 
+                        # Update frontmatter
+                        post.metadata["document_id"] = new_id
+                        updated_frontmatter = True
+
+                        # Update visible metadata block (if present)
+                        content, md_updated = self._replace_metadata_block_id(post.content, old_id, new_id)
+                        post.content = content
+                        updated_metadata_block = md_updated
+
+                        # Update H1 if it embeds the old ID
+                        content, heading_updated = self._replace_first_heading_id(
+                            post.content, old_id, new_id
+                        )
+                        post.content = content
+                        updated_heading = heading_updated
+
+                        if rewrite_references:
+                            content, count = self._replace_id_references(post.content, old_id, new_id)
+                            post.content = content
+                            rewritten_refs = count
+
+                        actions.append(
+                            IdMigrationAction(
+                                file=rel_path,
+                                old_id=old_id,
+                                new_id=new_id,
+                                doc_type=doc_type,
+                                updated_frontmatter=updated_frontmatter,
+                                updated_metadata_block=updated_metadata_block,
+                                updated_heading=updated_heading,
+                                rewritten_reference_count=rewritten_refs,
+                            )
+                        )
+
+                        if not dry_run:
+                            post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
+                            ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
+                            path.write_text(frontmatter.dumps(post), encoding="utf-8")
+
+                        continue
+                    else:
+                        # Single canonical ID - already correct, skip
+                        continue
+
+                # Non-canonical ID - migrate it
                 new_id = self._allocate_next_id(
                     ns.repo_prefix, doc_type, used_numbers, next_numbers
                 )
@@ -175,6 +239,33 @@ class MigrateIdsUseCase:
     def _is_canonical_id(self, document_id: str) -> bool:
         # Keep in sync with current IdValidator default behavior.
         return bool(re.match(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$", document_id))
+
+    def _collect_canonical_id_counts(self) -> Dict[str, int]:
+        """Count occurrences of each canonical ID across all docs."""
+        counts: Dict[str, int] = {}
+        regex = re.compile(r"^([A-Z]{3,10})-([A-Z]{3,10})-(\d{3})$")
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
+                continue
+            for path in ns.docs_dir.rglob("*.md"):
+                owner = self._layout.namespace_for_path(path)
+                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                    continue
+                if ns.is_excluded(path):
+                    continue
+                try:
+                    post = frontmatter.load(path)
+                except Exception:
+                    continue
+                doc_id = post.metadata.get("document_id")
+                if not isinstance(doc_id, str):
+                    continue
+                m = regex.match(doc_id.strip())
+                if not m:
+                    continue
+                canonical_id = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+                counts[canonical_id] = counts.get(canonical_id, 0) + 1
+        return counts
 
     def _collect_used_numbers_by_prefix_and_type(self) -> Dict[Tuple[str, str], List[int]]:
         used: Dict[Tuple[str, str], List[int]] = {}
