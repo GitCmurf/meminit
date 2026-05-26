@@ -319,8 +319,8 @@ rerunning everything.
 Publish and promote only when every item is complete.
 
 - [x] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
-json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`. (pytest: 1451 pass, 3 skip)
-- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`. (pre-commit: not run recently, timeout risk)
+  json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`. (pytest: 1454 pass, 3 skip; protocol: 3/3 aligned)
+- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`. (pre-commit: all 9 hooks pass)
 - [x] Greenfield adoption reaches first green from documented commands. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
 - [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
       on one messy repo. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
