@@ -519,16 +519,19 @@ Evidence requirements:
 | Item | Status | PR/Commit | Verification Evidence |
 | --- | --- | --- | --- |
 | P0-01 Protocol assets aligned | Complete | 384438d | `meminit protocol check --format json` returns success (3/3 aligned) |
-| P0-02 Template placeholders fixed | Complete | 4dbe7b7 | All 16 templates use {{variable}} syntax; regression test added |
-| P0-03 Changelog and release notes current | Complete | 5a03a3f | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created |
-| P0-04 Secret scanning implemented | Complete | 0f82101 | gitleaks in pre-commit and CI; GOV-003 updated |
-| P0-05 Adoption evidence complete | Complete | 8713f25 + 1a5b351 | MEMINIT-LOG-003 (Architext), MEMINIT-LOG-004 (security), MEMINIT-LOG-005 (stranger simulation) |
+| P0-02 Template placeholders fixed | Complete | 4dbe7b7 + 395f4e7 | All 16 templates use {{variable}} syntax; SPEC-007 §3.6 fixed |
+| P0-03 Changelog and release notes current | Complete | 5a03a3f + 395f4e7 | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created; pyproject.toml 0.3.0a1 |
+| P0-04 Secret scanning implemented | Complete | 0f82101 + 16da233 | gitleaks in pre-commit and CI; GOV-003 updated; LOG-004 downgraded to Draft (manual ripgrep) |
+| P0-05 Adoption evidence complete | Complete | 8713f25 + 1a5b351 + f2dee7b + 16da233 | LOG-002 v0.2 (bedtime-alexa 4 docs 0 violations), LOG-003 v0.2 (Architext brownfield 54 violations), LOG-004 v0.3 (Draft) |
 | P0-06 Release workflow hardened | Complete | 1a5b350 | TestPyPI dry-run, secret scan gate, release-notes check |
-| P1-01 Missing tests added | Complete | aec5729 | Fix idempotence, migrate_ids expansion tests |
-| P1-02 Legacy path lint tightened | Complete | 26b77b5 | PLAN-016 removed from exclusions; .codex references fixed |
+| P1-01 Missing tests added | Complete | aec5729 + d6d82d8 | Fix idempotence, migrate_ids expansion tests, duplicate-canonical detection |
+| P1-02 Legacy path lint tightened | Complete | 26b77b5 + 395f4e7 | PLAN-016 removed from exclusions; .codex references fixed; .meminit.lock added to gitignore |
 | P1-03 Test suite speed protected | Complete | 26b77b5 | Slow markers verified; CI gates to scheduled runs |
+| Adversarial review (review-001) | Complete | d6d82d8, 4f21bbd, 395f4e7, f2dee7b, 16da233 | 5 waves: duplicate-canonical detection, CI envelope check, version/docs fixes, real evidence, honest downgrades |
 | P2 architecture items | Deferred | 2fd1e69 | Moved to MEMINIT-TASK-002 with acceptance criteria |
 | P3 polish items | Complete | 334dfdf | DEVEX/TASK descriptions added; CONTRIBUTING aligned |
+
+**NOTE:** PLAN-016 §8 gates remain unchecked until honest gate markings are applied (expected completion in separate follow-up to avoid overstating reality).
 
 <!-- MEMINIT_SECTION: version_history -->
 
