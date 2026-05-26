@@ -344,19 +344,21 @@ def _render_state_set_text(result, format, output):
 def _render_state_list_json(
     result, valid_impl_states, valid_doc_statuses, root_path, include_timestamp, run_id, correlation_id, output
 ):
-    data = {"document_id": result.document_id, "entry": result.entry}
-    if valid_impl_states:
-        data["valid_impl_states"] = list(valid_impl_states)
-    if valid_doc_statuses:
-        data["valid_doc_statuses"] = list(valid_doc_statuses)
-    data["summary"] = result.summary
+    json_data = {
+        "entries": result.entries,
+        "valid_impl_states": valid_impl_states,
+        "valid_doc_statuses": valid_doc_statuses,
+    }
+    if result.summary:
+        json_data["summary"] = result.summary
     _write_output(
         format_envelope(
             command="state list",
             root=str(root_path),
             success=True,
-            data=data,
+            data=json_data,
             warnings=result.warnings,
+            advice=result.advice,
             include_timestamp=include_timestamp,
             run_id=run_id,
             correlation_id=correlation_id,
