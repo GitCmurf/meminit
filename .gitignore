@@ -74,6 +74,7 @@ yarn-error.log*
 #.specify/
 .meminit/cache/
 .clawpatch/
+.meminit.lock
 
 # Temporary files and directories
 temp-*

@@ -43,7 +43,7 @@ safe, and aligned with our DocOps-first approach.
 4. Add or update tests under `tests/` for new behavior or bug fixes.
 5. Run lint/format tools that apply to your changes (black, isort, prettier).
 6. Run the pre-commit hooks: `uv run pre-commit run --all-files`.
-7. Run tests: `uv run pytest` (default excludes slow tests).
+7. Run tests: `uv run pytest` (default includes all tests; opt-in to slow tests with `-m slow`).
 8. Run the pre-push hygiene checklist (secrets scan, `.gitignore` audit,
     history check) before opening a PR.
 
