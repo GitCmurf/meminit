@@ -1,11 +1,11 @@
 ---
-document_id: {{document_id}}
-type: {{type}}
-title: {{title}}
-status: {{status}}
+document_id: { { document_id } }
+type: { { type } }
+title: { { title } }
+status: { { status } }
 version: "0.1"
-last_updated: {{date}}
-owner: {{owner}}
+last_updated: { { date } }
+owner: { { owner } }
 area: PLAN
 docops_version: "2.0"
 template_type: task-standard

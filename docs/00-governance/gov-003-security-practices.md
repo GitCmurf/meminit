@@ -74,12 +74,14 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 **Tool:** gitleaks (https://github.com/gitleaks/gitleaks)
 
 **Pre-commit hook:**
+
 ```bash
 uv run pre-commit install
 uv run pre-commit run --all-files
 ```
 
 The gitleaks hook in `.pre-commit-config.yaml` scans for:
+
 - Generic API keys (`api_key`, `apikey`, `api_secret`, etc.)
 - AWS access keys
 - GitHub Personal Access Tokens
@@ -92,6 +94,7 @@ The `ci.yml` workflow runs gitleaks on every push and PR. It uses the official `
 
 **Local installation (optional):**
 For local scanning without pre-commit, install gitleaks:
+
 ```bash
 # macOS
 brew install gitleaks
@@ -107,6 +110,7 @@ gitleaks detect --source . --config .gitleaks.toml --verbose
 
 **False positives:**
 The `.gitleaks.toml` config excludes build artifacts, caches, and virtual environments. If you encounter a false positive:
+
 1. Verify it's not a real secret
 2. Add an exception to `.gitleaks.toml` under `[allowlist]`
 3. Commit the config change with rationale in commit message

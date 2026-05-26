@@ -70,11 +70,13 @@ Excluded paths (allowlist):
 **Method:** Gitleaks binary scan (v8.18.4) on 2026-05-26.
 
 **Command executed:**
+
 ```bash
 ~/.local/bin/gitleaks detect --config .gitleaks.toml --verbose
 ```
 
 **Output:**
+
 ```
 321 commits scanned.
 scan completed in 29s
@@ -117,15 +119,15 @@ These are **documentation about secrets, not secrets themselves**, and are corre
 
 ## 4. Findings and Defects
 
-| Finding | Status | Details |
-| --- | --- | --- |
+| Finding                  | Status     | Details                                        |
+| ------------------------ | ---------- | ---------------------------------------------- |
 | Generic API keys in code | None found | Gitleaks scan: zero matches across 321 commits |
-| AWS access keys | None found | Gitleaks scan: zero matches |
-| GitHub tokens | None found | Gitleaks scan: zero matches |
-| GitLab tokens | None found | Gitleaks scan: zero matches |
-| Slack tokens | None found | Gitleaks scan: zero matches |
-| Password assignments | None found | Gitleaks scan: zero matches |
-| Documentation matches | Expected | 2 files document secret patterns (not secrets) |
+| AWS access keys          | None found | Gitleaks scan: zero matches                    |
+| GitHub tokens            | None found | Gitleaks scan: zero matches                    |
+| GitLab tokens            | None found | Gitleaks scan: zero matches                    |
+| Slack tokens             | None found | Gitleaks scan: zero matches                    |
+| Password assignments     | None found | Gitleaks scan: zero matches                    |
+| Documentation matches    | Expected   | 2 files document secret patterns (not secrets) |
 
 **Verdict:** Repository is clean of secrets and credentials (gitleaks v8.18.4 verified).
 
@@ -138,6 +140,7 @@ These are **documentation about secrets, not secrets themselves**, and are corre
 - Security practices: `docs/00-governance/gov-003-security-practices.md`
 
 **Gitleaks commands executed (for reproducibility):**
+
 ```bash
 ~/.local/bin/gitleaks version
 # Output: 8.18.4
@@ -153,8 +156,8 @@ These are **documentation about secrets, not secrets themselves**, and are corre
 
 ## 6. Version History
 
-| Version | Date       | Author        | Changes                                                                 |
-| ------- | ---------- | ------------- | ----------------------------------------------------------------------- |
-| 0.3     | 2026-05-26 | AI Agent      | Gitleaks v8.18.4 scan: 321 commits, zero findings; promoted to Approved |
-| 0.2     | 2026-05-26 | AI Agent      | Downgraded to Draft: manual ripgrep not equivalent to gitleaks CI       |
-| 0.1     | 2026-05-25 | GitCmurf      | Initial security scan infrastructure documentation                     |
+| Version | Date       | Author   | Changes                                                                 |
+| ------- | ---------- | -------- | ----------------------------------------------------------------------- |
+| 0.3     | 2026-05-26 | AI Agent | Gitleaks v8.18.4 scan: 321 commits, zero findings; promoted to Approved |
+| 0.2     | 2026-05-26 | AI Agent | Downgraded to Draft: manual ripgrep not equivalent to gitleaks CI       |
+| 0.1     | 2026-05-25 | GitCmurf | Initial security scan infrastructure documentation                      |
