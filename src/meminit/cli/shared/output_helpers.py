@@ -23,7 +23,6 @@ from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.path_utils import is_safe_cli_output_path
 
-
 # ---------------------------------------------------------------------------
 # Rich Console Singleton
 # ---------------------------------------------------------------------------
@@ -45,6 +44,7 @@ def get_console() -> Console:
 # ---------------------------------------------------------------------------
 # Error Handling and Output Envelope
 # ---------------------------------------------------------------------------
+
 
 def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
     """Parse a CLI envelope string and extract metadata fields for error rebuilding.
@@ -181,9 +181,17 @@ def maybe_capture(output: Optional[str], format: str):
 # Markdown Formatting Utilities
 # ---------------------------------------------------------------------------
 
+
 def _md_escape(value: object) -> str:
     text = "" if value is None else str(value)
-    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\n", "<br>")
+    )
 
 
 _MD_INLINE_SPECIAL = str.maketrans(
@@ -219,6 +227,7 @@ def _md_table(headers: list[str], rows: list[list[object]]) -> str:
 # Warning and Severity Utilities
 # ---------------------------------------------------------------------------
 
+
 def _flatten_warning_groups(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     flat: list[dict[str, Any]] = []
     for item in warnings:
@@ -247,6 +256,7 @@ def get_severity_value(violation):
 # State Rendering Functions
 # ---------------------------------------------------------------------------
 
+
 def _render_warnings_text(warnings, fmt, output):
     if not warnings:
         return
@@ -262,6 +272,40 @@ def _render_warnings_text(warnings, fmt, output):
     for w in warnings:
         get_console().print(
             f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
+        )
+
+
+def _warnings_md(warnings) -> str:
+    if not warnings:
+        return ""
+    lines = ["\n## Warnings\n"]
+    for w in warnings:
+        lines.append(
+            f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _advice_md(advice) -> str:
+    if not advice:
+        return ""
+    lines = ["\n## Advisories\n"]
+    for item in advice:
+        lines.append(
+            f"- **{_md_inline(item.get('code', 'ADVISORY'))}**: "
+            f"{_md_inline(item.get('message', ''))}"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_advice_text(advice) -> None:
+    if not advice:
+        return
+    for item in advice:
+        get_console().print(
+            f"[cyan]Advisory ({item.get('code', 'ADVISORY')}): " f"{item.get('message', '')}[/cyan]"
         )
 
 
@@ -342,7 +386,14 @@ def _render_state_set_text(result, format, output):
 
 
 def _render_state_list_json(
-    result, valid_impl_states, valid_doc_statuses, root_path, include_timestamp, run_id, correlation_id, output
+    result,
+    valid_impl_states,
+    valid_doc_statuses,
+    root_path,
+    include_timestamp,
+    run_id,
+    correlation_id,
+    output,
 ):
     json_data = {
         "entries": result.entries,
@@ -369,45 +420,62 @@ def _render_state_list_json(
 
 def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
     if format == "md":
-        lines = f"# Meminit State for {result.document_id}\n\n"
-        lines += f"- Impl State: {_md_inline(result.entry.get('impl_state', 'None'))}\n"
-        lines += f"- Updated By: {_md_inline(result.entry.get('updated_by', 'None'))}\n"
-        lines += f"- Priority: {_md_inline(result.entry.get('priority', 'None'))}\n"
-        lines += f"- Assignee: {_md_inline(result.entry.get('assignee', 'None'))}\n"
-        lines += f"- Next Action: {_md_inline(result.entry.get('next_action', 'None'))}\n"
-        lines += f"- Depends On: {_md_inline(result.entry.get('depends_on', 'None'))}\n"
-        lines += f"- Blocked By: {_md_inline(result.entry.get('blocked_by', 'None'))}\n"
-        if result.entry.get("notes"):
-            lines += f"- Notes: {_md_inline(result.entry.get('notes'))}\n"
-        if result.entry.get("next_action"):
-            lines += f"- Notes: {_md_inline(result.entry.get('next_action'))}\n"
-        if result.warnings:
-            lines += "\n## Warnings\n"
-            for w in result.warnings:
-                lines += f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}\n"
+        lines = "# Meminit State\n\n"
+        if result.summary:
+            lines += (
+                f"Summary: {_md_inline(result.summary.get('returned', 0))} of "
+                f"{_md_inline(result.summary.get('total', 0))} entries returned; "
+                f"{_md_inline(result.summary.get('ready', 0))} ready; "
+                f"{_md_inline(result.summary.get('blocked', 0))} blocked.\n\n"
+            )
+        if not result.entries:
+            lines += "No entries found.\n"
+        else:
+            rows = [
+                [
+                    entry.get("document_id", ""),
+                    entry.get("impl_state", ""),
+                    entry.get("priority", ""),
+                    entry.get("assignee", ""),
+                    entry.get("ready", ""),
+                    entry.get("blocked", ""),
+                    entry.get("next_action", ""),
+                ]
+                for entry in result.entries
+            ]
+            lines += _md_table(
+                ["Document", "State", "Priority", "Assignee", "Ready", "Blocked", "Next"],
+                rows,
+            )
+            lines += "\n"
+        lines += _warnings_md(result.warnings)
+        lines += _advice_md(result.advice)
         _write_output(lines, output)
         return
 
     with maybe_capture(output, format):
-        get_console().print(f"[bold]State for {result.document_id}[/bold]")
-        get_console().print(f"  Impl State: {result.entry.get('impl_state', 'None')}")
-        get_console().print(f"  Updated By: {result.entry.get('updated_by', 'None')}")
-        get_console().print(f"  Priority: {result.entry.get('priority', 'None')}")
-        get_console().print(f"  Assignee: {result.entry.get('assignee', 'None')}")
-        get_console().print(f"  Next Action: {result.entry.get('next_action', 'None')}")
-        get_console().print(f"  Depends On: {result.entry.get('depends_on', 'None')}")
-        get_console().print(f"  Blocked By: {result.entry.get('blocked_by', 'None')}")
-        if result.entry.get("notes"):
-            get_console().print(f"  Notes: {result.entry.get('notes')}")
-        if result.entry.get("next_action"):
-            get_console().print(f"  Next Action: {result.entry.get('next_action')}")
+        get_console().print("[bold]Meminit State[/bold]")
+        if result.summary:
+            get_console().print(
+                "Summary: "
+                f"{result.summary.get('returned', 0)} of {result.summary.get('total', 0)} "
+                f"entries returned; {result.summary.get('ready', 0)} ready; "
+                f"{result.summary.get('blocked', 0)} blocked."
+            )
+        if not result.entries:
+            get_console().print("No entries found.")
+        else:
+            for entry in result.entries:
+                get_console().print(
+                    f"- {entry.get('document_id')}: {entry.get('impl_state', 'None')} "
+                    f"(priority: {entry.get('priority', 'None')}, "
+                    f"assignee: {entry.get('assignee', 'None')})"
+                )
         _render_warnings_text(result.warnings, format, output)
+        _render_advice_text(result.advice)
 
 
-def _render_state_next_json(
-    result, root_path, include_timestamp, run_id, correlation_id, output
-):
-    entry = result.entry or {}
+def _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output):
     _write_output(
         format_envelope(
             command=" state next",
@@ -415,7 +483,7 @@ def _render_state_next_json(
             success=True,
             data={
                 "document_id": result.document_id,
-                "entry": entry,
+                "entry": result.entry,
                 "selection": result.selection,
                 "reason": result.reason,
             },
@@ -430,18 +498,25 @@ def _render_state_next_json(
 
 def _render_state_next_text(result, fmt, output):
     if fmt == "md":
-        lines = f"# Next Action for {result.document_id}\n\n"
-        lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
-        lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
-        lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
+        if result.entry is None:
+            lines = "# Next Action\n\nNo ready items.\n"
+        else:
+            lines = f"# Next Action for {_md_inline(result.document_id)}\n\n"
+            lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
+            lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
+            lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
+        lines += _warnings_md(result.warnings)
         _write_output(lines, output)
         return
 
     with maybe_capture(output, fmt):
-        get_console().print(f"[bold]Next Action for {result.document_id}[/bold]")
-        get_console().print(f"  Next Action: {result.entry.get('next_action')}")
-        get_console().print(f"  Assignee: {result.entry.get('assignee')}")
-        get_console().print(f"  Priority: {result.entry.get('priority')}")
+        if result.entry is None:
+            get_console().print("No ready items.")
+        else:
+            get_console().print(f"[bold]Next Action for {result.document_id}[/bold]")
+            get_console().print(f"  Next Action: {result.entry.get('next_action')}")
+            get_console().print(f"  Assignee: {result.entry.get('assignee')}")
+            get_console().print(f"  Priority: {result.entry.get('priority')}")
         _render_warnings_text(result.warnings, fmt, output)
 
 
@@ -469,34 +544,44 @@ def _render_state_blockers_json(
 
 def _render_state_blockers_text(result, fmt, output):
     if fmt == "md":
-        lines = f"# Blockers for {result.document_id}\n\n"
+        lines = "# Blockers\n\n"
+        if result.summary:
+            lines += (
+                f"Summary: {_md_inline(result.summary.get('blocked', 0))} blocked; "
+                f"{_md_inline(result.summary.get('ready', 0))} ready; "
+                f"{_md_inline(result.summary.get('total_entries', 0))} total entries.\n\n"
+            )
         if result.blocked:
-            lines += "## This Document Blocks\n\n"
-            for blocker in result.blocked:
-                lines += f"- {_md_inline(blocker)}\n"
+            for blocked in result.blocked:
+                lines += f"## {_md_inline(blocked.get('document_id'))}\n\n"
+                if blocked.get("assignee"):
+                    lines += f"- Assignee: {_md_inline(blocked.get('assignee'))}\n"
+                lines += f"- State: {_md_inline(blocked.get('impl_state'))}\n"
+                lines += "- Open blockers:\n"
+                for blocker in blocked.get("open_blockers", []):
+                    impl_state = blocker.get("impl_state") or "unknown"
+                    lines += f"  - {_md_inline(blocker.get('id'))}: " f"{_md_inline(impl_state)}\n"
         else:
-            lines += "## This Document Blocks\n\nNone\n"
-        if result.summary.get("blocked_by"):
-            lines += "\n## This Document Is Blocked By\n\n"
-            for blocked in result.summary.get("blocked_by", []):
-                lines += f"- {_md_inline(blocked.get('doc_id'))}: {_md_inline(blocked.get('reason', ''))}\n"
-        else:
-            lines += "\n## This Document Is Blocked By\n\nNone\n"
+            lines += "No blocked entries.\n"
+        lines += _warnings_md(result.warnings)
         _write_output(lines, output)
         return
 
     with maybe_capture(output, fmt):
-        get_console().print(f"[bold]Blockers for {result.document_id}[/bold]")
-        get_console().print("\n[bold]This Document Blocks:[/bold]")
+        get_console().print("[bold]Blockers[/bold]")
+        if result.summary:
+            get_console().print(
+                "Summary: "
+                f"{result.summary.get('blocked', 0)} blocked; "
+                f"{result.summary.get('ready', 0)} ready; "
+                f"{result.summary.get('total_entries', 0)} total entries."
+            )
         if result.blocked:
-            for blocker in result.blocked:
-                get_console().print(f"  - {blocker}")
+            for blocked in result.blocked:
+                get_console().print(f"\n{blocked.get('document_id')}")
+                for blocker in blocked.get("open_blockers", []):
+                    impl_state = blocker.get("impl_state") or "unknown"
+                    get_console().print(f"  - {blocker.get('id')}: {impl_state}")
         else:
-            get_console().print("  None")
-        get_console().print("\n[bold]This Document Is Blocked By:[/bold]")
-        if result.summary.get("blocked_by"):
-            for blocked in result.summary.get("blocked_by", []):
-                get_console().print(f"  - {blocked.get('doc_id')}: {blocked.get('reason', '')}")
-        else:
-            get_console().print("  None")
+            get_console().print("No blocked entries.")
         _render_warnings_text(result.warnings, fmt, output)

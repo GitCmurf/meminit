@@ -330,9 +330,13 @@ class InitRepositoryUseCase:
     def _ensure_gitignore_cache_entry(self, record_fn) -> None:
         gitignore_path = self.root_dir / ".gitignore"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=gitignore_path)
-        entry = ".meminit/cache/"
+        required_entries = [".meminit/cache/", ".meminit.lock"]
         if not gitignore_path.exists():
-            atomic_write(gitignore_path, f"{entry}\n", encoding="utf-8")
+            atomic_write(
+                gitignore_path,
+                "\n".join(required_entries) + "\n",
+                encoding="utf-8",
+            )
             record_fn(gitignore_path, created=True)
             return
         if not gitignore_path.is_file():
@@ -343,11 +347,13 @@ class InitRepositoryUseCase:
             )
         content = gitignore_path.read_text(encoding="utf-8")
         entries = {line.strip() for line in content.splitlines()}
-        if entry in entries:
+        missing_entries = [entry for entry in required_entries if entry not in entries]
+        if not missing_entries:
             record_fn(gitignore_path, created=False)
             return
         separator = "" if content.endswith("\n") or not content else "\n"
-        atomic_write(gitignore_path, f"{content}{separator}{entry}\n", encoding="utf-8")
+        addition = "\n".join(missing_entries) + "\n"
+        atomic_write(gitignore_path, f"{content}{separator}{addition}", encoding="utf-8")
         record_fn(gitignore_path, created=True)
 
     def _install_optional_asset(

@@ -146,6 +146,9 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 - Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears and repopulates `.meminit/cache/index/` with a full rebuild.
 - If `meminit index` returns `CACHE_LOCK_HELD` after a prior crash and no Meminit process is still running, remove `.meminit/cache/index/.lock` or delete `.meminit/cache/`, then rerun `meminit index --rebuild-cache --format json`.
 - Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, run `meminit index --format json` once to initialize incremental index reuse.
+- Keep `.meminit/cache/` and `.meminit.lock` in `.gitignore`. They are
+  rebuildable runtime state and should be excluded from secret scanners rather
+  than allowlisted in scanner baselines.
 
 ### Phase 5 Testbed Checklist
 

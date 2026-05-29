@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-016
 type: PLAN
 title: Adoption and Dogfooding Sequencing
 status: Draft
-version: "0.3"
-last_updated: "2026-05-21"
+version: "0.4"
+last_updated: "2026-05-29"
 owner: GitCmurf
 docops_version: "2.0"
 area: ADOPT
@@ -27,8 +27,8 @@ related_ids:
 > **Document ID:** MEMINIT-PLAN-016
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
-> **Last Updated:** 2026-05-21
+> **Version:** 0.4
+> **Last Updated:** 2026-05-29
 > **Type:** PLAN
 > **Area:** ADOPT
 > **Description:** Defines the dogfood-first adoption sequence, engineering workstreams, verification gates, and release-readiness criteria for Meminit's first public package launch.
@@ -57,29 +57,38 @@ surface, a validation command or artifact, and an explicit evidence requirement.
 
 <!-- MEMINIT_SECTION: current_state -->
 
-## 1. Current-State Findings
+## 1. Current Verification Snapshot
 
-These findings were verified against the repository on 2026-05-21.
+These findings were verified against the repository and dogfooding records on
+2026-05-29. This document remains Draft pending peer review; the implementation
+evidence is complete enough for review/handover, not for unreviewed external
+launch claims.
 
 - The core agent interface has the v3 JSON envelope and NDJSON streaming support.
-  Adoption workflows must use `--format json` by default and opt into NDJSON only
-  for advertised large-output commands.
-- The project uses `uv` for dependency management (`uv.lock` is present), so local testing,
-  execution, and packaging should prefer `uv` (e.g., `uv run`, `uv build`) over manual `.venv` binary invocation to ensure environment determinism.
-- The configured and packaged first-class templates are currently ADR, PRD, and
-  FDD only. PLAN, SPEC, RUNBOOK, DESIGN, LOG, TEST, DEVEX, and DECISION fall
-  through to lower-quality skeleton behavior unless a repo-local template exists.
-- `meminit init` and protocol governance now use `.agents/skills/meminit-docops`
-  as the canonical scaffolded skill path. Some user-facing prose still refers to
-  `.agents/skills/meminit-docops`; that drift must be resolved before launch.
-- The repo has Apache-2.0 licensing, public-facing README content, and CI for
-  `meminit doctor`, `meminit check`, and `pytest`, but no tag-triggered release
-  workflow exists yet.
-- Source install is the current install path. PyPI publication, release
-  automation, packaging dry-runs, and promotion evidence are not yet complete.
-- The spec/plan corpus is deep relative to adoption evidence. The primary
-  product risk is continuing to specify more behavior before the adoption path is
-  proven by external-feeling use.
+  Adoption workflows should use `--format json` by default and opt into NDJSON
+  only for advertised large-output commands.
+- Local verification currently passes for `meminit doctor`, `meminit check`,
+  `meminit protocol check`, full default `pytest`, and the configured secret
+  scanner. The full test suite is fast by default, with slow scale and benchmark
+  tests explicitly opt-in.
+- Launch-critical templates are now present in repo and packaged assets for ADR,
+  PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, and TASK. Template placeholders use
+  `{{variable}}` syntax and are covered by regression tests.
+- `meminit init` and protocol governance use `.agents/skills/meminit-docops` as
+  the canonical scaffolded skill path. Protocol assets are currently aligned.
+- Release engineering exists through the tag-triggered workflow, package build
+  checks, release-note checks, and secret scanning. Production PyPI release still
+  requires maintainer approval and environment configuration.
+- Adoption evidence exists for greenfield, brownfield, Architext, security scan,
+  and README-only stranger simulation. Most evidence records remain Draft and
+  require reviewer acceptance or status promotion before public launch claims.
+- AIDHA exposed a dogfooding hygiene issue: rebuildable `.meminit/cache/` data
+  triggered detect-secrets false positives when staged. The product and AIDHA
+  test repo now treat `.meminit/cache/` and `.meminit.lock` as ignored runtime
+  state.
+- P2 architecture refactoring is intentionally deferred to MEMINIT-TASK-002. It
+  remains important for maintainability, but it is not a launch gate for this
+  adoption sequence.
 
 <!-- MEMINIT_SECTION: decision -->
 
@@ -183,8 +192,8 @@ Exit criteria:
 - A new user can run the README quickstart without private maintainer context.
 - The generated `AGENTS.md`, templates, schema, and skill assets are coherent.
 - The repo reaches zero DocOps violations without manual metadata surgery.
-- Any generated placeholder such as `__TBD__` is either absent or documented as a
-  deliberate migration placeholder with clear remediation.
+- Any generated placeholder owner or metadata value is either absent or
+  documented as a deliberate migration placeholder with clear remediation.
 
 ### Phase 2 - Brownfield Adoption
 
@@ -316,28 +325,53 @@ rerunning everything.
 
 ## 8. Launch Gate Checklist
 
-Publish and promote only when every item is complete.
+Implementation evidence is captured for every launch gate below. Publish and
+promote only after peer reviewers accept the evidence, including whether Draft
+evidence records are sufficient or must be promoted first.
 
-- [x] This repo passes `uv run meminit doctor --format json`, `uv run meminit check --format
-  json`, `uv run meminit protocol check --format json`, and `uv run pytest -q`. (pytest: 1454 pass, 3 skip; protocol: 3/3 aligned)
-- [x] This repo passes `uv run python check_all_envelopes.py` and `uv run pre-commit run --all-files`. (pre-commit: all 9 hooks pass)
-- [x] Greenfield adoption reaches first green from documented commands. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+- [x] This repo passes `uv run meminit doctor --format json`,
+  `uv run meminit check --format json`,
+  `uv run meminit protocol check --format json`, and `uv run pytest -q`.
+  Evidence: local verification, protocol assets 3/3 aligned, full default pytest
+  passing with opt-in slow/benchmark skips.
+- [x] This repo passes `uv run python check_all_envelopes.py` and
+  `uv run pre-commit run --all-files`. Evidence: completion log in
+  [MEMINIT-TASK-001](tasks/task-001-plan-016-qa-remediation.md).
+- [x] Greenfield adoption reaches first green from documented commands.
+  Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+  (Draft).
 - [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
-      on one messy repo. Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+  on one messy repo. Evidence:
+  [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+  (Draft).
 - [x] Architext pilot validates the orchestrator-facing contract with Meminit
-      pinned to an exact tag or commit. Evidence: [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5)
+  pinned to an exact tag or commit. Evidence:
+  [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Draft;
+  pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5).
 - [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
-      DESIGN, and LOG, or the public claim is explicitly narrowed to the types
-      that are truly supported.
+  DESIGN, LOG, and TASK; malformed placeholder regressions are covered by tests.
 - [x] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
-      tests agree on the canonical scaffolded path (`.agents/skills/meminit-docops`).
-- [x] README quickstart passes the stranger simulation from a clean checkout. Evidence: [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
-- [x] Tag-triggered release workflow builds sdist/wheel (using `uv build`), runs tests, validates
-      metadata, and supports a dry-run publish path before production PyPI.
-- [x] Security and public hygiene gate from [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)
-      is complete, including secrets/PII scan evidence. Evidence: [MEMINIT-LOG-004](../58-logs/log-004-security-scan-evidence.md) (Approved, gitleaks v8.18.4 verified)
-- [x] Release notes state supported commands, known limitations, and the
-      pre-1.0 compatibility policy. Evidence: [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md)
+  tests agree on the canonical scaffolded path
+  (`.agents/skills/meminit-docops`).
+- [x] README quickstart passes the stranger simulation from a clean checkout.
+  Evidence:
+  [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
+  (Draft).
+- [x] Tag-triggered release workflow builds sdist/wheel using `uv build`, runs
+  tests, validates metadata, and supports a dry-run publish path before
+  production PyPI.
+- [x] Security and public hygiene gate from
+  [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md) is complete,
+  including secrets/PII scan evidence. Evidence:
+  [MEMINIT-LOG-004](../58-logs/log-004-security-scan-evidence.md) (Approved,
+  gitleaks v8.18.4 verified).
+- [x] Release notes state supported commands, known limitations, and the pre-1.0
+  compatibility policy. Evidence:
+  [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md) (Draft).
+
+Additional dogfooding hygiene: AIDHA now ignores `.meminit/cache/` and
+`.meminit.lock`, removes generated cache files from the git index, and passes
+`pre-commit run detect-secrets --all-files`.
 
 <!-- MEMINIT_SECTION: verification_matrix -->
 
@@ -406,7 +440,8 @@ Test design requirements:
 
 ## 12. Handover Requirements
 
-An engineering/testing handover is complete only when it includes:
+This plan is ready for peer review and engineering/testing handover when the
+review packet includes:
 
 - this plan and the current evidence LOG document ID;
 - the target repo list and exact commits used for dogfooding;
@@ -416,8 +451,18 @@ An engineering/testing handover is complete only when it includes:
 - rollback guidance for release workflow changes and package publication;
 - a list of docs updated or intentionally left stale with rationale.
 
+Peer review tracks:
+
+| Track            | Reviewer focus                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| QA               | Rerun the Section 9 matrix and verify LOG evidence for greenfield, brownfield, Architext, and stranger |
+| Security/release | Verify MEMINIT-GOV-003, MEMINIT-LOG-004, release workflow gates, and scanner exclusions                |
+| Docs/devex       | Confirm README, runbooks, release notes, and supported-command claims agree                            |
+| Architecture     | Confirm P2 deferral to MEMINIT-TASK-002 is acceptable for launch and has actionable acceptance criteria |
+
 Testing teams should reject a handover that only says "green locally" without
-command output, target repo commits, and defect closure evidence.
+command output, target repo commits, defect closure evidence, and reviewer
+sign-off or accepted-risk notes.
 
 <!-- MEMINIT_SECTION: agent_notes -->
 

@@ -46,7 +46,8 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 
 - [ ] **Scan for Keys:** Run `gitleaks detect --source . --config .gitleaks.toml --verbose` or use pre-commit hook.
 - [ ] **Check Configs:** Ensure no real credentials are in `config.yaml` or `setup.py`. Use environment variables instead.
-- [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, and `secrets/` are ignored.
+- [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, `secrets/`,
+  `.meminit/cache/`, and `.meminit.lock` are ignored.
 
 ### 2.2 "Embarrassing" Artifacts
 
@@ -114,6 +115,13 @@ The `.gitleaks.toml` config excludes build artifacts, caches, and virtual enviro
 1. Verify it's not a real secret
 2. Add an exception to `.gitleaks.toml` under `[allowlist]`
 3. Commit the config change with rationale in commit message
+
+**Meminit runtime state:**
+`.meminit/cache/` and `.meminit.lock` are local runtime artifacts. Do not
+commit them and do not add their hashes to scanner baselines. Rebuild the cache
+with `meminit index` or `meminit index --rebuild-cache` when needed. Commit only
+intentional deterministic `.meminit` files, such as an org-profile lock file or
+project index artifact when the project explicitly owns it.
 
 ---
 

@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `meminit init` now ignores both `.meminit/cache/` and `.meminit.lock`, preventing
+  rebuildable runtime state from being staged and flagged by secret scanners.
 - Targeted `check` now honors exclusions consistently for broad glob inputs (for example `docs/**/*.md`) and non-canonical paths.
 - Improved portability and reliability of `new` command error/lock handling and deterministic creation edge cases.
 - Template placeholder syntax: Fixed 112 malformed `{ { variable } }` placeholders across 16 template files.

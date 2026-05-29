@@ -8,6 +8,8 @@ paths = [
   '''venv/''',
   '''__pycache__/''',
   '''.pytest_cache/''',
+  '''.meminit/cache/''',
+  '''(^|/)\.meminit\.lock$''',
   '''\.pyc''',
   '''dist/''',
   '''build/''',
