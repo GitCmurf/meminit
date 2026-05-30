@@ -8,7 +8,11 @@ from typing import Dict, Mapping, Optional
 
 import yaml
 
-from meminit.core.services.org_profiles import OrgProfile, resolve_org_profile
+from meminit.core.services.org_profiles import (
+    OrgProfile,
+    merge_profile_with_fallback,
+    resolve_org_profile,
+)
 from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
 
@@ -68,6 +72,10 @@ class VendorOrgProfileUseCase:
         include_org_docs: bool = True,
     ) -> OrgVendorReport:
         profile = resolve_org_profile(profile_name=profile_name, env=self._env, prefer_global=True)
+        fallback_profile = resolve_org_profile(
+            profile_name=profile_name, env=self._env, prefer_global=False
+        )
+        effective_profile = merge_profile_with_fallback(profile, fallback_profile)
         layout = load_repo_layout(self._root)
         repo_docs_root = (
             layout.default_namespace().docs_root.strip("/").replace("\\", "/") or "docs"
@@ -110,7 +118,9 @@ class VendorOrgProfileUseCase:
         created = updated = same = 0
         for src_rel, dest_rel in mapping.items():
             dest = self._root / dest_rel
-            content = profile.files.get(src_rel, b"")
+            content = effective_profile.files.get(src_rel)
+            if content is None:
+                continue
             if not dest.exists():
                 created += 1
             else:
@@ -129,7 +139,7 @@ class VendorOrgProfileUseCase:
                 profile_name=profile.name,
                 profile_version=profile.version,
                 source=profile.source,
-                digest=profile.digest(),
+                digest=effective_profile.digest(),
                 dry_run=True,
                 updated_files=updated,
                 created_files=created,
@@ -141,9 +151,12 @@ class VendorOrgProfileUseCase:
         # Write files
         for src_rel, dest_rel in mapping.items():
             dest = self._root / dest_rel
+            content = effective_profile.files.get(src_rel)
+            if content is None:
+                continue
             ensure_safe_write_path(root_dir=self._root, target_path=dest)
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(profile.files[src_rel])
+            dest.write_bytes(content)
 
         # Update docops.config.yaml (do not overwrite; merge).
         self._ensure_repo_config_for_org(
@@ -157,7 +170,7 @@ class VendorOrgProfileUseCase:
             "profile_name": profile.name,
             "profile_version": profile.version,
             "source": profile.source,
-            "digest": profile.digest(),
+            "digest": effective_profile.digest(),
             "vendored_at": datetime.now(timezone.utc).isoformat(),
         }
         lock_path.write_text(json.dumps(lock_payload, indent=2), encoding="utf-8")
@@ -166,7 +179,7 @@ class VendorOrgProfileUseCase:
             profile_name=profile.name,
             profile_version=profile.version,
             source=profile.source,
-            digest=profile.digest(),
+            digest=effective_profile.digest(),
             dry_run=False,
             updated_files=updated,
             created_files=created,

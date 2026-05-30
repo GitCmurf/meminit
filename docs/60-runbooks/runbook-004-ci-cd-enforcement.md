@@ -84,6 +84,7 @@ Notes:
 ## Release workflow setup
 
 The `.github/workflows/release.yml` workflow is triggered on version tags (`v*`) and supports manual dispatch.
+Manual dispatch requires an explicit `tag_name` input so GitHub Releases are created against the intended release tag.
 
 ### GitHub environment setup
 
@@ -133,6 +134,8 @@ Before the release workflow can publish to PyPI:
    - Dry-run-publish: Publishes to TestPyPI (testpypi environment)
    - GitHub-release: Creates draft GitHub release with artifacts
    - Production-publish: Requires environment approval, publishes to PyPI
+
+For manual workflow runs, pass the same tag in the `tag_name` input before starting the workflow.
 
 ### Testing a release without publishing
 

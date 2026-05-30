@@ -30,6 +30,11 @@ def test_ci_jobs_create_a_virtual_environment_before_installing_dependencies():
 
 def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands():
     workflow = load_workflow("release.yml")
+    triggers = workflow[True]
+
+    dispatch_inputs = triggers["workflow_dispatch"]["inputs"]
+    assert dispatch_inputs["tag_name"]["required"] is True
+    assert dispatch_inputs["tag_name"]["type"] == "string"
 
     build_steps = workflow["jobs"]["build-and-verify"]["steps"]
     twine_step = next(
@@ -45,3 +50,10 @@ def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands()
     assert "uv publish --publish-url https://test.pypi.org/legacy/" in publish_step["run"]
     assert "--check-url https://test.pypi.org/simple/" in publish_step["run"]
     assert "--index https://test.pypi.org/simple/" not in publish_step["run"]
+
+    release_job_steps = workflow["jobs"]["github-release"]["steps"]
+    gh_release_step = next(step for step in release_job_steps if step["name"] == "Create GitHub Release (Draft)")
+    assert (
+        gh_release_step["with"]["tag_name"]
+        == "${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
+    )

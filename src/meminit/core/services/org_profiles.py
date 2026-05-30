@@ -119,6 +119,26 @@ def resolve_org_profile(
     return load_packaged_profile(profile_name=profile_name)
 
 
+def merge_profile_with_fallback(profile: OrgProfile, fallback_profile: OrgProfile) -> OrgProfile:
+    """
+    Fill missing profile assets from a fallback profile without overwriting present assets.
+
+    This keeps vendoring and status checks stable when an older global profile predates
+    newly added baseline assets.
+    """
+
+    merged_files = dict(profile.files)
+    for rel, content in fallback_profile.files.items():
+        merged_files.setdefault(rel, content)
+    return OrgProfile(
+        name=profile.name,
+        version=profile.version,
+        docops_version=profile.docops_version,
+        files=merged_files,
+        source=profile.source,
+    )
+
+
 def diff_profile_to_repo(
     profile: OrgProfile, repo_root: Path, mapping: Mapping[str, str]
 ) -> Tuple[int, int, int]:
