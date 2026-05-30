@@ -4,6 +4,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+LICENSE_PATH = REPO_ROOT / "LICENSE"
 
 
 def load_workflow(name: str) -> dict:
@@ -62,3 +63,29 @@ def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands()
         gh_release_step["with"]["tag_name"]
         == "${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
     )
+
+
+def test_release_workflow_verifies_the_built_wheel_without_checkout_shadowing():
+    workflow = load_workflow("release.yml")
+    build_steps = workflow["jobs"]["build-and-verify"]["steps"]
+    verify_step = next(
+        step for step in build_steps if step["name"] == "Run verification in clean virtual environment"
+    )
+
+    run_script = verify_step["run"]
+    assert "tmpdir=$(mktemp -d)" in run_script
+    assert 'uv venv "$tmpdir/test_env"' in run_script
+    assert 'uv pip install "${GITHUB_WORKSPACE}"/dist/*.whl' in run_script
+    assert 'meminit doctor --root "$GITHUB_WORKSPACE" --format json' in run_script
+    assert 'meminit check --root "$GITHUB_WORKSPACE" --format json' in run_script
+    assert 'pytest -c /dev/null "${GITHUB_WORKSPACE}/tests"' in run_script
+    assert 'cd "$tmpdir"' in run_script
+
+
+def test_root_license_remains_apache_2_0():
+    license_text = LICENSE_PATH.read_text(encoding="utf-8")
+
+    assert license_text.lstrip().startswith("Apache License")
+    assert "Version 2.0, January 2004" in license_text
+    assert "MIT License" not in license_text
+    assert "Copyright (c) 2019 Zachary Rice" not in license_text

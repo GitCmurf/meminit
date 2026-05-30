@@ -62,17 +62,21 @@ jobs:
 
       - name: Run verification in clean virtual environment
         run: |
-          uv venv test_env
-          . test_env/bin/activate
-          # Install the built wheel plus dev dependencies for testing
-          uv pip install dist/*.whl
+          tmpdir=$(mktemp -d)
+          uv venv "$tmpdir/test_env"
+          . "$tmpdir/test_env/bin/activate"
+          # Install the built wheel plus dev dependencies for testing.
+          # Run pytest from a clean directory so the checkout's pyproject
+          # pythonpath setting cannot shadow the installed wheel.
+          uv pip install "${GITHUB_WORKSPACE}"/dist/*.whl
           uv pip install pytest pytest-cov pydantic pyyaml rich jsonschema python-frontmatter click
           # Smoke test the CLI
           meminit --version
-          meminit doctor --root . --format json
-          meminit check --root . --format json
-          # Run tests against the installed package
-          pytest
+          meminit doctor --root "$GITHUB_WORKSPACE" --format json
+          meminit check --root "$GITHUB_WORKSPACE" --format json
+          cd "$tmpdir"
+          # Run tests against the installed package, not the checkout.
+          pytest -c /dev/null "${GITHUB_WORKSPACE}/tests"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

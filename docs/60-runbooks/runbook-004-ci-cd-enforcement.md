@@ -131,7 +131,7 @@ Before the release workflow can publish to PyPI:
 4. Tag release: `git tag vX.Y.Z`
 5. Push tag: `git push origin vX.Y.Z`
 6. Monitor the release workflow:
-   - Build-and-verify: Runs gitleaks scan, verifies release notes, builds and tests
+   - Build-and-verify: Runs gitleaks scan, verifies release notes, builds and tests the installed wheel from a clean temporary directory so the checkout's `src/` tree cannot shadow the released artifact
    - Dry-run-publish: Publishes to TestPyPI (testpypi environment)
    - GitHub-release: Creates draft GitHub release with artifacts
    - Production-publish: Requires environment approval, publishes to PyPI
