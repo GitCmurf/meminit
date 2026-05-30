@@ -374,17 +374,18 @@ def _render_state_set_text(result, format, output):
                 f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
             )
         else:
+            entry = result.entry or {}
             get_console().print(f"[bold green]Updated state for {result.document_id}[/bold green]")
-            get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
-            get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
-            if result.entry.get("priority"):
-                get_console().print(f"Priority: {result.entry.get('priority')}")
-            if result.entry.get("assignee"):
-                get_console().print(f"Assignee: {result.entry.get('assignee')}")
-            if result.entry.get("next_action"):
-                get_console().print(f"Next Action: {result.entry.get('next_action')}")
-            if result.entry.get("notes"):
-                get_console().print(f"Notes: {result.entry.get('notes')}")
+            get_console().print(f"Impl State: {entry.get('impl_state', '')}")
+            get_console().print(f"Updated By: {entry.get('updated_by', '')}")
+            if entry.get("priority"):
+                get_console().print(f"Priority: {entry.get('priority')}")
+            if entry.get("assignee"):
+                get_console().print(f"Assignee: {entry.get('assignee')}")
+            if entry.get("next_action"):
+                get_console().print(f"Next Action: {entry.get('next_action')}")
+            if entry.get("notes"):
+                get_console().print(f"Notes: {entry.get('notes')}")
         _render_warnings_text(result.warnings, format, output)
 
 
