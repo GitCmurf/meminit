@@ -19,6 +19,7 @@ jobs:
   build-and-verify:
     name: Build and Verify Packages
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || startsWith(inputs.tag_name, 'v')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -111,9 +112,6 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to TestPyPI
-
-
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -125,13 +123,13 @@ jobs:
           enable-cache: true
           version: "0.5.9"
 
-      - name: Publish to TestPyPI (Dry-run)
+      - name: Publish to TestPyPI
         run: |
           uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*
 
   github-release:
     name: Create GitHub Release
-    needs: build-and-verify
+    needs: [build-and-verify, dry-run-publish]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -147,9 +145,10 @@ jobs:
 
       - name: Detect prerelease tag
         id: release-meta
+        env:
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
         run: |
-          tag="${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
-          case "$tag" in
+          case "$TAG_NAME" in
             *-*|*a[0-9]*|*b[0-9]*|*rc[0-9]*)
               echo "prerelease=true" >> "$GITHUB_OUTPUT"
               ;;
