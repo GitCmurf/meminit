@@ -4,6 +4,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LICENSE_PATH = REPO_ROOT / "LICENSE"
+PRE_COMMIT_PATH = REPO_ROOT / ".pre-commit-config.yaml"
 
 
 def load_workflow(name: str) -> dict:
@@ -34,6 +35,21 @@ def test_ci_jobs_create_a_virtual_environment_before_installing_dependencies():
         assert step_index(steps, "uv venv") < step_index(
             steps, 'uv pip install --python .venv/bin/python -e ".[dev]"'
         )
+
+
+def test_prettier_hook_excludes_governed_template_trees():
+    config = yaml.safe_load(PRE_COMMIT_PATH.read_text(encoding="utf-8"))
+    prettier_hook = next(
+        hook
+        for repo in config["repos"]
+        if repo["repo"] == "https://github.com/pre-commit/mirrors-prettier"
+        for hook in repo["hooks"]
+        if hook["id"] == "prettier"
+    )
+
+    exclude = prettier_hook.get("exclude", "")
+    assert "docs/00-governance/templates/" in exclude
+    assert "src/meminit/core/assets/org_profiles/default/templates/" in exclude
 
 
 def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands():
