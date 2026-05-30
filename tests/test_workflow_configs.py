@@ -106,5 +106,7 @@ def test_root_license_remains_apache_2_0():
 
     assert license_text.lstrip().startswith("Apache License")
     assert "Version 2.0, January 2004" in license_text
+    assert "for use, reproduction, or distribution of Your modifications" in license_text
+    assert "provided Your use," in license_text
     assert "MIT License" not in license_text
     assert "Copyright (c) 2019 Zachary Rice" not in license_text
