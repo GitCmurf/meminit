@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -5,6 +6,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LICENSE_PATH = REPO_ROOT / "LICENSE"
 PRE_COMMIT_PATH = REPO_ROOT / ".pre-commit-config.yaml"
+GITLEAKS_PATH = REPO_ROOT / ".gitleaks.toml"
 
 
 def load_workflow(name: str) -> dict:
@@ -37,6 +39,26 @@ def test_ci_jobs_create_a_virtual_environment_before_installing_dependencies():
         )
 
 
+def test_gitleaks_scans_have_full_history_available():
+    ci_workflow = load_workflow("ci.yml")
+    ci_steps = ci_workflow["jobs"]["python"]["steps"]
+    ci_checkout = next(step for step in ci_steps if step.get("uses") == "actions/checkout@v4")
+    assert ci_checkout["with"]["fetch-depth"] == 0
+    assert step_index_uses(ci_steps, "actions/checkout@v4") < step_index_uses(
+        ci_steps, "gitleaks/gitleaks-action@v2"
+    )
+
+    release_workflow = load_workflow("release.yml")
+    release_steps = release_workflow["jobs"]["build-and-verify"]["steps"]
+    release_checkout = next(
+        step for step in release_steps if step.get("uses") == "actions/checkout@v4"
+    )
+    assert release_checkout["with"]["fetch-depth"] == 0
+    assert step_index_uses(release_steps, "actions/checkout@v4") < step_index_uses(
+        release_steps, "gitleaks/gitleaks-action@v2"
+    )
+
+
 def test_prettier_hook_excludes_governed_template_trees():
     config = yaml.safe_load(PRE_COMMIT_PATH.read_text(encoding="utf-8"))
     prettier_hook = next(
@@ -50,6 +72,12 @@ def test_prettier_hook_excludes_governed_template_trees():
     exclude = prettier_hook.get("exclude", "")
     assert "docs/00-governance/templates/" in exclude
     assert "src/meminit/core/assets/org_profiles/default/templates/" in exclude
+
+
+def test_gitleaks_config_extends_default_rules():
+    config = tomllib.loads(GITLEAKS_PATH.read_text(encoding="utf-8"))
+
+    assert config["extend"]["useDefault"] is True
 
 
 def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands():

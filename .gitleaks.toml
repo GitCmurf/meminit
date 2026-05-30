@@ -1,5 +1,8 @@
 title = "Meminit Secret Scanning"
 
+[extend]
+useDefault = true
+
 [allowlist]
 description = "Global allowlist for non-secret patterns"
 paths = [
