@@ -277,6 +277,34 @@ namespaces:
     assert {node["document_id"] for node in second_report.documents} == expected_ids
 
 
+def test_index_repository_respects_configured_filename_prefix_exclusions(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "project_name": "Example",
+                "repo_prefix": "EXAMPLE",
+                "excluded_filename_prefixes": ["DRAFT-"],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    _setup_doc(tmp_path, "EXAMPLE-ADR-001", title="Public")
+    _setup_doc(tmp_path, "EXAMPLE-ADR-002", title="Draft File", filename="DRAFT-scratch.md")
+    _setup_doc(
+        tmp_path,
+        "EXAMPLE-ADR-003",
+        title="Draft Directory",
+        subdir="45-adr/DRAFT-notes",
+        filename="adr-draft-dir.md",
+    )
+
+    report = IndexRepositoryUseCase(str(tmp_path)).execute()
+
+    assert report.document_count == 1
+    assert {node["document_id"] for node in report.documents} == {"EXAMPLE-ADR-001"}
+
+
 def test_index_repository_warm_cache_is_incremental_and_byte_identical(tmp_path):
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     first_report = IndexRepositoryUseCase(str(tmp_path)).execute()

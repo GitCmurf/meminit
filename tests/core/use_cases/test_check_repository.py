@@ -25,8 +25,7 @@ def repo_with_docs():
         gov.mkdir(parents=True)
         # Require string fields so we can catch YAML scalar coercions
         # (date/float) that should be normalized.
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -42,8 +41,7 @@ def repo_with_docs():
   },
   "additionalProperties": true
 }
-""".strip()
-        )
+""".strip())
         # Templates are not governed docs and should be excluded from checks
         templates_dir = gov / "templates"
         templates_dir.mkdir(parents=True)
@@ -55,8 +53,7 @@ def repo_with_docs():
         docs.mkdir(parents=True)
 
         # Valid Doc
-        (docs / "adr-001.md").write_text(
-            """---
+        (docs / "adr-001.md").write_text("""---
 document_id: MEMINIT-ADR-001
 type: ADR
 title: Valid
@@ -67,12 +64,10 @@ owner: Me
 docops_version: 2.0
 ---
 # Valid Doc
-"""
-        )
+""")
 
         # Invalid Doc (Bad ID)
-        (docs / "adr-002.md").write_text(
-            """---
+        (docs / "adr-002.md").write_text("""---
 document_id: BAD-ID
 type: ADR
 title: Invalid
@@ -83,8 +78,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Invalid Doc
-"""
-        )
+""")
         yield repo
 
 
@@ -110,13 +104,11 @@ def test_check_repository_schema_type_errors_include_field(tmp_path):
     )
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 title: 123
 ---
 # Doc
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -130,8 +122,7 @@ def test_check_directory_and_filename(repo_with_docs):
 
     # 1. Filename violation (spaces, uppercase)
     bad_name_file = repo_with_docs / "docs" / "45-adr" / "Bad Name.md"
-    bad_name_file.write_text(
-        """---
+    bad_name_file.write_text("""---
 document_id: MEMINIT-ADR-003
 type: ADR
 title: Bad Name
@@ -142,8 +133,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Content
-"""
-    )
+""")
 
     # 1b. Missing frontmatter should not drop filename violation
     no_frontmatter_file = repo_with_docs / "docs" / "45-adr" / "No Frontmatter.md"
@@ -153,8 +143,7 @@ docops_version: 2.0
     wrong_dir = repo_with_docs / "docs" / "10-prd"
     wrong_dir.mkdir()
     wrong_loc_file = wrong_dir / "adr-004.md"
-    wrong_loc_file.write_text(
-        """---
+    wrong_loc_file.write_text("""---
 document_id: MEMINIT-ADR-004
 type: ADR
 title: Wrong Location
@@ -165,8 +154,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Content
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(repo_with_docs))
     violations = use_case.execute()
@@ -189,8 +177,7 @@ docops_version: 2.0
 
 
 def test_check_respects_configured_exclusions_and_type_directories(tmp_path):
-    (tmp_path / "docops.config.yaml").write_text(
-        """project_name: Example
+    (tmp_path / "docops.config.yaml").write_text("""project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 docs_root: docs
@@ -199,13 +186,11 @@ excluded_paths:
 document_types:
   ADR:
     directory: adrs
-"""
-    )
+""")
 
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text(
-        """
+    (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -220,16 +205,14 @@ document_types:
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-    )
+""".strip())
 
     (tmp_path / "docs" / "templates").mkdir(parents=True)
     (tmp_path / "docs" / "templates" / "ignored.md").write_text("# Not governed\n")
 
     adrs = tmp_path / "docs" / "adrs"
     adrs.mkdir(parents=True)
-    (adrs / "adr-001.md").write_text(
-        """---
+    (adrs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -240,8 +223,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -605,8 +587,7 @@ def test_check_resolve_validation_namespace_does_not_parse_frontmatter_for_uniqu
 def test_check_repository_reports_missing_schema_once(tmp_path):
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -617,8 +598,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -633,8 +613,7 @@ def test_check_repository_reports_invalid_schema_once(tmp_path):
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
-    (docs / "adr-001.md").write_text(
-        """---
+    (docs / "adr-001.md").write_text("""---
 document_id: EXAMPLE-ADR-001
 type: ADR
 title: Example ADR
@@ -645,10 +624,8 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
-    (docs / "adr-002.md").write_text(
-        """---
+""")
+    (docs / "adr-002.md").write_text("""---
 document_id: EXAMPLE-ADR-002
 type: ADR
 title: Example ADR 2
@@ -659,8 +636,7 @@ owner: Me
 docops_version: 2.0
 ---
 # Example
-"""
-    )
+""")
 
     use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
     violations = use_case.execute()
@@ -671,8 +647,7 @@ docops_version: 2.0
 def test_check_excludes_wip_prefix_by_default(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text(
-        """
+    (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -687,8 +662,7 @@ def test_check_excludes_wip_prefix_by_default(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
-    )
+""".strip())
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
@@ -702,6 +676,44 @@ def test_check_excludes_wip_prefix_by_default(tmp_path):
 def test_check_excludes_wip_directories_by_default(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
+    (gov / "metadata.schema.json").write_text("""
+{
+  "type": "object",
+  "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
+  "properties": {
+    "document_id": { "type": "string" },
+    "type": { "type": "string" },
+    "title": { "type": "string" },
+    "status": { "type": "string" },
+    "version": { "type": "string" },
+    "last_updated": { "type": "string" },
+    "owner": { "type": "string" },
+    "docops_version": { "type": "string" }
+  }
+}
+""".strip())
+
+    wip_dir = tmp_path / "docs" / "45-adr" / "WIP-screenshots"
+    wip_dir.mkdir(parents=True)
+    (wip_dir / "notes.md").write_text("# no frontmatter\n")
+
+    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
+    violations = use_case.execute()
+    assert not violations
+
+
+def test_check_excludes_configured_prefixes_for_files_and_directories(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
+repo_prefix: EXAMPLE
+docops_version: '2.0'
+excluded_filename_prefixes:
+  - DRAFT-
+""",
+        encoding="utf-8",
+    )
+    gov = tmp_path / "docs" / "00-governance"
+    gov.mkdir(parents=True)
     (gov / "metadata.schema.json").write_text(
         """
 {
@@ -718,16 +730,23 @@ def test_check_excludes_wip_directories_by_default(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip()
+""".strip(),
+        encoding="utf-8",
     )
 
-    wip_dir = tmp_path / "docs" / "45-adr" / "WIP-screenshots"
-    wip_dir.mkdir(parents=True)
-    (wip_dir / "notes.md").write_text("# no frontmatter\n")
+    adr_dir = tmp_path / "docs" / "45-adr"
+    adr_dir.mkdir(parents=True)
+    (adr_dir / "DRAFT-scratch.md").write_text("# no frontmatter\n", encoding="utf-8")
+    draft_dir = adr_dir / "DRAFT-notes"
+    draft_dir.mkdir()
+    (draft_dir / "notes.md").write_text("# no frontmatter\n", encoding="utf-8")
 
-    use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
-    violations = use_case.execute()
-    assert not violations
+    result = CheckRepositoryUseCase(root_dir=str(tmp_path)).execute_full_summary()
+
+    assert result.success is True
+    assert result.files_checked == 0
+    assert result.checked_paths == []
+    assert result.violations == []
 
 
 class TestTargetedCheck:
@@ -737,8 +756,7 @@ class TestTargetedCheck:
     def repo_for_targeted_check(self, tmp_path):
         gov = tmp_path / "docs" / "00-governance"
         gov.mkdir(parents=True)
-        (gov / "metadata.schema.json").write_text(
-            """
+        (gov / "metadata.schema.json").write_text("""
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -754,26 +772,24 @@ class TestTargetedCheck:
   },
   "additionalProperties": true
 }
-""".strip()
-        )
+""".strip())
 
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
+excluded_filename_prefixes:
+  - DRAFT-
 document_types:
   ADR:
     directory: 45-adr
   PRD:
     directory: 10-prd
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
 
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid Doc
@@ -784,11 +800,9 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
 
-        (adr_dir / "adr-002-invalid.md").write_text(
-            """---
+        (adr_dir / "adr-002-invalid.md").write_text("""---
 document_id: BAD-ID
 type: ADR
 title: Invalid Doc
@@ -799,14 +813,12 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Invalid
-"""
-        )
+""")
 
         prd_dir = tmp_path / "docs" / "10-prd"
         prd_dir.mkdir(parents=True)
 
-        (prd_dir / "prd-001-valid.md").write_text(
-            """---
+        (prd_dir / "prd-001-valid.md").write_text("""---
 document_id: TEST-PRD-001
 type: PRD
 title: Valid PRD
@@ -817,8 +829,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid PRD
-"""
-        )
+""")
 
         return tmp_path
 
@@ -908,20 +919,17 @@ docops_version: 2.0
         assert "OUTSIDE_DOCS_ROOT" in result.warnings[0]["warnings"][0]["code"]
 
     def test_execute_targeted_reports_schema_missing(self, tmp_path):
-        (tmp_path / "docops.config.yaml").write_text(
-            """project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 document_types:
   ADR:
     directory: 45-adr
-"""
-        )
+""")
 
         adr_dir = tmp_path / "docs" / "45-adr"
         adr_dir.mkdir(parents=True)
-        (adr_dir / "adr-001-valid.md").write_text(
-            """---
+        (adr_dir / "adr-001-valid.md").write_text("""---
 document_id: TEST-ADR-001
 type: ADR
 title: Valid Doc
@@ -932,8 +940,7 @@ owner: TestOwner
 docops_version: 2.0
 ---
 # Valid
-"""
-        )
+""")
 
         use_case = CheckRepositoryUseCase(root_dir=str(tmp_path))
         result = use_case.execute_targeted(["docs/45-adr/adr-001-valid.md"])
@@ -999,6 +1006,21 @@ docops_version: 2.0
             "docs/00-governance/templates" not in entry["path"] for entry in result.violations
         )
         assert all("docs/00-governance/templates" not in entry["path"] for entry in result.warnings)
+
+    def test_execute_targeted_explicit_excluded_file_is_not_validated(
+        self, repo_for_targeted_check
+    ):
+        draft_path = repo_for_targeted_check / "docs" / "45-adr" / "DRAFT-scratch.md"
+        draft_path.write_text("# no frontmatter\n", encoding="utf-8")
+
+        use_case = CheckRepositoryUseCase(root_dir=str(repo_for_targeted_check))
+        result = use_case.execute_targeted(["docs/45-adr/DRAFT-scratch.md"])
+
+        assert result.success is True
+        assert result.files_checked == 0
+        assert result.files_failed == 0
+        assert result.checked_paths == []
+        assert result.violations == []
 
     def test_execute_targeted_normalizes_noncanonical_paths(self, repo_for_targeted_check):
         templates_dir = repo_for_targeted_check / "docs" / "00-governance" / "templates"

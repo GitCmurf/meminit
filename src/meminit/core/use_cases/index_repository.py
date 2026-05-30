@@ -72,31 +72,14 @@ def _repo_relative_path(path: Path, root_dir: Path) -> str:
     return relative_path_string(path, root_dir)
 
 
-def _is_excluded_for_index(path: Path, namespace: Any, root_dir: Path) -> bool:
-    path_text = str(path)
-    docs_text = str(namespace.docs_dir).rstrip(os.sep) + os.sep
-    if path_text.startswith(docs_text):
-        rel_to_docs = path_text[len(docs_text) :].replace(os.sep, "/")
-        for prefix in namespace.excluded_filename_prefixes:
-            prefix_lower = prefix.lower()
-            if any(part.lower().startswith(prefix_lower) for part in rel_to_docs.split("/")):
-                return True
-
-    rel = _repo_relative_path(path, root_dir)
-    rel_parts = tuple(part for part in rel.split("/") if part)
-    for excluded in namespace.excluded_paths:
-        ex_parts = Path(excluded).parts
-        if ex_parts and rel_parts[: len(ex_parts)] == ex_parts:
-            return True
-
-    return rel in namespace.excluded_files
+def _is_excluded_for_index(path: Path, namespace: Any) -> bool:
+    return bool(namespace.is_excluded(path))
 
 
 def _namespace_for_index_path(
     layout: Any,
     path: Path,
     document_id: str | None,
-    root_dir: Path,
     *,
     single_namespace: Any | None = None,
 ) -> Any | None:
@@ -106,14 +89,14 @@ def _namespace_for_index_path(
             path.relative_to(single_namespace.docs_dir)
         except ValueError:
             return None
-        if _is_excluded_for_index(path, single_namespace, root_dir):
+        if _is_excluded_for_index(path, single_namespace):
             return None
         return single_namespace
 
     ns = layout.namespace_for_path_and_document_id(path, document_id)
     if ns is None:
         return None
-    if _is_excluded_for_index(path, ns, root_dir):
+    if _is_excluded_for_index(path, ns):
         return None
     return ns
 
@@ -1375,7 +1358,6 @@ class IndexRepositoryUseCase:
                 self._layout,
                 path,
                 doc_id,
-                self._root_dir,
                 single_namespace=single_namespace,
             )
             if ns is None:
@@ -1714,7 +1696,7 @@ class IndexRepositoryUseCase:
             if not ns.docs_dir.exists():
                 continue
             for path in ns.docs_dir.rglob("*.md"):
-                if not _is_excluded_for_index(path, ns, self._root_dir):
+                if not _is_excluded_for_index(path, ns):
                     paths.add(path)
         return sorted(paths, key=lambda path: _repo_relative_path(path, self._root_dir))
 
@@ -1774,7 +1756,6 @@ class IndexRepositoryUseCase:
                 self._layout,
                 path,
                 cached_doc_id,
-                self._root_dir,
                 single_namespace=single_namespace,
             )
             if expected_ns is None:
@@ -1843,7 +1824,6 @@ class IndexRepositoryUseCase:
                 self._layout,
                 self._root_dir / path_text,
                 document_id,
-                self._root_dir,
                 single_namespace=single_namespace,
             )
             if expected_ns is None:
