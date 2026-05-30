@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `meminit init` now ignores both `.meminit/cache/` and `.meminit.lock`, preventing
   rebuildable runtime state from being staged and flagged by secret scanners.
+- `check_all_envelopes.py` now pins `uv run` to the checkout and targets the temp
+  repo explicitly, avoiding accidental execution against a different project.
 - Targeted `check` now honors exclusions consistently for broad glob inputs (for example `docs/**/*.md`) and non-canonical paths.
 - Improved portability and reliability of `new` command error/lock handling and deterministic creation edge cases.
 - Template placeholder syntax: Fixed 112 malformed `{ { variable } }` placeholders across 16 template files.
