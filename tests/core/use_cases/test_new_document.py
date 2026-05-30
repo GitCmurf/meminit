@@ -332,6 +332,43 @@ class TestDeterministicIdMode:
         doc_path = repo_with_config_and_template / "docs" / "45-adr" / "adr-042-test.md"
         assert doc_path.exists()
 
+    def test_id_flag_accepts_governance_alias(self, repo_with_init):
+        config = yaml.safe_load((repo_with_init / "docops.config.yaml").read_text())
+        repo_prefix = config["repo_prefix"]
+
+        use_case = NewDocumentUseCase(str(repo_with_init))
+        params = NewDocumentParams(
+            doc_type="GOVERNANCE",
+            title="Governance Alias",
+            document_id=f"{repo_prefix}-GOV-042",
+        )
+        result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.document_id == f"{repo_prefix}-GOV-042"
+        assert result.doc_type == "GOV"
+
+    def test_id_flag_accepts_transformed_segment(self, repo_with_init):
+        config_path = repo_with_init / "docops.config.yaml"
+        config = yaml.safe_load(config_path.read_text())
+        config["document_types"]["LEGAL_RISK"] = {"directory": "75-legal-risk"}
+        config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+        (repo_with_init / "docs" / "75-legal-risk").mkdir(parents=True, exist_ok=True)
+
+        repo_prefix = config["repo_prefix"]
+        use_case = NewDocumentUseCase(str(repo_with_init))
+        params = NewDocumentParams(
+            doc_type="LEGAL_RISK",
+            title="Legal Risk",
+            document_id=f"{repo_prefix}-LEGALRISK-001",
+        )
+        result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.document_id == f"{repo_prefix}-LEGALRISK-001"
+        assert result.doc_type == "LEGAL_RISK"
+        assert result.path == repo_with_init / "docs" / "75-legal-risk" / "legalrisk-001-legal-risk.md"
+
     def test_id_flag_with_mismatched_type_raises_error(self, repo_with_config_and_template):
         with pytest.raises(ValueError, match="type segment"):
             NewDocumentParams(doc_type="ADR", title="Test", document_id="TEST-PRD-042")

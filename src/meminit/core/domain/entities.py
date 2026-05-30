@@ -5,6 +5,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from meminit.core.domain.document_ids import (
+    document_id_type_segment,
+    normalize_document_type_for_id,
+)
 
 class Severity(str, Enum):
     ERROR = "error"
@@ -120,7 +124,7 @@ class NewDocumentParams:
             pattern ^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$). Recommended when status is
             'Superseded' (CLI warns if missing).
         document_id: Optional explicit document ID. If provided, must match the
-            doc_type in its type segment.
+            document type's normalized ID segment.
         dry_run: If True, validates and returns result without writing the file.
         verbose: If True, emit decision reasoning for ID allocation and owner resolution.
     """
@@ -144,13 +148,16 @@ class NewDocumentParams:
             raise ValueError(
                 f"Invalid status '{self.status}': must be one of {sorted(VALID_STATUSES)}"
             )
+        normalized_doc_type = normalize_document_type_for_id(self.doc_type)
         if self.document_id is not None:
             _validate_document_id(self.document_id, "document_id")
             id_type = self.document_id.split("-", 2)[1]
-            if id_type != self.doc_type.upper():
+            expected_id_type = document_id_type_segment(normalized_doc_type)
+            if id_type != expected_id_type:
                 raise ValueError(
                     f"Invalid document_id '{self.document_id}': type segment "
-                    f"'{id_type}' must match doc_type '{self.doc_type.upper()}'"
+                    f"'{id_type}' must match doc_type '{normalized_doc_type}' "
+                    f"(expected segment '{expected_id_type}')"
                 )
         if self.related_ids is not None:
             if not isinstance(self.related_ids, list):

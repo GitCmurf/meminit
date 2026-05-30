@@ -105,6 +105,24 @@ class TestNewDocumentParamsValidation:
         params = NewDocumentParams(doc_type="ADR", title="Test", superseded_by="MEMINIT-ADR-099")
         assert params.superseded_by == "MEMINIT-ADR-099"
 
+    def test_accepts_document_id_for_governance_alias(self):
+        """GOVERNANCE should validate against the derived GOV segment."""
+        params = NewDocumentParams(
+            doc_type="GOVERNANCE",
+            title="Test",
+            document_id="MEMINIT-GOV-001",
+        )
+        assert params.document_id == "MEMINIT-GOV-001"
+
+    def test_accepts_document_id_for_transformed_segment(self):
+        """Type names that derive a shortened ID segment should still validate."""
+        params = NewDocumentParams(
+            doc_type="LEGAL_RISK",
+            title="Test",
+            document_id="MEMINIT-LEGALRISK-001",
+        )
+        assert params.document_id == "MEMINIT-LEGALRISK-001"
+
     def test_rejects_invalid_document_id_format(self):
         with pytest.raises(ValueError, match="document_id"):
             NewDocumentParams(doc_type="ADR", title="Test", document_id="MEMINIT-ADR-001-EXTRA")
