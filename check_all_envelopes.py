@@ -16,9 +16,11 @@ MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 
 def build_command(cmd_args, root=None):
     full_cmd = ["uv", "run", "meminit"] + cmd_args
-    if root is not None and not (
-        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
-    ):
+    is_repo_agnostic = (
+        cmd_args[0] in ("capabilities", "explain")
+        or (len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install")
+    )
+    if root is not None and not is_repo_agnostic:
         full_cmd += ["--root", str(root)]
     full_cmd += ["--format", "json"]
     return full_cmd
@@ -73,8 +75,11 @@ def check_command(cmd_args, expected_data_keys=None, root=None):
         print(f"  FAILED: missing fields: {missing}")
         return False
 
-    # root is conditional: present for repo-aware commands, absent for repo-agnostic (org install)
-    is_repo_agnostic = len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
+    # root is conditional: present for repo-aware commands, absent for repo-agnostic
+    is_repo_agnostic = (
+        cmd_args[0] in ("capabilities", "explain")
+        or (len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install")
+    )
     if is_repo_agnostic:
         if "root" in envelope:
             print("  FAILED: root field should be absent for repo-agnostic command")
@@ -185,6 +190,8 @@ def build_test_repo(test_dir):
         (["install-precommit"], ["installed"]),
         (["new", "ADR", "TestADR", "--dry-run"], ["document_id", "path"]),
         (["adr", "new", "TestADR2"], ["path"]),
+        (["capabilities"], ["capabilities_version"]),
+        (["explain", "DUPLICATE_ID"], ["summary"]),
         (["org", "install", "--dry-run"], ["installed"]),
         (["org", "status"], ["profile_name"]),
         (["org", "vendor", "--dry-run"], ["profile_name"]),

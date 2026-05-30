@@ -21,6 +21,8 @@ _DOCUMENT_ID_PATTERN = re.compile(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$")
 
 
 def _validate_document_id(value: str, field_name: str) -> None:
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {field_name} {value!r}: must be a string")
     if not _DOCUMENT_ID_PATTERN.fullmatch(value):
         raise ValueError(
             f"Invalid {field_name} '{value}': must match REPO-TYPE-NNN "

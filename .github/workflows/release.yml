@@ -86,7 +86,7 @@ jobs:
           path: dist/
 
   dry-run-publish:
-    name: Dry-run Publish to TestPyPI
+    name: Publish to TestPyPI (Staging)
     needs: build-and-verify
     runs-on: ubuntu-latest
     environment:
@@ -110,8 +110,9 @@ jobs:
             echo "Error: Missing build artifacts. Found $whl_files wheel(s) and $sdist_files source distribution(s)."
             exit 1
           fi
-          echo "Build artifacts confirmed:"
-          ls -la dist/
+
+      - name: Publish to TestPyPI
+
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5

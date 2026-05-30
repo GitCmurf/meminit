@@ -117,11 +117,12 @@ class MigrationPlan:
                     f"got {type(a_data).__name__}"
                 )
             action_raw = a_data.get("action")
-            action_type: PlanActionType | str = (
-                PlanActionType(action_raw)
-                if isinstance(action_raw, str) and action_raw in PlanActionType._value2member_map_
-                else str(action_raw or "")
-            )
+            action_type: PlanActionType | str = str(action_raw or "")
+            if isinstance(action_raw, str):
+                try:
+                    action_type = PlanActionType(action_raw)
+                except ValueError:
+                    pass
 
             pre = a_data.get("preconditions", {})
             if not isinstance(pre, dict):

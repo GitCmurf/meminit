@@ -73,9 +73,6 @@ from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
 
-console
-
-
 @contextlib.contextmanager
 def command_output_handler(
     command_name: str,

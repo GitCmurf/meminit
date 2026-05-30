@@ -346,20 +346,21 @@ def _render_state_set_text(result, format, output):
                 f"- Action: Cleared\n"
             )
         else:
+            entry = result.entry or {}
             lines = (
                 f"# Meminit State Set\n\n"
                 f"- Document ID: `{result.document_id}`\n"
-                f"- Impl State: {_md_inline(result.entry.get('impl_state', ''))}\n"
-                f"- Updated By: {_md_inline(result.entry.get('updated_by', ''))}\n"
+                f"- Impl State: {_md_inline(entry.get('impl_state', ''))}\n"
+                f"- Updated By: {_md_inline(entry.get('updated_by', ''))}\n"
             )
-            if result.entry.get("priority"):
-                lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
-            if result.entry.get("assignee"):
-                lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
-            if result.entry.get("next_action"):
-                lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
-            if result.entry.get("notes"):
-                lines += f"- Notes: {_md_inline(result.entry.get('notes'))}\n"
+            if entry.get("priority"):
+                lines += f"- Priority: {_md_inline(entry.get('priority'))}\n"
+            if entry.get("assignee"):
+                lines += f"- Assignee: {_md_inline(entry.get('assignee'))}\n"
+            if entry.get("next_action"):
+                lines += f"- Next Action: {_md_inline(entry.get('next_action'))}\n"
+            if entry.get("notes"):
+                lines += f"- Notes: {_md_inline(entry.get('notes'))}\n"
         if result.warnings:
             lines += "\n## Warnings\n"
             for w in result.warnings:

@@ -60,7 +60,7 @@ class TemplateInterpolator:
     _ALL_VARIABLES_PATTERN = re.compile(r"\{\{(" + "|".join(_KNOWN_VARIABLES) + r")\}\}")
 
     # Exact double-brace candidates used to detect unknown or malformed tokens.
-    _DOUBLE_BRACE_TOKEN_PATTERN = re.compile(r"\{\{([^{}]*?)\}\}", re.DOTALL)
+    _DOUBLE_BRACE_TOKEN_PATTERN = re.compile(r"\{\{([^{}]*?)\}\}")
 
     # Variable names must be simple identifiers to be considered valid tokens.
     _VARIABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")

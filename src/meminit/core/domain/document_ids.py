@@ -18,7 +18,7 @@ def document_id_type_segment(doc_type: str) -> str:
     doc_type_upper = normalize_document_type_for_id(doc_type)
     if doc_type_upper == "GOV":
         return "GOV"
-    if 3 <= len(doc_type_upper) <= 10 and doc_type_upper.isalpha():
+    if 3 <= len(doc_type_upper) <= 10 and doc_type_upper.isascii() and doc_type_upper.isalpha():
         return doc_type_upper
     segment = re.sub(r"[^A-Z]", "", doc_type_upper)[:10]
     return segment if len(segment) >= 3 else "DOC"
