@@ -2,7 +2,6 @@ from pathlib import Path
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LICENSE_PATH = REPO_ROOT / "LICENSE"
 

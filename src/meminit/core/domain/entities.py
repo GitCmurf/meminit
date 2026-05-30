@@ -10,6 +10,7 @@ from meminit.core.domain.document_ids import (
     normalize_document_type_for_id,
 )
 
+
 class Severity(str, Enum):
     ERROR = "error"
     WARNING = "warning"
