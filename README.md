@@ -23,7 +23,7 @@ with your code.
 
 ### Built for the Agentic Age
 
-Meminit is designed to work *with* AI coding agents, not just alongside them:
+Meminit is designed to work _with_ AI coding agents, not just alongside them:
 
 - **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without guessing
   filenames.
