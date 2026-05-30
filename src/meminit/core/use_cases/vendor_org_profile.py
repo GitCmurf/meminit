@@ -106,6 +106,7 @@ class VendorOrgProfileUseCase:
             "templates/runbook.template.md": f"{repo_docs_root}/00-governance/templates/runbook.template.md",
             "templates/design.template.md": f"{repo_docs_root}/00-governance/templates/design.template.md",
             "templates/log.template.md": f"{repo_docs_root}/00-governance/templates/log.template.md",
+            "templates/task.template.md": f"{repo_docs_root}/00-governance/templates/task.template.md",
         }
         if include_org_docs:
             mapping.update(

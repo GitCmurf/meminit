@@ -12,6 +12,7 @@
     "templates/runbook.template.md",
     "templates/design.template.md",
     "templates/log.template.md",
+    "templates/task.template.md",
     "org_docs/org-gov-001-constitution.md",
     "org_docs/org-gov-002-metadata-schema.md"
   ]

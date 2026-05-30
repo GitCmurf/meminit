@@ -85,6 +85,7 @@ Notes:
 
 The `.github/workflows/release.yml` workflow is triggered on version tags (`v*`) and supports manual dispatch.
 Manual dispatch requires an explicit `tag_name` input so GitHub Releases are created against the intended release tag.
+The build job also checks out that requested tag during manual dispatch, so the artifacts are built from the same revision that will be released.
 
 ### GitHub environment setup
 

@@ -37,6 +37,11 @@ def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands()
     assert dispatch_inputs["tag_name"]["type"] == "string"
 
     build_steps = workflow["jobs"]["build-and-verify"]["steps"]
+    checkout_step = next(step for step in build_steps if step["name"] == "Checkout repository")
+    assert checkout_step["with"]["ref"] == (
+        "${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref }}"
+    )
+
     twine_step = next(
         step for step in build_steps if step["name"] == "Validate package metadata using twine"
     )

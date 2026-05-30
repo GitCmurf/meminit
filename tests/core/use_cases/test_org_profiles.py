@@ -78,6 +78,12 @@ def test_org_profile_resolution_prefers_global_when_present(tmp_path: Path):
     assert profile.files["metadata.schema.json"] == b'{"$schema": "GLOBAL"}'
 
 
+def test_packaged_org_profile_includes_task_template():
+    profile = resolve_org_profile(profile_name="default", prefer_global=False)
+
+    assert "templates/task.template.md" in profile.files
+
+
 def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Path):
     env = _xdg_env(tmp_path)
 
@@ -98,6 +104,7 @@ def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Pa
     )
     assert applied.dry_run is False
     assert (repo_root / "docs/00-governance/metadata.schema.json").exists()
+    assert (repo_root / "docs/00-governance/templates/task.template.md").exists()
     assert (repo_root / ".meminit/org-profile.lock.json").exists()
 
     config = yaml.safe_load((repo_root / "docops.config.yaml").read_text(encoding="utf-8"))
@@ -158,6 +165,10 @@ def test_org_vendor_falls_back_to_packaged_assets_for_stale_global_profiles(tmp_
     assert (
         repo_root / "docs/00-governance/templates/plan.template.md"
     ).read_bytes() == expected_plan_template
+    expected_task_template = packaged_profile.files["templates/task.template.md"]
+    assert (
+        repo_root / "docs/00-governance/templates/task.template.md"
+    ).read_bytes() == expected_task_template
     assert (repo_root / ".meminit/org-profile.lock.json").exists()
 
     status = OrgStatusUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default")
