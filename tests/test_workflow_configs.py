@@ -1,0 +1,47 @@
+from pathlib import Path
+
+import yaml
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_workflow(name: str) -> dict:
+    workflow_path = REPO_ROOT / ".github" / "workflows" / name
+    return yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+
+
+def step_index(steps: list[dict], run_snippet: str) -> int:
+    for index, step in enumerate(steps):
+        if run_snippet in step.get("run", ""):
+            return index
+    raise AssertionError(f"Missing step containing: {run_snippet}")
+
+
+def test_ci_jobs_create_a_virtual_environment_before_installing_dependencies():
+    workflow = load_workflow("ci.yml")
+
+    for job_name in ("docops", "python", "slow-scale"):
+        steps = workflow["jobs"][job_name]["steps"]
+        assert step_index(steps, "uv venv") < step_index(
+            steps, 'uv pip install --python .venv/bin/python -e ".[dev]"'
+        )
+
+
+def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands():
+    workflow = load_workflow("release.yml")
+
+    build_steps = workflow["jobs"]["build-and-verify"]["steps"]
+    twine_step = next(
+        step for step in build_steps if step["name"] == "Validate package metadata using twine"
+    )
+    assert "uvx twine check dist/*" in twine_step["run"]
+    assert "uv pip install twine" not in twine_step["run"]
+
+    dry_run_steps = workflow["jobs"]["dry-run-publish"]["steps"]
+    publish_step = next(
+        step for step in dry_run_steps if step["name"] == "Publish to TestPyPI (Dry-run)"
+    )
+    assert "uv publish --publish-url https://test.pypi.org/legacy/" in publish_step["run"]
+    assert "--check-url https://test.pypi.org/simple/" in publish_step["run"]
+    assert "--index https://test.pypi.org/simple/" not in publish_step["run"]

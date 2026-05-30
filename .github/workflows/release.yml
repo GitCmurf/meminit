@@ -51,8 +51,7 @@ jobs:
 
       - name: Validate package metadata using twine
         run: |
-          uv pip install twine
-          uv run twine check dist/*
+          uvx twine check dist/*
 
       - name: Run verification in clean virtual environment
         run: |
@@ -115,7 +114,7 @@ jobs:
 
       - name: Publish to TestPyPI (Dry-run)
         run: |
-          uv publish --index https://test.pypi.org/simple/ dist/*
+          uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*
 
   github-release:
     name: Create GitHub Release

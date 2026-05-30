@@ -23,8 +23,10 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
+      - name: Create virtual environment
+        run: uv venv
       - name: Install dependencies
-        run: uv pip install -e ".[dev]"
+        run: uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Meminit doctor (preflight)
         run: |
           uv run meminit doctor --root . --format json
@@ -43,8 +45,10 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
+      - name: Create virtual environment
+        run: uv venv
       - name: Install dependencies
-        run: uv pip install -e ".[dev]"
+        run: uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Secret scan with gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -74,8 +78,10 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
+      - name: Create virtual environment
+        run: uv venv
       - name: Install dependencies
-        run: uv pip install -e ".[dev]"
+        run: uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Run slow scale tests
         env:
           MEMINIT_RUN_SLOW_SCALE: "1"

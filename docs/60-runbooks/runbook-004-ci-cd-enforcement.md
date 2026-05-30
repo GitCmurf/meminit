@@ -29,7 +29,7 @@ Block merges when governed documentation is non-compliant, using `meminit check`
 
 In `.github/workflows/ci.yml`:
 
-- Install using packaging metadata (`pip install -e ".[dev]"` or `pip install ".[dev]"`) so installed-package behavior is tested.
+- Create a virtual environment first, then install using packaging metadata (`uv venv` followed by `uv pip install -e ".[dev]"`, or `pip install -e ".[dev]"`) so installed-package behavior is tested.
 - Run:
   - `meminit doctor --root .` (preflight; fails on repo-level errors)
   - `meminit check --root .` (enforcement; fails on any violations; scans all configured namespaces if `namespaces` is set)
@@ -113,6 +113,7 @@ Before the release workflow can publish to PyPI:
      - Workflow name: `release.yml`
      - Environment: `release`
    - The workflow uses `id-token: write` permission for OIDC auth
+   - The TestPyPI rehearsal uses `uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*` so the upload path matches TestPyPI's legacy endpoint while still checking for duplicate artifacts.
 
 4. **Optional: Gitleaks license** (for enhanced secret detection):
    - Get a license from https://github.com/gitleaks/gitleaks
