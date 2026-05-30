@@ -33,7 +33,7 @@ Some tools (like Codex) may require a projection into a tool-specific folder (e.
 Steps:
 
 1. Confirm the skill directory exists: `.agents/skills/meminit-docops/`
-2. If your tool expects a different path (e.g., `.agents/skills/meminit-docops/`), confirm that path exists as a symlink or projection of the canonical folder.
+2. If your tool expects a different path, confirm it is a repo-relative projection of the canonical folder. For the Codex projection in this repository, the target should resolve to `../../.agents/skills/meminit-docops` and must not point into a user home directory.
 
 Self-check:
 

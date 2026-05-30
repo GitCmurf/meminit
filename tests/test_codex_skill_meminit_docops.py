@@ -39,3 +39,18 @@ def test_codex_skill_manifest_exists_and_has_required_fields():
     assert "meminit adr new" in body
     assert "## How to Use" in body
     assert '"1.0" for others' not in body
+
+
+def test_no_machine_local_antigravity_artifact():
+    artifact_path = Path(".antigravitycli/794fb8c4-13c8-4010-a839-4555b5bced26.json")
+    assert not artifact_path.exists()
+    assert not artifact_path.is_symlink()
+
+
+def test_codex_skill_runbook_documents_repo_relative_projection():
+    runbook = Path("docs/60-runbooks/runbook-006-codex-skills-setup.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Codex projection" in runbook
+    assert "../../.agents/skills/meminit-docops" in runbook
+    assert "user home directory" in runbook
