@@ -126,7 +126,7 @@ Current scope includes the shared v3 envelope plus the listed Phase 1-4 command 
 | `new`            | `data.document_id`, `data.path`, `data.type`, `data.title`                                            | Object with string fields                                                         |
 | `state set/get`  | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                              | Object with string fields                                                         |
 | `state list`     | `data.entries`                                                                                        | Object containing an array                                                        |
-| `state next`     | `data.entry`, `data.selection`, `data.reason`                                                         | Object containing `entry` object or `null`, selection object, and nullable reason |
+| `state next`     | `data.document_id`, `data.entry`, `data.selection`, `data.reason`                                     | Object containing the selected document ID, `entry` object or `null`, selection object, and nullable reason |
 | `state blockers` | `data.blocked`, `data.summary`                                                                        | Object containing blocked-entry array and summary object                          |
 | `capabilities`   | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object                              |
 | `explain`        | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list`              |
@@ -183,6 +183,7 @@ For `command: state next`, the `data` object MUST contain:
 
 Required:
 
+- `document_id`: The selected queue item identifier when `entry` is present; the sentinel `"*"` when the queue is empty.
 - `entry`: The selected queue item, or `null` when the queue is empty.
 - `selection`: Object containing the selection rule, candidate count, and applied filters.
 - `reason`: `null` when an entry is returned; otherwise a stable empty-state reason such as `queue_empty` or `state_missing`.

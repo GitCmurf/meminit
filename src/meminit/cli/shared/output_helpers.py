@@ -478,13 +478,18 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
 
 
 def _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output):
+    document_id = (
+        result.entry.get("document_id", result.document_id)
+        if result.entry is not None
+        else result.document_id
+    )
     _write_output(
         format_envelope(
             command="state next",
             root=str(root_path),
             success=True,
             data={
-                "document_id": result.document_id,
+                "document_id": document_id,
                 "entry": result.entry,
                 "selection": result.selection,
                 "reason": result.reason,
@@ -499,11 +504,16 @@ def _render_state_next_json(result, root_path, include_timestamp, run_id, correl
 
 
 def _render_state_next_text(result, fmt, output):
+    document_id = (
+        result.entry.get("document_id", result.document_id)
+        if result.entry is not None
+        else result.document_id
+    )
     if fmt == "md":
         if result.entry is None:
             lines = "# Next Action\n\nNo ready items.\n"
         else:
-            lines = f"# Next Action for {_md_inline(result.document_id)}\n\n"
+            lines = f"# Next Action for {_md_inline(document_id)}\n\n"
             lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
             lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
             lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
@@ -515,7 +525,7 @@ def _render_state_next_text(result, fmt, output):
         if result.entry is None:
             get_console().print("No ready items.")
         else:
-            get_console().print(f"[bold]Next Action for {result.document_id}[/bold]")
+            get_console().print(f"[bold]Next Action for {document_id}[/bold]")
             get_console().print(f"  Next Action: {result.entry.get('next_action')}")
             get_console().print(f"  Assignee: {result.entry.get('assignee')}")
             get_console().print(f"  Priority: {result.entry.get('priority')}")
