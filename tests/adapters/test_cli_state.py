@@ -471,6 +471,7 @@ def test_cli_state_next_with_ready_item(repo_with_docs):
     )
     assert result.exit_code == 0
     data = parse_json_envelope(result.output)
+    assert data["command"] == "state next"
     assert data["data"]["entry"] is not None
     assert data["data"]["entry"]["document_id"] == "TEST-ADR-001"
     assert data["data"]["selection"]["rule"] == "priority > unblocks > updated > document_id"

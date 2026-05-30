@@ -91,7 +91,7 @@ All v3 JSON outputs MUST include the following top-level fields:
 
 1. `output_schema_version` (string) — `"3.0"`
 2. `success` (boolean)
-3. `command` (string)
+3. `command` (string) — the canonical CLI command path, using space-separated subcommand names for nested commands (for example, `state next`).
 4. `run_id` (string, UUIDv4)
 5. `data` (object)
 6. `warnings` (array)

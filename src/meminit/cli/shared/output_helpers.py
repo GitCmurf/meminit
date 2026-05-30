@@ -480,7 +480,7 @@ def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, forma
 def _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output):
     _write_output(
         format_envelope(
-            command=" state next",
+            command="state next",
             root=str(root_path),
             success=True,
             data={
