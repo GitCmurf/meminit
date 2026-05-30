@@ -3,27 +3,25 @@ document_id: MEMINIT-TASK-003
 type: TASK
 title: Mypy typing hygiene
 status: Draft
-version: '0.1'
-last_updated: '2026-05-30'
+version: "0.1"
+last_updated: "2026-05-30"
 owner: __TBD__
 area: PLAN
-docops_version: '2.0'
+docops_version: "2.0"
 template_type: task-standard
-template_version: '2.0'
+template_version: "2.0"
 description: Task implementation record.
 keywords:
-- task
+  - task
 ---
 
 > **Document ID:** MEMINIT-TASK-003
-> **Owner:** __TBD__
-> **Status:** Draft
+> **Owner:** **TBD** > **Status:** Draft
 > **Version:** 0.1
 > **Last Updated:** 2026-05-30
 > **Type:** TASK
 > **Area:** PLAN
 > **Description:** Task implementation record.
-
 
 <!-- MEMINIT_SECTION: title -->
 <!-- AGENT: The title should state the implementation objective clearly. -->
@@ -90,6 +88,6 @@ as a useful code-quality gate while removing third-party typing noise.
 
 ## 5. Version History
 
-| Version | Date     | Author    | Changes       |
-| ------- | -------- | --------- | ------------- |
-| 0.1     | 2026-05-30 | __TBD__ | Initial draft |
+| Version | Date       | Author  | Changes       |
+| ------- | ---------- | ------- | ------------- |
+| 0.1     | 2026-05-30 | **TBD** | Initial draft |

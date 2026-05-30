@@ -1404,9 +1404,9 @@ class IndexRepositoryUseCase:
                     if state_entry.updated_by and validate_actor(state_entry.updated_by):
                         entry["updated_by"] = state_entry.updated_by
                     elif state_entry.updated_by == "":
-                        entry["updated_by"] = (
-                            ""  # preserve explicitly empty string if originally there
-                        )
+                        entry[
+                            "updated_by"
+                        ] = ""  # preserve explicitly empty string if originally there
 
                     if state_entry.notes is not None:
                         sanitized_notes = sanitize_field(

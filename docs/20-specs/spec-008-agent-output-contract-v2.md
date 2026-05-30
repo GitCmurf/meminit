@@ -120,22 +120,22 @@ or in structured logs.
 
 Current scope includes the shared v3 envelope plus the listed Phase 1-4 command payload profiles.
 
-| Command          | Required `data` fields                                                                                | Payload Type                                                                      |
-| ---------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `check`          | See SPEC-004 counters                                                                                 | Object with integer counters                                                      |
-| `new`            | `data.document_id`, `data.path`, `data.type`, `data.title`                                            | Object with string fields                                                         |
-| `state set/get`  | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                              | Object with string fields                                                         |
-| `state list`     | `data.entries`                                                                                        | Object containing an array                                                        |
+| Command          | Required `data` fields                                                                                | Payload Type                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `check`          | See SPEC-004 counters                                                                                 | Object with integer counters                                                                                |
+| `new`            | `data.document_id`, `data.path`, `data.type`, `data.title`                                            | Object with string fields                                                                                   |
+| `state set/get`  | `data.document_id`, `data.impl_state`, `data.updated`, `data.updated_by`                              | Object with string fields                                                                                   |
+| `state list`     | `data.entries`                                                                                        | Object containing an array                                                                                  |
 | `state next`     | `data.document_id`, `data.entry`, `data.selection`, `data.reason`                                     | Object containing the selected document ID, `entry` object or `null`, selection object, and nullable reason |
-| `state blockers` | `data.blocked`, `data.summary`                                                                        | Object containing blocked-entry array and summary object                          |
-| `capabilities`   | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object                              |
-| `explain`        | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list`              |
-| `index`          | `data.index_path`, `data.node_count`, `data.edge_count`, `data.nodes`, `data.edges`, `data.filtered`  | Object containing graph index data                                                |
-| `resolve`        | `data.document_id`, `data.path`                                                                       | Object with resolution result (FILE_NOT_FOUND error on miss)                      |
-| `identify`       | `data.path`, `data.document_id`                                                                       | Object with identification result (FILE_NOT_FOUND error on miss)                  |
-| `link`           | `data.document_id`, `data.link`                                                                       | Object with link generation result (FILE_NOT_FOUND error on miss)                 |
-| `protocol check` | `data.summary`, `data.assets`                                                                         | Object with asset status array and counters                                       |
-| `protocol sync`  | `data.dry_run`, `data.applied`, `data.assets`, `data.summary`                                         | Object with sync outcome                                                          |
+| `state blockers` | `data.blocked`, `data.summary`                                                                        | Object containing blocked-entry array and summary object                                                    |
+| `capabilities`   | `data.capabilities_version`, `data.cli_version`, `data.commands`, `data.features`, `data.error_codes` | Object with strings, arrays, and feature-flag object                                                        |
+| `explain`        | `data.code`, `data.category`, `data.summary`, `data.cause`, `data.remediation`, `data.spec_reference` | Object with detailed explanation, or array of summaries for `--list`                                        |
+| `index`          | `data.index_path`, `data.node_count`, `data.edge_count`, `data.nodes`, `data.edges`, `data.filtered`  | Object containing graph index data                                                                          |
+| `resolve`        | `data.document_id`, `data.path`                                                                       | Object with resolution result (FILE_NOT_FOUND error on miss)                                                |
+| `identify`       | `data.path`, `data.document_id`                                                                       | Object with identification result (FILE_NOT_FOUND error on miss)                                            |
+| `link`           | `data.document_id`, `data.link`                                                                       | Object with link generation result (FILE_NOT_FOUND error on miss)                                           |
+| `protocol check` | `data.summary`, `data.assets`                                                                         | Object with asset status array and counters                                                                 |
+| `protocol sync`  | `data.dry_run`, `data.applied`, `data.assets`, `data.summary`                                         | Object with sync outcome                                                                                    |
 
 ### 5.1 `new` Command Payload (Templates v2)
 

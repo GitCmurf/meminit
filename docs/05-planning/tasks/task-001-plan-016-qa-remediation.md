@@ -106,34 +106,34 @@ live blocker list.
 
 ### 2.2 Disposition Matrix
 
-| Original finding / gate                 | Disposition        | Evidence / follow-up                                                                 |
-| --------------------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
-| Protocol assets drifted                 | Complete           | Protocol check reports 3/3 assets aligned                                            |
-| Template placeholder syntax was invalid | Complete           | Repo and packaged templates normalized; template regression tests pass                |
-| CHANGELOG and release notes missing     | Complete           | CHANGELOG updated; MEMINIT-DEVEX-001 created                                         |
-| Secret scanning not automated           | Complete           | gitleaks in pre-commit/CI; MEMINIT-LOG-004 approved                                  |
-| Architext evidence missing              | Complete for review | MEMINIT-LOG-003 exists as Draft evidence                                             |
-| Stranger simulation missing             | Complete for review | MEMINIT-LOG-005 exists as Draft evidence                                             |
-| Release workflow incomplete             | Complete for review | Tag workflow and dry-run publish path exist                                          |
-| Link/migration/idempotence tests sparse  | Complete           | P1 tests added per completion log                                                    |
-| `.agents` / `.codex` path drift         | Complete           | Protocol assets and linting aligned on `.agents/skills/meminit-docops`               |
-| Large-file architecture risks           | Deferred           | Moved to MEMINIT-TASK-002 with acceptance criteria                                   |
-| AIDHA cache scanner false positives     | Complete           | AIDHA gitignore/hook updated; `detect-secrets --all-files` passes                    |
+| Original finding / gate                 | Disposition         | Evidence / follow-up                                                   |
+| --------------------------------------- | ------------------- | ---------------------------------------------------------------------- |
+| Protocol assets drifted                 | Complete            | Protocol check reports 3/3 assets aligned                              |
+| Template placeholder syntax was invalid | Complete            | Repo and packaged templates normalized; template regression tests pass |
+| CHANGELOG and release notes missing     | Complete            | CHANGELOG updated; MEMINIT-DEVEX-001 created                           |
+| Secret scanning not automated           | Complete            | gitleaks in pre-commit/CI; MEMINIT-LOG-004 approved                    |
+| Architext evidence missing              | Complete for review | MEMINIT-LOG-003 exists as Draft evidence                               |
+| Stranger simulation missing             | Complete for review | MEMINIT-LOG-005 exists as Draft evidence                               |
+| Release workflow incomplete             | Complete for review | Tag workflow and dry-run publish path exist                            |
+| Link/migration/idempotence tests sparse | Complete            | P1 tests added per completion log                                      |
+| `.agents` / `.codex` path drift         | Complete            | Protocol assets and linting aligned on `.agents/skills/meminit-docops` |
+| Large-file architecture risks           | Deferred            | Moved to MEMINIT-TASK-002 with acceptance criteria                     |
+| AIDHA cache scanner false positives     | Complete            | AIDHA gitignore/hook updated; `detect-secrets --all-files` passes      |
 
 ### 2.3 Current Launch Gate Assessment
 
-| PLAN-016 gate                       | Current status             | Peer-review focus                                                       |
-| ----------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
-| doctor/check/protocol/pytest pass   | Complete                   | Reviewer reruns matrix and verifies versions/commands                   |
-| Greenfield adoption evidence        | Complete for review        | Accept or promote MEMINIT-LOG-002                                       |
-| Brownfield adoption evidence        | Complete for review        | Confirm `scan -> plan -> dry-run -> apply -> check` evidence in LOG-002 |
-| Architext pilot evidence            | Complete for review        | Accept or promote MEMINIT-LOG-003                                       |
-| Launch-critical templates           | Complete                   | Confirm all launch types render and no skeleton fallback is used         |
-| `.agents` / `.codex` reconciliation | Complete                   | Confirm lint/protocol assets prevent regression                          |
-| README stranger simulation          | Complete for review        | Accept or promote MEMINIT-LOG-005                                       |
-| Tag-triggered release workflow      | Complete for review        | Security/release reviewer verifies workflow gates                        |
-| Security/PII scan evidence          | Complete                   | MEMINIT-LOG-004 is Approved; scanner exclusions reviewed                 |
-| Release notes                       | Complete for review        | Accept or promote MEMINIT-DEVEX-001                                     |
+| PLAN-016 gate                       | Current status      | Peer-review focus                                                       |
+| ----------------------------------- | ------------------- | ----------------------------------------------------------------------- |
+| doctor/check/protocol/pytest pass   | Complete            | Reviewer reruns matrix and verifies versions/commands                   |
+| Greenfield adoption evidence        | Complete for review | Accept or promote MEMINIT-LOG-002                                       |
+| Brownfield adoption evidence        | Complete for review | Confirm `scan -> plan -> dry-run -> apply -> check` evidence in LOG-002 |
+| Architext pilot evidence            | Complete for review | Accept or promote MEMINIT-LOG-003                                       |
+| Launch-critical templates           | Complete            | Confirm all launch types render and no skeleton fallback is used        |
+| `.agents` / `.codex` reconciliation | Complete            | Confirm lint/protocol assets prevent regression                         |
+| README stranger simulation          | Complete for review | Accept or promote MEMINIT-LOG-005                                       |
+| Tag-triggered release workflow      | Complete for review | Security/release reviewer verifies workflow gates                       |
+| Security/PII scan evidence          | Complete            | MEMINIT-LOG-004 is Approved; scanner exclusions reviewed                |
+| Release notes                       | Complete for review | Accept or promote MEMINIT-DEVEX-001                                     |
 
 <!-- MEMINIT_SECTION: definition_of_done -->
 
@@ -519,7 +519,7 @@ Focused gates by area:
 | Index and resolution | `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/use_cases/test_resolve_identify.py tests/integration/test_index_schema.py`                                                                                                   |
 | CLI output contract  | `./.venv/bin/pytest -q tests/adapters/test_cli.py tests/core/services/test_output_contract_schema.py tests/integration/test_contract_matrix.py`                                                                                                              |
 | Release packaging    | Build sdist/wheel, install wheel in a clean venv, run `meminit --version`, `meminit doctor --format json`, `meminit check --format json`, and release workflow dry-run/TestPyPI rehearsal.                                                                   |
-| Security             | Selected secret scanner via pre-commit and CI; record command and clean result in governed LOG evidence; verify dogfooding/test repos ignore `.meminit/cache/` and `.meminit.lock` unless a deterministic `.meminit` artifact is intentionally committed.     |
+| Security             | Selected secret scanner via pre-commit and CI; record command and clean result in governed LOG evidence; verify dogfooding/test repos ignore `.meminit/cache/` and `.meminit.lock` unless a deterministic `.meminit` artifact is intentionally committed.    |
 
 Evidence requirements:
 
@@ -533,20 +533,20 @@ Evidence requirements:
 
 ## 6. Completion Log
 
-| Item                                      | Status   | PR/Commit                                   | Verification Evidence                                                                                                     |
-| ----------------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| P0-01 Protocol assets aligned             | Complete | 384438d                                     | `meminit protocol check --format json` returns success (3/3 aligned)                                                      |
-| P0-02 Template placeholders fixed         | Complete | 4dbe7b7 + 395f4e7                           | All 16 templates use {{variable}} syntax; SPEC-007 §3.6 fixed                                                             |
-| P0-03 Changelog and release notes current | Complete | 5a03a3f + 395f4e7                           | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created; pyproject.toml 0.3.0a1                                       |
-| P0-04 Secret scanning implemented         | Complete | 0f82101 + 16da233                           | gitleaks in pre-commit and CI; GOV-003 updated; LOG-004 downgraded to Draft (manual ripgrep)                              |
-| P0-05 Adoption evidence complete          | Complete | 8713f25 + 1a5b351 + f2dee7b + 16da233       | LOG-002 v0.2 (bedtime-alexa 4 docs 0 violations), LOG-003 v0.2 (Architext brownfield 54 violations), LOG-004 v0.3 (Draft) |
-| P0-06 Release workflow hardened           | Complete | 1a5b350                                     | TestPyPI dry-run, secret scan gate, release-notes check                                                                   |
-| P1-01 Use-case and migration tests added  | Complete | aec5729 + d6d82d8                           | Fix idempotence, migrate_ids expansion tests, duplicate-canonical detection                                               |
-| P1-02 Legacy path lint tightened          | Complete | 26b77b5 + 395f4e7                           | PLAN-016 removed from exclusions; .codex references fixed; .meminit.lock added to gitignore                               |
-| P1-03 Test suite speed protected          | Complete | 26b77b5                                     | Slow markers verified; CI gates to scheduled runs                                                                         |
-| Adversarial review (review-001)           | Complete | d6d82d8, 4f21bbd, 395f4e7, f2dee7b, 16da233 | 5 waves: duplicate-canonical detection, CI envelope check, version/docs fixes, real evidence, honest downgrades           |
-| P2 architecture items                     | Deferred | 2fd1e69                                     | Moved to MEMINIT-TASK-002 with acceptance criteria                                                                        |
-| P3 polish items                           | Complete | 334dfdf                                     | DEVEX/TASK descriptions added; CONTRIBUTING aligned                                                                       |
+| Item                                      | Status   | PR/Commit                                   | Verification Evidence                                                                                                                                       |
+| ----------------------------------------- | -------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0-01 Protocol assets aligned             | Complete | 384438d                                     | `meminit protocol check --format json` returns success (3/3 aligned)                                                                                        |
+| P0-02 Template placeholders fixed         | Complete | 4dbe7b7 + 395f4e7                           | All 16 templates use {{variable}} syntax; SPEC-007 §3.6 fixed                                                                                               |
+| P0-03 Changelog and release notes current | Complete | 5a03a3f + 395f4e7                           | CHANGELOG updated to 0.3.0 scope; MEMINIT-DEVEX-001 created; pyproject.toml 0.3.0a1                                                                         |
+| P0-04 Secret scanning implemented         | Complete | 0f82101 + 16da233                           | gitleaks in pre-commit and CI; GOV-003 updated; LOG-004 downgraded to Draft (manual ripgrep)                                                                |
+| P0-05 Adoption evidence complete          | Complete | 8713f25 + 1a5b351 + f2dee7b + 16da233       | LOG-002 v0.2 (bedtime-alexa 4 docs 0 violations), LOG-003 v0.2 (Architext brownfield 54 violations), LOG-004 v0.3 (Draft)                                   |
+| P0-06 Release workflow hardened           | Complete | 1a5b350                                     | TestPyPI dry-run, secret scan gate, release-notes check                                                                                                     |
+| P1-01 Use-case and migration tests added  | Complete | aec5729 + d6d82d8                           | Fix idempotence, migrate_ids expansion tests, duplicate-canonical detection                                                                                 |
+| P1-02 Legacy path lint tightened          | Complete | 26b77b5 + 395f4e7                           | PLAN-016 removed from exclusions; .codex references fixed; .meminit.lock added to gitignore                                                                 |
+| P1-03 Test suite speed protected          | Complete | 26b77b5                                     | Slow markers verified; CI gates to scheduled runs                                                                                                           |
+| Adversarial review (review-001)           | Complete | d6d82d8, 4f21bbd, 395f4e7, f2dee7b, 16da233 | 5 waves: duplicate-canonical detection, CI envelope check, version/docs fixes, real evidence, honest downgrades                                             |
+| P2 architecture items                     | Deferred | 2fd1e69                                     | Moved to MEMINIT-TASK-002 with acceptance criteria                                                                                                          |
+| P3 polish items                           | Complete | 334dfdf                                     | DEVEX/TASK descriptions added; CONTRIBUTING aligned                                                                                                         |
 | Dogfooding cache ignore guidance          | Complete | Pending PR / working tree                   | AIDHA updated to ignore `.meminit/cache/` and `.meminit.lock`; `.meminit/cache` removed from git index; `pre-commit run detect-secrets --all-files` passed. |
 
 Latest local verification for peer review:
@@ -559,11 +559,11 @@ Latest local verification for peer review:
 
 Peer-review checklist:
 
-| Track            | Reviewer focus                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
-| QA               | Rerun the verification matrix and check LOG evidence against PLAN-016 launch gates                     |
-| Security/release | Verify MEMINIT-GOV-003, MEMINIT-LOG-004, release workflow gates, and scanner exclusions                |
-| Docs/devex       | Confirm README, runbooks, release notes, and supported-command claims agree                            |
+| Track            | Reviewer focus                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| QA               | Rerun the verification matrix and check LOG evidence against PLAN-016 launch gates                      |
+| Security/release | Verify MEMINIT-GOV-003, MEMINIT-LOG-004, release workflow gates, and scanner exclusions                 |
+| Docs/devex       | Confirm README, runbooks, release notes, and supported-command claims agree                             |
 | Architecture     | Confirm P2 deferral to MEMINIT-TASK-002 is acceptable for launch and has actionable acceptance criteria |
 
 **NOTE:** PLAN-016 §8 evidence is marked complete for peer review. External
@@ -576,5 +576,5 @@ records or explicit maintainer promotion.
 
 | Version | Date       | Author | Changes                                                                                                                |
 | ------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 0.2     | 2026-05-29 | Codex  | Reconciled completed remediation status, peer-review handover, and AIDHA cache scanner fix evidence.                  |
+| 0.2     | 2026-05-29 | Codex  | Reconciled completed remediation status, peer-review handover, and AIDHA cache scanner fix evidence.                   |
 | 0.1     | 2026-05-25 | Codex  | Consolidated two adversarial reports with live verification into an implementation-ready PLAN-016 QA remediation task. |

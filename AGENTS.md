@@ -1,4 +1,5 @@
 <!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 sha256=17d7a67d712b37ea00567bf7e7cf27e1ff932da01ae0212cb514b92ac8c09488 -->
+
 # Agentic Coding Rules
 
 This repository (**Meminit**) uses **Meminit DocOps** for governance.
@@ -20,7 +21,7 @@ Document IDs follow `MEMINIT-TYPE-SEQ` (e.g., `MEMINIT-ADR-001`).
 - Always use `meminit new` to create governed documents.
 - All code changes must include documentation and tests.
 - Never commit secrets or PII.
-<!-- MEMINIT_PROTOCOL: end id=agents-md -->
+  <!-- MEMINIT_PROTOCOL: end id=agents-md -->
   This file defines the operational parameters for AI agents working within the Meminit repository.
 
 The **rules of this repository** are:

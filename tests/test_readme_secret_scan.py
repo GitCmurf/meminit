@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-
 AWS_ACCESS_KEY_PATTERN = re.compile(
     r"(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}"
 )

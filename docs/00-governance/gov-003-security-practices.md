@@ -47,7 +47,7 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 - [ ] **Scan for Keys:** Run `gitleaks detect --source . --config .gitleaks.toml --verbose` or use pre-commit hook.
 - [ ] **Check Configs:** Ensure no real credentials are in `config.yaml` or `setup.py`. Use environment variables instead.
 - [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, `secrets/`,
-  `.meminit/cache/`, and `.meminit.lock` are ignored.
+      `.meminit/cache/`, and `.meminit.lock` are ignored.
 
 ### 2.2 "Embarrassing" Artifacts
 

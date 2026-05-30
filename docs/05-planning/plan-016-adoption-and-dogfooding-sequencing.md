@@ -330,44 +330,44 @@ promote only after peer reviewers accept the evidence, including whether Draft
 evidence records are sufficient or must be promoted first.
 
 - [x] This repo passes `uv run meminit doctor --format json`,
-  `uv run meminit check --format json`,
-  `uv run meminit protocol check --format json`, and `uv run pytest -q`.
-  Evidence: local verification, protocol assets 3/3 aligned, full default pytest
-  passing with opt-in slow/benchmark skips.
+      `uv run meminit check --format json`,
+      `uv run meminit protocol check --format json`, and `uv run pytest -q`.
+      Evidence: local verification, protocol assets 3/3 aligned, full default pytest
+      passing with opt-in slow/benchmark skips.
 - [x] This repo passes `uv run python check_all_envelopes.py` and
-  `uv run pre-commit run --all-files`. Evidence: completion log in
-  [MEMINIT-TASK-001](tasks/task-001-plan-016-qa-remediation.md).
+      `uv run pre-commit run --all-files`. Evidence: completion log in
+      [MEMINIT-TASK-001](tasks/task-001-plan-016-qa-remediation.md).
 - [x] Greenfield adoption reaches first green from documented commands.
-  Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
-  (Draft).
+      Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+      (Draft).
 - [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
-  on one messy repo. Evidence:
-  [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
-  (Draft).
+      on one messy repo. Evidence:
+      [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
+      (Draft).
 - [x] Architext pilot validates the orchestrator-facing contract with Meminit
-  pinned to an exact tag or commit. Evidence:
-  [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Draft;
-  pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5).
+      pinned to an exact tag or commit. Evidence:
+      [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Draft;
+      pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5).
 - [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
-  DESIGN, LOG, and TASK; malformed placeholder regressions are covered by tests.
+      DESIGN, LOG, and TASK; malformed placeholder regressions are covered by tests.
 - [x] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
-  tests agree on the canonical scaffolded path
-  (`.agents/skills/meminit-docops`).
+      tests agree on the canonical scaffolded path
+      (`.agents/skills/meminit-docops`).
 - [x] README quickstart passes the stranger simulation from a clean checkout.
-  Evidence:
-  [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
-  (Draft).
+      Evidence:
+      [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
+      (Draft).
 - [x] Tag-triggered release workflow builds sdist/wheel using `uv build`, runs
-  tests, validates metadata, and supports a dry-run publish path before
-  production PyPI.
+      tests, validates metadata, and supports a dry-run publish path before
+      production PyPI.
 - [x] Security and public hygiene gate from
-  [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md) is complete,
-  including secrets/PII scan evidence. Evidence:
-  [MEMINIT-LOG-004](../58-logs/log-004-security-scan-evidence.md) (Approved,
-  gitleaks v8.18.4 verified).
+      [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md) is complete,
+      including secrets/PII scan evidence. Evidence:
+      [MEMINIT-LOG-004](../58-logs/log-004-security-scan-evidence.md) (Approved,
+      gitleaks v8.18.4 verified).
 - [x] Release notes state supported commands, known limitations, and the pre-1.0
-  compatibility policy. Evidence:
-  [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md) (Draft).
+      compatibility policy. Evidence:
+      [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md) (Draft).
 
 Additional dogfooding hygiene: AIDHA now ignores `.meminit/cache/` and
 `.meminit.lock`, removes generated cache files from the git index, and passes
@@ -453,11 +453,11 @@ review packet includes:
 
 Peer review tracks:
 
-| Track            | Reviewer focus                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
-| QA               | Rerun the Section 9 matrix and verify LOG evidence for greenfield, brownfield, Architext, and stranger |
-| Security/release | Verify MEMINIT-GOV-003, MEMINIT-LOG-004, release workflow gates, and scanner exclusions                |
-| Docs/devex       | Confirm README, runbooks, release notes, and supported-command claims agree                            |
+| Track            | Reviewer focus                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| QA               | Rerun the Section 9 matrix and verify LOG evidence for greenfield, brownfield, Architext, and stranger  |
+| Security/release | Verify MEMINIT-GOV-003, MEMINIT-LOG-004, release workflow gates, and scanner exclusions                 |
+| Docs/devex       | Confirm README, runbooks, release notes, and supported-command claims agree                             |
 | Architecture     | Confirm P2 deferral to MEMINIT-TASK-002 is acceptable for launch and has actionable acceptance criteria |
 
 Testing teams should reject a handover that only says "green locally" without

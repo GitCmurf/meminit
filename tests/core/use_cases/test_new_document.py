@@ -367,7 +367,9 @@ class TestDeterministicIdMode:
         assert result.success is True
         assert result.document_id == f"{repo_prefix}-LEGALRISK-001"
         assert result.doc_type == "LEGAL_RISK"
-        assert result.path == repo_with_init / "docs" / "75-legal-risk" / "legalrisk-001-legal-risk.md"
+        assert (
+            result.path == repo_with_init / "docs" / "75-legal-risk" / "legalrisk-001-legal-risk.md"
+        )
 
     def test_id_flag_with_mismatched_type_raises_error(self, repo_with_config_and_template):
         with pytest.raises(ValueError, match="type segment"):

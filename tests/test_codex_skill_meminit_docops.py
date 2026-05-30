@@ -48,9 +48,7 @@ def test_no_machine_local_antigravity_artifact():
 
 
 def test_codex_skill_runbook_documents_repo_relative_projection():
-    runbook = Path("docs/60-runbooks/runbook-006-codex-skills-setup.md").read_text(
-        encoding="utf-8"
-    )
+    runbook = Path("docs/60-runbooks/runbook-006-codex-skills-setup.md").read_text(encoding="utf-8")
     assert "Codex projection" in runbook
     assert "../../.agents/skills/meminit-docops" in runbook
     assert "user home directory" in runbook

@@ -16,7 +16,9 @@ MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 
 def build_command(cmd_args, root=None):
     full_cmd = ["uv", "run", "meminit"] + cmd_args
-    if root is not None and not (len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"):
+    if root is not None and not (
+        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
+    ):
         full_cmd += ["--root", str(root)]
     full_cmd += ["--format", "json"]
     return full_cmd
