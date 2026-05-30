@@ -1688,6 +1688,40 @@ document_types:
         assert "error" in data
         assert data["error"]["code"] == "UNKNOWN_TYPE"
 
+    @pytest.mark.parametrize(
+        ("extra_args", "expected_code"),
+        [
+            (["--id", "invalid-id"], ErrorCode.INVALID_ID_FORMAT),
+            (["--related-ids", "invalid-id"], ErrorCode.INVALID_RELATED_ID),
+        ],
+    )
+    def test_new_format_json_invalid_param_validation_returns_structured_error(
+        self, repo_for_new, extra_args, expected_code
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "new",
+                "ADR",
+                "Test Decision",
+                "--root",
+                str(repo_for_new),
+                "--format",
+                "json",
+                *extra_args,
+            ],
+        )
+
+        assert result.exit_code == exit_code_for_error(expected_code)
+        data = parse_json_envelope(result.output)
+
+        assert data["output_schema_version"] == "3.0"
+        assert data["success"] is False
+        assert data["error"]["code"] == expected_code.value
+        assert data["error"]["message"]
+        assert data["error"]["code"] != ErrorCode.UNKNOWN_ERROR.value
+
 
 class TestCliNewListTypes:
     """Tests for F4: Type Discovery"""

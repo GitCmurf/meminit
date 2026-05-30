@@ -3,8 +3,8 @@ document_id: MEMINIT-PRD-002
 type: PRD
 title: "Enhanced Document Factory (meminit new)"
 status: Draft
-version: "0.13"
-last_updated: 2026-02-19
+version: "0.14"
+last_updated: 2026-05-30
 owner: GitCmurf
 docops_version: "2.0"
 area: CLI
@@ -17,7 +17,7 @@ area: CLI
 > **Document ID:** MEMINIT-PRD-002
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.13
+> **Version:** 0.14
 > **Last Updated:** 2026-02-19
 > **Type:** PRD
 
@@ -472,6 +472,8 @@ class ErrorCode(str, Enum):
 **F5.1** `--id <id>` flag MUST allow specifying exact document ID (with collision check). The full ID (e.g., `MEMINIT-ADR-099`) MUST be provided. The type segment in the ID MUST match the positional `<TYPE>` argument (e.g., `meminit new ADR "Title" --id MEMINIT-ADR-099` is valid; `meminit new ADR "Title" --id MEMINIT-PRD-099` MUST error with `INVALID_ID_FORMAT`).
 
 **F5.2** If `--id` conflicts with existing, MUST error with `DUPLICATE_ID` code.
+
+**F5.3** Construction-time validation for `--id`, `--related-ids`, and the `superseded_by` field MUST surface as structured CLI errors rather than raw exceptions. Invalid `--id` values MUST use `INVALID_ID_FORMAT`; invalid `--related-ids` or `superseded_by` values MUST use `INVALID_RELATED_ID`; any other parameter validation failure MUST use `INVALID_FIELD`.
 
 #### F6. Visible Metadata Block Generation
 
@@ -1045,3 +1047,4 @@ Engineering handoff is approved only when all gate criteria pass:
 | 0.11    | 2026-02-13 | Codex (GPT-5)  | Clarified F10.6 and F10.7 missing-file handling: single-path uses error envelope; multi-path reports `FILE_NOT_FOUND` as per-file violations with `document_id` null/omitted.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 0.12    | 2026-02-17 | Codex (GPT-5)  | Tightened idempotency semantics to ignore `last_updated` differences for `--id`, clarified Section 11 scope as in-scope for PRD-002, documented platform support constraints (Unix-only concurrency), and explicitly noted the 3-digit ID sequence limit in F2.6/Out of Scope.                                                                                                                                                                                                                                                                                                                                |
 | 0.13    | 2026-02-19 | Codex (GPT-5)  | Updated `meminit check` examples/contract notes to align with v2 output semantics: `output_schema_version: 2.0`, explicit counter fields, `run_id`, and stable `warnings`/`violations` arrays in result payloads.                                                                                                                                                                                                                                                                                                                                                                                             |
+| 0.14    | 2026-05-30 | Codex (GPT-5)  | Clarified that `meminit new` parameter validation must emit structured CLI errors for invalid `--id`, `--related-ids`, and `superseded_by` inputs instead of leaking raw exceptions.                                                                                                                                                                                                                                                                                                                                                                                            |

@@ -233,6 +233,24 @@ def complete_document_types(ctx, param, incomplete: str):
     return []
 
 
+def _meminit_error_for_new_document_params_validation(exc: ValueError) -> MeminitError:
+    """Translate NewDocumentParams validation failures into structured CLI errors."""
+    message = str(exc)
+    if "document_id" in message:
+        code = ErrorCode.INVALID_ID_FORMAT
+    elif "related_ids" in message or "superseded_by" in message:
+        code = ErrorCode.INVALID_RELATED_ID
+    elif "status" in message:
+        code = ErrorCode.INVALID_STATUS
+    else:
+        code = ErrorCode.INVALID_FIELD
+    return MeminitError(
+        code,
+        message,
+        details={"validation_error": message, "source": "NewDocumentParams"},
+    )
+
+
 def _write_scan_plan_artifact(
     *,
     plan: str,
@@ -2496,20 +2514,23 @@ def new_doc(
         if doc_type.lower() == "adr":
             doc_type = "ADR"
 
-        params = NewDocumentParams(
-            doc_type=doc_type,
-            title=title,
-            namespace=namespace,
-            owner=owner,
-            area=area,
-            description=description,
-            status=status,
-            keywords=list(keywords) if keywords else None,
-            related_ids=list(related_ids) if related_ids else None,
-            document_id=document_id,
-            dry_run=dry_run,
-            verbose=verbose,
-        )
+        try:
+            params = NewDocumentParams(
+                doc_type=doc_type,
+                title=title,
+                namespace=namespace,
+                owner=owner,
+                area=area,
+                description=description,
+                status=status,
+                keywords=list(keywords) if keywords else None,
+                related_ids=list(related_ids) if related_ids else None,
+                document_id=document_id,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+        except ValueError as exc:
+            raise _meminit_error_for_new_document_params_validation(exc) from exc
 
         use_case = NewDocumentUseCase(str(root_path))
         result = use_case.execute_with_params(params)
