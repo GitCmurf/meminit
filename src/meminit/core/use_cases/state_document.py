@@ -154,6 +154,7 @@ def _resolve_document_id(root_dir: Path, document_id: str) -> str:
             message=f"Ambiguous shorthand document ID '{document_id}' in multi-namespace repository. "
             "Please provide the full document ID or run 'meminit index' to enable shorthand resolution.",
         )
+    return document_id
 
 
 def _get_known_ids(root_dir: Path) -> Set[str]:
@@ -188,7 +189,8 @@ def _collect_read_validation_warnings(
         layout = load_repo_layout(root_dir)
         valid_impl_states: Optional[List[str]] = []
         for ns in layout.namespaces:
-            valid_impl_states.extend(ns.valid_impl_states)
+            if valid_impl_states is not None:
+                valid_impl_states.extend(ns.valid_impl_states)
     except Exception:
         valid_impl_states = None
 
@@ -555,14 +557,11 @@ class StateDocumentUseCase:
         )
         final_assignee = _resolve_assignee(assignee, existing)
         final_next_action = _resolve_next_action(next_action, existing)
+        existing_impl_state = ImplState.from_string(existing.impl_state) if existing else None
         final_impl_state = impl_state or (
-            (
-                ImplState.from_string(existing.impl_state).value
-                if ImplState.from_string(existing.impl_state)
-                else existing.impl_state
-            )
-            if existing
-            else "Not Started"
+            existing_impl_state.value
+            if existing_impl_state is not None
+            else (existing.impl_state if existing else "Not Started")
         )
         final_notes = (
             truncate_notes(notes) if notes is not None else (existing.notes if existing else None)

@@ -24,8 +24,11 @@ from meminit.core.services.template_interpolation import TemplateInterpolator
 from meminit.core.services.template_resolver import TemplateResolver
 from meminit.core.services.validators import SchemaValidator
 
+fcntl: Any
 try:
-    import fcntl  # type: ignore
+    import fcntl as fcntl_module  # type: ignore
+
+    fcntl = fcntl_module
 except ImportError:  # pragma: no cover - Windows or unsupported platforms
     fcntl = None
 
@@ -59,6 +62,8 @@ class NewDocumentUseCase:
                         raise FileExistsError(result.error.message)
                 raise result.error
             raise RuntimeError("Document creation failed")
+        if result.path is None:
+            raise RuntimeError("Document creation succeeded without a path")
         return result.path
 
     def execute_with_params(self, params: NewDocumentParams) -> NewDocumentResult:
@@ -583,7 +588,7 @@ class NewDocumentUseCase:
         Returns:
             The template path if available, otherwise the source, or 'none'.
         """
-        return template_info.get("path") or template_info.get("source", "none")
+        return str(template_info.get("path") or template_info.get("source", "none"))
 
     def _load_config_yaml(self) -> Optional[Dict[str, Any]]:
         """Load the docops.config.yaml file from the repository root.

@@ -75,7 +75,7 @@ def derive_repo_prefix(project_name: str) -> str:
         if len(clean) >= 3:
             return clean[:10].upper()
         return "REPO"
-    return prefix.upper()
+    return str(prefix).upper()
 
 
 def _safe_repo_relative_path(root_dir: Path, raw: Any) -> Optional[str]:

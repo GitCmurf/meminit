@@ -9,18 +9,18 @@ from __future__ import annotations
 import contextlib
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 import click
 from rich.console import Console
 
+from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.output_contracts import (
     OUTPUT_SCHEMA_VERSION_V2,
     OUTPUT_SCHEMA_VERSION_V3,
 )
 from meminit.core.services.output_formatter import format_envelope, format_error_envelope
-from meminit.core.services.error_codes import ErrorCode
-from meminit.core.services.exit_codes import EX_CANTCREAT, exit_code_for_error
 from meminit.core.services.path_utils import is_safe_cli_output_path
 
 # ---------------------------------------------------------------------------
@@ -35,7 +35,9 @@ def get_console() -> Console:
     try:
         ctx = click.get_current_context(silent=True)
         if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict) and "console" in ctx.obj:
-            return ctx.obj["console"]
+            maybe_console = ctx.obj["console"]
+            if isinstance(maybe_console, Console):
+                return maybe_console
     except Exception:
         pass
     return console
@@ -216,7 +218,7 @@ def _md_inline(value: object) -> str:
     return text.translate(_MD_INLINE_SPECIAL)
 
 
-def _md_table(headers: list[str], rows: list[list[object]]) -> str:
+def _md_table(headers: Sequence[str], rows: Sequence[Sequence[object]]) -> str:
     head = "| " + " | ".join(_md_escape(h) for h in headers) + " |"
     sep = "| " + " | ".join(["---"] * len(headers)) + " |"
     body = ["| " + " | ".join(_md_escape(c) for c in row) + " |" for row in rows]

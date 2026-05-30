@@ -10,6 +10,28 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from meminit.cli.shared.output_helpers import (
+    _extract_envelope_metadata,
+    _flatten_warning_groups,
+    _md_escape,
+    _md_inline,
+    _md_table,
+    _render_state_blockers_json,
+    _render_state_blockers_text,
+    _render_state_list_json,
+    _render_state_list_text,
+    _render_state_next_json,
+    _render_state_next_text,
+    _render_state_set_json,
+    _render_state_set_text,
+    _render_warnings_text,
+    _unexpected_error_details,
+    _write_output,
+    console,
+    get_console,
+    get_severity_value,
+    maybe_capture,
+)
 from meminit.cli.shared_flags import (
     agent_output_options,
     agent_repo_options,
@@ -50,29 +72,6 @@ from meminit.core.use_cases.org_status import OrgStatusUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
-from meminit.cli.shared.output_helpers import (
-    console,
-    get_console,
-    _extract_envelope_metadata,
-    _unexpected_error_details,
-    _write_output,
-    maybe_capture,
-    _md_escape,
-    _md_inline,
-    _md_table,
-    _flatten_warning_groups,
-    get_severity_value,
-    _render_warnings_text,
-    _render_state_set_json,
-    _render_state_set_text,
-    _render_state_list_json,
-    _render_state_list_text,
-    _render_state_next_json,
-    _render_state_next_text,
-    _render_state_blockers_json,
-    _render_state_blockers_text,
-)
-
 
 console
 
@@ -292,11 +291,14 @@ def _write_scan_plan_artifact(
 
 
 def _filter_index_edges(
-    report: Any, *, status_filter: str | None, impl_state_filter: str | None
+    report: Any,
+    *,
+    status_filter: str | list[str] | None,
+    impl_state_filter: str | list[str] | None,
 ) -> list[dict[str, Any]]:
     has_filter = status_filter is not None or impl_state_filter is not None
     if not has_filter:
-        return report.edges
+        return list(report.edges)
     visible_ids = {n["document_id"] for n in report.documents}
     return [
         e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
@@ -708,15 +710,15 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
                 table_title = (
                     "Compliance Violations" if result.violations_count else "Compliance Warnings"
                 )
-                table = Table(title=table_title)
-                table.add_column("Severity")
-                table.add_column("Rule", style="cyan")
-                table.add_column("File")
-                table.add_column("Message", overflow="fold")
+                result_table = Table(title=table_title)
+                result_table.add_column("Severity")
+                result_table.add_column("Rule", style="cyan")
+                result_table.add_column("File")
+                result_table.add_column("Message", overflow="fold")
 
                 for item in result.violations:
                     for v in item.get("violations", []):
-                        table.add_row(
+                        result_table.add_row(
                             "[red]error[/red]",
                             str(v.get("code")),
                             f"{item.get('path')}:{v.get('line', 0)}",
@@ -724,13 +726,13 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
                         )
                 for item in result.warnings:
                     for w in item.get("warnings", []):
-                        table.add_row(
+                        result_table.add_row(
                             "[yellow]warning[/yellow]",
                             str(w.get("code")),
                             f"{item.get('path')}:{w.get('line', 0)}",
                             str(w.get("message")),
                         )
-                get_console().print(table)
+                get_console().print(result_table)
 
             if not result.success:
                 get_console().print(
@@ -1346,8 +1348,8 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 table = Table(title="Ambiguous type_directories (manual decision required)")
                 table.add_column("Type")
                 table.add_column("Candidates")
-                for k, v in sorted(report.ambiguous_types.items()):
-                    table.add_row(k, ", ".join(sorted(v)))
+                for k, candidates in sorted(report.ambiguous_types.items()):
+                    table.add_row(k, ", ".join(sorted(candidates)))
                 get_console().print(table)
             if getattr(report, "suggested_namespaces", None):
                 table = Table(title="Suggested namespaces (monorepo)")
@@ -2530,7 +2532,7 @@ def new_doc(
                         sys.stderr.write(f" (method: {entry['method']})")
                     sys.stderr.write("\n")
                 sys.stderr.flush()
-            response_data = {
+            response_data: Dict[str, Any] = {
                 "path": result.path.relative_to(root_path).as_posix() if result.path else None,
                 "document_id": result.document_id,
                 "type": result.doc_type,
@@ -3575,6 +3577,8 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             return
 
         if format == "md":
+            if result.entry is None:
+                raise SystemExit(1)
             _write_output(
                 f"# Meminit State Get\n\n"
                 f"- Document ID: `{document_id}`\n"
@@ -3586,6 +3590,8 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             return
 
         with maybe_capture(output, format):
+            if result.entry is None:
+                raise SystemExit(1)
             get_console().print(f"[bold blue]{document_id}[/bold blue]")
             get_console().print(f"Impl State: {result.entry.get('impl_state')}")
             get_console().print(f"Updated By: {result.entry.get('updated_by')}")
@@ -3668,8 +3674,8 @@ def _state_list_execute(
     )
     try:
         layout = load_repo_layout(root_path)
-        valid_impl_states_set = set()
-        valid_doc_statuses_set = set()
+        valid_impl_states_set: set[str] = set()
+        valid_doc_statuses_set: set[str] = set()
         for ns in layout.namespaces:
             valid_impl_states_set.update(ns.valid_impl_states)
             valid_doc_statuses_set.update(ns.valid_doc_statuses)

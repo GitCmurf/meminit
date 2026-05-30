@@ -194,7 +194,7 @@ class DoctorRepositoryUseCase:
             return issues
 
         # Run validation.
-        valid_impl_states = set()
+        valid_impl_states: set[str] = set()
         for ns in self._layout.namespaces:
             valid_impl_states.update(ns.valid_impl_states)
 

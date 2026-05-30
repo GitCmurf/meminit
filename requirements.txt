@@ -14,3 +14,5 @@ isort
 flake8
 mypy
 pre-commit
+types-jsonschema
+types-PyYAML

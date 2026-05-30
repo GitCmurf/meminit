@@ -231,8 +231,8 @@ class CheckRepositoryUseCase:
 
             rel_path = canonical_path.relative_to(root_resolved).as_posix()
 
-            ns = self._layout.namespace_for_path(canonical_path)
-            if ns is None:
+            namespace = self._layout.namespace_for_path(canonical_path)
+            if namespace is None:
                 checked_paths.append(rel_path)
                 files_checked += 1
                 files_outside_docs_root_count += 1
@@ -269,7 +269,7 @@ class CheckRepositoryUseCase:
                 return self._document_id_from_post(document_post)
 
             validation_ns = (
-                self._resolve_validation_namespace(canonical_path, load_document_id) or ns
+                self._resolve_validation_namespace(canonical_path, load_document_id) or namespace
             )
             if validation_ns.is_excluded(canonical_path):
                 continue
@@ -609,6 +609,8 @@ class CheckRepositoryUseCase:
                 else:
                     post = frontmatter.load(str(path))
 
+            if post is None:
+                raise ValueError("Document could not be loaded")
             if not post.metadata:
                 violations.append(
                     Violation(
@@ -695,7 +697,7 @@ class CheckRepositoryUseCase:
         Returns:
             List of violations found. Empty if ID is valid or absent.
         """
-        violations = []
+        violations: List[Violation] = []
         doc_id = post.metadata.get("document_id")
         if doc_id:
             v_fmt = self.id_validator.validate_format(doc_id)
@@ -755,7 +757,7 @@ class CheckRepositoryUseCase:
         Returns:
             List containing a WARNING violation if directory mismatch, else empty.
         """
-        violations = []
+        violations: List[Violation] = []
         doc_type = post.metadata.get("type")
         if not doc_type:
             return violations

@@ -188,7 +188,8 @@ class ScanRepositoryUseCase:
         # Always compute namespace-aware counts when possible.
         configured_namespaces = self._configured_namespaces(layout)
         governed_markdown_count = sum(
-            int(ns.get("governed_markdown_count") or 0) for ns in configured_namespaces
+            count if isinstance(count := ns.get("governed_markdown_count"), int) else 0
+            for ns in configured_namespaces
         )
         overlapping_namespaces = self._detect_overlapping_namespaces(layout)
         if overlapping_namespaces:
@@ -375,8 +376,8 @@ class ScanRepositoryUseCase:
 
         return out
 
-    def _configured_namespaces(self, layout) -> List[Dict[str, object]]:
-        out: List[Dict[str, object]] = []
+    def _configured_namespaces(self, layout) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
         for ns in layout.namespaces:
             exists = ns.docs_dir.exists()
             governed = 0

@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from importlib import resources
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.repo_config import load_repo_config
@@ -119,6 +119,8 @@ class ProtocolAssetRegistry:
     """Immutable registry of all governable protocol assets."""
 
     assets: tuple[ProtocolAsset, ...] = ()
+    _by_id: Dict[str, ProtocolAsset] = field(default_factory=dict, init=False, repr=False)
+    _ids: Tuple[str, ...] = field(default_factory=tuple, init=False, repr=False)
 
     def __post_init__(self) -> None:
         ids = [a.id for a in self.assets]

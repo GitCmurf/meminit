@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, cast
 
 import frontmatter
 import yaml
@@ -121,12 +121,12 @@ def _namespace_for_index_path(
 def _filter_index_edges(
     report: Any,
     *,
-    status_filter: str | None = None,
-    impl_state_filter: str | None = None,
+    status_filter: Optional[List[str]] = None,
+    impl_state_filter: Optional[List[str]] = None,
 ) -> list[dict[str, Any]]:
     has_filter = status_filter is not None or impl_state_filter is not None
     if not has_filter:
-        return report.edges
+        return cast(list[dict[str, Any]], report.edges)
     visible_ids = {n["document_id"] for n in report.documents}
     return [
         e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
@@ -1099,8 +1099,8 @@ class IndexRepositoryUseCase:
         )
         self._output_kanban = output_kanban
 
-        valid_statuses = set()
-        valid_impl_states = set()
+        valid_statuses: set[str] = set()
+        valid_impl_states: set[str] = set()
         for ns in self._layout.namespaces:
             valid_statuses.update(ns.valid_doc_statuses)
             valid_impl_states.update(ns.valid_impl_states)
@@ -1133,7 +1133,11 @@ class IndexRepositoryUseCase:
         index_path = self._layout.index_file
         ensure_safe_write_path(root_dir=self._root_dir, target_path=index_path)
         index_path.parent.mkdir(parents=True, exist_ok=True)
-        catalog_out_name = Path(self._catalog_name).name if self._output_catalog else None
+        catalog_out_name: Optional[str] = None
+        if self._output_catalog:
+            if self._catalog_name is None:
+                raise RuntimeError("Catalog name was not initialized")
+            catalog_out_name = Path(self._catalog_name).name
 
         index_cache = IndexCache(self._root_dir)
         lock_context = index_cache.acquire_lock() if use_cache or clear_cache else nullcontext()
@@ -1363,10 +1367,10 @@ class IndexRepositoryUseCase:
                 logging.warning("Failed to parse document %s: %s", path, err)
                 continue
 
-            doc_id = post.metadata.get("document_id")
-            if not isinstance(doc_id, str) or not doc_id.strip():
+            doc_id_raw = post.metadata.get("document_id")
+            if not isinstance(doc_id_raw, str) or not doc_id_raw.strip():
                 continue
-            doc_id = doc_id.strip()
+            doc_id = doc_id_raw.strip()
             ns = _namespace_for_index_path(
                 self._layout,
                 path,
@@ -1418,9 +1422,9 @@ class IndexRepositoryUseCase:
                     if state_entry.updated_by and validate_actor(state_entry.updated_by):
                         entry["updated_by"] = state_entry.updated_by
                     elif state_entry.updated_by == "":
-                        entry[
-                            "updated_by"
-                        ] = ""  # preserve explicitly empty string if originally there
+                        entry["updated_by"] = (
+                            ""  # preserve explicitly empty string if originally there
+                        )
 
                     if state_entry.notes is not None:
                         sanitized_notes = sanitize_field(
@@ -1567,7 +1571,7 @@ class IndexRepositoryUseCase:
             invalid_priority_doc_ids = _invalid_priority_doc_ids(project_state)
             derived = compute_derived_fields(derivation_state, known_doc_ids)
             for entry in entries:
-                doc_id = entry.get("document_id")
+                doc_id = str(entry.get("document_id", ""))
                 if doc_id in derived:
                     d = derived[doc_id]
                     entry["ready"] = False if doc_id in invalid_priority_doc_ids else d.ready
@@ -1640,6 +1644,8 @@ class IndexRepositoryUseCase:
         # Generate catalog view (FR-3).
         catalog_path: Optional[Path] = None
         if self._output_catalog:
+            if catalog_out_name is None:
+                raise RuntimeError("Catalog output name was not initialized")
             catalog_path = index_path.parent / catalog_out_name
             ensure_safe_write_path(root_dir=self._root_dir, target_path=catalog_path)
             catalog_content = _generate_catalog(

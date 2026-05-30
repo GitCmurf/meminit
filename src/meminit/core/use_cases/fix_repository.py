@@ -397,7 +397,7 @@ class FixRepositoryUseCase:
     def _group_and_locate_files(
         self, violations: List[Violation], report: FixReport
     ) -> Dict[Path, List[Violation]]:
-        file_map = {}
+        file_map: Dict[Path, List[Violation]] = {}
         for v in violations:
             if v.rule not in [
                 "SCHEMA_VALIDATION",
