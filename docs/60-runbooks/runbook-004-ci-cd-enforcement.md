@@ -30,6 +30,7 @@ Block merges when governed documentation is non-compliant, using `meminit check`
 In `.github/workflows/ci.yml`:
 
 - Create a virtual environment first, then install using packaging metadata (`uv venv` followed by `uv pip install -e ".[dev]"`, or `pip install -e ".[dev]"`) so installed-package behavior is tested.
+- Install Python 3.12 explicitly before `uv venv` so the workflow always provisions the intended interpreter, even when the runner's default Python differs.
 - Run:
   - `meminit doctor --root .` (preflight; fails on repo-level errors)
   - `meminit check --root .` (enforcement; fails on any violations; scans all configured namespaces if `namespaces` is set)
@@ -133,7 +134,7 @@ Before the release workflow can publish to PyPI:
 6. Monitor the release workflow:
    - Build-and-verify: Runs gitleaks scan, verifies release notes, builds and tests the installed wheel from a clean temporary directory so the checkout's `src/` tree cannot shadow the released artifact
    - Dry-run-publish: Publishes to TestPyPI (testpypi environment)
-   - GitHub-release: Creates draft GitHub release with artifacts
+   - GitHub-release: Creates a draft GitHub release with artifacts and marks alpha/beta/rc-style tags as prereleases automatically
    - Production-publish: Requires environment approval, publishes to PyPI
 
 For manual workflow runs, pass the same tag in the `tag_name` input before starting the workflow.

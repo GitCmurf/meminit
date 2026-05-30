@@ -19,11 +19,19 @@ def step_index(steps: list[dict], run_snippet: str) -> int:
     raise AssertionError(f"Missing step containing: {run_snippet}")
 
 
+def step_index_uses(steps: list[dict], uses_snippet: str) -> int:
+    for index, step in enumerate(steps):
+        if uses_snippet in step.get("uses", ""):
+            return index
+    raise AssertionError(f"Missing step using: {uses_snippet}")
+
+
 def test_ci_jobs_create_a_virtual_environment_before_installing_dependencies():
     workflow = load_workflow("ci.yml")
 
     for job_name in ("docops", "python", "slow-scale"):
         steps = workflow["jobs"][job_name]["steps"]
+        assert step_index_uses(steps, "actions/setup-python@v5") < step_index(steps, "uv venv")
         assert step_index(steps, "uv venv") < step_index(
             steps, 'uv pip install --python .venv/bin/python -e ".[dev]"'
         )
@@ -58,18 +66,29 @@ def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands()
     assert "--index https://test.pypi.org/simple/" not in publish_step["run"]
 
     release_job_steps = workflow["jobs"]["github-release"]["steps"]
-    gh_release_step = next(step for step in release_job_steps if step["name"] == "Create GitHub Release (Draft)")
+    detect_step = next(
+        step for step in release_job_steps if step["name"] == "Detect prerelease tag"
+    )
+    assert "prerelease=true" in detect_step["run"]
+    assert "prerelease=false" in detect_step["run"]
+
+    gh_release_step = next(
+        step for step in release_job_steps if step["name"] == "Create GitHub Release (Draft)"
+    )
     assert (
         gh_release_step["with"]["tag_name"]
         == "${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
     )
+    assert gh_release_step["with"]["prerelease"] == "${{ steps.release-meta.outputs.prerelease }}"
 
 
 def test_release_workflow_verifies_the_built_wheel_without_checkout_shadowing():
     workflow = load_workflow("release.yml")
     build_steps = workflow["jobs"]["build-and-verify"]["steps"]
     verify_step = next(
-        step for step in build_steps if step["name"] == "Run verification in clean virtual environment"
+        step
+        for step in build_steps
+        if step["name"] == "Run verification in clean virtual environment"
     )
 
     run_script = verify_step["run"]

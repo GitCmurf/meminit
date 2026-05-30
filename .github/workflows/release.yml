@@ -143,6 +143,19 @@ jobs:
           name: dist-packages
           path: dist
 
+      - name: Detect prerelease tag
+        id: release-meta
+        run: |
+          tag="${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
+          case "$tag" in
+            *-*|*a[0-9]*|*b[0-9]*|*rc[0-9]*)
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
       - name: Create GitHub Release (Draft)
         uses: softprops/action-gh-release@v2
         env:
@@ -152,7 +165,7 @@ jobs:
           files: |
             dist/*
           draft: true
-          prerelease: false
+          prerelease: ${{ steps.release-meta.outputs.prerelease }}
           body: |
             ## Meminit Release
 
