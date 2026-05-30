@@ -64,10 +64,6 @@ class TemplateInterpolator:
     # Exact double-brace candidates used to detect unknown or malformed tokens.
     _DOUBLE_BRACE_TOKEN_PATTERN = re.compile(r"\{\{([^{}]*?)\}\}", re.DOTALL)
 
-    # Reject delimiters that have spaces between brace characters or immediately
-    # inside the delimiters. Templates v2 only allows the exact {{variable}} form.
-    _MALFORMED_DOUBLE_BRACE_PATTERN = re.compile(r"\{\s+\{|\}\s+\}|\{\{\s|\s\}\}")
-
     # Variable names must be simple identifiers to be considered valid tokens.
     _VARIABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -95,7 +91,6 @@ class TemplateInterpolator:
         self._known_vars = set(self._KNOWN_VARIABLES)
         self._legacy = self._LEGACY_PATTERNS
         self._double_brace_tokens = self._DOUBLE_BRACE_TOKEN_PATTERN
-        self._malformed = self._MALFORMED_DOUBLE_BRACE_PATTERN
         self._variable_name = self._VARIABLE_NAME_PATTERN
 
     def interpolate(self, template: str, **kwargs: Any) -> str:
@@ -129,7 +124,6 @@ class TemplateInterpolator:
         # Validate template tokens before injecting user-provided values.
         # This prevents false positives if user data (e.g. title) contains placeholders.
         self._raise_on_legacy_tokens(template)
-        self._raise_on_malformed_tokens(template)
         self._raise_on_unknown_variables(template)
 
         substitutions: Dict[str, str] = self._build_substitutions(**kwargs)
@@ -244,20 +238,6 @@ class TemplateInterpolator:
                 details={
                     "unknown_variables": sorted(unknown),
                     "known_variables": sorted(self._known_vars),
-                },
-            )
-
-    def _raise_on_malformed_tokens(self, content: str) -> None:
-        """Reject spaced or otherwise malformed double-brace delimiters."""
-        match = self._malformed.search(content)
-        if match:
-            raise MeminitError(
-                code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
-                message=f"Malformed template placeholder detected: {match.group(0)}",
-                details={
-                    "malformed_syntax": match.group(0),
-                    "use_syntax": "{{variable}}",
-                    "line": self._find_line_number(content, match.start()),
                 },
             )
 

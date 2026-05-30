@@ -821,11 +821,11 @@ document_types:
     assert "Owner: __TBD__" in content
 
 
-def test_new_adr_rejects_spaced_placeholder_delimiters(tmp_path):
+def test_new_adr_allows_plain_spaced_braces(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
     template.write_text(
-        "# { { repo_prefix } }-ADR-{{seq}}: { { title } }\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date: {{date}}\n- Owner: {{owner}}\n",
+        "# {{repo_prefix}}-ADR-{{seq}}: {{title}}\n\nExample set notation: { { 1, 2, 3 } }\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date: {{date}}\n- Owner: {{owner}}\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
@@ -846,10 +846,12 @@ document_types:
 
     use_case = NewDocumentUseCase(str(tmp_path))
 
-    with pytest.raises(MeminitError) as exc_info:
-        use_case.execute("ADR", "Malformed Placeholder")
+    doc_path = use_case.execute("ADR", "Plain Braces")
+    content = doc_path.read_text()
 
-    assert exc_info.value.code == ErrorCode.INVALID_TEMPLATE_PLACEHOLDER
+    assert "MEMINIT-ADR-001" in content
+    assert "Plain Braces" in content
+    assert "Example set notation: { { 1, 2, 3 } }" in content
 
 
 def test_new_uses_uppercase_template_key(tmp_path):

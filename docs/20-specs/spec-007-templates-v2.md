@@ -182,7 +182,7 @@ Legacy placeholder syntax raises `INVALID_TEMPLATE_PLACEHOLDER` error:
 | `<Team or Person>` | `{{owner}}`       |
 | `<AREA>`           | `{{area}}`        |
 
-Malformed double-brace tokens with spacing, such as `{ { title } }` or `{{ title }}`, are also rejected as `INVALID_TEMPLATE_PLACEHOLDER`. Only the exact `{{variable}}` form is valid.
+Malformed double-brace tokens with spacing inside a real placeholder, such as `{{ title }}`, are rejected as `INVALID_TEMPLATE_PLACEHOLDER`. Ordinary spaced-brace text like `{ {` or `} }` in prose or code is ignored. Only the exact `{{variable}}` form is valid.
 
 ### 4.4 Unknown Variables
 
