@@ -784,6 +784,37 @@ document_types:
     assert "Owner: __TBD__" in content
 
 
+def test_new_adr_rejects_spaced_placeholder_delimiters(tmp_path):
+    (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+    template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
+    template.write_text(
+        "# { { repo_prefix } }-ADR-{{seq}}: { { title } }\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date: {{date}}\n- Owner: {{owner}}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Meminit
+repo_prefix: MEMINIT
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/custom-adr.md
+"""
+    )
+
+    use_case = NewDocumentUseCase(str(tmp_path))
+
+    with pytest.raises(MeminitError) as exc_info:
+        use_case.execute("ADR", "Malformed Placeholder")
+
+    assert exc_info.value.code == ErrorCode.INVALID_TEMPLATE_PLACEHOLDER
+
+
 def test_new_uses_uppercase_template_key(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"

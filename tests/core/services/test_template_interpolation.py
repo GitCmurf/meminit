@@ -124,6 +124,18 @@ class TestTemplateInterpolatorLegacyRejection:
         assert exc_info.value.code == ErrorCode.INVALID_TEMPLATE_PLACEHOLDER
         assert "<SEQ>" in exc_info.value.details["legacy_syntax"]
 
+    def test_spaced_double_brace_delimiters_rejected(self):
+        """Malformed spaced delimiters are rejected as INVALID_TEMPLATE_PLACEHOLDER."""
+        interpolator = TemplateInterpolator()
+        template = "# { { title } }\nOwner: {{owner}}"
+
+        with pytest.raises(MeminitError) as exc_info:
+            interpolator.interpolate(template, title="Test", owner="Team A")
+
+        assert exc_info.value.code == ErrorCode.INVALID_TEMPLATE_PLACEHOLDER
+        assert "malformed" in str(exc_info.value).lower()
+        assert "{ {" in exc_info.value.details["malformed_syntax"]
+
 
 class TestTemplateInterpolatorUnknownVariables:
     """Test rejection of unknown variables."""

@@ -57,10 +57,19 @@ class TemplateInterpolator:
 
     # Single regex matching all known {{variable}} patterns.
     # Captures the variable name as group 1 for lookup-based replacement.
-    # Matches both {{variable}} and { { variable } } format to stay robust under formatter changes.
     _ALL_VARIABLES_PATTERN = re.compile(
-        r"\{\s*\{\s*(" + "|".join(_KNOWN_VARIABLES) + r")\s*\}\s*\}"
+        r"\{\{(" + "|".join(_KNOWN_VARIABLES) + r")\}\}"
     )
+
+    # Exact double-brace candidates used to detect unknown or malformed tokens.
+    _DOUBLE_BRACE_TOKEN_PATTERN = re.compile(r"\{\{([^{}]*?)\}\}", re.DOTALL)
+
+    # Reject delimiters that have spaces between brace characters or immediately
+    # inside the delimiters. Templates v2 only allows the exact {{variable}} form.
+    _MALFORMED_DOUBLE_BRACE_PATTERN = re.compile(r"\{\s+\{|\}\s+\}|\{\{\s|\s\}\}")
+
+    # Variable names must be simple identifiers to be considered valid tokens.
+    _VARIABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
     # Legacy patterns to detect and reject - compiled on initialization
     _LEGACY_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -81,15 +90,13 @@ class TemplateInterpolator:
         re.compile(r"<AREA>"),
     )
 
-    # Pattern to find all {{...}} variables to reject unknown or malformed ones.
-    # Matches both {{...}} and { { ... } } format.
-    _UNKNOWN_PATTERN = re.compile(r"\{\s*\{\s*([^{}]*?)\s*\}\s*\}")
-
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""
         self._known_vars = set(self._KNOWN_VARIABLES)
         self._legacy = self._LEGACY_PATTERNS
-        self._unknown = self._UNKNOWN_PATTERN
+        self._double_brace_tokens = self._DOUBLE_BRACE_TOKEN_PATTERN
+        self._malformed = self._MALFORMED_DOUBLE_BRACE_PATTERN
+        self._variable_name = self._VARIABLE_NAME_PATTERN
 
     def interpolate(self, template: str, **kwargs: Any) -> str:
         """Interpolate variables in a template.
@@ -122,6 +129,7 @@ class TemplateInterpolator:
         # Validate template tokens before injecting user-provided values.
         # This prevents false positives if user data (e.g. title) contains placeholders.
         self._raise_on_legacy_tokens(template)
+        self._raise_on_malformed_tokens(template)
         self._raise_on_unknown_variables(template)
 
         substitutions: Dict[str, str] = self._build_substitutions(**kwargs)
@@ -208,13 +216,26 @@ class TemplateInterpolator:
     def _raise_on_unknown_variables(self, content: str) -> None:
         """Check for unknown {{variable}} placeholders and raise error if found.
 
-        Scans for any {{...}} patterns that weren't substituted.
+        Scans for exact {{variable}} tokens that were not recognized.
         """
         unknown = set()
-        for match in self._unknown.finditer(content):
-            var_name = match.group(1).strip()
+        for match in self._double_brace_tokens.finditer(content):
+            token = match.group(0)
+            var_name = match.group(1)
+
+            if var_name != var_name.strip() or not self._variable_name.fullmatch(var_name):
+                raise MeminitError(
+                    code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
+                    message=f"Malformed template placeholder detected: {token}",
+                    details={
+                        "malformed_syntax": token,
+                        "use_syntax": "{{variable}}",
+                        "line": self._find_line_number(content, match.start()),
+                    },
+                )
+
             if var_name not in self._known_vars:
-                unknown.add(var_name or "<empty>")
+                unknown.add(var_name)
 
         if unknown:
             raise MeminitError(
@@ -223,6 +244,20 @@ class TemplateInterpolator:
                 details={
                     "unknown_variables": sorted(unknown),
                     "known_variables": sorted(self._known_vars),
+                },
+            )
+
+    def _raise_on_malformed_tokens(self, content: str) -> None:
+        """Reject spaced or otherwise malformed double-brace delimiters."""
+        match = self._malformed.search(content)
+        if match:
+            raise MeminitError(
+                code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
+                message=f"Malformed template placeholder detected: {match.group(0)}",
+                details={
+                    "malformed_syntax": match.group(0),
+                    "use_syntax": "{{variable}}",
+                    "line": self._find_line_number(content, match.start()),
                 },
             )
 

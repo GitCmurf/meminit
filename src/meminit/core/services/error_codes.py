@@ -447,7 +447,10 @@ ERROR_EXPLANATIONS: dict[str, ErrorExplanation] = {
         code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER.value,
         category="templates",
         summary="A template uses an unsupported placeholder syntax.",
-        cause="The template contains legacy {variable} or <VARIABLE> syntax instead of {{variable}}.",
+        cause=(
+            "The template contains legacy {variable} or <VARIABLE> syntax, or a malformed "
+            "{{ variable }} placeholder instead of {{variable}}."
+        ),
         remediation=RemediationInfo(
             action="Replace legacy placeholders with {{variable}} syntax.",
             resolution_type="manual",
