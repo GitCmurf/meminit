@@ -3,20 +3,21 @@ document_id: MEMINIT-PLAN-015
 type: PLAN
 title: Next Improvements Sprint Plan
 status: Draft
-version: '1.7'
-last_updated: '2026-05-17'
+version: "1.7"
+last_updated: "2026-05-17"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 area: AGENT
-description: Agent-orchestrator-ready sprint plan for closing live technical debt
+description:
+  Agent-orchestrator-ready sprint plan for closing live technical debt
   and hardening the post-Phase-5 Meminit agent interface.
 keywords:
-- next-steps
-- technical-debt
-- sprint-plan
-- streaming
-- state
-- index
+  - next-steps
+  - technical-debt
+  - sprint-plan
+  - streaming
+  - state
+  - index
 ---
 
 > **Document ID:** MEMINIT-PLAN-015
@@ -101,13 +102,13 @@ Out of scope:
 The recent phase plans were assessed on 2026-05-08 against live code,
 tests, and governed docs.
 
-| Plan | Current assessment |
-| ---- | ------------------ |
-| MEMINIT-PLAN-009 | Complete; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-010 | Complete for runtime surfaces; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-011 | Complete for graph artifact and helpers; TD-001 is closed. |
-| MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found. |
-| MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, TD-008, and TD-009 are closed. |
+| Plan             | Current assessment                                                           |
+| ---------------- | ---------------------------------------------------------------------------- |
+| MEMINIT-PLAN-009 | Complete; no live unsuperseded backlog found.                                |
+| MEMINIT-PLAN-010 | Complete for runtime surfaces; no live unsuperseded backlog found.           |
+| MEMINIT-PLAN-011 | Complete for graph artifact and helpers; TD-001 is closed.                   |
+| MEMINIT-PLAN-012 | Complete for protocol governance; no live unsuperseded backlog found.        |
+| MEMINIT-PLAN-013 | Complete for queue surfaces; TD-006, TD-007, TD-008, and TD-009 are closed.  |
 | MEMINIT-PLAN-014 | Core implementation complete; TD-002, TD-003, TD-004, and TD-005 are closed. |
 
 ### 3.1 Implementation Progress
@@ -115,28 +116,28 @@ tests, and governed docs.
 Progress is marked only after code, tests, and relevant docs are aligned and
 the listed verification commands pass.
 
-| Workstream | Backlog item | Status | Verification evidence |
-| ---------- | ------------ | ------ | --------------------- |
-| D: Multi-Namespace Index Correctness | TD-001 | Completed | Removed parent-directory namespace ownership caching, added same-parent multi-namespace regression, and passed `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py`. |
-| E1: State Derivation Signature Cleanup | TD-006 | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
-| E2: State Derivation Complexity | TD-007 | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`. |
-| E3: State-File Path Strictness | TD-009 | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification. |
-| A: Streaming Producer Architecture | TD-002 | Completed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan`, `context --deep`, and `index`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. |
-| B: Phase 5 Cache Scenario Traceability | TD-003 | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification. |
-| C: Phase 5 External Testbed Evidence | TD-004 | Completed | Prepared `MEMINIT-LOG-001` as the governed operator attestation template, recorded sanitized operator evidence from the external testbed, and approved it for closure. |
-| G: Streaming Test Fixture Consolidation | TD-005 | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite. |
-| F: Error-Code Contract Cleanup | TD-008 | Completed | Product/contract owner confirmed no external consumers depend on old names; normalized state public error codes to `STATE_*`, updated runtime mappings, tests, SPEC-006, changelog, and this register. |
+| Workstream                              | Backlog item | Status    | Verification evidence                                                                                                                                                                                                                                                                          |
+| --------------------------------------- | ------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D: Multi-Namespace Index Correctness    | TD-001       | Completed | Removed parent-directory namespace ownership caching, added same-parent multi-namespace regression, and passed `./.venv/bin/pytest -q tests/core/use_cases/test_index_repository.py tests/core/services/test_repo_layout.py`.                                                                  |
+| E1: State Derivation Signature Cleanup  | TD-006       | Completed | Verified helper signatures no longer carry unused `known_ids` and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`.                                                                                                            |
+| E2: State Derivation Complexity         | TD-007       | Completed | Verified reverse-reference map implementation with a 1000-entry regression fixture and passed `./.venv/bin/pytest -q tests/core/services/test_state_derived.py tests/integration/test_state_queries.py`.                                                                                       |
+| E3: State-File Path Strictness          | TD-009       | Completed | Added explicit strict/fallback helpers, routed CLI state command use cases through strict mode after initialization validation, preserved diagnostic fallback behavior, and passed focused state verification.                                                                                 |
+| A: Streaming Producer Architecture      | TD-002       | Completed | Added core stream payload types, use-case `iter_stream()` producers, production CLI `CoreStreamingProducer` drainage, first-item laziness regressions for `scan`, `context --deep`, and `index`, and index streaming from shared internal artifacts before public `IndexBuildReport` assembly. |
+| B: Phase 5 Cache Scenario Traceability  | TD-003       | Completed | Added named S08, S09/S10/S11, S13, and S14 regressions, mapped S05-S14 to concrete tests, and passed focused cache verification.                                                                                                                                                               |
+| C: Phase 5 External Testbed Evidence    | TD-004       | Completed | Prepared `MEMINIT-LOG-001` as the governed operator attestation template, recorded sanitized operator evidence from the external testbed, and approved it for closure.                                                                                                                         |
+| G: Streaming Test Fixture Consolidation | TD-005       | Completed | Shared NDJSON parsing and schema-validator construction through `tests/cli/streaming_helpers.py`, preserved command-specific assertions, and passed the focused streaming test suite.                                                                                                          |
+| F: Error-Code Contract Cleanup          | TD-008       | Completed | Product/contract owner confirmed no external consumers depend on old names; normalized state public error codes to `STATE_*`, updated runtime mappings, tests, SPEC-006, changelog, and this register.                                                                                         |
 
 ## 4. Pre-Sprint Decisions and Gates
 
 These gates must be resolved before dispatching the affected workstream.
 
-| Gate | Applies to | Decider | Required outcome |
-| ---- | ---------- | ------- | ---------------- |
-| GATE-001: streaming producer API shape | Workstream A | Core maintainer | Confirm the synchronous generator-based producer contract in §5.1 or approve a replacement design note before implementation. |
-| GATE-002: external testbed evidence | Workstream C | Repository owner | Resolved on 2026-05-17: the human operator evidence is acceptable for public history and TD-004 may close. |
-| GATE-003: state error-code convention | Workstream F | Product/contract owner | Resolved on 2026-05-09: normalize to `STATE_*` without compatibility aliases because no external consumers depend on the old names. |
-| GATE-004: Approved-doc edit authorization | Any workstream editing Approved/Superseded docs | Repository maintainer | Authorize exact protected documents and sections, or require a Draft follow-up note instead. |
+| Gate                                      | Applies to                                      | Decider                | Required outcome                                                                                                                    |
+| ----------------------------------------- | ----------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| GATE-001: streaming producer API shape    | Workstream A                                    | Core maintainer        | Confirm the synchronous generator-based producer contract in §5.1 or approve a replacement design note before implementation.       |
+| GATE-002: external testbed evidence       | Workstream C                                    | Repository owner       | Resolved on 2026-05-17: the human operator evidence is acceptable for public history and TD-004 may close.                          |
+| GATE-003: state error-code convention     | Workstream F                                    | Product/contract owner | Resolved on 2026-05-09: normalize to `STATE_*` without compatibility aliases because no external consumers depend on the old names. |
+| GATE-004: Approved-doc edit authorization | Any workstream editing Approved/Superseded docs | Repository maintainer  | Authorize exact protected documents and sections, or require a Draft follow-up note instead.                                        |
 
 ## 5. Sprint Workstreams
 
@@ -200,17 +201,17 @@ Implementation steps:
 1. [x] Confirm GATE-001.
 2. [x] Introduce the core stream payload types and generator producer API.
 3. [x] Add producer implementations for `IndexRepositoryUseCase`,
-   `ScanRepositoryUseCase`, and `ContextRepositoryUseCase`.
+       `ScanRepositoryUseCase`, and `ContextRepositoryUseCase`.
 4. [x] Keep the existing JSON `execute()` methods stable unless a local refactor
-   is required to share traversal logic.
+       is required to share traversal logic.
 5. [x] Update the CLI adapters to drain the use-case generators into
-   `StreamEmitter`.
+       `StreamEmitter`.
 6. [x] Remove production use of `CallableStreamingProducer`; keep it only in
-   tests if it remains useful for emitter unit tests.
+       tests if it remains useful for emitter unit tests.
 7. [x] Add instrumentation-based regression tests that prove the first yielded
-   item can be produced before a complete result object is assembled.
+       item can be produced before a complete result object is assembled.
 8. [x] Update MEMINIT-SPEC-011 and MEMINIT-FDD-014 if the producer semantics or
-   guarantees become stricter.
+       guarantees become stricter.
 
 Status:
 
@@ -263,28 +264,28 @@ Size:
 
 Scenario classification:
 
-| Scenario class | Required evidence |
-| -------------- | ----------------- |
-| Changed file, added file, removed file | May map to existing focused use-case coverage if the mapping is recorded by scenario ID. |
-| Cross-doc edge recomputation | Must have a named regression test because graph correctness is user-visible. |
+| Scenario class                               | Required evidence                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Changed file, added file, removed file       | May map to existing focused use-case coverage if the mapping is recorded by scenario ID.   |
+| Cross-doc edge recomputation                 | Must have a named regression test because graph correctness is user-visible.               |
 | Global invalidation and version invalidation | Must have named tests or a single parametrized test whose cases include both scenario IDs. |
-| Corrupt cache entry and missing manifest | Must have named tests because these are recovery paths. |
-| Concurrent index invocation/cache lock | Must have a named test because it protects cache integrity. |
+| Corrupt cache entry and missing manifest     | Must have named tests because these are recovery paths.                                    |
+| Concurrent index invocation/cache lock       | Must have a named test because it protects cache integrity.                                |
 
 Implementation steps:
 
 1. [x] Inventory the existing cache tests and map each to S05-S14.
 2. [x] Add named E2E-style regression tests for every scenario class marked
-   "must have named tests" above.
+       "must have named tests" above.
 3. [x] For scenario classes allowed to map to existing coverage, record the
-   exact test names and scenario IDs in MEMINIT-FDD-014 or a Draft closeout
-   note.
+       exact test names and scenario IDs in MEMINIT-FDD-014 or a Draft closeout
+       note.
 4. [x] Prefer test names that include the scenario identifier when practical.
 5. [x] Update MEMINIT-PLAN-014 only if explicit authorization is given to amend
-   the Approved plan; otherwise record the mapping in MEMINIT-FDD-014 or a
-   governed closeout note.
+       the Approved plan; otherwise record the mapping in MEMINIT-FDD-014 or a
+       governed closeout note.
 6. [x] Ensure cache behavior remains byte-identical between warm incremental and
-   full rebuild paths.
+       full rebuild paths.
 
 Status:
 
@@ -294,18 +295,18 @@ Status:
 
 Scenario-to-test mapping:
 
-| Scenario | Test evidence |
-| -------- | ------------- |
-| S05 `single_file_changed` | `test_index_repository_incremental_detects_changed_added_and_removed` |
-| S06 `single_file_added` | `test_index_repository_incremental_detects_changed_added_and_removed` |
-| S07 `single_file_removed` | `test_index_repository_incremental_detects_changed_added_and_removed` |
-| S08 `edge_crosses_changed` | `test_s08_index_repository_incremental_recomputes_changed_related_edges` |
-| S09 `config_changed` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[config_sha256]` |
-| S10 `schema_changed` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[schema_sha256]` |
-| S11 `version_bump` | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[meminit_version]` |
-| S12 `corrupt_cache_entry` | `test_index_repository_rebuild_cache_recovers_corrupt_node` |
-| S13 `missing_manifest` | `test_s13_index_cache_missing_manifest_degrades_to_full_rebuild` |
-| S14 `concurrent_index` | `test_s14_index_cache_concurrent_lock_reports_cache_lock_held` |
+| Scenario                   | Test evidence                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| S05 `single_file_changed`  | `test_index_repository_incremental_detects_changed_added_and_removed`                     |
+| S06 `single_file_added`    | `test_index_repository_incremental_detects_changed_added_and_removed`                     |
+| S07 `single_file_removed`  | `test_index_repository_incremental_detects_changed_added_and_removed`                     |
+| S08 `edge_crosses_changed` | `test_s08_index_repository_incremental_recomputes_changed_related_edges`                  |
+| S09 `config_changed`       | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[config_sha256]`   |
+| S10 `schema_changed`       | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[schema_sha256]`   |
+| S11 `version_bump`         | `test_s09_s10_s11_index_cache_global_context_change_forces_full_rebuild[meminit_version]` |
+| S12 `corrupt_cache_entry`  | `test_index_repository_rebuild_cache_recovers_corrupt_node`                               |
+| S13 `missing_manifest`     | `test_s13_index_cache_missing_manifest_degrades_to_full_rebuild`                          |
+| S14 `concurrent_index`     | `test_s14_index_cache_concurrent_lock_reports_cache_lock_held`                            |
 
 Definition of done:
 
@@ -351,18 +352,18 @@ Implementation steps:
 
 1. [x] Confirm GATE-002.
 2. [x] Choose an evidence location: a governed runbook appendix, a LOG document,
-   or a release closeout note.
+       or a release closeout note.
 3. [x] Record the date, Meminit command version, external repo class, commands
-   run, sanitized success/failure summary, and any follow-up debt.
+       run, sanitized success/failure summary, and any follow-up debt.
 4. [x] Use the command set from MEMINIT-RUNBOOK-006:
-   `meminit scan --format ndjson`,
-   `meminit context --deep --format ndjson`,
-   `meminit index --format ndjson`,
-   two consecutive `meminit index --format json` runs,
-   `meminit index --rebuild-cache --format json`, and
-   `meminit index --explain-cache --format json`.
+       `meminit scan --format ndjson`,
+       `meminit context --deep --format ndjson`,
+       `meminit index --format ndjson`,
+       two consecutive `meminit index --format json` runs,
+       `meminit index --rebuild-cache --format json`, and
+       `meminit index --explain-cache --format json`.
 5. [x] Keep repository names, paths, secrets, and proprietary content out of the
-   artifact unless explicitly approved.
+       artifact unless explicitly approved.
 6. [x] Link or reference the evidence from this plan and from `TECH_DEBT.md`.
 
 Status:
@@ -547,15 +548,15 @@ Size:
 Implementation steps:
 
 1. [x] Identify every `get_state_file_rel_path` caller and classify it as strict
-   or diagnostic.
+       or diagnostic.
 2. [x] Split state-file path lookup into strict and fallback variants.
 3. [x] Use the strict variant in command/use-case paths where missing config
-   should fail.
+       should fail.
 4. [x] Preserve the documented empty-queue behavior for missing
-   `project-state.yaml`.
+       `project-state.yaml`.
 5. [x] Add tests for strict vs fallback path behavior.
 6. [x] Update MEMINIT-FDD-013 or MEMINIT-RUNBOOK-006 if user-visible diagnostics
-   change.
+       change.
 
 Status:
 
@@ -604,9 +605,9 @@ Implementation steps:
 
 1. [x] Confirm GATE-003 before editing code.
 2. [x] Record that compatibility aliases are intentionally not preserved
-   because there are no external consumers of the old names.
+       because there are no external consumers of the old names.
 3. [x] If renaming, update `ErrorCode`, `ERROR_EXPLANATIONS`, exit-code mapping,
-   SPEC-006, contract matrix expectations, and every affected test.
+       SPEC-006, contract matrix expectations, and every affected test.
 4. [x] Add migration notes for agents that consume the old names.
 5. [x] Verify `meminit explain --list --format json` covers the final set.
 
@@ -616,10 +617,10 @@ Definition of done:
 2. [x] `meminit explain` resolves every public error code.
 3. [x] Contract matrix and state CLI tests pass.
 4. [x] The decision is recorded in the change history of the affected governed
-   docs.
+       docs.
 5. [x] TD-008 is closed, superseded, or rejected with a clear rationale.
 6. [x] Any public rename includes a changelog/release-note entry and migration
-   note.
+       note.
 
 Completion note:
 
@@ -654,12 +655,12 @@ Implementation steps:
 
 1. [x] Inventory local helper functions in `tests/adapters/test_streaming_cli.py`.
 2. [x] Move reusable setup into shared fixtures or reuse the existing streaming
-   fixture generator.
+       fixture generator.
 3. [x] Keep command-specific assertions in the CLI test file.
 4. [x] Ensure fixture generation remains deterministic and does not slow the
-   default test suite materially.
+       default test suite materially.
 5. [x] If Workstream B added cache scenario tests first, migrate only duplicated
-   setup and keep those scenario test names stable.
+       setup and keep those scenario test names stable.
 
 Status:
 
@@ -687,13 +688,13 @@ Suggested verification:
 
 ## 6. Risk and Rollback Rules
 
-| Risk area | Applies to | Rollback rule |
-| --------- | ---------- | ------------- |
-| NDJSON equivalence or determinism regression | Workstream A | Revert the producer refactor PR before continuing A or G. |
-| Graph/index correctness regression | Workstream D | Revert the namespace-cache PR before continuing index-adjacent work. |
-| State readiness or ordering regression | Workstream E2/E3 | Revert the state internals PR before continuing E-series work. |
-| Public contract rename fallout | Workstream F | Stop rollout, restore previous names or aliases, and update SPEC-006 migration notes before another release candidate. |
-| External evidence uncertainty | Workstream C | Resolved by repository-owner approval of the sanitized external testbed evidence. |
+| Risk area                                    | Applies to       | Rollback rule                                                                                                          |
+| -------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| NDJSON equivalence or determinism regression | Workstream A     | Revert the producer refactor PR before continuing A or G.                                                              |
+| Graph/index correctness regression           | Workstream D     | Revert the namespace-cache PR before continuing index-adjacent work.                                                   |
+| State readiness or ordering regression       | Workstream E2/E3 | Revert the state internals PR before continuing E-series work.                                                         |
+| Public contract rename fallout               | Workstream F     | Stop rollout, restore previous names or aliases, and update SPEC-006 migration notes before another release candidate. |
+| External evidence uncertainty                | Workstream C     | Resolved by repository-owner approval of the sanitized external testbed evidence.                                      |
 
 ## 7. Recommended Delivery Sequence
 
@@ -769,22 +770,22 @@ This plan is complete when:
 
 ## 10. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-08 | Codex | Initial post-Phase-5 improvement sprint plan based on the live technical debt assessment of MEMINIT-PLAN-008 through MEMINIT-PLAN-014. |
-| 0.2 | 2026-05-08 | Codex | Incorporated critical review feedback: added pre-sprint gates, specified the streaming producer architecture, marked external testbed evidence operator-only, split state workstreams, tightened cache scenario evidence, added rollback rules, and made definitions of done mechanically verifiable. |
-| 0.3 | 2026-05-08 | Codex | Resolved the Workstream A producer-pattern ambiguity by standardizing on core-owned synchronous generator producers and CLI-owned NDJSON emission. |
-| 0.4 | 2026-05-08 | Codex | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open. |
-| 0.5 | 2026-05-08 | Codex | Narrowed Workstream E3 by adding strict/fallback state-file path APIs and verification, leaving caller migration as the remaining behavior-changing step. |
-| 0.6 | 2026-05-08 | Codex | Closed Workstream B by adding named cache scenario regressions and recording the S05-S14 test mapping without editing protected Approved docs. |
-| 0.7 | 2026-05-09 | Codex | Closed Workstream G by consolidating reusable streaming test helpers and preserving the existing focused streaming verification suite. |
-| 0.8 | 2026-05-09 | Codex | Closed Workstream E3 by routing state command use cases through strict config mode while preserving diagnostic fallback semantics. |
-| 0.9 | 2026-05-09 | Codex | Narrowed Workstream A by introducing core stream payload types, use-case stream producers, and production CLI drainage through `CoreStreamingProducer`. |
-| 1.0 | 2026-05-09 | Codex | Prepared the Workstream C governed operator evidence template and marked TD-004 blocked on human-attested external testbed execution. |
-| 1.1 | 2026-05-09 | Codex | Closed Workstream F by normalizing state public error codes to `STATE_*`, updating runtime/docs/tests/changelog, and closing TD-008. |
-| 1.2 | 2026-05-09 | Codex | Further narrowed Workstream A by adding first-item laziness regressions for `scan` and `context --deep`; `index` remains the open traversal-refactor item. |
-| 1.3 | 2026-05-09 | Codex | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression. |
-| 1.4 | 2026-05-10 | Codex | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented. |
-| 1.5 | 2026-05-10 | Codex | Tightened the Workstream C operator evidence template to match the complete MEMINIT-RUNBOOK-006 Phase 5 testbed checklist. |
-| 1.6 | 2026-05-17 | Codex | Recorded the sanitized external testbed evidence and moved Workstream C to repository-owner sign-off pending. |
-| 1.7 | 2026-05-17 | CMF | Approved the external testbed evidence and closed TD-004 / Workstream C. |
+| Version | Date       | Author | Changes                                                                                                                                                                                                                                                                                               |
+| ------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-05-08 | Codex  | Initial post-Phase-5 improvement sprint plan based on the live technical debt assessment of MEMINIT-PLAN-008 through MEMINIT-PLAN-014.                                                                                                                                                                |
+| 0.2     | 2026-05-08 | Codex  | Incorporated critical review feedback: added pre-sprint gates, specified the streaming producer architecture, marked external testbed evidence operator-only, split state workstreams, tightened cache scenario evidence, added rollback rules, and made definitions of done mechanically verifiable. |
+| 0.3     | 2026-05-08 | Codex  | Resolved the Workstream A producer-pattern ambiguity by standardizing on core-owned synchronous generator producers and CLI-owned NDJSON emission.                                                                                                                                                    |
+| 0.4     | 2026-05-08 | Codex  | Marked Workstreams D, E1, and E2 completed after implementation and focused verification; remaining workstreams stay open.                                                                                                                                                                            |
+| 0.5     | 2026-05-08 | Codex  | Narrowed Workstream E3 by adding strict/fallback state-file path APIs and verification, leaving caller migration as the remaining behavior-changing step.                                                                                                                                             |
+| 0.6     | 2026-05-08 | Codex  | Closed Workstream B by adding named cache scenario regressions and recording the S05-S14 test mapping without editing protected Approved docs.                                                                                                                                                        |
+| 0.7     | 2026-05-09 | Codex  | Closed Workstream G by consolidating reusable streaming test helpers and preserving the existing focused streaming verification suite.                                                                                                                                                                |
+| 0.8     | 2026-05-09 | Codex  | Closed Workstream E3 by routing state command use cases through strict config mode while preserving diagnostic fallback semantics.                                                                                                                                                                    |
+| 0.9     | 2026-05-09 | Codex  | Narrowed Workstream A by introducing core stream payload types, use-case stream producers, and production CLI drainage through `CoreStreamingProducer`.                                                                                                                                               |
+| 1.0     | 2026-05-09 | Codex  | Prepared the Workstream C governed operator evidence template and marked TD-004 blocked on human-attested external testbed execution.                                                                                                                                                                 |
+| 1.1     | 2026-05-09 | Codex  | Closed Workstream F by normalizing state public error codes to `STATE_*`, updating runtime/docs/tests/changelog, and closing TD-008.                                                                                                                                                                  |
+| 1.2     | 2026-05-09 | Codex  | Further narrowed Workstream A by adding first-item laziness regressions for `scan` and `context --deep`; `index` remains the open traversal-refactor item.                                                                                                                                            |
+| 1.3     | 2026-05-09 | Codex  | Further narrowed Workstream A by routing index streaming through shared internal artifacts and adding an index first-item/public-report materialization regression.                                                                                                                                   |
+| 1.4     | 2026-05-10 | Codex  | Closed Workstream A / TD-002 after all producer architecture DoD items were implemented, verified, and documented.                                                                                                                                                                                    |
+| 1.5     | 2026-05-10 | Codex  | Tightened the Workstream C operator evidence template to match the complete MEMINIT-RUNBOOK-006 Phase 5 testbed checklist.                                                                                                                                                                            |
+| 1.6     | 2026-05-17 | Codex  | Recorded the sanitized external testbed evidence and moved Workstream C to repository-owner sign-off pending.                                                                                                                                                                                         |
+| 1.7     | 2026-05-17 | CMF    | Approved the external testbed evidence and closed TD-004 / Workstream C.                                                                                                                                                                                                                              |

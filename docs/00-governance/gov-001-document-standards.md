@@ -2,8 +2,8 @@
 document_id: MEMINIT-GOV-001
 owner: Repo Maintainers
 status: Draft
-version: 1.1
-last_updated: 2025-12-30
+version: 1.2
+last_updated: 2026-05-30
 title: Repository Document Standards
 type: GOV
 docops_version: 2.0
@@ -12,10 +12,10 @@ docops_version: 2.0
 > **Document ID:** MEMINIT-GOV-001
 > **Owner:** Repo Maintainers
 > **Status:** Draft
-> **Version:** 1.1
-> **Last Updated:** 2025-12-30
+> **Version:** 1.2
+> **Last Updated:** 2026-05-30
 
-# Repository Document Standards (v1.1)
+# Repository Document Standards (v1.2)
 
 These standards implement the organisation-wide **DocOps Constitution v2.0** for this repository.
 
@@ -169,8 +169,9 @@ Convention:
 
 Tooling behavior:
 
-- `meminit check` MUST skip `WIP-` documents under `docs/`.
-- Repositories MAY customize this via `docops.config.yaml` (`excluded_filename_prefixes`).
+- `meminit check` MUST skip documents under `docs/` whose file or parent directory starts with an excluded filename prefix.
+- Repositories MAY customize excluded prefixes via `docops.config.yaml` (`excluded_filename_prefixes`).
+- Repo-local validators, catalog generators, and docs-build scripts MUST consume Meminit configuration or mirror `meminit context --format json` output rather than hardcoding `WIP-`.
 
 ## 9. Local Extensions
 

@@ -4,11 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from meminit.core.services.project_state import (
-    DEFAULT_PRIORITY,
-    ProjectState,
-    ProjectStateEntry,
-)
+from meminit.core.services.project_state import DEFAULT_PRIORITY, ProjectState, ProjectStateEntry
 from meminit.core.services.sanitization import MAX_ASSIGNEE_LENGTH, MAX_NOTES_LENGTH
 from meminit.core.services.state_derived import (
     DerivedEntry,

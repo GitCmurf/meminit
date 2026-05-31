@@ -1,8 +1,6 @@
 import json
-import shutil
-import subprocess
 import os
-import sys
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -10,21 +8,37 @@ from packaging.version import InvalidVersion, Version
 
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V3
 
-REPO_ROOT = Path(os.getcwd())
+REPO_ROOT = Path(__file__).resolve().parent
 TIMEOUT = 300
-VENV_PYTHON = str(REPO_ROOT / ".venv" / "bin" / "python3")
 
 MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 
 
-def check_command(cmd_args, expected_data_keys=None):
+def build_command(cmd_args, root=None):
+    full_cmd = ["uv", "run", "meminit"] + cmd_args
+    is_repo_agnostic = cmd_args[0] in ("capabilities", "explain") or (
+        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
+    )
+    if root is not None and not is_repo_agnostic:
+        full_cmd += ["--root", str(root)]
+    full_cmd += ["--format", "json"]
+    return full_cmd
+
+
+def check_command(cmd_args, expected_data_keys=None, root=None):
     print(f"Checking: {' '.join(cmd_args)}")
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "src")
 
-    full_cmd = [VENV_PYTHON, "-m", "meminit.cli.main"] + cmd_args + ["--format", "json"]
+    full_cmd = build_command(cmd_args, root=root)
     try:
-        result = subprocess.run(full_cmd, env=env, capture_output=True, text=True, timeout=TIMEOUT)
+        result = subprocess.run(
+            full_cmd,
+            env=env,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
     except subprocess.TimeoutExpired:
         print(f"  FAILED: command timed out after {TIMEOUT}s")
         return False
@@ -50,7 +64,6 @@ def check_command(cmd_args, expected_data_keys=None):
         "success",
         "command",
         "run_id",
-        "root",
         "data",
         "warnings",
         "violations",
@@ -60,6 +73,19 @@ def check_command(cmd_args, expected_data_keys=None):
     if missing:
         print(f"  FAILED: missing fields: {missing}")
         return False
+
+    # root is conditional: present for repo-aware commands, absent for repo-agnostic
+    is_repo_agnostic = cmd_args[0] in ("capabilities", "explain") or (
+        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
+    )
+    if is_repo_agnostic:
+        if "root" in envelope:
+            print("  FAILED: root field should be absent for repo-agnostic command")
+            return False
+    else:
+        if "root" not in envelope:
+            print("  FAILED: root field is required for repo-aware command")
+            return False
 
     # Check success field (Finding #2)
     if not envelope.get("success", False):
@@ -89,37 +115,34 @@ def check_command(cmd_args, expected_data_keys=None):
     return True
 
 
-# Setup test repo with unique temp directory (Finding #12)
-original_cwd = Path.cwd()
-_test_dir_ctx = tempfile.TemporaryDirectory(prefix="meminit_test_envelope_")
-try:
-    test_dir = Path(_test_dir_ctx.name)
-    os.chdir(test_dir)
+def build_test_repo(test_dir):
+    env = os.environ.copy()
 
     # Initialize
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "src")
     try:
         result = subprocess.run(
-            [VENV_PYTHON, "-m", "meminit.cli.main", "init"],
+            build_command(["init"], root=test_dir),
             env=env,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,
         )
     except subprocess.TimeoutExpired:
         print(f"init failed: command timed out after {TIMEOUT}s")
-        sys.exit(1)
+        return False
     if result.returncode != 0:
         print(f"init failed (exit {result.returncode}): {result.stderr}")
-        sys.exit(1)
+        return False
 
     # Create index directory to avoid early error
     (test_dir / "docs" / "01-indices").mkdir(parents=True, exist_ok=True)
     (test_dir / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
 
+    adr_path = test_dir / "docs" / "45-adr" / "adr-001-test.md"
+
     # Create a governed document for the identify test
-    (test_dir / "docs" / "45-adr" / "adr-001-test.md").write_text(
+    adr_path.write_text(
         "---\n"
         "document_id: MEMINIT-ADR-001\n"
         "type: ADR\n"
@@ -137,18 +160,19 @@ try:
     # Run index to create index file
     try:
         result = subprocess.run(
-            [VENV_PYTHON, "-m", "meminit.cli.main", "index"],
+            build_command(["index"], root=test_dir),
             env=env,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,
         )
     except subprocess.TimeoutExpired:
         print(f"index failed: command timed out after {TIMEOUT}s")
-        sys.exit(1)
+        return False
     if result.returncode != 0:
         print(f"index failed (exit {result.returncode}): {result.stderr}")
-        sys.exit(1)
+        return False
 
     # List of commands to test
     commands = [
@@ -164,21 +188,32 @@ try:
         (["install-precommit"], ["installed"]),
         (["new", "ADR", "TestADR", "--dry-run"], ["document_id", "path"]),
         (["adr", "new", "TestADR2"], ["path"]),
+        (["capabilities"], ["capabilities_version"]),
+        (["explain", "DUPLICATE_ID"], ["summary"]),
         (["org", "install", "--dry-run"], ["installed"]),
         (["org", "status"], ["profile_name"]),
         (["org", "vendor", "--dry-run"], ["profile_name"]),
     ]
 
-    all_ok = True
     for cmd, keys in commands:
-        if not check_command(cmd, keys):
-            all_ok = False
-finally:
-    os.chdir(original_cwd)
-    _test_dir_ctx.cleanup()
+        if not check_command(cmd, keys, root=test_dir):
+            return False
 
-if all_ok:
-    print("\nALL COMMANDS CONFORM TO ENVELOPE")
-else:
-    print("\nSOME COMMANDS FAILED")
-    exit(1)
+    return True
+
+
+def main():
+    _test_dir_ctx = tempfile.TemporaryDirectory(prefix="meminit_test_envelope_")
+    try:
+        test_dir = Path(_test_dir_ctx.name)
+        if build_test_repo(test_dir):
+            print("\nALL COMMANDS CONFORM TO ENVELOPE")
+            return 0
+        print("\nSOME COMMANDS FAILED")
+        return 1
+    finally:
+        _test_dir_ctx.cleanup()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

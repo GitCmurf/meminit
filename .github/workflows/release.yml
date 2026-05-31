@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to publish (for example, v0.3.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-verify:
+    name: Build and Verify Packages
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || startsWith(inputs.tag_name, 'v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref }}
+          fetch-depth: 0
+
+      - name: Secret scan with gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .gitleaks.toml
+          verbose: true
+
+      - name: Verify release notes exist
+        run: |
+          if [ ! -f "docs/70-devex/devex-001-release-notes.md" ]; then
+            echo "Error: Release notes not found at docs/70-devex/devex-001-release-notes.md"
+            exit 1
+          fi
+          echo "Release notes verified."
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Validate package metadata using twine
+        run: |
+          uvx twine check dist/*
+
+      - name: Run verification in clean virtual environment
+        run: |
+          tmpdir=$(mktemp -d)
+          uv venv "$tmpdir/test_env"
+          . "$tmpdir/test_env/bin/activate"
+          # Install the built wheel plus dev dependencies for testing.
+          # Run pytest from a clean directory so the checkout's pyproject
+          # pythonpath setting cannot shadow the installed wheel.
+          uv pip install "${GITHUB_WORKSPACE}"/dist/*.whl
+          uv pip install pytest pytest-cov pydantic pyyaml rich jsonschema python-frontmatter click
+          # Smoke test the CLI
+          meminit --version
+          meminit doctor --root "$GITHUB_WORKSPACE" --format json
+          meminit check --root "$GITHUB_WORKSPACE" --format json
+          cd "$tmpdir"
+          # Run tests against the installed package, not the checkout.
+          pytest -c /dev/null "${GITHUB_WORKSPACE}/tests"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+
+  dry-run-publish:
+    name: Publish to TestPyPI (Staging)
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/meminit/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Verify build artifacts exist
+        run: |
+          echo "Verifying build artifacts..."
+          whl_files=$(find dist -name "*.whl" -type f | wc -l)
+          sdist_files=$(find dist -name "*.tar.gz" -type f | wc -l)
+          if [ "$whl_files" -eq 0 ] || [ "$sdist_files" -eq 0 ]; then
+            echo "Error: Missing build artifacts. Found $whl_files wheel(s) and $sdist_files source distribution(s)."
+            exit 1
+          fi
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Publish to TestPyPI
+        run: |
+          uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*
+
+  github-release:
+    name: Create GitHub Release
+    needs: [build-and-verify, dry-run-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Detect prerelease tag
+        id: release-meta
+        env:
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+        run: |
+          case "$TAG_NAME" in
+            *-*|*a[0-9]*|*b[0-9]*|*rc[0-9]*)
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Create GitHub Release (Draft)
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          files: |
+            dist/*
+          draft: true
+          prerelease: ${{ steps.release-meta.outputs.prerelease }}
+          body: |
+            ## Meminit Release
+
+            A new version of Meminit has been built and verified.
+            Please review the release artifacts and publish them when ready.
+
+  production-publish:
+    name: Publish to Production PyPI (Gated)
+    needs: [build-and-verify, dry-run-publish]
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/project/meminit/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.5.9"
+
+      - name: Publish to PyPI
+        # Uses trusted publishing. Needs the 'release' environment configured on GitHub with OIDC permissions.
+        # This will only execute when the release environment approval is granted.
+        run: |
+          uv publish dist/*

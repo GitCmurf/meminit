@@ -471,10 +471,44 @@ def test_cli_state_next_with_ready_item(repo_with_docs):
     )
     assert result.exit_code == 0
     data = parse_json_envelope(result.output)
+    assert data["command"] == "state next"
+    assert data["data"]["document_id"] == "TEST-ADR-001"
     assert data["data"]["entry"] is not None
     assert data["data"]["entry"]["document_id"] == "TEST-ADR-001"
     assert data["data"]["selection"]["rule"] == "priority > unblocks > updated > document_id"
     assert data["data"]["reason"] is None
+
+
+def test_cli_state_next_md_uses_selected_document_id(repo_with_docs):
+    runner = runner_no_mixed_stderr()
+    runner.invoke(
+        cli,
+        [
+            "state",
+            "set",
+            "TEST-ADR-001",
+            "--impl-state",
+            "Not Started",
+            "--priority",
+            "P1",
+            "--root",
+            str(repo_with_docs),
+        ],
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "state",
+            "next",
+            "--root",
+            str(repo_with_docs),
+            "--format",
+            "md",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "# Next Action for TEST-ADR-001" in result.output
+    assert "# Next Action for *" not in result.output
 
 
 def test_cli_state_blockers_empty(repo_with_docs):
@@ -1082,8 +1116,9 @@ class TestCliStateSetMixedMutationModeRejection:
 
 def test_cli_state_next_invalid_priority_warning_has_path(repo_with_docs):
     """BV-2 regression: invalid priority warnings must include 'path' for schema compliance."""
-    import jsonschema
     from pathlib import Path as P
+
+    import jsonschema
 
     runner = runner_no_mixed_stderr()
     runner.invoke(

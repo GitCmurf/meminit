@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
-from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorExplanation, ErrorCode
+from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorCode, ErrorExplanation
 
 
 class ExplainErrorUseCase:

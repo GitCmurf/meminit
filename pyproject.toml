@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meminit"
-version = "0.2.0"
+version = "0.3.0a1"
 description = "DocOps for the Agentic Age: governed docs, compliance checks, and automation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -37,6 +37,8 @@ dev = [
     "flake8>=6.0",
     "mypy>=1.0",
     "pre-commit>=3.0",
+    "types-jsonschema>=4.0",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
@@ -74,6 +76,7 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 check_untyped_defs = true
 ignore_missing_imports = false
+mypy_path = "stubs"
 
 [tool.flake8]
 max-line-length = 100

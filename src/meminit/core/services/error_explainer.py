@@ -8,11 +8,7 @@ them for backward compatibility and provides convenience helpers.
 
 from __future__ import annotations
 
-from meminit.core.services.error_codes import (
-    ERROR_EXPLANATIONS,
-    ErrorExplanation,
-    RemediationInfo,
-)
+from meminit.core.services.error_codes import ERROR_EXPLANATIONS, ErrorExplanation, RemediationInfo
 
 __all__ = [
     "ERROR_EXPLANATIONS",

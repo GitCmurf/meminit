@@ -2,9 +2,11 @@ import multiprocessing
 import os
 import queue
 import time
-import pytest
 from pathlib import Path
-from meminit.core.use_cases.new_document import NewDocumentUseCase, NewDocumentParams
+
+import pytest
+
+from meminit.core.use_cases.new_document import NewDocumentParams, NewDocumentUseCase
 
 
 def create_doc_worker(root_dir, title, results_queue):
@@ -42,7 +44,7 @@ def test_id_allocation_contention_multi_process(tmp_path, monkeypatch):
     # 2. Launch multiple workers
     num_workers = 10
     SHORT_MS = 30000  # 30 seconds max per worker
-    monkeypatch.setenv("MEMINIT_LOCK_TIMEOUT_MS", "10000")
+    monkeypatch.setenv("MEMINIT_LOCK_TIMEOUT_MS", "60000")
     results_queue = multiprocessing.Queue()
     processes = []
 

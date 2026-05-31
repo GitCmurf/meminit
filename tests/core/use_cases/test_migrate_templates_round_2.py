@@ -1,7 +1,9 @@
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 import yaml
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+
 from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
 
 

@@ -55,80 +55,80 @@ Out of scope:
 
 Categories:
 
-| Category   | Description                                                         |
-| ---------- | ------------------------------------------------------------------- |
-| Shared     | Codes that may be raised by multiple commands.                      |
-| New-only   | Codes specific to `meminit new`.                                    |
-| Check-only | Codes specific to `meminit check`.                                  |
+| Category   | Description                                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Shared     | Codes that may be raised by multiple commands.                                                                                |
+| New-only   | Codes specific to `meminit new`.                                                                                              |
+| Check-only | Codes specific to `meminit check`.                                                                                            |
 | State-only | Codes specific to `meminit state`, `meminit index --filter`, and the Phase 4 queue commands (`state next`, `state blockers`). |
-| Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).     |
-| Graph      | Codes for graph integrity violations during `meminit index` build.  |
-| Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`). |
-| Streaming  | Codes for NDJSON stream negotiation and producer failures.          |
-| Cache      | Codes for repo-local incremental index cache failures.              |
+| Agent      | Codes for agent-facing interfaces (`meminit explain`, `--root`).                                                              |
+| Graph      | Codes for graph integrity violations during `meminit index` build.                                                            |
+| Protocol   | Codes for protocol asset governance (`meminit protocol check/sync`).                                                          |
+| Streaming  | Codes for NDJSON stream negotiation and producer failures.                                                                    |
+| Cache      | Codes for repo-local incremental index cache failures.                                                                        |
 
 ## 3. Canonical ErrorCode Inventory
 
 The canonical implementation is `src/meminit/core/services/error_codes.py`. The table below mirrors the current enum values.
 
-| Code                       | Category   | Description                                                     |
-| -------------------------- | ---------- | --------------------------------------------------------------- |
-| `DUPLICATE_ID`             | Shared     | A document_id already exists in the index or namespace.         |
-| `INVALID_ID_FORMAT`        | Shared     | The requested `--id` value is malformed or mismatched.         |
-| `INVALID_FLAG_COMBINATION` | Shared     | Mutually exclusive or invalid CLI flags were provided.          |
-| `CONFIG_MISSING`           | Shared     | `docops.config.yaml` is missing, unreadable, malformed, or the repo is not initialized. |
-| `PATH_ESCAPE`              | Shared     | A path argument resolves outside the repo root or docs root.    |
-| `UNKNOWN_TYPE`             | New-only   | The requested document type is not in the type directory map.   |
-| `UNKNOWN_NAMESPACE`        | New-only   | The requested namespace is not configured.                      |
-| `FILE_EXISTS`              | New-only   | The target file already exists (non-idempotent create).         |
-| `INVALID_STATUS`           | New-only   | The provided status value is not valid.                         |
-| `INVALID_RELATED_ID`       | New-only   | A `related_ids` or `superseded_by` value is malformed.         |
-| `TEMPLATE_NOT_FOUND`       | New-only   | No template found for the requested document type.              |
-| `LEGACY_CONFIG_UNSUPPORTED`| New-only   | Legacy config keys (type_directories, templates) rejected at runtime. |
-| `INVALID_TEMPLATE_PLACEHOLDER` | New-only | Legacy placeholder syntax ({title}, <REPO>) detected in template. |
-| `UNKNOWN_TEMPLATE_VARIABLE` | New-only  | Unknown {{variable}} placeholder in template.                   |
-| `INVALID_TEMPLATE_FILE`    | New-only   | Template file validation failure (symlink, size, encoding).     |
-| `DUPLICATE_SECTION_ID`     | New-only   | Duplicate section ID in template.                               |
-| `AMBIGUOUS_SECTION_BOUNDARY` | New-only | Ambiguous section boundary detected.                            |
-| `SCHEMA_INVALID`           | Check-only | The metadata schema JSON is malformed or unreadable.            |
-| `LOCK_TIMEOUT`             | Shared     | A file lock could not be acquired within the timeout period.    |
-| `FILE_NOT_FOUND`           | Check-only | A targeted file path does not exist.                            |
-| `MISSING_FRONTMATTER`      | Check-only | A governed markdown file has no YAML frontmatter block.         |
-| `MISSING_FIELD`            | Check-only | A required frontmatter field is absent.                         |
-| `INVALID_FIELD`            | Check-only | A frontmatter field has an invalid value or type.               |
-| `OUTSIDE_DOCS_ROOT`        | Check-only | A file is outside the configured docs root.                     |
-| `DIRECTORY_MISMATCH`       | Check-only | A file is in the wrong type directory for its declared type.    |
-| `VALIDATION_ERROR`         | Shared     | General validation failure not covered by a specific code.     |
-| `STATE_YAML_MALFORMED`    | State-only | The project-state.yaml file is not valid YAML.                 |
-| `STATE_SCHEMA_VIOLATION`  | State-only | The project-state.yaml file violates the expected schema.       |
-| `STATE_INVALID_FILTER_VALUE` | State-only | An invalid filter value was provided to a state or index query. |
-| `STATE_INVALID_PRIORITY`  | State-only | `priority` is not one of `P0..P3`. **Dual severity**: fatal when an invalid priority is being written (mutation rejected by `state set`); warning when an invalid priority is already stored and the entry is being selected, listed, or indexed (entry skipped by `state next`, `state list`, and index readiness derivation). |
-| `STATE_INVALID_DEPENDENCY_ID` | State-only | A dependency reference does not match `<PREFIX>-<TYPE>-<NNN>`. |
-| `STATE_SELF_DEPENDENCY`   | State-only | An entry references its own `document_id` in a dependency list. |
-| `STATE_UNDEFINED_DEPENDENCY` | State-only | A dependency target is not present in the current index graph. |
-| `STATE_DEPENDENCY_CYCLE`  | State-only | Dependencies form a cycle across `depends_on ∪ blocked_by`.    |
-| `STATE_DEPENDENCY_STATUS_CONFLICT` | State-only | A dependency is not `Done` when the entry expects it to be. |
-| `STATE_FIELD_TOO_LONG`    | State-only | `assignee` or `next_action` exceeds the allowed length.         |
-| `STATE_MIXED_MUTATION_MODE` | State-only | Conflicting mutation modes for the same field family.           |
-| `STATE_CLEAR_MUTATION_CONFLICT` | State-only | `--clear` combined with other mutation flags; mutually exclusive. |
-| `STATE_NO_MUTATION_PROVIDED` | State-only | A `state set` request did not include any mutation field.       |
-| `GRAPH_DUPLICATE_DOCUMENT_ID` | Graph   | Duplicate `document_id` detected across multiple files (fatal, halts index build). |
-| `GRAPH_SUPERSESSION_CYCLE` | Graph      | Supersession chain forms a cycle (fatal, halts index build).     |
-| `INVALID_ROOT_PATH`        | Agent      | The provided root path is not a valid directory.                 |
-| `UNKNOWN_ERROR`            | Shared     | An unexpected error not covered by a specific code.             |
-| `UNKNOWN_ERROR_CODE`       | Agent      | The requested error code is not recognized by `meminit explain`. |
-| `PROTOCOL_ASSET_MISSING`   | Protocol   | A governed protocol asset file is absent from the repo.          |
-| `PROTOCOL_ASSET_LEGACY`    | Protocol   | A protocol asset has no MEMINIT_PROTOCOL markers (pre-v1.0 state). |
-| `PROTOCOL_ASSET_STALE`     | Protocol   | A protocol asset's managed region is version/hash-stale vs canonical. |
-| `PROTOCOL_ASSET_TAMPERED`  | Protocol   | A protocol asset's managed region was edited without updating markers. |
-| `PROTOCOL_ASSET_UNPARSEABLE` | Protocol | A protocol asset's markers are malformed (unparseable state). |
-| `PROTOCOL_SYNC_WRITE_FAILED` | Protocol | Protocol sync could not write a managed asset. |
-| `STREAM_UNSUPPORTED_FORMAT` | Streaming | `--format ndjson` was requested for an unsupported command or mode. |
-| `STREAM_PRODUCER_FAILED` | Streaming | A streaming producer failed before a terminal summary. |
-| `STREAM_INTERRUPTED` | Streaming | The process was interrupted while emitting a stream. |
-| `CACHE_LOCK_HELD` | Cache | Another index process owns the repo-local cache lock. |
-| `CACHE_ENTRY_INVALID` | Cache | A cache entry was invalid and was recomputed or ignored. |
-| `CACHE_WRITE_FAILED` | Cache | The repo-local index cache could not be written safely. |
+| Code                               | Category   | Description                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DUPLICATE_ID`                     | Shared     | A document_id already exists in the index or namespace.                                                                                                                                                                                                                                                                         |
+| `INVALID_ID_FORMAT`                | Shared     | The requested `--id` value is malformed or mismatched.                                                                                                                                                                                                                                                                          |
+| `INVALID_FLAG_COMBINATION`         | Shared     | Mutually exclusive or invalid CLI flags were provided.                                                                                                                                                                                                                                                                          |
+| `CONFIG_MISSING`                   | Shared     | `docops.config.yaml` is missing, unreadable, malformed, or the repo is not initialized.                                                                                                                                                                                                                                         |
+| `PATH_ESCAPE`                      | Shared     | A path argument resolves outside the repo root or docs root.                                                                                                                                                                                                                                                                    |
+| `UNKNOWN_TYPE`                     | New-only   | The requested document type is not in the type directory map.                                                                                                                                                                                                                                                                   |
+| `UNKNOWN_NAMESPACE`                | New-only   | The requested namespace is not configured.                                                                                                                                                                                                                                                                                      |
+| `FILE_EXISTS`                      | New-only   | The target file already exists (non-idempotent create).                                                                                                                                                                                                                                                                         |
+| `INVALID_STATUS`                   | New-only   | The provided status value is not valid.                                                                                                                                                                                                                                                                                         |
+| `INVALID_RELATED_ID`               | New-only   | A `related_ids` or `superseded_by` value is malformed.                                                                                                                                                                                                                                                                          |
+| `TEMPLATE_NOT_FOUND`               | New-only   | No template found for the requested document type.                                                                                                                                                                                                                                                                              |
+| `LEGACY_CONFIG_UNSUPPORTED`        | New-only   | Legacy config keys (type_directories, templates) rejected at runtime.                                                                                                                                                                                                                                                           |
+| `INVALID_TEMPLATE_PLACEHOLDER`     | New-only   | Legacy placeholder syntax ({title}, <REPO>) detected in template.                                                                                                                                                                                                                                                               |
+| `UNKNOWN_TEMPLATE_VARIABLE`        | New-only   | Unknown {{variable}} placeholder in template.                                                                                                                                                                                                                                                                                   |
+| `INVALID_TEMPLATE_FILE`            | New-only   | Template file validation failure (symlink, size, encoding).                                                                                                                                                                                                                                                                     |
+| `DUPLICATE_SECTION_ID`             | New-only   | Duplicate section ID in template.                                                                                                                                                                                                                                                                                               |
+| `AMBIGUOUS_SECTION_BOUNDARY`       | New-only   | Ambiguous section boundary detected.                                                                                                                                                                                                                                                                                            |
+| `SCHEMA_INVALID`                   | Check-only | The metadata schema JSON is malformed or unreadable.                                                                                                                                                                                                                                                                            |
+| `LOCK_TIMEOUT`                     | Shared     | A file lock could not be acquired within the timeout period.                                                                                                                                                                                                                                                                    |
+| `FILE_NOT_FOUND`                   | Check-only | A targeted file path does not exist.                                                                                                                                                                                                                                                                                            |
+| `MISSING_FRONTMATTER`              | Check-only | A governed markdown file has no YAML frontmatter block.                                                                                                                                                                                                                                                                         |
+| `MISSING_FIELD`                    | Check-only | A required frontmatter field is absent.                                                                                                                                                                                                                                                                                         |
+| `INVALID_FIELD`                    | Check-only | A frontmatter field has an invalid value or type.                                                                                                                                                                                                                                                                               |
+| `OUTSIDE_DOCS_ROOT`                | Check-only | A file is outside the configured docs root.                                                                                                                                                                                                                                                                                     |
+| `DIRECTORY_MISMATCH`               | Check-only | A file is in the wrong type directory for its declared type.                                                                                                                                                                                                                                                                    |
+| `VALIDATION_ERROR`                 | Shared     | General validation failure not covered by a specific code.                                                                                                                                                                                                                                                                      |
+| `STATE_YAML_MALFORMED`             | State-only | The project-state.yaml file is not valid YAML.                                                                                                                                                                                                                                                                                  |
+| `STATE_SCHEMA_VIOLATION`           | State-only | The project-state.yaml file violates the expected schema.                                                                                                                                                                                                                                                                       |
+| `STATE_INVALID_FILTER_VALUE`       | State-only | An invalid filter value was provided to a state or index query.                                                                                                                                                                                                                                                                 |
+| `STATE_INVALID_PRIORITY`           | State-only | `priority` is not one of `P0..P3`. **Dual severity**: fatal when an invalid priority is being written (mutation rejected by `state set`); warning when an invalid priority is already stored and the entry is being selected, listed, or indexed (entry skipped by `state next`, `state list`, and index readiness derivation). |
+| `STATE_INVALID_DEPENDENCY_ID`      | State-only | A dependency reference does not match `<PREFIX>-<TYPE>-<NNN>`.                                                                                                                                                                                                                                                                  |
+| `STATE_SELF_DEPENDENCY`            | State-only | An entry references its own `document_id` in a dependency list.                                                                                                                                                                                                                                                                 |
+| `STATE_UNDEFINED_DEPENDENCY`       | State-only | A dependency target is not present in the current index graph.                                                                                                                                                                                                                                                                  |
+| `STATE_DEPENDENCY_CYCLE`           | State-only | Dependencies form a cycle across `depends_on ∪ blocked_by`.                                                                                                                                                                                                                                                                     |
+| `STATE_DEPENDENCY_STATUS_CONFLICT` | State-only | A dependency is not `Done` when the entry expects it to be.                                                                                                                                                                                                                                                                     |
+| `STATE_FIELD_TOO_LONG`             | State-only | `assignee` or `next_action` exceeds the allowed length.                                                                                                                                                                                                                                                                         |
+| `STATE_MIXED_MUTATION_MODE`        | State-only | Conflicting mutation modes for the same field family.                                                                                                                                                                                                                                                                           |
+| `STATE_CLEAR_MUTATION_CONFLICT`    | State-only | `--clear` combined with other mutation flags; mutually exclusive.                                                                                                                                                                                                                                                               |
+| `STATE_NO_MUTATION_PROVIDED`       | State-only | A `state set` request did not include any mutation field.                                                                                                                                                                                                                                                                       |
+| `GRAPH_DUPLICATE_DOCUMENT_ID`      | Graph      | Duplicate `document_id` detected across multiple files (fatal, halts index build).                                                                                                                                                                                                                                              |
+| `GRAPH_SUPERSESSION_CYCLE`         | Graph      | Supersession chain forms a cycle (fatal, halts index build).                                                                                                                                                                                                                                                                    |
+| `INVALID_ROOT_PATH`                | Agent      | The provided root path is not a valid directory.                                                                                                                                                                                                                                                                                |
+| `UNKNOWN_ERROR`                    | Shared     | An unexpected error not covered by a specific code.                                                                                                                                                                                                                                                                             |
+| `UNKNOWN_ERROR_CODE`               | Agent      | The requested error code is not recognized by `meminit explain`.                                                                                                                                                                                                                                                                |
+| `PROTOCOL_ASSET_MISSING`           | Protocol   | A governed protocol asset file is absent from the repo.                                                                                                                                                                                                                                                                         |
+| `PROTOCOL_ASSET_LEGACY`            | Protocol   | A protocol asset has no MEMINIT_PROTOCOL markers (pre-v1.0 state).                                                                                                                                                                                                                                                              |
+| `PROTOCOL_ASSET_STALE`             | Protocol   | A protocol asset's managed region is version/hash-stale vs canonical.                                                                                                                                                                                                                                                           |
+| `PROTOCOL_ASSET_TAMPERED`          | Protocol   | A protocol asset's managed region was edited without updating markers.                                                                                                                                                                                                                                                          |
+| `PROTOCOL_ASSET_UNPARSEABLE`       | Protocol   | A protocol asset's markers are malformed (unparseable state).                                                                                                                                                                                                                                                                   |
+| `PROTOCOL_SYNC_WRITE_FAILED`       | Protocol   | Protocol sync could not write a managed asset.                                                                                                                                                                                                                                                                                  |
+| `STREAM_UNSUPPORTED_FORMAT`        | Streaming  | `--format ndjson` was requested for an unsupported command or mode.                                                                                                                                                                                                                                                             |
+| `STREAM_PRODUCER_FAILED`           | Streaming  | A streaming producer failed before a terminal summary.                                                                                                                                                                                                                                                                          |
+| `STREAM_INTERRUPTED`               | Streaming  | The process was interrupted while emitting a stream.                                                                                                                                                                                                                                                                            |
+| `CACHE_LOCK_HELD`                  | Cache      | Another index process owns the repo-local cache lock.                                                                                                                                                                                                                                                                           |
+| `CACHE_ENTRY_INVALID`              | Cache      | A cache entry was invalid and was recomputed or ignored.                                                                                                                                                                                                                                                                        |
+| `CACHE_WRITE_FAILED`               | Cache      | The repo-local index cache could not be written safely.                                                                                                                                                                                                                                                                         |
 
 ## 4. Adding a New Error Code
 
@@ -156,11 +156,11 @@ Plain English: If these are true, error codes are governed correctly.
 As of version 0.6, all state-related error codes use the `STATE_*`
 convention. The old mixed-prefix names were replaced as follows:
 
-| Previous name | Canonical name |
-| ------------- | -------------- |
-| `E_STATE_YAML_MALFORMED` | `STATE_YAML_MALFORMED` |
-| `E_STATE_SCHEMA_VIOLATION` | `STATE_SCHEMA_VIOLATION` |
-| `E_INVALID_FILTER_VALUE` | `STATE_INVALID_FILTER_VALUE` |
+| Previous name              | Canonical name               |
+| -------------------------- | ---------------------------- |
+| `E_STATE_YAML_MALFORMED`   | `STATE_YAML_MALFORMED`       |
+| `E_STATE_SCHEMA_VIOLATION` | `STATE_SCHEMA_VIOLATION`     |
+| `E_INVALID_FILTER_VALUE`   | `STATE_INVALID_FILTER_VALUE` |
 
 No runtime aliases are retained. This keeps `meminit explain`, JSON error
 envelopes, exit-code mappings, docs, and tests on one canonical contract
@@ -168,11 +168,11 @@ before the first stable release.
 
 ## 7. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-02-24 | Product Team | Initial spec |
-| 0.2 | 2026-04-15 | GitCmurf | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path |
-| 0.3 | 2026-04-17 | GitCmurf | Added INVALID_ROOT_PATH (Agent), GRAPH_DUPLICATE_DOCUMENT_ID and GRAPH_SUPERSESSION_CYCLE (Graph) for Phase 2 index graph integrity |
-| 0.4 | 2026-04-18 | GitCmurf | Added Protocol category and 5 PROTOCOL_* codes for Phase 3 protocol governance (check/sync) |
-| 0.5 | 2026-04-21 | Codex | Added Phase 4 state queue codes (`STATE_*`) and clarified state-only scope to include queue commands |
-| 0.6 | 2026-05-09 | Codex | Normalized all state-related public error codes to `STATE_*` and documented the pre-stable migration from mixed-prefix names. |
+| Version | Date       | Author       | Changes                                                                                                                             |
+| ------- | ---------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-02-24 | Product Team | Initial spec                                                                                                                        |
+| 0.2     | 2026-04-15 | GitCmurf     | Added UNKNOWN_ERROR_CODE (Agent category) for `meminit explain` invalid-code path                                                   |
+| 0.3     | 2026-04-17 | GitCmurf     | Added INVALID_ROOT_PATH (Agent), GRAPH_DUPLICATE_DOCUMENT_ID and GRAPH_SUPERSESSION_CYCLE (Graph) for Phase 2 index graph integrity |
+| 0.4     | 2026-04-18 | GitCmurf     | Added Protocol category and 5 PROTOCOL\_\* codes for Phase 3 protocol governance (check/sync)                                       |
+| 0.5     | 2026-04-21 | Codex        | Added Phase 4 state queue codes (`STATE_*`) and clarified state-only scope to include queue commands                                |
+| 0.6     | 2026-05-09 | Codex        | Normalized all state-related public error codes to `STATE_*` and documented the pre-stable migration from mixed-prefix names.       |

@@ -10,6 +10,28 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from meminit.cli.shared.output_helpers import (
+    _extract_envelope_metadata,
+    _flatten_warning_groups,
+    _md_escape,
+    _md_inline,
+    _md_table,
+    _render_state_blockers_json,
+    _render_state_blockers_text,
+    _render_state_list_json,
+    _render_state_list_text,
+    _render_state_next_json,
+    _render_state_next_text,
+    _render_state_set_json,
+    _render_state_set_text,
+    _render_warnings_text,
+    _unexpected_error_details,
+    _write_output,
+    console,
+    get_console,
+    get_severity_value,
+    maybe_capture,
+)
 from meminit.cli.shared_flags import (
     agent_output_options,
     agent_repo_options,
@@ -23,24 +45,17 @@ from meminit.cli.streaming import (
 )
 from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.exit_codes import (
-    EX_CANTCREAT,
-    EX_COMPLIANCE_FAIL,
-    exit_code_for_error,
-)
+from meminit.core.services.exit_codes import EX_CANTCREAT, EX_COMPLIANCE_FAIL, exit_code_for_error
 from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
-    normalize_correlation_id,
     format_envelope,
     format_error_envelope,
+    normalize_correlation_id,
 )
-from meminit.core.services.versioning import get_cli_version
-from meminit.core.services.path_utils import (
-    is_safe_cli_output_path,
-    relative_path_string,
-)
+from meminit.core.services.path_utils import is_safe_cli_output_path, relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
+from meminit.core.services.versioning import get_cli_version
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
 from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
@@ -57,19 +72,6 @@ from meminit.core.use_cases.org_status import OrgStatusUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
-
-console = Console()
-
-
-def get_console() -> Console:
-    """Helper to get the rich console from context if available."""
-    try:
-        ctx = click.get_current_context(silent=True)
-        if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict) and "console" in ctx.obj:
-            return ctx.obj["console"]
-    except Exception:
-        pass
-    return console
 
 
 @contextlib.contextmanager
@@ -229,111 +231,22 @@ def complete_document_types(ctx, param, incomplete: str):
     return []
 
 
-def _extract_envelope_metadata(output_str: str) -> Optional[Dict[str, Any]]:
-    """Parse a CLI envelope string and extract metadata fields for error rebuilding.
-
-    Returns None if the string is not a valid envelope.
-    """
-    from meminit.core.services.output_contracts import (
-        OUTPUT_SCHEMA_VERSION_V2,
-        OUTPUT_SCHEMA_VERSION_V3,
+def _meminit_error_for_new_document_params_validation(exc: ValueError) -> MeminitError:
+    """Translate NewDocumentParams validation failures into structured CLI errors."""
+    message = str(exc)
+    if "document_id" in message:
+        code = ErrorCode.INVALID_ID_FORMAT
+    elif "related_ids" in message or "superseded_by" in message:
+        code = ErrorCode.INVALID_RELATED_ID
+    elif "status" in message:
+        code = ErrorCode.INVALID_STATUS
+    else:
+        code = ErrorCode.INVALID_FIELD
+    return MeminitError(
+        code,
+        message,
+        details={"validation_error": message, "source": "NewDocumentParams"},
     )
-
-    try:
-        payload = json.loads(output_str)
-    except Exception:
-        return None
-    if (
-        isinstance(payload, dict)
-        and payload.get("output_schema_version")
-        in (OUTPUT_SCHEMA_VERSION_V2, OUTPUT_SCHEMA_VERSION_V3)
-        and isinstance(payload.get("command"), str)
-    ):
-        return payload
-    return None
-
-
-def _unexpected_error_details(exc: Exception) -> Dict[str, Any]:
-    """Return public, non-sensitive details for an unexpected exception."""
-    return {"exception": exc.__class__.__name__}
-
-
-def _write_output(
-    output_str: str,
-    output: Optional[str] = None,
-    append: bool = False,
-    add_newline: bool = True,
-) -> None:
-    """Write output to stdout or to a file if requested."""
-    if output:
-        out_path = Path(output)
-        if not is_safe_cli_output_path(out_path):
-            payload = _extract_envelope_metadata(output_str)
-            if payload is not None:
-                click.echo(
-                    format_error_envelope(
-                        command=payload["command"],
-                        root=payload.get("root"),
-                        error_code=ErrorCode.PATH_ESCAPE,
-                        message=f"Output path is considered unsafe: {output}",
-                        details={"output_path": output},
-                        include_timestamp="timestamp" in payload,
-                        run_id=(
-                            payload.get("run_id")
-                            if isinstance(payload.get("run_id"), str)
-                            else None
-                        ),
-                        correlation_id=(
-                            payload.get("correlation_id")
-                            if isinstance(payload.get("correlation_id"), str)
-                            else None
-                        ),
-                    )
-                )
-            else:
-                click.echo(
-                    f"ERROR: Output path '{output}' is considered unsafe. Writing blocked.",
-                    err=True,
-                )
-            raise SystemExit(exit_code_for_error(ErrorCode.PATH_ESCAPE))
-
-        try:
-            mode = "a" if append else "w"
-            with out_path.open(mode, encoding="utf-8") as handle:
-                if add_newline:
-                    handle.write(output_str + "\n")
-                else:
-                    handle.write(output_str)
-            return
-        except OSError as exc:
-            # Preserve machine-safe behavior for JSON output when file writes fail.
-            payload = _extract_envelope_metadata(output_str)
-            if payload is not None:
-                click.echo(
-                    format_error_envelope(
-                        command=payload["command"],
-                        root=payload.get("root"),
-                        error_code=ErrorCode.UNKNOWN_ERROR,
-                        message=f"Failed to write output file: {output}",
-                        details={"output_path": output, "reason": str(exc)},
-                        include_timestamp="timestamp" in payload,
-                        run_id=(
-                            payload.get("run_id")
-                            if isinstance(payload.get("run_id"), str)
-                            else None
-                        ),
-                        correlation_id=(
-                            payload.get("correlation_id")
-                            if isinstance(payload.get("correlation_id"), str)
-                            else None
-                        ),
-                    )
-                )
-            else:
-                # Fallback to click.echo
-                click.echo(f"Error writing output file '{output}': {exc}", err=True)
-            raise SystemExit(EX_CANTCREAT)
-    click.echo(output_str, nl=add_newline)
 
 
 def _write_scan_plan_artifact(
@@ -394,11 +307,14 @@ def _write_scan_plan_artifact(
 
 
 def _filter_index_edges(
-    report: Any, *, status_filter: str | None, impl_state_filter: str | None
+    report: Any,
+    *,
+    status_filter: str | list[str] | None,
+    impl_state_filter: str | list[str] | None,
 ) -> list[dict[str, Any]]:
     has_filter = status_filter is not None or impl_state_filter is not None
     if not has_filter:
-        return report.edges
+        return list(report.edges)
     visible_ids = {n["document_id"] for n in report.documents}
     return [
         e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
@@ -429,80 +345,6 @@ def _index_output_data(
     if report.kanban_path:
         data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
     return data
-
-
-@contextlib.contextmanager
-def maybe_capture(output: Optional[str], format: str):
-    """Capture console output if output file is specified and format is text."""
-    if format == "text" and output:
-        capture_obj = None
-        try:
-            with get_console().capture() as capture:
-                capture_obj = capture
-                yield
-        finally:
-            if capture_obj:
-                captured_text = capture_obj.get()
-                # Avoid clobbering a file with empty content in nested capture flows.
-                if captured_text.strip():
-                    _write_output(
-                        captured_text,
-                        output=output,
-                        append=True,
-                        add_newline=False,
-                    )
-    else:
-        yield
-
-
-def _md_escape(value: object) -> str:
-    text = "" if value is None else str(value)
-    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
-
-
-_MD_INLINE_SPECIAL = str.maketrans(
-    {
-        "\\": "\\\\",
-        "*": "\\*",
-        "_": "\\_",
-        "[": "\\[",
-        "]": "\\]",
-        "`": "\\`",
-        "|": "\\|",
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        "\n": " ",
-    }
-)
-
-
-def _md_inline(value: object) -> str:
-    text = "" if value is None else str(value)
-    return text.translate(_MD_INLINE_SPECIAL)
-
-
-def _md_table(headers: list[str], rows: list[list[object]]) -> str:
-    head = "| " + " | ".join(_md_escape(h) for h in headers) + " |"
-    sep = "| " + " | ".join(["---"] * len(headers)) + " |"
-    body = ["| " + " | ".join(_md_escape(c) for c in row) + " |" for row in rows]
-    return "\n".join([head, sep, *body])
-
-
-def _flatten_warning_groups(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    flat: list[dict[str, Any]] = []
-    for item in warnings:
-        path = item.get("path")
-        for warning in item.get("warnings", []):
-            entry: Dict[str, Any] = {
-                "code": warning.get("code"),
-                "path": path,
-                "message": warning.get("message"),
-            }
-            if "line" in warning and warning.get("line") is not None:
-                entry["line"] = warning.get("line")
-            flat.append(entry)
-    return flat
 
 
 def validate_root_path(
@@ -675,14 +517,6 @@ def validate_initialized(
         with maybe_capture(output, format):
             get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
     raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
-
-
-def get_severity_value(violation: Violation) -> str:
-    return (
-        violation.severity.value
-        if hasattr(violation.severity, "value")
-        else str(violation.severity)
-    )
 
 
 @click.group()
@@ -892,15 +726,15 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
                 table_title = (
                     "Compliance Violations" if result.violations_count else "Compliance Warnings"
                 )
-                table = Table(title=table_title)
-                table.add_column("Severity")
-                table.add_column("Rule", style="cyan")
-                table.add_column("File")
-                table.add_column("Message", overflow="fold")
+                result_table = Table(title=table_title)
+                result_table.add_column("Severity")
+                result_table.add_column("Rule", style="cyan")
+                result_table.add_column("File")
+                result_table.add_column("Message", overflow="fold")
 
                 for item in result.violations:
                     for v in item.get("violations", []):
-                        table.add_row(
+                        result_table.add_row(
                             "[red]error[/red]",
                             str(v.get("code")),
                             f"{item.get('path')}:{v.get('line', 0)}",
@@ -908,13 +742,13 @@ def check(paths, root, format, output, include_timestamp, correlation_id, quiet,
                         )
                 for item in result.warnings:
                     for w in item.get("warnings", []):
-                        table.add_row(
+                        result_table.add_row(
                             "[yellow]warning[/yellow]",
                             str(w.get("code")),
                             f"{item.get('path')}:{w.get('line', 0)}",
                             str(w.get("message")),
                         )
-                get_console().print(table)
+                get_console().print(result_table)
 
             if not result.success:
                 get_console().print(
@@ -1530,8 +1364,8 @@ def scan(root, plan, format, output, include_timestamp, correlation_id):
                 table = Table(title="Ambiguous type_directories (manual decision required)")
                 table.add_column("Type")
                 table.add_column("Candidates")
-                for k, v in sorted(report.ambiguous_types.items()):
-                    table.add_row(k, ", ".join(sorted(v)))
+                for k, candidates in sorted(report.ambiguous_types.items()):
+                    table.add_row(k, ", ".join(sorted(candidates)))
                 get_console().print(table)
             if getattr(report, "suggested_namespaces", None):
                 table = Table(title="Suggested namespaces (monorepo)")
@@ -2113,9 +1947,7 @@ def link(document_id, root, format, output, include_timestamp, correlation_id):
                     data={
                         "document_id": document_id,
                         "link": (
-                            f"[{document_id}]({normalized_path})"
-                            if normalized_path
-                            else None
+                            f"[{document_id}]({normalized_path})" if normalized_path else None
                         ),
                     },
                     include_timestamp=include_timestamp,
@@ -2680,20 +2512,23 @@ def new_doc(
         if doc_type.lower() == "adr":
             doc_type = "ADR"
 
-        params = NewDocumentParams(
-            doc_type=doc_type,
-            title=title,
-            namespace=namespace,
-            owner=owner,
-            area=area,
-            description=description,
-            status=status,
-            keywords=list(keywords) if keywords else None,
-            related_ids=list(related_ids) if related_ids else None,
-            document_id=document_id,
-            dry_run=dry_run,
-            verbose=verbose,
-        )
+        try:
+            params = NewDocumentParams(
+                doc_type=doc_type,
+                title=title,
+                namespace=namespace,
+                owner=owner,
+                area=area,
+                description=description,
+                status=status,
+                keywords=list(keywords) if keywords else None,
+                related_ids=list(related_ids) if related_ids else None,
+                document_id=document_id,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+        except ValueError as exc:
+            raise _meminit_error_for_new_document_params_validation(exc) from exc
 
         use_case = NewDocumentUseCase(str(root_path))
         result = use_case.execute_with_params(params)
@@ -2716,7 +2551,7 @@ def new_doc(
                         sys.stderr.write(f" (method: {entry['method']})")
                     sys.stderr.write("\n")
                 sys.stderr.flush()
-            response_data = {
+            response_data: Dict[str, Any] = {
                 "path": result.path.relative_to(root_path).as_posix() if result.path else None,
                 "document_id": result.document_id,
                 "type": result.doc_type,
@@ -3581,82 +3416,6 @@ def _state_set_execute(
     )
 
 
-def _render_state_set_json(
-    result,
-    root_path,
-    include_timestamp,
-    run_id,
-    correlation_id,
-    output,
-):
-    data: dict = {"action": result.action, "document_id": result.document_id}
-    if result.entry:
-        data.update(result.entry)
-    _write_output(
-        format_envelope(
-            command="state set",
-            root=str(root_path),
-            success=True,
-            data=data,
-            warnings=result.warnings,
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            correlation_id=correlation_id,
-        ),
-        output,
-    )
-
-
-def _render_state_set_text(result, format, output):
-    if format == "md":
-        if result.action == "clear":
-            lines = (
-                f"# Meminit State Set\n\n"
-                f"- Document ID: `{result.document_id}`\n"
-                f"- Action: Cleared\n"
-            )
-        else:
-            lines = (
-                f"# Meminit State Set\n\n"
-                f"- Document ID: `{result.document_id}`\n"
-                f"- Impl State: {_md_inline(result.entry.get('impl_state', ''))}\n"
-                f"- Updated By: {_md_inline(result.entry.get('updated_by', ''))}\n"
-            )
-            if result.entry.get("priority"):
-                lines += f"- Priority: {_md_inline(result.entry.get('priority'))}\n"
-            if result.entry.get("assignee"):
-                lines += f"- Assignee: {_md_inline(result.entry.get('assignee'))}\n"
-            if result.entry.get("next_action"):
-                lines += f"- Next Action: {_md_inline(result.entry.get('next_action'))}\n"
-            if result.entry.get("notes"):
-                lines += f"- Notes: {_md_inline(result.entry.get('notes'))}\n"
-        if result.warnings:
-            lines += "\n## Warnings\n"
-            for w in result.warnings:
-                lines += f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}\n"
-        _write_output(lines, output)
-        return
-
-    with maybe_capture(output, format):
-        if result.action == "clear":
-            get_console().print(
-                f"[bold yellow]Cleared state for {result.document_id}[/bold yellow]"
-            )
-        else:
-            get_console().print(f"[bold green]Updated state for {result.document_id}[/bold green]")
-            get_console().print(f"Impl State: {result.entry.get('impl_state', '')}")
-            get_console().print(f"Updated By: {result.entry.get('updated_by', '')}")
-            if result.entry.get("priority"):
-                get_console().print(f"Priority: {result.entry.get('priority')}")
-            if result.entry.get("assignee"):
-                get_console().print(f"Assignee: {result.entry.get('assignee')}")
-            if result.entry.get("next_action"):
-                get_console().print(f"Next Action: {result.entry.get('next_action')}")
-            if result.entry.get("notes"):
-                get_console().print(f"Notes: {result.entry.get('notes')}")
-        _render_warnings_text(result.warnings, format, output)
-
-
 @state.command("set")
 @click.argument("document_id")
 @agent_repo_options()
@@ -3837,6 +3596,8 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             return
 
         if format == "md":
+            if result.entry is None:
+                raise SystemExit(1)
             _write_output(
                 f"# Meminit State Get\n\n"
                 f"- Document ID: `{document_id}`\n"
@@ -3848,6 +3609,8 @@ def state_get(document_id, root, format, output, include_timestamp, correlation_
             return
 
         with maybe_capture(output, format):
+            if result.entry is None:
+                raise SystemExit(1)
             get_console().print(f"[bold blue]{document_id}[/bold blue]")
             get_console().print(f"Impl State: {result.entry.get('impl_state')}")
             get_console().print(f"Updated By: {result.entry.get('updated_by')}")
@@ -3898,9 +3661,9 @@ def _state_list_execute(
     priority_list,
     impl_state_list,
 ):
-    from meminit.core.use_cases.state_document import StateDocumentUseCase
-    from meminit.core.services.repo_config import load_repo_layout
     from meminit.core.services.project_state import ImplState
+    from meminit.core.services.repo_config import load_repo_layout
+    from meminit.core.use_cases.state_document import StateDocumentUseCase
 
     validate_root_path(
         root_path,
@@ -3930,8 +3693,8 @@ def _state_list_execute(
     )
     try:
         layout = load_repo_layout(root_path)
-        valid_impl_states_set = set()
-        valid_doc_statuses_set = set()
+        valid_impl_states_set: set[str] = set()
+        valid_doc_statuses_set: set[str] = set()
         for ns in layout.namespaces:
             valid_impl_states_set.update(ns.valid_impl_states)
             valid_doc_statuses_set.update(ns.valid_doc_statuses)
@@ -3941,135 +3704,6 @@ def _state_list_execute(
         valid_impl_states = ImplState.canonical_values()
         valid_doc_statuses = ["Draft", "In Review", "Approved", "Superseded"]
     return result, valid_impl_states, valid_doc_statuses
-
-
-def _render_state_list_json(
-    result,
-    valid_impl_states,
-    valid_doc_statuses,
-    root_path,
-    include_timestamp,
-    run_id,
-    correlation_id,
-    output,
-):
-    json_data = {
-        "entries": result.entries,
-        "valid_impl_states": valid_impl_states,
-        "valid_doc_statuses": valid_doc_statuses,
-    }
-    if result.summary:
-        json_data["summary"] = result.summary
-    _write_output(
-        format_envelope(
-            command="state list",
-            root=str(root_path),
-            success=True,
-            data=json_data,
-            warnings=result.warnings,
-            advice=result.advice,
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            correlation_id=correlation_id,
-        ),
-        output,
-    )
-
-
-def _render_warnings_text(warnings, fmt, output):
-    if not warnings:
-        return
-    if fmt == "md":
-        lines = ["\n## Warnings\n"]
-        for w in warnings:
-            lines.append(
-                f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
-            )
-        lines.append("")
-        _write_output("\n".join(lines), output)
-        return
-    for w in warnings:
-        get_console().print(
-            f"[yellow]Warning ({w.get('code', 'UNKNOWN')}): {w.get('message', '')}[/yellow]"
-        )
-
-
-def _render_state_list_text(result, valid_impl_states, valid_doc_statuses, format, output):
-    if format == "md":
-        lines = ["# Meminit State List\n"]
-        lines.append(f"**Valid Implementation States**: `{', '.join(valid_impl_states)}`  ")
-        lines.append(f"**Valid Document Statuses**: `{', '.join(valid_doc_statuses)}`\n")
-        if not result.entries:
-            lines.append("_No entries found._\n")
-        else:
-            rows = [
-                [
-                    e.get("document_id", ""),
-                    e.get("impl_state", ""),
-                    e.get("priority", ""),
-                    "Yes" if e.get("ready") else "No",
-                    _md_inline(e.get("assignee", "")),
-                    str(e.get("updated", ""))[:10],
-                ]
-                for e in result.entries
-            ]
-            lines.append(
-                _md_table(
-                    ["Document ID", "Impl State", "Priority", "Ready", "Assignee", "Updated Date"],
-                    rows,
-                )
-            )
-            lines.append("")
-        if result.warnings:
-            lines.append("## Warnings\n")
-            for w in result.warnings:
-                lines.append(
-                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
-                )
-            lines.append("")
-        if result.advice:
-            lines.append("## Advisories\n")
-            for a in result.advice:
-                lines.append(
-                    f"- **{_md_inline(a.get('code', 'UNKNOWN'))}**: {_md_inline(a.get('message', ''))}"
-                )
-            lines.append("")
-        _write_output("\n".join(lines), output)
-        return
-    with maybe_capture(output, format):
-        get_console().print(
-            f"[bold]Valid Implementation States:[/bold] {', '.join(valid_impl_states)}"
-        )
-        get_console().print(
-            f"[bold]Valid Document Statuses:[/bold] {', '.join(valid_doc_statuses)}\n"
-        )
-        if not result.entries:
-            get_console().print("[yellow]No entries found in project-state.yaml[/yellow]")
-            _render_warnings_text(result.warnings, format, output)
-            return
-        table = Table(title="Project State Entries")
-        table.add_column("Document ID", style="cyan")
-        table.add_column("Impl State", style="green")
-        table.add_column("Priority")
-        table.add_column("Ready")
-        table.add_column("Assignee")
-        table.add_column("Updated Date")
-        for e in result.entries:
-            table.add_row(
-                e.get("document_id", ""),
-                e.get("impl_state", ""),
-                e.get("priority", ""),
-                "Yes" if e.get("ready") else "No",
-                e.get("assignee", ""),
-                str(e.get("updated", ""))[:10],
-            )
-        get_console().print(table)
-        _render_warnings_text(result.warnings, format, output)
-        if result.advice:
-            for a in result.advice:
-                get_console().print(
-                    f"[cyan]Advisory ({a.get('code', 'UNKNOWN')}): {a.get('message', '')}[/cyan]"
-                )
 
 
 @state.command("list")
@@ -4110,10 +3744,14 @@ def state_list(
         root_path,
         correlation_id=correlation_id,
     ):
-        ready_filter, blocked_filter, assignee_list, priority_list, impl_state_list = (
-            _state_list_validate_filters(
-                ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
-            )
+        (
+            ready_filter,
+            blocked_filter,
+            assignee_list,
+            priority_list,
+            impl_state_list,
+        ) = _state_list_validate_filters(
+            ready, no_ready, blocked, no_blocked, assignee, priority, impl_state
         )
 
         result, valid_impl_states, valid_doc_statuses = _state_list_execute(
@@ -4153,150 +3791,11 @@ def _state_next_execute(root_path, assignee, priority_at_least):
     return use_case.next_state(assignee=assignee, priority_at_least=priority_at_least)
 
 
-def _render_state_next_json(result, root_path, include_timestamp, run_id, correlation_id, output):
-    _write_output(
-        format_envelope(
-            command="state next",
-            root=str(root_path),
-            success=True,
-            data={
-                "entry": result.entry,
-                "selection": result.selection,
-                "reason": result.reason,
-            },
-            warnings=result.warnings,
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            correlation_id=correlation_id,
-        ),
-        output,
-    )
-
-
-def _render_state_next_text(result, fmt, output):
-    if fmt == "md":
-        lines = ["# Meminit State Next\n"]
-        if result.entry:
-            lines.append(f"- **Document ID**: `{result.entry.get('document_id')}`")
-            lines.append(f"- **Impl State**: {_md_inline(result.entry.get('impl_state'))}")
-            if result.entry.get("priority"):
-                lines.append(f"- **Priority**: {_md_inline(result.entry.get('priority'))}")
-            if result.entry.get("assignee"):
-                lines.append(f"- **Assignee**: {_md_inline(result.entry.get('assignee'))}")
-            if result.entry.get("next_action"):
-                lines.append(f"- **Next Action**: {_md_inline(result.entry.get('next_action'))}")
-            lines.append(
-                f"- **Candidates Considered**: {result.selection.get('candidates_considered', 0)}"
-            )
-        else:
-            lines.append(f"_No ready items: {result.reason}_")
-        if result.warnings:
-            lines.append("\n## Warnings\n")
-            for w in result.warnings:
-                lines.append(
-                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
-                )
-            lines.append("")
-        _write_output("\n".join(lines) + "\n", output)
-        return
-    with maybe_capture(output, fmt):
-        if result.entry:
-            get_console().print(f"[bold green]Next: {result.entry.get('document_id')}[/bold green]")
-            get_console().print(f"Impl State: {result.entry.get('impl_state')}")
-            if result.entry.get("priority"):
-                get_console().print(f"Priority: {result.entry.get('priority')}")
-            if result.entry.get("assignee"):
-                get_console().print(f"Assignee: {result.entry.get('assignee')}")
-            if result.entry.get("next_action"):
-                get_console().print(f"Next Action: {result.entry.get('next_action')}")
-            get_console().print(
-                f"Candidates considered: {result.selection.get('candidates_considered', 0)}"
-            )
-        else:
-            get_console().print(f"[yellow]No ready items: {result.reason}[/yellow]")
-        _render_warnings_text(result.warnings, fmt, output)
-
-
 def _state_blockers_execute(root_path, assignee):
     from meminit.core.use_cases.state_document import StateDocumentUseCase
 
     use_case = StateDocumentUseCase(str(root_path), strict_config=True)
     return use_case.blockers_state(assignee=assignee)
-
-
-def _render_state_blockers_json(
-    result, root_path, include_timestamp, run_id, correlation_id, output
-):
-    _write_output(
-        format_envelope(
-            command="state blockers",
-            root=str(root_path),
-            success=True,
-            data={
-                "blocked": result.blocked,
-                "summary": result.summary,
-            },
-            warnings=result.warnings,
-            include_timestamp=include_timestamp,
-            run_id=run_id,
-            correlation_id=correlation_id,
-        ),
-        output,
-    )
-
-
-def _render_state_blockers_text(result, fmt, output):
-    if fmt == "md":
-        lines = ["# Meminit State Blockers\n"]
-        if not result.blocked:
-            lines.append("_No blocked entries._\n")
-        else:
-            for b in result.blocked:
-                lines.append(f"## {_md_inline(b['document_id'])}")
-                lines.append(f"- **Impl State**: {_md_inline(b.get('impl_state', ''))}")
-                if b.get("priority"):
-                    lines.append(f"- **Priority**: {_md_inline(b['priority'])}")
-                if b.get("assignee"):
-                    lines.append(f"- **Assignee**: {_md_inline(b['assignee'])}")
-                lines.append("- **Open Blockers**:")
-                for ob in b.get("open_blockers", []):
-                    known = "known" if ob.get("known") else "unknown"
-                    lines.append(
-                        f"  - `{ob['id']}` ({_md_inline(ob.get('impl_state', 'N/A'))}, {known})"
-                    )
-                lines.append("")
-        lines.append(
-            f"**Summary**: {result.summary.get('total_entries', 0)} entries, "
-            f"{result.summary.get('blocked', 0)} blocked, "
-            f"{result.summary.get('ready', 0)} ready"
-        )
-        if result.warnings:
-            lines.append("\n## Warnings\n")
-            for w in result.warnings:
-                lines.append(
-                    f"- **{_md_inline(w.get('code', 'UNKNOWN'))}**: {_md_inline(w.get('message', ''))}"
-                )
-            lines.append("")
-        _write_output("\n".join(lines) + "\n", output)
-        return
-    with maybe_capture(output, fmt):
-        if not result.blocked:
-            get_console().print("[green]No blocked entries.[/green]")
-        else:
-            table = Table(title="Blocked Entries")
-            table.add_column("Document ID", style="cyan")
-            table.add_column("Impl State")
-            table.add_column("Open Blockers", style="red")
-            for b in result.blocked:
-                blocker_ids = ", ".join(ob["id"] for ob in b.get("open_blockers", []))
-                table.add_row(b["document_id"], b.get("impl_state", ""), blocker_ids)
-            get_console().print(table)
-        get_console().print(
-            f"Summary: {result.summary.get('ready', 0)} ready, "
-            f"{result.summary.get('blocked', 0)} blocked, "
-            f"{result.summary.get('total_entries', 0)} total"
-        )
-        _render_warnings_text(result.warnings, fmt, output)
 
 
 @state.command("next")

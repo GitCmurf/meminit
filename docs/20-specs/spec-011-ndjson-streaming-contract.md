@@ -43,24 +43,24 @@ Every stream starts with one `header` record and ends with either one
 
 The supported record types are:
 
-| Record type | Required count | Purpose |
-| ----------- | -------------- | ------- |
-| `header` | exactly 1 | Stream metadata and run identity |
-| `item` | 0..N | Command-specific entity payload |
-| `progress` | 0..N | Deterministic coarse progress |
-| `summary` | 0 or 1 terminal | Terminal summary with overall success state |
-| `error` | 0 or 1 terminal | Failed terminal summary |
+| Record type | Required count  | Purpose                                     |
+| ----------- | --------------- | ------------------------------------------- |
+| `header`    | exactly 1       | Stream metadata and run identity            |
+| `item`      | 0..N            | Command-specific entity payload             |
+| `progress`  | 0..N            | Deterministic coarse progress               |
+| `summary`   | 0 or 1 terminal | Terminal summary with overall success state |
+| `error`     | 0 or 1 terminal | Failed terminal summary                     |
 
 ## 3. Common Fields
 
 Every record MUST include:
 
-| Field | Type | Requirement |
-| ----- | ---- | ----------- |
-| `stream_schema_version` | string | MUST be `"1.0"` |
-| `record_type` | string | One of the five supported record types |
-| `command` | string | Canonical Meminit command name |
-| `sequence` | integer | Zero-based, contiguous, monotonically increasing |
+| Field                   | Type    | Requirement                                      |
+| ----------------------- | ------- | ------------------------------------------------ |
+| `stream_schema_version` | string  | MUST be `"1.0"`                                  |
+| `record_type`           | string  | One of the five supported record types           |
+| `command`               | string  | Canonical Meminit command name                   |
+| `sequence`              | integer | Zero-based, contiguous, monotonically increasing |
 
 `run_id` appears only on the `header` record. Optional
 `correlation_id`, `root`, and `started_at` also appear only on
@@ -88,10 +88,10 @@ small or unknown.
 
 Phase 5 defines streaming for these command shapes:
 
-| Command | Supported invocation | Item kinds |
-| ------- | -------------------- | ---------- |
-| `index` | `meminit index --format ndjson` | `node`, `edge` |
-| `scan` | `meminit scan --format ndjson` | `file`, `suggestion` |
+| Command   | Supported invocation                     | Item kinds                               |
+| --------- | ---------------------------------------- | ---------------------------------------- |
+| `index`   | `meminit index --format ndjson`          | `node`, `edge`                           |
+| `scan`    | `meminit scan --format ndjson`           | `file`, `suggestion`                     |
 | `context` | `meminit context --deep --format ndjson` | `document_type`, `namespace`, `document` |
 
 For `scan`, each `file` item MUST correspond to one Markdown file discovered
@@ -118,11 +118,11 @@ do so without weakening correctness.
 
 The current guarantees are:
 
-| Command | First-item guarantee |
-| ------- | -------------------- |
-| `scan --format ndjson` | The first Markdown file item is yielded before the full scan report is assembled. |
-| `context --deep --format ndjson` | The first document type item is yielded before the deep context report is assembled. |
-| `index --format ndjson` | Graph validation, state derivation, cache handling, and artifact writes complete before public node/edge items are emitted; the first node is emitted before the JSON-facing `IndexBuildReport` is assembled. |
+| Command                          | First-item guarantee                                                                                                                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scan --format ndjson`           | The first Markdown file item is yielded before the full scan report is assembled.                                                                                                                             |
+| `context --deep --format ndjson` | The first document type item is yielded before the deep context report is assembled.                                                                                                                          |
+| `index --format ndjson`          | Graph validation, state derivation, cache handling, and artifact writes complete before public node/edge items are emitted; the first node is emitted before the JSON-facing `IndexBuildReport` is assembled. |
 
 `meminit index --explain-cache --format ndjson` MUST fail with
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
@@ -164,9 +164,9 @@ definition so agents can reject drift early.
 
 ## 7. Version History
 
-| Version | Date | Author | Notes |
-| ------- | ---- | ------ | ----- |
-| 0.1 | 2026-05-03 | Codex | Initial NDJSON stream shape and supported command set |
-| 0.2 | 2026-05-03 | Codex | Added deterministic serialization, progress boundaries, and command item ordering rules |
-| 0.3 | 2026-05-09 | Codex | Documented command-level producer laziness guarantees for scan, deep context, and the remaining index limitation. |
-| 0.4 | 2026-05-09 | Codex | Updated the index producer guarantee after routing NDJSON through shared internal build artifacts before public report assembly. |
+| Version | Date       | Author | Notes                                                                                                                            |
+| ------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-05-03 | Codex  | Initial NDJSON stream shape and supported command set                                                                            |
+| 0.2     | 2026-05-03 | Codex  | Added deterministic serialization, progress boundaries, and command item ordering rules                                          |
+| 0.3     | 2026-05-09 | Codex  | Documented command-level producer laziness guarantees for scan, deep context, and the remaining index limitation.                |
+| 0.4     | 2026-05-09 | Codex  | Updated the index producer guarantee after routing NDJSON through shared internal build artifacts before public report assembly. |

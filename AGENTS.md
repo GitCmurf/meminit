@@ -1,6 +1,28 @@
+<!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 sha256=17d7a67d712b37ea00567bf7e7cf27e1ff932da01ae0212cb514b92ac8c09488 -->
+
 # Agentic Coding Rules
 
-This file defines the operational parameters for AI agents working within the Meminit repository.
+This repository (**Meminit**) uses **Meminit DocOps** for governance.
+
+## Using Meminit
+
+Run `meminit` commands to create and manage governed documents:
+
+- `meminit init` — initialize DocOps (run once)
+- `meminit new <TYPE> <TITLE>` — create a new governed document
+- `meminit check` — verify compliance
+- `meminit doctor` — diagnose repo readiness
+
+Document IDs follow `MEMINIT-TYPE-SEQ` (e.g., `MEMINIT-ADR-001`).
+
+## Rules
+
+- Never modify a `document_id` once set.
+- Always use `meminit new` to create governed documents.
+- All code changes must include documentation and tests.
+- Never commit secrets or PII.
+  <!-- MEMINIT_PROTOCOL: end id=agents-md -->
+  This file defines the operational parameters for AI agents working within the Meminit repository.
 
 The **rules of this repository** are:
 
@@ -67,6 +89,7 @@ Meminit provides a deterministic, machine-parseable interface for agents and orc
 When `--format json` is used, Meminit emits exactly one JSON object on STDOUT. All human-readable logs and errors are routed to STDERR.
 
 The JSON envelope includes:
+
 - `output_schema_version`: `"3.0"`
 - `success`: boolean status
 - `command`: canonical subcommand name
@@ -78,6 +101,7 @@ The JSON envelope includes:
 ### Repo Discovery
 
 Use `meminit context --format json` at the start of a session to discover:
+
 - `namespaces`: governed subtrees, their docs roots, and prefixes.
 - `document_types`: type-to-directory and type-to-template mappings (Templates v2).
 - `allowed_types`: valid document types.
@@ -98,6 +122,7 @@ Meminit Templates v2 provides a stable, machine-parseable template system for do
 ### Template Resolution Precedence
 
 When creating documents, templates are resolved in this order:
+
 1. **Config**: Explicit `template` path in `document_types.<type>.template`
 2. **Convention**: `<docs_root>/00-governance/templates/<type>.template.md`
 3. **Built-in**: Package templates (ADR, PRD, FDD)
@@ -123,19 +148,19 @@ When `--format json` is used with `meminit new`, the response includes:
 
 Templates use **only** `{{variable}}` syntax. Legacy syntax is rejected:
 
-| Variable | Description |
-|----------|-------------|
-| `{{title}}` | Document title |
-| `{{document_id}}` | Full document ID |
-| `{{owner}}` | Document owner |
-| `{{status}}` | Document status |
-| `{{date}}` | Current date (ISO 8601) |
-| `{{repo_prefix}}` | Repository prefix |
-| `{{seq}}` | Sequence number |
-| `{{type}}` | Document type |
-| `{{area}}` | Document area |
-| `{{description}}` | Document description |
-| `{{keywords}}` | Comma-separated keywords |
+| Variable          | Description                 |
+| ----------------- | --------------------------- |
+| `{{title}}`       | Document title              |
+| `{{document_id}}` | Full document ID            |
+| `{{owner}}`       | Document owner              |
+| `{{status}}`      | Document status             |
+| `{{date}}`        | Current date (ISO 8601)     |
+| `{{repo_prefix}}` | Repository prefix           |
+| `{{seq}}`         | Sequence number             |
+| `{{type}}`        | Document type               |
+| `{{area}}`        | Document area               |
+| `{{description}}` | Document description        |
+| `{{keywords}}`    | Comma-separated keywords    |
 | `{{related_ids}}` | Comma-separated related IDs |
 
 Legacy syntax (`{title}`, `<REPO>`, `<SEQ>`, etc.) raises `INVALID_TEMPLATE_PLACEHOLDER` error.
@@ -146,14 +171,20 @@ Templates may include stable section markers for agent orchestration:
 
 ```markdown
 <!-- MEMINIT_SECTION: context -->
+
 ## Context
+
 ...
+
 <!-- MEMINIT_SECTION: decision -->
+
 ## Decision
+
 ...
 ```
 
 Agents can parse sections to:
+
 - Identify document structure
 - Extract content spans by section ID
 - Preserve `<!-- AGENT: ... -->` guidance prompts
@@ -161,10 +192,10 @@ Agents can parse sections to:
 
 See `docs/20-specs/spec-007-templates-v2.md` for complete specification.
 
-## Codex Skills
+## Agent Skills
 
-- Codex can use the repo-scoped `meminit-docops` skill for “how-to” workflows (scan → config → check → fix → index).
-- Skill file: `.codex/skills/meminit-docops/SKILL.md`
+- Agents can use the repo-scoped `meminit-docops` skill for “how-to” workflows (scan → config → check → fix → index).
+- Skill file: `.agents/skills/meminit-docops/SKILL.md`
 - Setup runbook: `docs/60-runbooks/runbook-006-codex-skills-setup.md`
 
 ## Coding style

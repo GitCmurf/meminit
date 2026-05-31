@@ -3,10 +3,7 @@
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
-from meminit.core.services.protocol_assets import (
-    PROTOCOL_ASSET_VERSION,
-    ProtocolAssetRegistry,
-)
+from meminit.core.services.protocol_assets import PROTOCOL_ASSET_VERSION, ProtocolAssetRegistry
 
 
 def _previous_version() -> str:

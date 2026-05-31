@@ -36,11 +36,12 @@ Delegates to core functions.
 Handles output modes (human vs JSON).
 
 **Templates module** (`meminit.core.services`)
+
 - `TemplateResolver` — Resolves templates via precedence chain (config → convention → builtin → skeleton).
 - `TemplateInterpolator` — Interpolates `{{variable}}` placeholders with legacy syntax rejection.
 - `SectionParser` — Parses `<!-- MEMINIT_SECTION: id -->` markers with code-fence awareness.
-Loads templates from repo; falls back to org-level defaults.
-Performs variable substitution.
+  Loads templates from repo; falls back to org-level defaults.
+  Performs variable substitution.
 
 **Index use case** (`meminit.core.use_cases.index_repository`)
 Scans docs/ and builds `meminit.index.json`.

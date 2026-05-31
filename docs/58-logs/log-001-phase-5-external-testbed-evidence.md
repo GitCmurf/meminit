@@ -28,15 +28,15 @@ This document records the accepted Phase 5 external testbed evidence.
 
 ## Operator Attestation
 
-| Field | Value |
-| ----- | ----- |
-| Operator | Human operator |
-| Attestation date | 2026-05-17 |
-| Meminit version or commit | 0.2.0 |
-| Meminit binary path | /home/cmf/code/Meminit/.venv/bin/meminit |
-| External repository class | External non-PII application repo |
-| Repository owner reviewer | CMF |
-| Evidence status | Approved |
+| Field                     | Value                                    |
+| ------------------------- | ---------------------------------------- |
+| Operator                  | Human operator                           |
+| Attestation date          | 2026-05-17                               |
+| Meminit version or commit | 0.2.0                                    |
+| Meminit binary path       | /home/cmf/code/Meminit/.venv/bin/meminit |
+| External repository class | External non-PII application repo        |
+| Repository owner reviewer | CMF                                      |
+| Evidence status           | Approved                                 |
 
 Operator statement:
 
@@ -66,15 +66,15 @@ printf 'using meminit binary: %s\n' "$(readlink -f "$MEMINIT_BIN")"
 
 ## Sanitized Result Summary
 
-| Step | Command | Exit status | Sanitized evidence |
-| ---- | ------- | ----------- | ------------------ |
-| 1 | `meminit scan --format ndjson` | 0 | NDJSON schema `1.0`; 65 `file` items; 0 warnings; 0 violations; 0 advice. |
-| 2 | `meminit context --deep --format ndjson` | 0 | NDJSON schema `1.0`; 62 documents; 18 document types; 4 namespaces; 0 warnings; 0 violations. |
-| 3 | `meminit index --format ndjson` | 0 | NDJSON schema `1.0`; 62 nodes; 15 edges; 0 warnings; 0 violations; 2 advisory asymmetry notes. |
-| 4 | `meminit index --format json` | 0 | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; incremental cache populated. |
-| 5 | `meminit index --format json` | 0 | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; warm-cache reuse confirmed on the second run. |
-| 6 | `meminit index --rebuild-cache --format json` | 0 | JSON schema `3.0`; success `true`; full rebuild; 62 nodes; 15 edges; 2 advisory asymmetry notes. |
-| 7 | `meminit index --explain-cache --format json` | 0 | JSON schema `3.0`; cache manifest present at `.meminit/cache/index/manifest.json`; `exists: true`; 0 warnings; 0 violations. |
+| Step | Command                                       | Exit status | Sanitized evidence                                                                                                           |
+| ---- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `meminit scan --format ndjson`                | 0           | NDJSON schema `1.0`; 65 `file` items; 0 warnings; 0 violations; 0 advice.                                                    |
+| 2    | `meminit context --deep --format ndjson`      | 0           | NDJSON schema `1.0`; 62 documents; 18 document types; 4 namespaces; 0 warnings; 0 violations.                                |
+| 3    | `meminit index --format ndjson`               | 0           | NDJSON schema `1.0`; 62 nodes; 15 edges; 0 warnings; 0 violations; 2 advisory asymmetry notes.                               |
+| 4    | `meminit index --format json`                 | 0           | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; incremental cache populated.                                          |
+| 5    | `meminit index --format json`                 | 0           | JSON schema `3.0`; success `true`; 62 nodes; 15 edges; warm-cache reuse confirmed on the second run.                         |
+| 6    | `meminit index --rebuild-cache --format json` | 0           | JSON schema `3.0`; success `true`; full rebuild; 62 nodes; 15 edges; 2 advisory asymmetry notes.                             |
+| 7    | `meminit index --explain-cache --format json` | 0           | JSON schema `3.0`; cache manifest present at `.meminit/cache/index/manifest.json`; `exists: true`; 0 warnings; 0 violations. |
 
 ## Evidence Capture Checklist
 
@@ -121,17 +121,17 @@ For cache explanation, record:
 
 ## Follow-Up Debt
 
-| Item | Status | Notes |
-| ---- | ------ | ----- |
-| External command execution | Completed | Sanitized operator run captured in the evidence table above. |
-| Secret and PII review | Completed | No secrets, PII, or proprietary repo content were recorded in the committed evidence. |
-| Repository-owner sign-off | Completed | Evidence approved and TD-004 may close. |
+| Item                       | Status    | Notes                                                                                 |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------- |
+| External command execution | Completed | Sanitized operator run captured in the evidence table above.                          |
+| Secret and PII review      | Completed | No secrets, PII, or proprietary repo content were recorded in the committed evidence. |
+| Repository-owner sign-off  | Completed | Evidence approved and TD-004 may close.                                               |
 
 ## Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-05-09 | Codex | Initial operator-attested Phase 5 external testbed evidence template. |
-| 0.2 | 2026-05-10 | Codex | Aligned the required command list and capture checklist with MEMINIT-RUNBOOK-006, including warm-cache and rebuild-cache evidence. |
-| 0.3 | 2026-05-17 | Codex | Recorded the sanitized external testbed run results, provenance fields, and follow-up status pending repository-owner sign-off. |
-| 0.4 | 2026-05-17 | CMF | Approved the sanitized external testbed evidence and closed TD-004. |
+| Version | Date       | Author | Changes                                                                                                                            |
+| ------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-05-09 | Codex  | Initial operator-attested Phase 5 external testbed evidence template.                                                              |
+| 0.2     | 2026-05-10 | Codex  | Aligned the required command list and capture checklist with MEMINIT-RUNBOOK-006, including warm-cache and rebuild-cache evidence. |
+| 0.3     | 2026-05-17 | Codex  | Recorded the sanitized external testbed run results, provenance fields, and follow-up status pending repository-owner sign-off.    |
+| 0.4     | 2026-05-17 | CMF    | Approved the sanitized external testbed evidence and closed TD-004.                                                                |

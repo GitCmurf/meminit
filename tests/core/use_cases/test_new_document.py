@@ -63,7 +63,8 @@ def repo_with_config_and_template(tmp_path):
     (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
         SCHEMA_JSON, encoding="utf-8"
     )
-    (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -71,7 +72,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+    )
     (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
     return tmp_path
 
@@ -329,6 +331,45 @@ class TestDeterministicIdMode:
 
         doc_path = repo_with_config_and_template / "docs" / "45-adr" / "adr-042-test.md"
         assert doc_path.exists()
+
+    def test_id_flag_accepts_governance_alias(self, repo_with_init):
+        config = yaml.safe_load((repo_with_init / "docops.config.yaml").read_text())
+        repo_prefix = config["repo_prefix"]
+
+        use_case = NewDocumentUseCase(str(repo_with_init))
+        params = NewDocumentParams(
+            doc_type="GOVERNANCE",
+            title="Governance Alias",
+            document_id=f"{repo_prefix}-GOV-042",
+        )
+        result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.document_id == f"{repo_prefix}-GOV-042"
+        assert result.doc_type == "GOV"
+
+    def test_id_flag_accepts_transformed_segment(self, repo_with_init):
+        config_path = repo_with_init / "docops.config.yaml"
+        config = yaml.safe_load(config_path.read_text())
+        config["document_types"]["LEGAL_RISK"] = {"directory": "75-legal-risk"}
+        config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+        (repo_with_init / "docs" / "75-legal-risk").mkdir(parents=True, exist_ok=True)
+
+        repo_prefix = config["repo_prefix"]
+        use_case = NewDocumentUseCase(str(repo_with_init))
+        params = NewDocumentParams(
+            doc_type="LEGAL_RISK",
+            title="Legal Risk",
+            document_id=f"{repo_prefix}-LEGALRISK-001",
+        )
+        result = use_case.execute_with_params(params)
+
+        assert result.success is True
+        assert result.document_id == f"{repo_prefix}-LEGALRISK-001"
+        assert result.doc_type == "LEGAL_RISK"
+        assert (
+            result.path == repo_with_init / "docs" / "75-legal-risk" / "legalrisk-001-legal-risk.md"
+        )
 
     def test_id_flag_with_mismatched_type_raises_error(self, repo_with_config_and_template):
         with pytest.raises(ValueError, match="type segment"):
@@ -762,7 +803,8 @@ def test_new_adr_template_mustache_placeholders(tmp_path):
         SCHEMA_JSON, encoding="utf-8"
     )
 
-    (tmp_path / "docops.config.yaml").write_text("""project_name: Meminit
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Meminit
 repo_prefix: MEMINIT
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -770,7 +812,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/custom-adr.md
-""")
+"""
+    )
 
     use_case = NewDocumentUseCase(str(tmp_path))
     doc_path = use_case.execute("ADR", "Placeholder Substitution Works")
@@ -778,6 +821,39 @@ document_types:
     assert "MEMINIT-ADR-001" in content
     assert "Placeholder Substitution Works" in content
     assert "Owner: __TBD__" in content
+
+
+def test_new_adr_allows_plain_spaced_braces(tmp_path):
+    (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
+    template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"
+    template.write_text(
+        "# {{repo_prefix}}-ADR-{{seq}}: {{title}}\n\nExample set notation: { { 1, 2, 3 } }\n\n<!-- MEMINIT_METADATA_BLOCK -->\n\n- Date: {{date}}\n- Owner: {{owner}}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
+        SCHEMA_JSON, encoding="utf-8"
+    )
+
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Meminit
+repo_prefix: MEMINIT
+docops_version: '2.0'
+schema_path: docs/00-governance/metadata.schema.json
+document_types:
+  ADR:
+    directory: 45-adr
+    template: docs/00-governance/templates/custom-adr.md
+"""
+    )
+
+    use_case = NewDocumentUseCase(str(tmp_path))
+
+    doc_path = use_case.execute("ADR", "Plain Braces")
+    content = doc_path.read_text()
+
+    assert "MEMINIT-ADR-001" in content
+    assert "Plain Braces" in content
+    assert "Example set notation: { { 1, 2, 3 } }" in content
 
 
 def test_new_uses_uppercase_template_key(tmp_path):
@@ -830,7 +906,8 @@ def test_new_uses_configured_type_directory(tmp_path):
         SCHEMA_JSON, encoding="utf-8"
     )
 
-    (tmp_path / "docops.config.yaml").write_text("""project_name: Example
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -839,7 +916,8 @@ document_types:
   ADR:
     directory: adrs
     template: docs/00-governance/templates/custom-adr.md
-""")
+"""
+    )
 
     use_case = NewDocumentUseCase(str(tmp_path))
     doc_path = use_case.execute("ADR", "Goes To ADRs Folder")
@@ -904,7 +982,8 @@ class TestVisibleMetadataBlock:
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -912,7 +991,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
@@ -993,7 +1073,8 @@ area: TemplateArea
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1001,7 +1082,8 @@ document_types:
   PRD:
     directory: 10-prd
     template: docs/00-governance/templates/prd.md
-""")
+"""
+        )
         (tmp_path / "docs" / "10-prd").mkdir(parents=True, exist_ok=True)
         return tmp_path
 
@@ -1049,7 +1131,8 @@ custom_owner: "{{owner}}"
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1057,7 +1140,8 @@ document_types:
   FDD:
     directory: 50-fdd
     template: docs/00-governance/templates/fdd.md
-""")
+"""
+        )
         (tmp_path / "docs" / "50-fdd").mkdir(parents=True, exist_ok=True)
 
         use_case = NewDocumentUseCase(str(tmp_path))
@@ -1089,7 +1173,8 @@ class TestFileLocking:
         (tmp_path / "docs" / "00-governance" / "metadata.schema.json").write_text(
             SCHEMA_JSON, encoding="utf-8"
         )
-        (tmp_path / "docops.config.yaml").write_text("""project_name: TestProject
+        (tmp_path / "docops.config.yaml").write_text(
+            """project_name: TestProject
 repo_prefix: TEST
 docops_version: '2.0'
 schema_path: docs/00-governance/metadata.schema.json
@@ -1097,7 +1182,8 @@ document_types:
   ADR:
     directory: 45-adr
     template: docs/00-governance/templates/adr.md
-""")
+"""
+        )
         (tmp_path / "docs" / "45-adr").mkdir(parents=True, exist_ok=True)
         return tmp_path
 

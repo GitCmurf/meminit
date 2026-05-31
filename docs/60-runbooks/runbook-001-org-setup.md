@@ -37,7 +37,7 @@ Meminit uses the XDG base directory spec by default:
 
 To **vendor** is to copy and pin a dependency into your repo so it is self-contained, reviewable, and deterministic in CI.
 
-In Meminit, `meminit org vendor` copies the org profile into the repository (schema + templates, and optionally ORG docs) and writes:
+In Meminit, `meminit org vendor` copies the org profile into the repository (schema + templates, including `ADR`, `FDD`, `PRD`, `PLAN`, `SPEC`, `RUNBOOK`, `DESIGN`, `LOG`, and `TASK`, plus optionally ORG docs) and writes:
 
 - `.meminit/org-profile.lock.json` (digest + metadata) to make drift visible and updates explicit.
 

@@ -14,9 +14,9 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Generator
+from typing import Any, Dict, Generator, Optional
 
-from meminit.core.services.error_codes import MeminitError, ErrorCode
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 
 _current_run_id: Optional[str] = None
 

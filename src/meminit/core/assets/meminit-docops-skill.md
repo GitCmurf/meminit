@@ -55,7 +55,7 @@ Activate this skill when the user asks to:
 - Pre-commit hook: `meminit install-precommit --root .`
 - Org profile helpers (optional): `meminit org status --format json`, `meminit org vendor --format json`
 - Index + resolution:
-  - `meminit index --format json`
+  - `meminit index --output-catalog --output-kanban --format json`
   - `meminit resolve <DOCUMENT_ID> --format json`
   - `meminit identify <PATH> --format json`
   - `meminit link <DOCUMENT_ID> --format json`

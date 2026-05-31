@@ -13,10 +13,7 @@ from typing import Any, Iterable
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.path_utils import relative_path_string
-from meminit.core.services.safe_fs import (
-    atomic_write,
-    ensure_safe_write_path,
-)
+from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 
 MANIFEST_SCHEMA_VERSION = "1.0"
 

@@ -504,13 +504,13 @@ deterministically. Required codes:
 
 | Code                          | Source        | Meaning                                                                 |
 | ----------------------------- | ------------- | ----------------------------------------------------------------------- |
-| `STATE_YAML_MALFORMED`      | doctor, index | `project-state.yaml` is not valid YAML                                  |
-| `STATE_SCHEMA_VIOLATION`    | doctor, index | Entry violates the JSON Schema                                          |
+| `STATE_YAML_MALFORMED`        | doctor, index | `project-state.yaml` is not valid YAML                                  |
+| `STATE_SCHEMA_VIOLATION`      | doctor, index | Entry violates the JSON Schema                                          |
 | `W_STATE_UNKNOWN_DOC_ID`      | doctor, index | `document_id` in state file has no governed document                    |
 | `W_STATE_UNKNOWN_IMPL_STATE`  | doctor, index | `impl_state` value not in enum                                          |
 | `W_FIELD_SANITIZATION_FAILED` | index         | A rendered field failed sanitization; omitted from output               |
 | `W_STATE_UNSORTED_KEYS`       | doctor, state | `documents` entries are not in alphabetical order                       |
-| `STATE_INVALID_FILTER_VALUE`      | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
+| `STATE_INVALID_FILTER_VALUE`  | index         | `--status` or `--impl-state` value not in enum (after canonicalization) |
 
 Severity is listed per row. The fatal rows in this table are
 `STATE_YAML_MALFORMED`, `STATE_SCHEMA_VIOLATION`, and
@@ -943,29 +943,29 @@ This PRD is considered implemented when:
 
 ## 12. Risks and Mitigations
 
-| Risk                                                        | Impact | Likelihood | Mitigation                                                                                                                     |
-| ----------------------------------------------------------- | ------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `project-state.yaml` drifts from reality (never updated)    | High   | Medium     | Provide `meminit state` CLI for easy updates; consider pre-commit reminder if state file is stale (>30 days since last update) |
-| Kanban HTML breaks in non-MkDocs viewers                    | Low    | Medium     | Fallback to plain Markdown lists when HTML rendering is unavailable; test in GitHub, VS Code, and `cat`                        |
-| State file schema evolution breaks existing files           | Medium | Low        | Version the schema; `meminit doctor` warns on unknown fields but does not fail                                                 |
-| Feature scope creep into project management                 | High   | Medium     | Limited assignee/dependency tracking for queue selection is in scope (v0.7); full project management (gantt, burndown) remains out of scope                                                                |
-| `meminit index` performance degrades with large state files | Low    | Low        | State file grows linearly with governed docs; 500 entries is trivially fast YAML parsing                                       |
+| Risk                                                        | Impact | Likelihood | Mitigation                                                                                                                                  |
+| ----------------------------------------------------------- | ------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `project-state.yaml` drifts from reality (never updated)    | High   | Medium     | Provide `meminit state` CLI for easy updates; consider pre-commit reminder if state file is stale (>30 days since last update)              |
+| Kanban HTML breaks in non-MkDocs viewers                    | Low    | Medium     | Fallback to plain Markdown lists when HTML rendering is unavailable; test in GitHub, VS Code, and `cat`                                     |
+| State file schema evolution breaks existing files           | Medium | Low        | Version the schema; `meminit doctor` warns on unknown fields but does not fail                                                              |
+| Feature scope creep into project management                 | High   | Medium     | Limited assignee/dependency tracking for queue selection is in scope (v0.7); full project management (gantt, burndown) remains out of scope |
+| `meminit index` performance degrades with large state files | Low    | Low        | State file grows linearly with governed docs; 500 entries is trivially fast YAML parsing                                                    |
 
 ---
 
 ## 13. Related Documents
 
-| Document ID                                                             | Title                    | Relationship                                                         |
-| ----------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------- |
-| [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md) | Project Meminit Vision   | Strategic design center; byte-invariance and determinism constraints |
-| [MEMINIT-GOV-001](../00-governance/gov-001-document-standards.md)       | Document Standards       | Governance rules for filenames, frontmatter, and directory structure |
-| [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)              | Agent Interface v1       | Baseline CLI contract; index output extensions build on this         |
-| [MEMINIT-PRD-005](../10-prd/prd-005-agent-interface-v2.md)              | Agent Interface v2       | Queue surfaces share the v3 agent-output contract                    |
-| [MEMINIT-PRD-004](../10-prd/prd-004-brownfield-adoption-hardening.md)   | Brownfield Adoption      | Scan/fix workflows that the dashboard complements                    |
-| [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)    | Agent Output Contract v2 | Normative JSON envelope schema that index output must conform to     |
-| [MEMINIT-PLAN-013](../05-planning/plan-013-phase-4-detailed-implementation-plan.md) | Phase 4 Detailed Implementation Plan | Detailed queue-work implementation plan and acceptance criteria |
-| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)       | Agent Output Contract v1 | Historical: superseded by SPEC-008; context for envelope evolution   |
-| [MEMINIT-PLAN-003](../05-planning/plan-003-roadmap.md)                  | Roadmap                  | Strategic roadmap context                                            |
+| Document ID                                                                         | Title                                | Relationship                                                         |
+| ----------------------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md)             | Project Meminit Vision               | Strategic design center; byte-invariance and determinism constraints |
+| [MEMINIT-GOV-001](../00-governance/gov-001-document-standards.md)                   | Document Standards                   | Governance rules for filenames, frontmatter, and directory structure |
+| [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)                          | Agent Interface v1                   | Baseline CLI contract; index output extensions build on this         |
+| [MEMINIT-PRD-005](../10-prd/prd-005-agent-interface-v2.md)                          | Agent Interface v2                   | Queue surfaces share the v3 agent-output contract                    |
+| [MEMINIT-PRD-004](../10-prd/prd-004-brownfield-adoption-hardening.md)               | Brownfield Adoption                  | Scan/fix workflows that the dashboard complements                    |
+| [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)                | Agent Output Contract v2             | Normative JSON envelope schema that index output must conform to     |
+| [MEMINIT-PLAN-013](../05-planning/plan-013-phase-4-detailed-implementation-plan.md) | Phase 4 Detailed Implementation Plan | Detailed queue-work implementation plan and acceptance criteria      |
+| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)                   | Agent Output Contract v1             | Historical: superseded by SPEC-008; context for envelope evolution   |
+| [MEMINIT-PLAN-003](../05-planning/plan-003-roadmap.md)                              | Roadmap                              | Strategic roadmap context                                            |
 
 ---
 
@@ -979,4 +979,4 @@ This PRD is considered implemented when:
 | 0.4     | 2026-03-05 | GitCmurf | Round 3: date→datetime for sub-day sort resolution, merge conflict mitigation (alphabetical key ordering), promote `meminit state` CLI to FR-9 with auto `updated`/`updated_by`, nullable JSON schema fields, filtered catalog header, explicit advisory transitions (no gating), manual-only task→PRD rollups, `W_STATE_UNSORTED_KEYS` code. Integrate user's OQ decisions. |
 | 0.5     | 2026-03-05 | GitCmurf | Round 4: fix `<details>` regression in FDD scope, add CSS-based duplicate-content hiding for kanban fallback, extend SPEC-008 amendment to include `meminit state` payload profile, clarify timestamp display policy (date in Markdown, full datetime in JSON), split section 9 into resolved decisions and remaining open questions, renumber sections.                     |
 | 0.6     | 2026-03-07 | Codex    | Update FR-9 to reflect that `meminit state set` supports optional `--impl-state` when `--notes` or `--clear` are provided.                                                                                                                                                                                                                                                   |
-| 0.7     | 2026-04-23 | Codex    | Added Phase 4 queue surfaces (`state next`, `state blockers`), enriched merged state payload fields, and deterministic queue-selection acceptance criteria. |
+| 0.7     | 2026-04-23 | Codex    | Added Phase 4 queue surfaces (`state next`, `state blockers`), enriched merged state payload fields, and deterministic queue-selection acceptance criteria.                                                                                                                                                                                                                  |

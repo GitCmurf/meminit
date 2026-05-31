@@ -75,7 +75,7 @@ def derive_repo_prefix(project_name: str) -> str:
         if len(clean) >= 3:
             return clean[:10].upper()
         return "REPO"
-    return prefix.upper()
+    return str(prefix).upper()
 
 
 def _safe_repo_relative_path(root_dir: Path, raw: Any) -> Optional[str]:
@@ -373,6 +373,18 @@ def _normalize_string_list(raw: Any) -> list[str]:
     return out
 
 
+def _dedupe_case_insensitive(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+    return out
+
+
 def _normalize_document_type_directory(
     root: Path,
     docs_root: str,
@@ -455,6 +467,7 @@ def _build_namespace_config(
     )
     if "WIP-" not in excluded_filename_prefixes:
         excluded_filename_prefixes.append("WIP-")
+    excluded_filename_prefixes = _dedupe_case_insensitive(excluded_filename_prefixes)
 
     type_directories = dict(DEFAULT_TYPE_DIRECTORIES)
     type_directories.update(

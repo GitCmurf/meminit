@@ -44,9 +44,10 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 
 ### 2.1 Secrets & Credentials
 
-- [ ] **Scan for Keys:** Run `grep -r "API_KEY" .` or use a tool like `trufflehog` or `git-secrets`.
+- [ ] **Scan for Keys:** Run `gitleaks detect --source . --config .gitleaks.toml --verbose` or use pre-commit hook.
 - [ ] **Check Configs:** Ensure no real credentials are in `config.yaml` or `setup.py`. Use environment variables instead.
-- [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, and `secrets/` are ignored.
+- [ ] **Verify .gitignore:** Confirm `.env`, `.venv`, `secrets/`,
+      `.meminit/cache/`, and `.meminit.lock` are ignored.
 
 ### 2.2 "Embarrassing" Artifacts
 
@@ -67,7 +68,60 @@ Git remembers everything. Deleting a file in a new commit does **not** remove it
 
 - **Atomic Commits:** Keep commits focused. Easier to revert if something goes wrong.
 - **No "WIP" Commits to Main:** Use feature branches. Squash "fix typo" commits before merging.
-- **Automated Scanning:** Eventually, add a GitHub Action to scan for secrets on every PR.
+- **Automated Scanning:** Implemented via gitleaks in pre-commit and CI. See `.gitleaks.toml` for configuration.
+
+### 3.1 Secret Scanning Implementation
+
+**Tool:** gitleaks (https://github.com/gitleaks/gitleaks)
+
+**Pre-commit hook:**
+
+```bash
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+The gitleaks hook in `.pre-commit-config.yaml` scans for:
+
+- Generic API keys (`api_key`, `apikey`, `api_secret`, etc.)
+- AWS access keys
+- GitHub Personal Access Tokens
+- GitLab Personal Access Tokens
+- Slack tokens
+- Password assignments in code
+
+**CI enforcement:**
+The `ci.yml` workflow runs gitleaks on every push and PR. It uses the official `gitleaks/gitleaks-action@v2`.
+
+**Local installation (optional):**
+For local scanning without pre-commit, install gitleaks:
+
+```bash
+# macOS
+brew install gitleaks
+
+# Linux
+curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | \
+  grep "browser_download_url.*linux_amd64" | head -1 | cut -d '"' -f 4 | \
+  xargs wget -O /usr/local/bin/gitleaks && chmod +x /usr/local/bin/gitleaks
+
+# Run scan
+gitleaks detect --source . --config .gitleaks.toml --verbose
+```
+
+**False positives:**
+The `.gitleaks.toml` config excludes build artifacts, caches, and virtual environments. If you encounter a false positive:
+
+1. Verify it's not a real secret
+2. Add an exception to `.gitleaks.toml` under `[allowlist]`
+3. Commit the config change with rationale in commit message
+
+**Meminit runtime state:**
+`.meminit/cache/` and `.meminit.lock` are local runtime artifacts. Do not
+commit them and do not add their hashes to scanner baselines. Rebuild the cache
+with `meminit index` or `meminit index --rebuild-cache` when needed. Commit only
+intentional deterministic `.meminit` files, such as an org-profile lock file or
+project index artifact when the project explicitly owns it.
 
 ---
 

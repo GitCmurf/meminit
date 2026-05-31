@@ -113,21 +113,18 @@ When no template is found, a minimal skeleton is used:
 
 ```markdown
 ---
-document_id: {{document_id}}
-type: {{type}}
-title: {{title}}
-status: {{status}}
-last_updated: {{date}}
-owner: {{owner}}
+document_id: { { document_id } }
+type: { { type } }
+title: { { title } }
+status: { { status } }
+last_updated: { { date } }
+owner: { { owner } }
 docops_version: 2.0
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Type:** {{type}}
 
 # {{title}}
 
@@ -184,6 +181,8 @@ Legacy placeholder syntax raises `INVALID_TEMPLATE_PLACEHOLDER` error:
 | `<Feature Title>`  | `{{title}}`       |
 | `<Team or Person>` | `{{owner}}`       |
 | `<AREA>`           | `{{area}}`        |
+
+Malformed double-brace tokens with spacing inside a real placeholder, such as `{{ title }}`, are rejected as `INVALID_TEMPLATE_PLACEHOLDER`. Ordinary spaced-brace text like `{ {` or `} }` in prose or code is ignored. Only the exact `{{variable}}` form is valid.
 
 ### 4.4 Unknown Variables
 

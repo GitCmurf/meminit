@@ -74,6 +74,7 @@ yarn-error.log*
 #.specify/
 .meminit/cache/
 .clawpatch/
+.meminit.lock
 
 # Temporary files and directories
 temp-*
@@ -100,6 +101,7 @@ coderabbit_*review*.txt
 
 # Secrets
 .env
+.envrc
 .env.local
 .env*
 !.env.example

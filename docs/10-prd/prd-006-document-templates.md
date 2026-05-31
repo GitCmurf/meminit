@@ -273,18 +273,18 @@ document_types:
 
 <!-- AGENT: Maintain a chronological changelog with version, date, and description of changes. Include migration notes for breaking changes. -->
 
-| Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Migration Required                                                               |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **1.3** | 2026-03-04 | Engineering-readiness review: rewrote `_extract_sections()` to use marker-to-marker boundaries (FR-15) and emit all `SectionMarker` fields; fixed code fence tracking for nested fences (FR-12); added FR-16 (`check`/`fix` must use `document_types`) with AC-22/AC-23; added FR-17 (`INVALID_TEMPLATE_FILE`) with AC-24 and E-8 error scenario; loosened FR-10 config-path constraint to repo root; removed contradictory `type_directories` fallback; added `encoding="utf-8"` to `read_text()` calls; fixed WP verification comment numbering; fixed version mismatch. | None |
-| **1.2** | 2026-03-04 | Critical architecture and security review: removed mixed-mode runtime compatibility (`document_types` + `{{variable}}` are now the only supported runtime contract); strengthened FR-10 with template-root allowlisting, regular-file/extension checks, and size caps; expanded FR-7 with `data.rendered_content`, `data.content_sha256`, and explicit section span metadata; replaced heading-based fill guidance with marker-to-marker span replacement; added explicit errors for duplicate section IDs, invalid/unknown placeholders, and stale/ambiguous section contracts. | Legacy repos must migrate config and templates before adopting Templates v2 |
-| **1.1** | 2026-03-04 | Architectural simplification: `document_types` as single source of truth (legacy keys deprecated); single `{{variable}}` interpolation syntax (legacy deprecated with warnings); code-fence-aware section parsing (FR-12); duplicate section ID detection (FR-13); missing required sections warning (FR-14); `initial_content` in JSON section output; consolidated WP-1/2/3 into Core Template Engine; added WP-7 migration tooling (`meminit migrate-templates`); security note on no code execution in templates; updated rollout strategy for pre-alpha status. | Run `meminit migrate-templates` to convert legacy configs and placeholder syntax |
-| **1.0** | 2026-03-02 | Critical review pass: Fixed `fill_sections()` document corruption bug; corrected FR-3 tokenization (independent `<REPO>`/`<SEQ>` substitution); improved `_extract_sections()` heading detection; extracted inline ADR template body to reference; added cross-WP integration test (AC-16); retitled "Open Questions" to "Resolved Design Questions"; marked soft metrics as estimates; corrected parallelization claims; added per-WP rollback guidance.                                                                                                            | None                                                                             |
-| **0.9** | 2026-03-02 | PRD enhancements: Replaced ASCII diagrams with native Mermaid.js visualizations for better orchestrator parsing and display; added Pydantic schemas for Agentic WPs; refined executive summary styling; strengthened error recovery workflows.                                                                                                                                                                                                                                                                                                                       | None                                                                             |
-| **0.8** | 2026-03-02 | PRD enhancements: added Executive Summary box, Visual Architecture Diagram, Quick-Start Guide, Key Architectural Decisions section; added verification commands to all WPs; added cross-reference links between FRs/ACs/WPs; enhanced test fixtures table; updated status to "In Review"                                                                                                                                                                                                                                                                             | None                                                                             |
-| **0.7** | 2026-03-02 | Fixed factual inaccuracies against codebase; corrected FR-3 interpolation table; fixed TemplateInterpolator and get_template_for_type code samples; added edge-case tests; added orchestrator operational guidance (11.4); strengthened Executive Summary; consistency pass                                                                                                                                                                                                                                                                                          | None                                                                             |
-| **0.6** | 2026-03-02 | Added section markers throughout; enhanced AGENT guidance; added Error Scenarios appendix; improved visual diagrams                                                                                                                                                                                                                                                                                                                                                                                                                                                  | None                                                                             |
-| **0.5** | 2026-03-01 | Initial comprehensive draft with work packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | None                                                                             |
-| **0.1** | 2026-02-20 | Concept document created                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | None                                                                             |
+| Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Migration Required                                                               |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **1.3** | 2026-03-04 | Engineering-readiness review: rewrote `_extract_sections()` to use marker-to-marker boundaries (FR-15) and emit all `SectionMarker` fields; fixed code fence tracking for nested fences (FR-12); added FR-16 (`check`/`fix` must use `document_types`) with AC-22/AC-23; added FR-17 (`INVALID_TEMPLATE_FILE`) with AC-24 and E-8 error scenario; loosened FR-10 config-path constraint to repo root; removed contradictory `type_directories` fallback; added `encoding="utf-8"` to `read_text()` calls; fixed WP verification comment numbering; fixed version mismatch.       | None                                                                             |
+| **1.2** | 2026-03-04 | Critical architecture and security review: removed mixed-mode runtime compatibility (`document_types` + `{{variable}}` are now the only supported runtime contract); strengthened FR-10 with template-root allowlisting, regular-file/extension checks, and size caps; expanded FR-7 with `data.rendered_content`, `data.content_sha256`, and explicit section span metadata; replaced heading-based fill guidance with marker-to-marker span replacement; added explicit errors for duplicate section IDs, invalid/unknown placeholders, and stale/ambiguous section contracts. | Legacy repos must migrate config and templates before adopting Templates v2      |
+| **1.1** | 2026-03-04 | Architectural simplification: `document_types` as single source of truth (legacy keys deprecated); single `{{variable}}` interpolation syntax (legacy deprecated with warnings); code-fence-aware section parsing (FR-12); duplicate section ID detection (FR-13); missing required sections warning (FR-14); `initial_content` in JSON section output; consolidated WP-1/2/3 into Core Template Engine; added WP-7 migration tooling (`meminit migrate-templates`); security note on no code execution in templates; updated rollout strategy for pre-alpha status.             | Run `meminit migrate-templates` to convert legacy configs and placeholder syntax |
+| **1.0** | 2026-03-02 | Critical review pass: Fixed `fill_sections()` document corruption bug; corrected FR-3 tokenization (independent `<REPO>`/`<SEQ>` substitution); improved `_extract_sections()` heading detection; extracted inline ADR template body to reference; added cross-WP integration test (AC-16); retitled "Open Questions" to "Resolved Design Questions"; marked soft metrics as estimates; corrected parallelization claims; added per-WP rollback guidance.                                                                                                                        | None                                                                             |
+| **0.9** | 2026-03-02 | PRD enhancements: Replaced ASCII diagrams with native Mermaid.js visualizations for better orchestrator parsing and display; added Pydantic schemas for Agentic WPs; refined executive summary styling; strengthened error recovery workflows.                                                                                                                                                                                                                                                                                                                                   | None                                                                             |
+| **0.8** | 2026-03-02 | PRD enhancements: added Executive Summary box, Visual Architecture Diagram, Quick-Start Guide, Key Architectural Decisions section; added verification commands to all WPs; added cross-reference links between FRs/ACs/WPs; enhanced test fixtures table; updated status to "In Review"                                                                                                                                                                                                                                                                                         | None                                                                             |
+| **0.7** | 2026-03-02 | Fixed factual inaccuracies against codebase; corrected FR-3 interpolation table; fixed TemplateInterpolator and get_template_for_type code samples; added edge-case tests; added orchestrator operational guidance (11.4); strengthened Executive Summary; consistency pass                                                                                                                                                                                                                                                                                                      | None                                                                             |
+| **0.6** | 2026-03-02 | Added section markers throughout; enhanced AGENT guidance; added Error Scenarios appendix; improved visual diagrams                                                                                                                                                                                                                                                                                                                                                                                                                                                              | None                                                                             |
+| **0.5** | 2026-03-01 | Initial comprehensive draft with work packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | None                                                                             |
+| **0.1** | 2026-02-20 | Concept document created                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | None                                                                             |
 
 **Notes for Future Versions:**
 
@@ -339,8 +339,7 @@ template_version: 1.1
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** <REPO>-ADR-<SEQ>
-> **Owner:** <Team or Person>
+> **Document ID:** <REPO>-ADR-<SEQ> > **Owner:** <Team or Person>
 > ...
 
 # <REPO>-ADR-<SEQ>: <Decision Title>
@@ -883,8 +882,7 @@ Meminit MUST ensure the final document contains exactly one visible metadata blo
    ```markdown
    <!-- MEMINIT_METADATA_BLOCK -->
 
-   > **Document ID:** <REPO>-ADR-<SEQ>
-   > **Owner:** <Team or Person>
+   > **Document ID:** <REPO>-ADR-<SEQ> > **Owner:** <Team or Person>
    ```
 
    → Replace the blockquote with generated metadata; retain marker comment.
@@ -1096,12 +1094,8 @@ docops_version: "2.0"
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Version:** 0.1
-> **Last Updated:** {{date}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1
+> **Last Updated:** {{date}} > **Type:** {{type}}
 
 # PRD: {{title}}
 
@@ -1229,8 +1223,7 @@ docops_version: "2.0"
 <!-- MEMINIT_METADATA_BLOCK -->
 
 > **Document ID:** REPO-CUSTOM-001
-> **Owner:** **TBD**
-> **Status:** Draft
+> **Owner:** **TBD** > **Status:** Draft
 > **Version:** 0.1
 > **Last Updated:** 2026-03-02
 > **Type:** CUSTOM
@@ -2659,16 +2652,19 @@ meminit new PRD "Widget Platform" --format json | jq '.data.template.source, .da
 **Implementation steps:**
 
 1. **Rename and update `template-001-adr.md` to `adr.template.md`**:
+
    - Add section markers to all major sections
    - Add agent guidance blocks
    - Convert all placeholders to `{{variable}}` syntax
 
 2. **Rename and update `template-001-prd.md` to `prd.template.md`**:
+
    - Add comprehensive sections
    - Add section markers
    - Add agent guidance blocks
 
 3. **Rename and update `template-001-fdd.md` to `fdd.template.md`**:
+
    - Add section markers
    - Add agent guidance blocks
 
@@ -2714,11 +2710,13 @@ meminit new ADR "Marker Test" --format json | jq -r '.data.template.content_prev
 **Implementation steps:**
 
 1. **Update this PRD** with final implementation details:
+
    - Confirm all sections are accurate
    - Update version to "1.0"
    - Update status to "Approved" if approved
 
 2. **Update README** or user docs:
+
    - Document `document_types` configuration (single source of truth)
    - Document `{{variable}}` interpolation syntax
    - Provide template examples
@@ -2938,9 +2936,9 @@ If a WP introduces failing tests:
 | **AC-19** | Duplicate section IDs produce explicit errors                                              | `pytest tests/core/services/test_template_resolution.py::test_duplicate_section_id_raises_error -v`                    | FR-13       | WP-1          |
 | **AC-20** | Missing required sections after fill emit warnings                                         | `pytest tests/core/use_cases/test_new_json_output.py::test_missing_required_sections_emits_warning -v`                 | FR-14       | WP-4          |
 | **AC-21** | Section updates replace only marker-declared spans                                         | `pytest tests/core/use_cases/test_new_json_output.py::test_section_updates_use_marker_spans_only -v`                   | FR-15       | WP-1, WP-4    |
-| **AC-22** | `meminit check` validates directory mappings using `document_types`                         | `pytest tests/core/use_cases/test_check_repository.py::test_check_uses_document_types -v`                              | FR-16       | WP-1          |
-| **AC-23** | `meminit fix` infers types via `document_types` and rejects legacy config                   | `pytest tests/core/use_cases/test_fix_repository.py::test_fix_uses_document_types -v`                                  | FR-16       | WP-1          |
-| **AC-24** | Invalid template file characteristics produce `INVALID_TEMPLATE_FILE` errors                | `pytest tests/core/services/test_template_resolution.py::test_invalid_template_file_rejected -v`                       | FR-17       | WP-1          |
+| **AC-22** | `meminit check` validates directory mappings using `document_types`                        | `pytest tests/core/use_cases/test_check_repository.py::test_check_uses_document_types -v`                              | FR-16       | WP-1          |
+| **AC-23** | `meminit fix` infers types via `document_types` and rejects legacy config                  | `pytest tests/core/use_cases/test_fix_repository.py::test_fix_uses_document_types -v`                                  | FR-16       | WP-1          |
+| **AC-24** | Invalid template file characteristics produce `INVALID_TEMPLATE_FILE` errors               | `pytest tests/core/services/test_template_resolution.py::test_invalid_template_file_rejected -v`                       | FR-17       | WP-1          |
 
 ---
 
@@ -3703,8 +3701,7 @@ template_version: 1.0
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** <REPO>-TST-<SEQ>
-> **Owner:** <Owner>
+> **Document ID:** <REPO>-TST-<SEQ> > **Owner:** <Owner>
 
 # {title}
 
@@ -3734,9 +3731,7 @@ template_version: 2.0
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}}
 
 # {{title}}
 
@@ -3854,8 +3849,7 @@ Content C
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** <REPO>-TST-<SEQ>
-> **Owner:** Placeholder
+> **Document ID:** <REPO>-TST-<SEQ> > **Owner:** Placeholder
 
 # Title
 ```

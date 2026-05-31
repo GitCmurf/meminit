@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, cast
 
 from meminit.core.services.xdg_paths import get_xdg_paths
 
@@ -39,13 +39,15 @@ def packaged_profile_root(profile_name: str) -> Path:
     return Path("org_profiles") / profile_name
 
 
-def _load_manifest_from_traversable(root: resources.abc.Traversable) -> dict:
+def _load_manifest_from_traversable(root: resources.abc.Traversable) -> Dict[str, Any]:
     manifest_text = root.joinpath("profile.json").read_text(encoding="utf-8")
-    return json.loads(manifest_text)
+    manifest = json.loads(manifest_text)
+    return cast(Dict[str, Any], manifest) if isinstance(manifest, dict) else {}
 
 
-def _load_manifest_from_dir(root: Path) -> dict:
-    return json.loads((root / "profile.json").read_text(encoding="utf-8"))
+def _load_manifest_from_dir(root: Path) -> Dict[str, Any]:
+    manifest = json.loads((root / "profile.json").read_text(encoding="utf-8"))
+    return cast(Dict[str, Any], manifest) if isinstance(manifest, dict) else {}
 
 
 def _read_files_from_root(
@@ -115,6 +117,26 @@ def resolve_org_profile(
         if (root / "profile.json").exists():
             return load_global_profile(profile_name=profile_name, env=env)
     return load_packaged_profile(profile_name=profile_name)
+
+
+def merge_profile_with_fallback(profile: OrgProfile, fallback_profile: OrgProfile) -> OrgProfile:
+    """
+    Fill missing profile assets from a fallback profile without overwriting present assets.
+
+    This keeps vendoring and status checks stable when an older global profile predates
+    newly added baseline assets.
+    """
+
+    merged_files = dict(profile.files)
+    for rel, content in fallback_profile.files.items():
+        merged_files.setdefault(rel, content)
+    return OrgProfile(
+        name=profile.name,
+        version=profile.version,
+        docops_version=profile.docops_version,
+        files=merged_files,
+        source=profile.source,
+    )
 
 
 def diff_profile_to_repo(

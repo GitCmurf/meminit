@@ -1,22 +1,22 @@
 from __future__ import annotations
 
+import datetime
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
-import datetime
-import logging
 
 import frontmatter
 import yaml
 
-from meminit.core.services.repo_config import load_repo_layout
-from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.heuristics import HeuristicsService
 from meminit.core.services.path_utils import compute_file_hash
+from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.stream_events import (
+    StreamingResult,
     StreamItem,
     StreamSummary,
-    StreamingResult,
     summary_data,
 )
 
@@ -188,7 +188,8 @@ class ScanRepositoryUseCase:
         # Always compute namespace-aware counts when possible.
         configured_namespaces = self._configured_namespaces(layout)
         governed_markdown_count = sum(
-            int(ns.get("governed_markdown_count") or 0) for ns in configured_namespaces
+            count if isinstance(count := ns.get("governed_markdown_count"), int) else 0
+            for ns in configured_namespaces
         )
         overlapping_namespaces = self._detect_overlapping_namespaces(layout)
         if overlapping_namespaces:
@@ -375,8 +376,8 @@ class ScanRepositoryUseCase:
 
         return out
 
-    def _configured_namespaces(self, layout) -> List[Dict[str, object]]:
-        out: List[Dict[str, object]] = []
+    def _configured_namespaces(self, layout) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
         for ns in layout.namespaces:
             exists = ns.docs_dir.exists()
             governed = 0

@@ -1,9 +1,9 @@
 from meminit.core.services.scan_plan import (
+    ActionPreconditions,
+    ActionSafety,
     MigrationPlan,
     PlanAction,
     PlanActionType,
-    ActionPreconditions,
-    ActionSafety,
 )
 
 

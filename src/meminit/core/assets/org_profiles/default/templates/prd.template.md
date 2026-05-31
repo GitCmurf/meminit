@@ -14,12 +14,8 @@ template_version: "2.0"
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Version:** 0.1
-> **Last Updated:** {{date}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1
+> **Last Updated:** {{date}} > **Type:** {{type}}
 
 # PRD: {{title}}
 
@@ -72,8 +68,8 @@ template_version: "2.0"
 
 ### Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
+| Metric     | Target   | Measurement      |
+| ---------- | -------- | ---------------- |
 | [Metric 1] | [Target] | [How to measure] |
 | [Metric 2] | [Target] | [How to measure] |
 
@@ -125,6 +121,6 @@ template_version: "2.0"
 
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | {{date}} | {{owner}} | Initial draft |
+| Version | Date     | Author    | Changes       |
+| ------- | -------- | --------- | ------------- |
+| 0.1     | {{date}} | {{owner}} | Initial draft |

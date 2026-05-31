@@ -71,6 +71,8 @@ class InstallPrecommitUseCase:
         if not has_local:
             repos.append({"repo": "local", "hooks": [hook, hook_doctor]})
         else:
+            if local_repo is None:
+                raise ValueError("Invalid .pre-commit-config.yaml: local repo not found.")
             hooks = local_repo.setdefault("hooks", [])
             if not isinstance(hooks, list):
                 raise ValueError(

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 import yaml
 
@@ -398,7 +398,7 @@ def _validate_top_level_structure(
             ),
         )
 
-    return schema_version, documents, non_critical_violations, None
+    return schema_version, cast(Dict[str, Any], documents), non_critical_violations, None
 
 
 def _parse_entry_identity(
@@ -576,6 +576,8 @@ def load_project_state(
     )
     if early is not None:
         return early
+    if documents is None or schema_version is None:
+        return ProjectState(schema_violations=list(non_critical_violations))
 
     entries: Dict[str, ProjectStateEntry] = {}
     schema_violations: List[Violation] = list(non_critical_violations)

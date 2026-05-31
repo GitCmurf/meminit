@@ -29,7 +29,8 @@ Block merges when governed documentation is non-compliant, using `meminit check`
 
 In `.github/workflows/ci.yml`:
 
-- Install using packaging metadata (`pip install -e ".[dev]"` or `pip install ".[dev]"`) so installed-package behavior is tested.
+- Create a virtual environment first, then install using packaging metadata (`uv venv` followed by `uv pip install -e ".[dev]"`, or `pip install -e ".[dev]"`) so installed-package behavior is tested.
+- Install Python 3.12 explicitly before `uv venv` so the workflow always provisions the intended interpreter, even when the runner's default Python differs.
 - Run:
   - `meminit doctor --root .` (preflight; fails on repo-level errors)
   - `meminit check --root .` (enforcement; fails on any violations; scans all configured namespaces if `namespaces` is set)
@@ -80,6 +81,72 @@ Notes:
 
 - Default to PR-only enforcement (avoid duplicate runs and unexpected compute cost).
 - Add a `push` trigger for `main` only if your workflow includes direct pushes or automation that bypasses PRs.
+
+## Release workflow setup
+
+The `.github/workflows/release.yml` workflow is triggered on version tags (`v*`) and supports manual dispatch.
+Manual dispatch requires an explicit `tag_name` input so GitHub Releases are created against the intended release tag.
+The build job also checks out that requested tag during manual dispatch, so the artifacts are built from the same revision that will be released.
+
+### GitHub environment setup
+
+Before the release workflow can publish to PyPI:
+
+1. **Configure TestPyPI environment** (for dry-run testing):
+
+   - Go to repository Settings > Environments > New environment
+   - Name: `testpypi`
+   - No protection rules needed (dry-run only)
+
+2. **Configure production PyPI environment** (for actual releases):
+
+   - Go to repository Settings > Environments > New environment
+   - Name: `release`
+   - Add required reviewers (at least one)
+   - Environment URL: `https://pypi.org/project/meminit/`
+
+3. **Enable OIDC trusted publishing in PyPI**:
+
+   - Log in to PyPI (https://pypi.org)
+   - Go to Account settings > Publishing
+   - Add a new publisher:
+     - PyPI Project Name: `meminit`
+     - Owner: `GitCmurf` (or your PyPI username)
+     - Repository: `GitCmurf/meminit`
+     - Workflow name: `release.yml`
+     - Environment: `release`
+   - The workflow uses `id-token: write` permission for OIDC auth
+   - The TestPyPI rehearsal uses `uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*` so the upload path matches TestPyPI's legacy endpoint while still checking for duplicate artifacts.
+
+4. **Optional: Gitleaks license** (for enhanced secret detection):
+   - Get a license from https://github.com/gitleaks/gitleaks
+   - Add to repository Settings > Secrets and variables > Actions > New repository secret
+   - Name: `GITLEAKS_LICENSE`
+   - Value: your license key
+
+### Release process
+
+1. Update CHANGELOG.md and create release notes in `docs/70-devex/devex-001-release-notes.md`
+2. Update version in `pyproject.toml`
+3. Commit changes: `git commit -m "chore: bump version to vX.Y.Z"`
+4. Tag release: `git tag vX.Y.Z`
+5. Push tag: `git push origin vX.Y.Z`
+6. Monitor the release workflow:
+   - Build-and-verify: Runs gitleaks scan, verifies release notes, builds and tests the installed wheel from a clean temporary directory so the checkout's `src/` tree cannot shadow the released artifact
+   - Dry-run-publish: Publishes to TestPyPI (testpypi environment)
+   - GitHub-release: Creates a draft GitHub release with artifacts and marks alpha/beta/rc-style tags as prereleases automatically
+   - Production-publish: Requires environment approval, publishes to PyPI
+
+For manual workflow runs, pass the same tag in the `tag_name` input before starting the workflow.
+
+### Testing a release without publishing
+
+For testing the release workflow without actual PyPI publishing:
+
+1. Create a test tag: `git tag v0.0.0-test`
+2. Push tag: `git push origin v0.0.0-test`
+3. The workflow will run through TestPyPI publishing
+4. Delete test tag after: `git tag -d v0.0.0-test && git push origin :refs/tags/v0.0.0-test`
 
 ## Existing AGENTS.md merge guidance (brownfield)
 

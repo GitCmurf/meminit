@@ -36,7 +36,8 @@ def repo_for_fix():
 
         # Doc causing Frontmatter (Missing last_updated) and Filename violations
         bad_file = docs / "Bad Name.md"
-        bad_file.write_text("""---
+        bad_file.write_text(
+            """---
 document_id: MEMINIT-ADR-005
 type: ADR
 title: Fix Me
@@ -45,7 +46,8 @@ version: 0.1
 owner: Me
 ---
 # Fix Me
-""")
+"""
+        )
         yield repo
 
 
@@ -64,6 +66,20 @@ def test_fix_dry_run(repo_for_fix):
 
     post = frontmatter.load(repo_for_fix / "docs" / "45-adr" / "Bad Name.md")
     assert "last_updated" not in post.metadata
+
+
+def test_fix_idempotent(repo_for_fix):
+    """P1-01: Verify fix is idempotent - second run emits no new fixes."""
+    fixed_now = datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc)
+    fixer = FixRepositoryUseCase(root_dir=str(repo_for_fix), default_now=fixed_now)
+
+    # First run: apply fixes
+    report1 = fixer.execute(dry_run=False)
+    assert len(report1.fixed_violations) > 0
+
+    # Second run: should be no-op
+    report2 = fixer.execute(dry_run=False)
+    assert len(report2.fixed_violations) == 0, "Second fix run should find no violations"
 
 
 def test_fix_apply(repo_for_fix):
@@ -115,7 +131,8 @@ def test_fix_rename_sanitizes_symbols(tmp_path):
     docs.mkdir(parents=True)
 
     bad_file = docs / "Bad_Name(2).md"
-    bad_file.write_text("""---
+    bad_file.write_text(
+        """---
 document_id: MEMINIT-ADR-123
 type: ADR
 title: Fix Symbols
@@ -126,7 +143,8 @@ owner: Me
 docops_version: 2.0
 ---
 # Fix Symbols
-""")
+"""
+    )
 
     fixer = FixRepositoryUseCase(root_dir=str(tmp_path))
     report = fixer.execute(dry_run=False)
@@ -373,7 +391,8 @@ owner: Me
 def test_fix_frontmatter_missing_makes_doc_compliant(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text("""
+    (gov / "metadata.schema.json").write_text(
+        """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -388,7 +407,8 @@ def test_fix_frontmatter_missing_makes_doc_compliant(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+    )
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
@@ -423,7 +443,8 @@ def test_fix_frontmatter_missing_makes_doc_compliant(tmp_path):
 def test_fix_schema_validation_fills_missing_required_fields(tmp_path):
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text("""
+    (gov / "metadata.schema.json").write_text(
+        """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -438,19 +459,22 @@ def test_fix_schema_validation_fills_missing_required_fields(tmp_path):
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+    )
 
     docs = tmp_path / "docs" / "45-adr"
     docs.mkdir(parents=True)
     target = docs / "missing-fields.md"
-    target.write_text("""---
+    target.write_text(
+        """---
 document_id: MEMINIT-ADR-777
 type: ADR
 status: Draft
 version: 0.1
 ---
 # Filled By Fix
-""")
+"""
+    )
 
     fixer = FixRepositoryUseCase(root_dir=str(tmp_path))
     report = fixer.execute(dry_run=False)
@@ -469,18 +493,21 @@ version: 0.1
 
 
 def test_fix_infers_type_from_configured_type_directory(tmp_path):
-    (tmp_path / "docops.config.yaml").write_text("""project_name: Example
+    (tmp_path / "docops.config.yaml").write_text(
+        """project_name: Example
 repo_prefix: EXAMPLE
 docops_version: '2.0'
 docs_root: docs
 document_types:
   ADR:
     directory: adrs
-""")
+"""
+    )
 
     gov = tmp_path / "docs" / "00-governance"
     gov.mkdir(parents=True)
-    (gov / "metadata.schema.json").write_text("""
+    (gov / "metadata.schema.json").write_text(
+        """
 {
   "type": "object",
   "required": ["document_id", "type", "title", "status", "version", "last_updated", "owner", "docops_version"],
@@ -495,7 +522,8 @@ document_types:
     "docops_version": { "type": "string" }
   }
 }
-""".strip())
+""".strip()
+    )
 
     adrs = tmp_path / "docs" / "adrs"
     adrs.mkdir(parents=True)

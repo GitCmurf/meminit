@@ -1,12 +1,10 @@
 """Tests for the capabilities registry and use case."""
 
 import tomllib
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 import click
-
-from importlib.metadata import PackageNotFoundError
-
 import pytest
 
 from meminit.cli.main import cli

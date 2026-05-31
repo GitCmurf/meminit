@@ -270,9 +270,7 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, _, _ = service._infer_doc_type(
-            "docs/misc/decision-log.md", config
-        )
+        doc_type, _, _ = service._infer_doc_type("docs/misc/decision-log.md", config)
         assert doc_type == "ADR"
 
     def test_infer_from_filename_prd(self, tmp_path):
@@ -280,9 +278,7 @@ class TestInferDocType:
         config = self._make_config(tmp_path)
         layout = self._make_layout(tmp_path, config)
         service = HeuristicsService(tmp_path, layout)
-        doc_type, _, _ = service._infer_doc_type(
-            "docs/misc/product-requirements.md", config
-        )
+        doc_type, _, _ = service._infer_doc_type("docs/misc/product-requirements.md", config)
         assert doc_type == "PRD"
 
     def test_infer_fallback_default(self, tmp_path):

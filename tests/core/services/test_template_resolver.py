@@ -12,8 +12,8 @@ from meminit.core.services.template_resolver import (
     SOURCE_CONFIG,
     SOURCE_CONVENTION,
     SOURCE_NONE,
-    TemplateResolver,
     TemplateResolution,
+    TemplateResolver,
 )
 
 
@@ -53,7 +53,8 @@ class TestTemplateResolverPrecedence:
 
         # Create config file with document_types pointing to config template
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -62,7 +63,8 @@ document_types:
   PRD:
     directory: "10-prd"
     template: docs/templates/custom.template.md
-""")
+"""
+        )
 
         # Load config
         repo_config = load_repo_config(str(tmp_path))
@@ -86,14 +88,16 @@ document_types:
 
         # Create config file without explicit template
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
 document_types:
   PRD:
     directory: "10-prd"
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -108,14 +112,16 @@ document_types:
         docs_dir.mkdir()
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
 document_types:
   PRD:
     directory: "10-prd"
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -132,14 +138,16 @@ document_types:
         docs_dir.mkdir()
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
 document_types:
   UNKNOWN:
     directory: "99-unknown"
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -168,7 +176,8 @@ class TestTemplateResolverSecurity:
         outside_template.write_text("# Outside template\n")
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -176,7 +185,8 @@ document_types:
   PRD:
     directory: "10-prd"
     template: ../outside.template.md
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         assert (
@@ -203,7 +213,8 @@ document_types:
         link_file.symlink_to(target_file)
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -211,7 +222,8 @@ document_types:
   PRD:
     directory: "10-prd"
     template: link.md
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -233,7 +245,8 @@ document_types:
         large_template.write_text("x" * (256 * 1024 + 1))
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -241,7 +254,8 @@ document_types:
   PRD:
     directory: "10-prd"
     template: large.template.md
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -262,7 +276,8 @@ document_types:
         bad_template.write_text("# Bad Template")
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
@@ -270,7 +285,8 @@ document_types:
   PRD:
     directory: "10-prd"
     template: bad.txt
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)
@@ -297,14 +313,16 @@ class TestTemplateResolverCaseInsensitivity:
         template.write_text("# PRD Template")
 
         config_file = tmp_path / "docops.config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 project_name: Test
 repo_prefix: TEST
 docops_version: "2.0"
 document_types:
   PRD:
     directory: "10-prd"
-""")
+"""
+        )
 
         repo_config = load_repo_config(str(tmp_path))
         resolver = TemplateResolver(repo_config)

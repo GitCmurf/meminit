@@ -22,9 +22,9 @@ import yaml
 from meminit.core.services.path_utils import relative_path_string
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.services.stream_events import (
+    StreamingResult,
     StreamItem,
     StreamSummary,
-    StreamingResult,
     summary_data,
 )
 

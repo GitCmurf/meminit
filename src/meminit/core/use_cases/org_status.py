@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Optional
 
-from meminit.core.services.org_profiles import global_profile_dir, resolve_org_profile
+from meminit.core.services.org_profiles import (
+    global_profile_dir,
+    merge_profile_with_fallback,
+    resolve_org_profile,
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,10 @@ class OrgStatusUseCase:
         global_installed = (global_dir / "profile.json").exists()
 
         profile = resolve_org_profile(profile_name=profile_name, env=self._env, prefer_global=True)
+        fallback_profile = resolve_org_profile(
+            profile_name=profile_name, env=self._env, prefer_global=False
+        )
+        effective_profile = merge_profile_with_fallback(profile, fallback_profile)
 
         lock_path = self._root / ".meminit" / "org-profile.lock.json"
         repo_lock_present = lock_path.exists()
@@ -54,7 +62,7 @@ class OrgStatusUseCase:
                 data = json.loads(lock_path.read_text(encoding="utf-8"))
                 lock_digest = data.get("digest")
                 if isinstance(lock_digest, str):
-                    matches = lock_digest == profile.digest()
+                    matches = lock_digest == effective_profile.digest()
             except Exception:
                 lock_digest = None
                 matches = None
@@ -67,6 +75,6 @@ class OrgStatusUseCase:
             repo_lock_path=str(lock_path.relative_to(self._root)),
             repo_lock_digest=lock_digest if isinstance(lock_digest, str) else None,
             current_profile_source=profile.source,
-            current_profile_digest=profile.digest(),
+            current_profile_digest=effective_profile.digest(),
             repo_lock_matches_current=matches,
         )

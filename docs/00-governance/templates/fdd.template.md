@@ -14,12 +14,8 @@ template_version: "2.0"
 
 <!-- MEMINIT_METADATA_BLOCK -->
 
-> **Document ID:** {{document_id}}
-> **Owner:** {{owner}}
-> **Status:** {{status}}
-> **Version:** 0.1
-> **Last Updated:** {{date}}
-> **Type:** {{type}}
+> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1
+> **Last Updated:** {{date}} > **Type:** {{type}}
 
 <!-- MEMINIT_SECTION: title -->
 <!-- AGENT: The title should be concise and descriptive of the feature. -->

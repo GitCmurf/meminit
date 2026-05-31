@@ -112,14 +112,14 @@ Pre-alpha contract note:
 
 ### 3.2 What is not yet sufficient
 
-| Area | Current state | Why it is still a gap for coding agents |
-| ---- | ------------- | --------------------------------------- |
-| Runtime capability discovery | Documented in PRD-005, not implemented | Agents still need repo-local assumptions and wrappers |
-| Multi-step orchestration metadata | `run_id` only | Cross-command tracing is still external and brittle |
-| Repository graph | Inventory + state merge | Agents still need secondary scans to reason about references and supersession |
-| Protocol surfaces | Created once | No built-in drift detection or sync path |
-| Work queue support | Dashboard-oriented | No direct next-task, blockers, or readiness query model |
-| Large-output ergonomics | Single JSON object | Monorepo-scale scans and indexes remain heavyweight |
+| Area                              | Current state                          | Why it is still a gap for coding agents                                       |
+| --------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| Runtime capability discovery      | Documented in PRD-005, not implemented | Agents still need repo-local assumptions and wrappers                         |
+| Multi-step orchestration metadata | `run_id` only                          | Cross-command tracing is still external and brittle                           |
+| Repository graph                  | Inventory + state merge                | Agents still need secondary scans to reason about references and supersession |
+| Protocol surfaces                 | Created once                           | No built-in drift detection or sync path                                      |
+| Work queue support                | Dashboard-oriented                     | No direct next-task, blockers, or readiness query model                       |
+| Large-output ergonomics           | Single JSON object                     | Monorepo-scale scans and indexes remain heavyweight                           |
 
 ### 3.3 Immediate quality gate
 
@@ -141,14 +141,14 @@ result.
 
 ## 4. Programme Summary
 
-| Phase | Name | Primary outcome | Exit condition |
-| ----- | ---- | --------------- | -------------- |
-| 0 | Foundation Hardening | Green, deterministic baseline | `pytest` green and contract matrix in place |
-| 1 | Agent Contract Core | Self-describing CLI surface | Capabilities, correlation, and explain implemented |
-| 2 | Repository Graph | Index becomes graph-grade agent artifact | Graph fields emitted and validated |
-| 3 | Protocol Governance | `AGENTS.md` and skills become governable clients | Drift can be detected and synced |
-| 4 | Work Queue Layer | Agents can ask "what next?" without repo-wide inference | State and query surfaces support readiness and blockers |
-| 5 | Scale and Streaming | Large repos are handled cleanly | NDJSON and incremental workflows available |
+| Phase | Name                 | Primary outcome                                         | Exit condition                                          |
+| ----- | -------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| 0     | Foundation Hardening | Green, deterministic baseline                           | `pytest` green and contract matrix in place             |
+| 1     | Agent Contract Core  | Self-describing CLI surface                             | Capabilities, correlation, and explain implemented      |
+| 2     | Repository Graph     | Index becomes graph-grade agent artifact                | Graph fields emitted and validated                      |
+| 3     | Protocol Governance  | `AGENTS.md` and skills become governable clients        | Drift can be detected and synced                        |
+| 4     | Work Queue Layer     | Agents can ask "what next?" without repo-wide inference | State and query surfaces support readiness and blockers |
+| 5     | Scale and Streaming  | Large repos are handled cleanly                         | NDJSON and incremental workflows available              |
 
 ## 5. Phased Programme
 
@@ -402,17 +402,17 @@ This programme does not need every item to be a new document. Where an
 existing document already owns the boundary, update it instead of creating a
 parallel source of truth.
 
-| Action | Type | Proposed document | Reason |
-| ------ | ---- | ----------------- | ------ |
-| Update | PRD | MEMINIT-PRD-005 Agent Interface v2 | It already owns capabilities, correlation, streaming, and protocol integration scope |
-| Update | SPEC | MEMINIT-SPEC-006 ErrorCode Enum | It already owns the canonical error registry that `explain` should build on |
-| Update | PLAN | MEMINIT-PLAN-003 Project Roadmap | It remains the sequencing source of truth and should reference this plan |
-| New | FDD | Agent Capabilities and Explain Commands | Implementation boundary for `capabilities`, `correlation_id`, and `explain` |
-| New | FDD | Index Graph Enrichment | Implementation boundary for links, related IDs, and supersession edges |
-| New | FDD | Protocol Surface Governance | Implementation boundary for protocol drift detection and sync |
-| New | FDD | Agent Work Queue Queries | Implementation boundary for richer state queries and readiness and blocker logic |
-| New | SPEC | NDJSON Streaming Contract | Normative streaming record shape and ordering rules |
-| New | RUNBOOK | Agent Integration and Upgrade Workflow | Operator guidance for adopting the new capability surfaces safely |
+| Action | Type    | Proposed document                       | Reason                                                                               |
+| ------ | ------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
+| Update | PRD     | MEMINIT-PRD-005 Agent Interface v2      | It already owns capabilities, correlation, streaming, and protocol integration scope |
+| Update | SPEC    | MEMINIT-SPEC-006 ErrorCode Enum         | It already owns the canonical error registry that `explain` should build on          |
+| Update | PLAN    | MEMINIT-PLAN-003 Project Roadmap        | It remains the sequencing source of truth and should reference this plan             |
+| New    | FDD     | Agent Capabilities and Explain Commands | Implementation boundary for `capabilities`, `correlation_id`, and `explain`          |
+| New    | FDD     | Index Graph Enrichment                  | Implementation boundary for links, related IDs, and supersession edges               |
+| New    | FDD     | Protocol Surface Governance             | Implementation boundary for protocol drift detection and sync                        |
+| New    | FDD     | Agent Work Queue Queries                | Implementation boundary for richer state queries and readiness and blocker logic     |
+| New    | SPEC    | NDJSON Streaming Contract               | Normative streaming record shape and ordering rules                                  |
+| New    | RUNBOOK | Agent Integration and Upgrade Workflow  | Operator guidance for adopting the new capability surfaces safely                    |
 
 Document creation rules:
 
@@ -423,14 +423,14 @@ Document creation rules:
 
 ## 8. Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-| ---- | ------ | ---------- |
-| Capability output becomes a second drifting contract | High | Treat `capabilities` as a tested, versioned artifact with deterministic ordering |
-| Protocol sync becomes destructive in brownfield repos | High | Default to check and report mode; require explicit action for writes |
-| Graph extraction overreaches and becomes heuristic-heavy | Medium | Ship a narrow, well-defined first edge set and test it thoroughly |
-| Work queue scope expands into project management | Medium | Keep fields optional and tightly tied to agent execution needs |
-| Streaming introduces contract ambiguity | High | Define record order, summary semantics, and error behavior before implementation |
-| `correlation_id` and `run_id` create confusing tracing semantics | Medium | Document the distinction clearly and test both paths explicitly |
+| Risk                                                             | Impact | Mitigation                                                                       |
+| ---------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| Capability output becomes a second drifting contract             | High   | Treat `capabilities` as a tested, versioned artifact with deterministic ordering |
+| Protocol sync becomes destructive in brownfield repos            | High   | Default to check and report mode; require explicit action for writes             |
+| Graph extraction overreaches and becomes heuristic-heavy         | Medium | Ship a narrow, well-defined first edge set and test it thoroughly                |
+| Work queue scope expands into project management                 | Medium | Keep fields optional and tightly tied to agent execution needs                   |
+| Streaming introduces contract ambiguity                          | High   | Define record order, summary semantics, and error behavior before implementation |
+| `correlation_id` and `run_id` create confusing tracing semantics | Medium | Document the distinction clearly and test both paths explicitly                  |
 
 ## 9. Closure Criteria for the Programme
 
@@ -448,12 +448,12 @@ This programme is complete when:
 
 ## 10. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-04-14 | GitCmurf | Initial draft created via `meminit new` |
-| 0.2 | 2026-04-14 | Codex | Replaced stub with phased vNext programme, acceptance criteria, and proposed governed document set |
-| 0.3 | 2026-04-14 | Augment Agent | Strengthened the plan with root-cause detail for Phase 0, correlation semantics, a dependency diagram, and clearer closure criteria |
-| 0.4 | 2026-04-14 | GitCmurf | Removed the blanket backward-compatibility framing for pre-alpha scope |
-| 0.5 | 2026-04-14 | Codex | Restored valid governed Markdown, cleaned the final structure, aligned the body with the recorded version history, and added an explicit entry rule for detailed planning |
-| 0.6 | 2026-04-14 | Codex | Recorded Phase 0 completion status and linked the implementation closeout in MEMINIT-PLAN-009 |
-| 0.7 | 2026-04-14 | Codex | Replaced the old Phase 0-only planning gate with links to the detailed phase plans for Phases 1 through 5 |
+| Version | Date       | Author        | Changes                                                                                                                                                                   |
+| ------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-04-14 | GitCmurf      | Initial draft created via `meminit new`                                                                                                                                   |
+| 0.2     | 2026-04-14 | Codex         | Replaced stub with phased vNext programme, acceptance criteria, and proposed governed document set                                                                        |
+| 0.3     | 2026-04-14 | Augment Agent | Strengthened the plan with root-cause detail for Phase 0, correlation semantics, a dependency diagram, and clearer closure criteria                                       |
+| 0.4     | 2026-04-14 | GitCmurf      | Removed the blanket backward-compatibility framing for pre-alpha scope                                                                                                    |
+| 0.5     | 2026-04-14 | Codex         | Restored valid governed Markdown, cleaned the final structure, aligned the body with the recorded version history, and added an explicit entry rule for detailed planning |
+| 0.6     | 2026-04-14 | Codex         | Recorded Phase 0 completion status and linked the implementation closeout in MEMINIT-PLAN-009                                                                             |
+| 0.7     | 2026-04-14 | Codex         | Replaced the old Phase 0-only planning gate with links to the detailed phase plans for Phases 1 through 5                                                                 |

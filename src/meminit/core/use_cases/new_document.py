@@ -11,29 +11,28 @@ from typing import Any, Dict, List, Optional
 
 import frontmatter
 import yaml
-from meminit.core.services.safe_yaml import safe_frontmatter_loads
 
-from meminit.core.domain.entities import NewDocumentParams, NewDocumentResult, VALID_STATUSES
+from meminit.core.domain.document_ids import (
+    document_id_type_segment,
+    normalize_document_type_for_id,
+)
+from meminit.core.domain.entities import VALID_STATUSES, NewDocumentParams, NewDocumentResult
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
-from meminit.core.services.observability import (
-    get_current_run_id,
-    log_debug,
-    log_operation,
-)
-from meminit.core.services.repo_config import (
-    RepoConfig,
-    load_repo_config,
-    load_repo_layout,
-)
+from meminit.core.services.observability import get_current_run_id, log_debug, log_operation
+from meminit.core.services.repo_config import RepoConfig, load_repo_config, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
 from meminit.core.services.section_parser import SectionParser
 from meminit.core.services.template_interpolation import TemplateInterpolator
 from meminit.core.services.template_resolver import TemplateResolver
 from meminit.core.services.validators import SchemaValidator
 
+fcntl: Any
 try:
-    import fcntl  # type: ignore
+    import fcntl as fcntl_module  # type: ignore
+
+    fcntl = fcntl_module
 except ImportError:  # pragma: no cover - Windows or unsupported platforms
     fcntl = None
 
@@ -67,6 +66,8 @@ class NewDocumentUseCase:
                         raise FileExistsError(result.error.message)
                 raise result.error
             raise RuntimeError("Document creation failed")
+        if result.path is None:
+            raise RuntimeError("Document creation succeeded without a path")
         return result.path
 
     def execute_with_params(self, params: NewDocumentParams) -> NewDocumentResult:
@@ -253,13 +254,18 @@ class NewDocumentUseCase:
                         },
                     )
                 provided_type = id_parts[1] if len(id_parts) >= 2 else ""
-                if provided_type.upper() != normalized_type.upper():
+                expected_type_segment = document_id_type_segment(normalized_type)
+                if provided_type.upper() != expected_type_segment:
                     raise MeminitError(
                         code=ErrorCode.INVALID_ID_FORMAT,
-                        message=f"document_id type segment '{provided_type}' does not match doc_type '{normalized_type}'",
+                        message=(
+                            f"document_id type segment '{provided_type}' does not match "
+                            f"doc_type '{normalized_type}' (expected segment '{expected_type_segment}')"
+                        ),
                         details={
                             "document_id": params.document_id,
                             "doc_type": normalized_type,
+                            "expected_type_segment": expected_type_segment,
                         },
                     )
                 doc_id = params.document_id
@@ -591,7 +597,7 @@ class NewDocumentUseCase:
         Returns:
             The template path if available, otherwise the source, or 'none'.
         """
-        return template_info.get("path") or template_info.get("source", "none")
+        return str(template_info.get("path") or template_info.get("source", "none"))
 
     def _load_config_yaml(self) -> Optional[Dict[str, Any]]:
         """Load the docops.config.yaml file from the repository root.
@@ -855,10 +861,7 @@ class NewDocumentUseCase:
         Returns:
             Normalized uppercase type string. 'GOVERNANCE' is mapped to 'GOV'.
         """
-        t = str(doc_type).strip().upper()
-        if t == "GOVERNANCE":
-            return "GOV"
-        return t
+        return normalize_document_type_for_id(doc_type)
 
     def get_available_types(self, namespace: Optional[str] = None) -> List[Dict[str, str]]:
         """Return available document types and directories for a namespace."""
@@ -1027,13 +1030,7 @@ class NewDocumentUseCase:
         Returns:
             3-10 character uppercase alphabetic type segment.
         """
-        doc_type_upper = doc_type.upper()
-        if doc_type_upper == "GOVERNANCE":
-            return "GOV"
-        if 3 <= len(doc_type_upper) <= 10 and doc_type_upper.isalpha():
-            return doc_type_upper
-        segment = re.sub(r"[^A-Z]", "", doc_type_upper)[:10]
-        return segment if len(segment) >= 3 else "DOC"
+        return document_id_type_segment(doc_type)
 
     def _apply_common_template_substitutions(
         self,

@@ -1,34 +1,34 @@
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import frontmatter
 
-from meminit.core.services.repo_config import RepoConfig, RepoLayout
-from meminit.core.services.safe_yaml import safe_frontmatter_loads
-from meminit.core.services.scan_plan import (
-    PlanAction,
-    PlanActionType,
-    ActionPreconditions,
-    ActionSafety,
+from meminit.core.services.markdown_utils import (
+    DEFAULT_DOCOPS_VERSION,
+    DEFAULT_OWNER,
+    DEFAULT_STATUS,
+    DEFAULT_VERSION,
+    PLACEHOLDER_TBD,
+    extract_title_from_markdown,
 )
 from meminit.core.services.path_utils import (
     FILENAME_EXCEPTIONS,
-    normalize_filename_to_kebab_case,
     compute_file_hash,
+    normalize_filename_to_kebab_case,
 )
-from meminit.core.services.markdown_utils import (
-    extract_title_from_markdown,
-    DEFAULT_DOCOPS_VERSION,
-    DEFAULT_STATUS,
-    DEFAULT_VERSION,
-    DEFAULT_OWNER,
-    PLACEHOLDER_TBD,
+from meminit.core.services.repo_config import RepoConfig, RepoLayout
+from meminit.core.services.safe_yaml import safe_frontmatter_loads
+from meminit.core.services.scan_plan import (
+    ActionPreconditions,
+    ActionSafety,
+    PlanAction,
+    PlanActionType,
 )
 
 
 class HeuristicsService:
-
     def __init__(self, root_dir: Path, layout: RepoLayout):
         self.root_dir = root_dir
         self.layout = layout

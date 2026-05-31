@@ -9,37 +9,44 @@ owner: GitCmurf
 version: "0.6"
 ---
 
-# Runbook: Codex Skills Setup for Meminit
+# Runbook: Agent Skills Setup (Codex/Claude)
 
 ## Goal
 
-Make the Meminit Codex Skill available in your Codex environment, either:
+Make the Meminit DocOps skill available in your AI agent environment, either:
 
 - repo-scoped (recommended), or
 - installation-wide (global).
 
-This runbook targets **Codex CLI** usage first. Skills are also supported in IDE extensions, but the discovery UI may differ.
+This runbook targets **Codex** and **Claude** agent usage. Skills are typically scaffolded into `.agents/skills/` by `meminit init`.
 
 ## Repo-scoped setup (recommended)
 
-This repo already ships a Codex skill at:
+Meminit scaffolds a vendor-neutral agent skill at:
 
-- `.codex/skills/meminit-docops/SKILL.md`
+- `.agents/skills/meminit-docops/SKILL.md`
+
+Some tools (like Codex) may require a projection into a tool-specific folder (e.g., `.agents/skills/`).
+
+### Verification
 
 Steps:
+
+1. Confirm the skill directory exists: `.agents/skills/meminit-docops/`
+2. If your tool expects a different path, confirm it is a repo-relative projection of the canonical folder. For the Codex projection in this repository, the target should resolve to `../../.agents/skills/meminit-docops` and must not point into a user home directory.
+
+Self-check:
+
+```bash
+test -f .agents/skills/meminit-docops/SKILL.md && echo "OK: meminit-docops skill present"
+```
+
+### Loading the skill in Codex
 
 1. Start Codex from the repo (preferably the repo root).
 2. In the Codex TUI, run `/skills` to list available skills.
 3. Confirm `meminit-docops` appears in the list.
-4. If it does not appear:
-   - confirm the file exists: `.codex/skills/meminit-docops/SKILL.md`
-   - restart Codex so it re-scans the repo skill directory
-
-Self-check (before restart):
-
-```bash
-test -f .codex/skills/meminit-docops/SKILL.md && echo "OK: meminit-docops skill present"
-```
+4. If it does not appear, verify your agent environment configuration. Use `meminit protocol check` to verify alignment.
 
 Important: skills are typically loaded once per Codex session. If you add or edit skills, **restart Codex**.
 
@@ -53,41 +60,34 @@ How to invoke (Codex CLI):
 If `/skills` only lists built-in skills (e.g., `skill-creator`, `skill-installer`) and not repo skills:
 
 1. Confirm you launched Codex **inside the git repository**:
-   - Start Codex from the repo root directory where `.git/` and `.codex/` exist.
-   - If you launch from a different working directory, Codex may not discover repo-scoped skills.
-2. Confirm the skill is in a supported repo location:
-   - `$CWD/.codex/skills`
-   - `$REPO_ROOT/.codex/skills`
+   - Start Codex from the repo root directory where `.git/` and `.agents/` exist.
+2. Confirm the skill is in a supported repo location. Ensure the `.agents/` directory exists:
+   - `$REPO_ROOT/.agents/skills/meminit-docops`
 3. Confirm `SKILL.md` is valid:
    - filename must be exactly `SKILL.md`
    - YAML frontmatter must parse
-   - `name` and `description` must be single-line and within length limits
-4. Confirm the skill directory is not a symlink (Codex may ignore symlinked skill dirs).
-5. Restart Codex after adding/updating skills (skills are loaded once per session).
-6. If skills still don’t appear, check your Codex version and configuration:
-   - Update Codex CLI to a recent version that supports skills.
-   - Ensure skills are enabled in `~/.codex/config.toml` (exact setting varies by build).
+4. Restart Codex after adding/updating skills.
 
 ### Installing the skill into another repo (brownfield pilot)
 
 If you are testing Meminit in another repo (e.g., `../AIDHA`) and want the same skill there:
 
-1. Create the target skill directory: `<TARGET_REPO>/.codex/skills/`
-2. Copy the skill folder from this repo:
-   - source: `.codex/skills/meminit-docops/`
-   - destination: `<TARGET_REPO>/.codex/skills/meminit-docops/`
-3. Restart Codex from the target repo root and run `/skills`.
+1. Recommended: run `meminit init` in the target repo.
+2. Manual alternative: copy the skill folder from this repo:
+   - source: `.agents/skills/meminit-docops/`
+   - destination: `<TARGET_REPO>/.agents/skills/meminit-docops/`
+3. Restart your agent environment.
 
 ## Installation-wide setup (global)
 
-If your Codex implementation supports global skills, install by copying the skill folder into the global skills directory.
+If your agent environment supports global skills, install by copying the skill folder into the global skills directory.
 
-Steps (conceptual):
+Steps (conceptual for Codex):
 
 1. Locate your Codex global skills directory (varies by OS/installation).
 2. Copy the folder:
-   - source: `.codex/skills/meminit-docops/`
-   - destination: `~/.codex/skills/meminit-docops/` (Mac/Linux default per Codex docs)
+   - source: `.agents/skills/meminit-docops/`
+   - destination: `~/.agents/skills/meminit-docops/` (Mac/Linux default per agent environment docs)
 3. Restart Codex and verify discovery.
 
 Security note:
@@ -130,13 +130,13 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 
 ### JSON vs NDJSON Decision Table
 
-| Use case | Recommended format | Reason |
-| -------- | ------------------ | ------ |
-| Bootstrapping repo constraints | `meminit context --format json` | Bounded output; one envelope is simpler |
-| Deep repo inventory | `meminit context --deep --format ndjson` | Streams namespace, type, and document records |
-| Building graph artifacts for agents | `meminit index --format ndjson` | Streams graph items and still writes the persisted index |
-| Brownfield migration scan | `meminit scan --format ndjson` | Streams scan inventory and suggestions |
-| CI gates and small commands | `--format json` | Stable v3 envelope and easier assertions |
+| Use case                            | Recommended format                       | Reason                                                   |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
+| Bootstrapping repo constraints      | `meminit context --format json`          | Bounded output; one envelope is simpler                  |
+| Deep repo inventory                 | `meminit context --deep --format ndjson` | Streams namespace, type, and document records            |
+| Building graph artifacts for agents | `meminit index --format ndjson`          | Streams graph items and still writes the persisted index |
+| Brownfield migration scan           | `meminit scan --format ndjson`           | Streams scan inventory and suggestions                   |
+| CI gates and small commands         | `--format json`                          | Stable v3 envelope and easier assertions                 |
 
 ### Streaming Troubleshooting
 
@@ -146,6 +146,9 @@ The `meminit-docops` skill is designed to work with the **v3 output contract** (
 - Delete `.meminit/cache/` or run `meminit index --rebuild-cache` when cache warnings repeat; the flag clears and repopulates `.meminit/cache/index/` with a full rebuild.
 - If `meminit index` returns `CACHE_LOCK_HELD` after a prior crash and no Meminit process is still running, remove `.meminit/cache/index/.lock` or delete `.meminit/cache/`, then rerun `meminit index --rebuild-cache --format json`.
 - Use `meminit index --explain-cache --format json` to inspect cache manifest status without rebuilding. If no manifest exists, run `meminit index --format json` once to initialize incremental index reuse.
+- Keep `.meminit/cache/` and `.meminit.lock` in `.gitignore`. They are
+  rebuildable runtime state and should be excluded from secret scanners rather
+  than allowlisted in scanner baselines.
 
 ### Phase 5 Testbed Checklist
 
@@ -369,10 +372,10 @@ treated as an empty queue, not as an error.
 The `state next` JSON response includes `data.reason` when no entry is
 selected:
 
-| Reason | Meaning |
-|---|---|
-| `state_missing` | No `project-state.yaml` exists. The queue is empty. |
-| `queue_empty` | State file exists but no entries are ready. All candidates are blocked, in progress, or the filters excluded everyone. |
+| Reason          | Meaning                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `state_missing` | No `project-state.yaml` exists. The queue is empty.                                                                    |
+| `queue_empty`   | State file exists but no entries are ready. All candidates are blocked, in progress, or the filters excluded everyone. |
 
 When `data.entry` is present, `data.reason` is `null`.
 

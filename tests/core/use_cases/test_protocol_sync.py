@@ -6,8 +6,8 @@ import pytest
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.protocol_assets import (
-    AssetOwnership,
     PROTOCOL_ASSET_VERSION,
+    AssetOwnership,
     DriftOutcome,
     ProtocolAsset,
     ProtocolAssetRegistry,
@@ -385,18 +385,48 @@ class TestProtocolSyncerDryRun:
 
 class TestProtocolSyncerIdempotency:
     def test_second_sync_is_all_noop(self, tmp_path):
+        """Test that running sync twice on aligned assets is a no-op."""
         _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+        for asset in registry.assets:
+            _write_asset(
+                tmp_path, asset, asset.render(project_name="TestProject", repo_prefix="TEST")
+            )
+        script_asset = registry.get_by_id("meminit-brownfield-script")
+        assert script_asset is not None
+        (tmp_path / script_asset.target_path).chmod(script_asset.file_mode)
+
         syncer = ProtocolSyncer(str(tmp_path))
-
-        # First sync creates all missing assets
         r1 = syncer.execute(dry_run=False)
-        assert r1.summary["rewritten"] == 3
+        assert r1.summary["noop"] == 3
+        assert r1.summary["rewritten"] == 0
 
-        # Second sync should be all noop
         r2 = syncer.execute(dry_run=False)
         assert r2.summary["noop"] == 3
         assert r2.summary["rewritten"] == 0
         assert r2.applied is False
+
+    def test_sync_then_check_all_aligned(self, tmp_path):
+        """Regression test: protocol sync followed by check should show all assets aligned."""
+        from meminit.core.use_cases.protocol_check import ProtocolChecker
+
+        _setup_config(tmp_path)
+        registry = ProtocolAssetRegistry.default()
+
+        syncer = ProtocolSyncer(str(tmp_path))
+        sync_report = syncer.execute(dry_run=False)
+        assert sync_report.applied is True
+
+        checker = ProtocolChecker(str(tmp_path))
+        check_report = checker.execute()
+
+        assert check_report.summary["total"] == 3
+        assert check_report.summary["aligned"] == 3
+        assert check_report.summary["drifted"] == 0
+
+        for asset in check_report.assets:
+            assert asset["status"] == "aligned"
+            assert asset["auto_fixable"] is False
 
 
 class TestProtocolSyncerUserContentPreservation:

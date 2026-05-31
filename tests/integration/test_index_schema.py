@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+
 import pytest
 from jsonschema import Draft7Validator, FormatChecker
 
@@ -112,7 +113,7 @@ def test_committed_index_includes_phase_5_log_document():
     assert log_doc is not None, "Committed index is missing MEMINIT-LOG-001"
     assert log_doc["path"] == "docs/58-logs/log-001-phase-5-external-testbed-evidence.md"
     assert log_doc["type"] == "LOG"
-    assert log_doc["status"] == "Draft"
+    assert log_doc["status"] == "Approved"
 
 
 def test_index_schema_fails_on_malformed_payload(index_artifact_schema):

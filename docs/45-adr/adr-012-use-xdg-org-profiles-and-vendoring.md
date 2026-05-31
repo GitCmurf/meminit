@@ -3,13 +3,14 @@ document_id: MEMINIT-ADR-012
 type: ADR
 title: Use XDG Org Profiles and Vendoring
 status: Draft
-version: '0.2'
-last_updated: '2025-12-31'
+version: "0.2"
+last_updated: "2025-12-31"
 owner: GitCmurf
-docops_version: '2.0'
+docops_version: "2.0"
 ---
 
 <!-- MEMINIT_METADATA_BLOCK -->
+
 > **Document ID:** MEMINIT-ADR-012
 > **Owner:** GitCmurf
 > **Status:** Draft
@@ -32,9 +33,11 @@ docops_version: '2.0'
   - `src/meminit/core/use_cases/org_status.py`
 
 ## 1. Context & Problem Statement
+
 Meminit is a DocOps enforcement tool. It needs a practical way to apply **organisation-level standards** across many repositories while keeping repository compliance **deterministic** (no “it passed on my machine, failed in CI” because of drift).
 
 Organisations (or solo developers acting as “an org of one”) want:
+
 - a single “default baseline” that applies across repos;
 - a predictable place to store that baseline locally so new repos default correctly; and
 - an explicit mechanism to prevent **unintentional drift** (standards changing silently due to tool updates, remote references, or machine state).
@@ -44,15 +47,18 @@ This ADR introduces **Org Profiles** as a first-class concept and defines where 
 Terminology note: **to vendor** (verb) means “copy and pin a dependency into your repository so it is self-contained and deterministic”. In this ADR, “vendoring org standards” means copying the org profile’s schema/templates (and optionally its ORG governance Markdown docs) into the repository and recording a digest in a lock file.
 
 **In scope**
+
 - Global (user-machine) storage and selection of org standards using XDG base directories.
 - Repo-local vendoring to make standards deterministic and reviewable in PRs.
 - A safe upgrade story (explicit action, no background auto-upgrades).
 
 **Out of scope**
+
 - A hosted service for distributing organisation standards.
 - Automatically rewriting existing repositories without explicit user action.
 
 ## 2. Decision Drivers
+
 - **Determinism / “no unintentional drift”:** a repo’s compliance baseline must not change silently.
 - **Security:** avoid adding network and credential requirements to CI/agents.
 - **Portability:** works cross-platform; follows established filesystem conventions.
@@ -60,9 +66,11 @@ Terminology note: **to vendor** (verb) means “copy and pin a dependency into y
 - **Composability:** other tooling (e.g., Architext) should be able to call Meminit as a stable, Unix-like primitive.
 
 ## 3. Options Considered
+
 For each option: summary, evidence, pros, cons, risks.
 
 - **Option A: Central “governance repo” referenced by URL**
+
   - Summary: org standards live in a dedicated repository; repos reference it via URL/submodule/release.
   - Pros:
     - single “source of truth” (conceptually)
@@ -75,6 +83,7 @@ For each option: summary, evidence, pros, cons, risks.
     - operational/security complexity tends to grow over time.
 
 - **Option B: XDG global org profile + repo vendoring (lockfile)**
+
   - Summary: Meminit ships a packaged default profile; users can install an org profile to XDG; repos can vendor that profile and lock its digest.
   - Pros:
     - new repos default to org baseline if installed globally
@@ -98,12 +107,14 @@ For each option: summary, evidence, pros, cons, risks.
     - organisations will reinvent a global distribution mechanism anyway.
 
 ## 4. Decision Outcome
+
 - **Chosen option:** Option B (XDG global org profile + vendoring with lockfile).
 - **Why this option:** It meets the “no unintentional drift” requirement via vendoring + lockfile while still enabling “org defaults” via a global, XDG-located install.
 - **Scope/Applicability:** Applies to all Meminit users who want consistent standards across multiple repos; vendoring is the deterministic contract used for CI and collaboration.
 - **Status gates:** Move Draft → In Review once the org flows are tested and documented; move In Review → Approved after a pilot confirms deterministic behavior across machines/CI.
 
 ## 5. Consequences
+
 - Positive:
 - **Deterministic repos:** vendoring + lock file makes baseline standards auditable in PRs and stable in CI.
 - **Good defaults:** global profile provides “new repo defaults to org standards” without copy/paste.
@@ -116,6 +127,7 @@ For each option: summary, evidence, pros, cons, risks.
 - Provide helper docs for users who manage dotfiles and want to pin/sync the global profile directory.
 
 ## 6. Implementation Notes
+
 - Plan / milestones:
   - Ship a packaged default org profile under `meminit.core.assets`.
   - Provide XDG path resolution and profile loading.
@@ -131,6 +143,7 @@ For each option: summary, evidence, pros, cons, risks.
 - Telemetry / monitoring to add: None (Meminit favors deterministic artefacts over telemetry).
 
 ## 7. Validation & Compliance
+
 - Tests required (unit/integration/e2e):
   - Profile resolution prefers global profile when installed; otherwise uses packaged default.
   - Install and vendor flows honor `--dry-run`.
@@ -146,14 +159,17 @@ For each option: summary, evidence, pros, cons, risks.
   - A repo with vendored profile produces identical check results across machines and CI.
 
 ## 8. Alternatives Rejected
+
 - Option A: forces network/credential/pinning complexity that vendoring already solves more simply.
 - Option C: loses “org defaults” and pushes every repo to manually bootstrap standards.
 
 ## 9. Supersession
+
 - Supersedes: none
 - Superseded by: none
 
 ## 10. Notes for Agents
+
 - Key entities/terms for RAG: org profile, XDG, vendoring, lockfile, drift, determinism
 - Code anchors (paths, modules, APIs) this ADR governs:
   - `src/meminit/core/services/xdg_paths.py`
@@ -168,7 +184,9 @@ For each option: summary, evidence, pros, cons, risks.
   - “Review packet” workflow for brownfield repos (human approval loop).
 
 ---
+
 ### DocOps Compliance (for tools)
+
 - Frontmatter MUST satisfy `docs/00-governance/metadata.schema.json` (including `docops_version`).
 - H1 MUST match `^# [A-Z]+-ADR-\d+: .+`.
 - Sections required (case-insensitive, in this order):

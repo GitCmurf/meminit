@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
+from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.output_formatter import (
-    normalize_correlation_id,
     format_envelope,
     format_error_envelope,
+    normalize_correlation_id,
 )
-from meminit.core.services.error_codes import ErrorCode
 
 
 def test_format_envelope_is_deterministic_and_sorted(tmp_path):

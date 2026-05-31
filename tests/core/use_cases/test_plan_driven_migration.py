@@ -1,11 +1,12 @@
-import pytest
 from pathlib import Path
+
 import frontmatter
+import pytest
 
 from meminit.core.services.repo_config import load_repo_layout
-from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
-from meminit.core.use_cases.fix_repository import FixRepositoryUseCase
 from meminit.core.services.scan_plan import PlanActionType
+from meminit.core.use_cases.fix_repository import FixRepositoryUseCase
+from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 
 
 def test_plan_driven_migration_e2e(tmp_path: Path):

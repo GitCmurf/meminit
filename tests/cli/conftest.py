@@ -5,10 +5,8 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator
 
-from tests.cli.streaming_helpers import (
-    create_initialized_repo,
-    stream_schema_validator as build_stream_schema_validator,
-)
+from tests.cli.streaming_helpers import create_initialized_repo
+from tests.cli.streaming_helpers import stream_schema_validator as build_stream_schema_validator
 
 
 @pytest.fixture(scope="session")

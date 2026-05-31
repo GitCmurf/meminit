@@ -128,6 +128,56 @@ def test_context_repository_execute_deep_counts_documents(tmp_path):
     assert result.warnings == []
 
 
+def test_context_repository_execute_deep_uses_configured_exclusion_prefixes(tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "\n".join(
+            [
+                "project_name: Test",
+                "repo_prefix: TST",
+                "docops_version: '2.0'",
+                "excluded_filename_prefixes:",
+                "  - DRAFT-",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "00-governance").mkdir(parents=True)
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    (tmp_path / "docs" / "45-adr" / "adr-001.md").write_text(
+        "---\n" "document_id: TST-ADR-001\n" "type: ADR\n" "title: Public\n" "---\n\n# Public\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "45-adr" / "DRAFT-scratch.md").write_text(
+        "---\n" "document_id: TST-ADR-002\n" "type: ADR\n" "title: Draft\n" "---\n\n# Draft\n",
+        encoding="utf-8",
+    )
+    draft_dir = tmp_path / "docs" / "45-adr" / "DRAFT-notes"
+    draft_dir.mkdir()
+    (draft_dir / "adr-003.md").write_text(
+        "---\n"
+        "document_id: TST-ADR-003\n"
+        "type: ADR\n"
+        "title: Draft Dir\n"
+        "---\n\n# Draft Dir\n",
+        encoding="utf-8",
+    )
+
+    result = ContextRepositoryUseCase(root_dir=tmp_path).execute(deep=True)
+
+    assert result.data["excluded_filename_prefixes"] == ["DRAFT-", "WIP-"]
+    assert result.data["namespaces"][0]["document_count"] == 1
+    assert result.documents == [
+        {
+            "document_id": "TST-ADR-001",
+            "namespace": "default",
+            "path": "docs/45-adr/adr-001.md",
+            "title": "Public",
+            "type": "ADR",
+        }
+    ]
+
+
 def test_context_repository_execute_deep_uses_document_id_for_same_root_namespaces(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "\n".join(

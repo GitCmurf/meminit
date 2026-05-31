@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml/badge.svg)](https://github.com/GitCmurf/meminit/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/GitCmurf/meminit)](LICENSE)
-![Python](https://img.shields.io/badge/python-≥3.11-blue)
+![Python](https://img.shields.io/badge/python-%E2%89%A53.11-blue)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
 **Quick links:** [Docs](docs/) · [Runbooks](docs/60-runbooks/) · [Issues](https://github.com/GitCmurf/meminit/issues) ·
@@ -14,36 +14,33 @@
 
 Documentation in modern, AI-assisted codebases drifts fast. Docs lose their
 governance metadata, go stale, break naming conventions, and fall out of sync
-with the code they describe. Manual reviews don't scale, and most linting tools
+with the code they describe. Manual reviews do not scale, and most linting tools
 ignore docs entirely.
 
 **Meminit fixes that.** It is a CLI that scaffolds, governs, and validates
-documentation — so your docs stay machine-readable, policy-compliant, and in
-sync with your code.
+documentation so your docs stay machine-readable, policy-compliant, and in sync
+with your code.
 
 ### Built for the Agentic Age
 
 Meminit is designed to work _with_ AI coding agents, not just alongside them:
 
-- **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without
-  guessing filenames.
+- **Stable IDs** (`MEMINIT-ADR-001`) let agents reference docs without guessing
+  filenames.
 - **JSON Schema-validated frontmatter** gives agents structured metadata they
   can parse and trust.
-- **`meminit init` scaffolds an `AGENTS.md`** — a ready-made agentic coding
-  rules file that teaches agents how to create, validate, and maintain governed
-  docs in your repo.
+- **`meminit init` scaffolds an `AGENTS.md`** with ready-made agentic coding
+  rules for governed docs.
 - **Ships with a Codex/Claude-compatible skill** (`.codex/skills/meminit-docops/`)
-  that agents can load to run the full DocOps workflow autonomously.
+  that agents can load to run the DocOps workflow autonomously.
 
 ## What It Does
 
-- **Scaffold a governed docs tree in seconds** — `meminit init`
-- **Create documents with stable, traceable IDs** — `meminit new`
-- **Enforce repo rules in CI and pre-commit** — `meminit doctor`, `meminit check`
-- **Auto-fix common violations** (dry-run by default) — `meminit fix`
-- **Build an index for stable ID → path resolution** — `meminit index`, `meminit resolve`
-- **Stream large agent payloads** — `meminit index --format ndjson`, specified by
-  [MEMINIT-SPEC-011](docs/20-specs/spec-011-ndjson-streaming-contract.md)
+- **Scaffold a governed docs tree in seconds** - `meminit init`
+- **Create documents with stable, traceable IDs** - `meminit new`
+- **Validate governance in CI and pre-commit** - `meminit doctor`, `meminit check`
+- **Auto-fix common violations** (dry-run by default) - `meminit fix`
+- **Scan and resolve repository docs** - `meminit scan`, `meminit index`, `meminit resolve`
 
 See the full project vision:
 [MEMINIT-STRAT-001](docs/02-strategy/strat-001-project-meminit-vision.md).
@@ -52,13 +49,13 @@ See the full project vision:
 
 ### Prerequisites
 
-- Python ≥ 3.11
+- Python >= 3.11
 - [pipx](https://pipx.pypa.io/) (recommended) or pip
 
 ### Install
 
-Meminit is not published on PyPI yet. Install from GitHub (or a local
-checkout):
+Meminit is not published on PyPI yet. Install from GitHub or from a local
+checkout:
 
 ```bash
 # Via pipx (recommended)
@@ -71,34 +68,15 @@ cd meminit
 pip install -e .
 ```
 
-Note: `@main` is the latest development version. Use a tagged release once tags are published.
-
-### Local Development
-
-When developing Meminit locally, you have two options:
-
-**Run directly from source (no install):**
-
-```bash
-PYTHONPATH=src python -m meminit --help
-PYTHONPATH=src python -m meminit new ADR "Test" --dry-run
-```
-
-**Install in editable mode:**
-
-```bash
-pip install -e .
-meminit --help
-```
-
-Note: If you have a globally installed `meminit` via pipx, it may be older than the source code. When testing new features, always use `python -m meminit` or reinstall with `pip install -e .` to pick up your changes.
+Note: `@main` is the latest development version. Use a tagged release once tags
+are published.
 
 ### New repository (greenfield)
 
 ```bash
-meminit init        # scaffold docs/ tree and config
-meminit new ADR "My Decision"   # create a governed document
-meminit check       # validate everything
+meminit init
+meminit new ADR "My Decision"
+meminit check
 ```
 
 Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
@@ -106,10 +84,10 @@ Runbook: [Greenfield setup](docs/60-runbooks/runbook-002-greenfield-repo.md).
 ### Existing repository (brownfield)
 
 ```bash
-meminit doctor      # diagnose current state
-meminit scan        # discover existing docs
-meminit check       # validate against rules
-meminit fix --dry-run   # preview auto-fixes
+meminit doctor
+meminit scan
+meminit check
+meminit fix --dry-run
 ```
 
 Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-migration.md).
@@ -117,26 +95,25 @@ Runbook: [Existing repo migration](docs/60-runbooks/runbook-003-existing-repo-mi
 ### Coming from `adr-tools`?
 
 Meminit extends the ideas pioneered by
-[adr-tools](https://github.com/npryce/adr-tools) — lightweight, plain-text
-Architecture Decision Records — and generalizes them to _all_ governed document
-types (PRDs, FDDs, specs, runbooks, and more).
-
-Your muscle memory still works:
+[adr-tools](https://github.com/npryce/adr-tools) and generalizes them to all
+governed document types (PRDs, FDDs, specs, runbooks, and more).
 
 ```bash
 meminit adr new "Use Postgres for persistence"
 ```
 
 Under the hood you get structured governance, JSON Schema validation, stable
-IDs, and cross-platform Python — no Bash required.
+IDs, and cross-platform Python.
 
 > **Note:** Meminit is an independent project licensed under Apache 2.0. It was
-> developed without reference to `adr-tools` source code (which is GPL-3.0).
+> developed without reference to `adr-tools` source code.
 
 ## Key Concepts
 
-- **Governed docs**: Markdown with required YAML frontmatter, validated by JSON Schema.
-- **Stable IDs**: documents are referenced by `REPO-TYPE-SEQ` identifiers (e.g., `MEMINIT-ADR-001`), not filenames.
+- **Governed docs**: Markdown with required YAML frontmatter, validated by JSON
+  Schema.
+- **Stable IDs**: documents are referenced by `REPO-TYPE-SEQ` identifiers
+  (for example, `MEMINIT-ADR-001`), not filenames.
 - **Namespaces**: support monorepos by defining multiple governed doc roots.
 
 Example frontmatter (simplified):
@@ -154,17 +131,16 @@ docops_version: 2.0
 
 ## How It Works
 
-Meminit follows a simple loop: **scaffold → author → check → fix → index**.
+Meminit follows a simple loop: **scaffold -> author -> check -> fix -> index**.
 
 1. `meminit init` creates a standard `docs/` directory tree and a
-   `docops.config.yaml` that defines your project's naming conventions,
-   namespaces, and templates.
+   `docops.config.yaml` that defines naming conventions, namespaces, and
+   templates.
 2. Authors create governed documents via `meminit new`, which stamps each file
-   with YAML frontmatter (stable ID, type, status, dates).
-3. `meminit check` and `meminit doctor` validate every doc against the
-   project's governance rules — in CI, in pre-commit hooks, or on demand.
-4. `meminit fix` auto-corrects common violations (dry-run first, so nothing
-   changes until you say so).
+   with YAML frontmatter.
+3. `meminit check` and `meminit doctor` validate every doc against the repo's
+   governance rules.
+4. `meminit fix` auto-corrects common violations.
 5. `meminit index` builds a lookup table from stable IDs to file paths, making
    docs machine-resolvable.
 
@@ -187,7 +163,7 @@ designs, and runbooks.
 
 ## Getting Help
 
-- Ask questions / report bugs: [GitHub Issues](https://github.com/GitCmurf/meminit/issues)
+- Ask questions or report bugs: [GitHub Issues](https://github.com/GitCmurf/meminit/issues)
 - Security issues: see [SECURITY.md](SECURITY.md)
 - Contact: `maintainers@meminit.io`
 
@@ -198,21 +174,23 @@ designs, and runbooks.
 
 ## Project Status
 
-> **Alpha (v0.2.0)** — the CLI is functional and under active development. It
+> **Alpha (v0.1.0)** - the CLI is functional and under active development. It
 > is not yet published on PyPI. Expect breaking changes before v1.0.
 
 ## Non-goals
 
 Meminit is intentionally narrow in scope:
 
-- Not a documentation CMS (we govern Markdown in git)
+- Not a documentation CMS
 - Not a project management tool
-- No Node.js requirement for the core CLI (a `package.json` may exist for adjacent tooling)
+- No Node.js requirement for the core CLI
 
 ## Automation
 
-- **Pre-commit**: `meminit install-precommit` can install a local `meminit check` hook into `.pre-commit-config.yaml`.
-- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running `meminit doctor` and `meminit check`.
+- **Pre-commit**: `meminit install-precommit` can install a local `meminit check`
+  hook into `.pre-commit-config.yaml`.
+- **GitHub Actions**: see `.github/workflows/ci.yml` for a minimal setup running
+  `meminit doctor` and `meminit check`.
 
 ## Security
 
@@ -226,14 +204,9 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-pytest --cov=meminit
 meminit doctor --root .
 meminit check --root .
 ```
-
-The coverage report is optional and requires the `pytest-cov` extra.
-`npm test` is an optional compatibility shim for tooling that discovers test
-commands from `package.json`; it delegates to `python -m pytest`.
 
 ## Contributing
 
@@ -245,4 +218,4 @@ Found a bug or have an idea?
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0 - see [LICENSE](LICENSE).

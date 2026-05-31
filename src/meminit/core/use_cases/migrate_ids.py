@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import frontmatter
 
@@ -72,10 +72,12 @@ class MigrateIdsUseCase:
         actions: List[IdMigrationAction] = []
         skipped: List[str] = []
 
-        used_numbers = self._collect_used_numbers_by_prefix_and_type()
+        used_numbers, canonical_id_counts = self._collect_id_metrics()
         next_numbers: Dict[Tuple[str, str], int] = {
             key: (max(nums) + 1 if nums else 1) for key, nums in used_numbers.items()
         }
+
+        seen_canonical_ids: Set[str] = set()
 
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
@@ -118,9 +120,74 @@ class MigrateIdsUseCase:
                 else:
                     doc_type = doc_type.strip().upper()
 
+                # Check for canonical ID
                 if self._is_canonical_id(old_id):
-                    continue
+                    # Check for duplicate canonical IDs
+                    if canonical_id_counts.get(old_id, 0) > 1:
+                        # This is a duplicate canonical ID situation
+                        if old_id not in seen_canonical_ids:
+                            # First occurrence - keep the ID, mark as seen
+                            seen_canonical_ids.add(old_id)
+                            continue
+                        # Duplicate occurrence - renumber it
+                        seen_canonical_ids.add(old_id)
+                        new_id = self._allocate_next_id(
+                            ns.repo_prefix, doc_type, used_numbers, next_numbers
+                        )
+                        updated_frontmatter = False
+                        updated_metadata_block = False
+                        updated_heading = False
+                        rewritten_refs = 0
 
+                        # Update frontmatter
+                        post.metadata["document_id"] = new_id
+                        updated_frontmatter = True
+
+                        # Update visible metadata block (if present)
+                        content, md_updated = self._replace_metadata_block_id(
+                            post.content, old_id, new_id
+                        )
+                        post.content = content
+                        updated_metadata_block = md_updated
+
+                        # Update H1 if it embeds the old ID
+                        content, heading_updated = self._replace_first_heading_id(
+                            post.content, old_id, new_id
+                        )
+                        post.content = content
+                        updated_heading = heading_updated
+
+                        if rewrite_references:
+                            content, count = self._replace_id_references(
+                                post.content, old_id, new_id
+                            )
+                            post.content = content
+                            rewritten_refs = count
+
+                        actions.append(
+                            IdMigrationAction(
+                                file=rel_path,
+                                old_id=old_id,
+                                new_id=new_id,
+                                doc_type=doc_type,
+                                updated_frontmatter=updated_frontmatter,
+                                updated_metadata_block=updated_metadata_block,
+                                updated_heading=updated_heading,
+                                rewritten_reference_count=rewritten_refs,
+                            )
+                        )
+
+                        if not dry_run:
+                            post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
+                            ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
+                            path.write_text(frontmatter.dumps(post), encoding="utf-8")
+
+                        continue
+                    else:
+                        # Single canonical ID - already correct, skip
+                        continue
+
+                # Non-canonical ID - migrate it
                 new_id = self._allocate_next_id(
                     ns.repo_prefix, doc_type, used_numbers, next_numbers
                 )
@@ -176,9 +243,12 @@ class MigrateIdsUseCase:
         # Keep in sync with current IdValidator default behavior.
         return bool(re.match(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$", document_id))
 
-    def _collect_used_numbers_by_prefix_and_type(self) -> Dict[Tuple[str, str], List[int]]:
-        used: Dict[Tuple[str, str], List[int]] = {}
+    def _collect_id_metrics(self) -> Tuple[Dict[Tuple[str, str], List[int]], Dict[str, int]]:
+        """Collect both sequence numbers and canonical ID counts in a single pass."""
+        used_numbers: Dict[Tuple[str, str], List[int]] = {}
+        canonical_counts: Dict[str, int] = {}
         regex = re.compile(r"^([A-Z]{3,10})-([A-Z]{3,10})-(\d{3})$")
+
         for ns in self._layout.namespaces:
             if not ns.docs_dir.exists():
                 continue
@@ -198,9 +268,14 @@ class MigrateIdsUseCase:
                 m = regex.match(doc_id.strip())
                 if not m:
                     continue
+
                 repo, doc_type, seq = m.group(1), m.group(2), m.group(3)
-                used.setdefault((repo, doc_type), []).append(int(seq))
-        return used
+                canonical_id = f"{repo}-{doc_type}-{seq}"
+
+                used_numbers.setdefault((repo, doc_type), []).append(int(seq))
+                canonical_counts[canonical_id] = canonical_counts.get(canonical_id, 0) + 1
+
+        return used_numbers, canonical_counts
 
     def _invert_type_directories(self, ns: RepoConfig) -> Dict[Tuple[str, ...], str]:
         inverted: Dict[Tuple[str, ...], str] = {}

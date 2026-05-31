@@ -53,17 +53,43 @@ def test_init_creates_structure(empty_repo):
     assert ".gitignore" in report.created_paths
     assert "AGENTS.md" in report.created_paths
     assert "docs/00-governance" in report.created_paths
-    assert ".meminit/cache/" in (empty_repo / ".gitignore").read_text(encoding="utf-8")
+    gitignore = (empty_repo / ".gitignore").read_text(encoding="utf-8")
+    assert ".meminit/cache/" in gitignore
+    assert ".meminit.lock" in gitignore
 
 
-def test_init_appends_meminit_cache_to_existing_gitignore(empty_repo):
+def test_init_appends_meminit_runtime_state_to_existing_gitignore(empty_repo):
     (empty_repo / ".gitignore").write_text("dist/\n", encoding="utf-8")
     report = InitRepositoryUseCase(str(empty_repo)).execute()
 
     gitignore = (empty_repo / ".gitignore").read_text(encoding="utf-8")
     assert "dist/" in gitignore
     assert ".meminit/cache/" in gitignore
+    assert ".meminit.lock" in gitignore
     assert ".gitignore" in report.created_paths
+
+
+def test_init_completes_partial_meminit_runtime_gitignore(empty_repo):
+    (empty_repo / ".gitignore").write_text("dist/\n.meminit/cache/\n", encoding="utf-8")
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    gitignore_lines = (empty_repo / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert gitignore_lines.count(".meminit/cache/") == 1
+    assert gitignore_lines.count(".meminit.lock") == 1
+    assert ".gitignore" in report.created_paths
+
+
+def test_init_does_not_rewrite_complete_meminit_runtime_gitignore(empty_repo):
+    (empty_repo / ".gitignore").write_text(
+        "dist/\n.meminit/cache/\n.meminit.lock\n",
+        encoding="utf-8",
+    )
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    gitignore_lines = (empty_repo / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert gitignore_lines.count(".meminit/cache/") == 1
+    assert gitignore_lines.count(".meminit.lock") == 1
+    assert ".gitignore" in report.skipped_paths
 
 
 def test_init_creates_12_notes_directory(empty_repo):

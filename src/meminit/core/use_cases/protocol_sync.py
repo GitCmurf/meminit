@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.warning_codes import WarningCode
 from meminit.core.services.protocol_assets import (
     AssetOwnership,
     DriftOutcome,
@@ -23,6 +22,7 @@ from meminit.core.services.safe_fs import (
     ensure_existing_regular_file_path,
     ensure_safe_write_path,
 )
+from meminit.core.services.warning_codes import WarningCode
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-from typing import Dict, List, Any, Optional
 import hashlib
 import json
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class PlanActionType(str, Enum):
@@ -35,7 +35,7 @@ class ActionSafety:
 @dataclass
 class PlanAction:
     id: str
-    action: PlanActionType
+    action: PlanActionType | str
     source_path: str
     target_path: str
     confidence: float
@@ -116,12 +116,13 @@ class MigrationPlan:
                     f"MigrationPlan action at index {idx} must be a dict, "
                     f"got {type(a_data).__name__}"
                 )
-            try:
-                action_type = PlanActionType(a_data.get("action"))
-            except ValueError:
-                action_type = a_data.get(
-                    "action"
-                )  # Allow unknown actions to be parsed but failed during validation
+            action_raw = a_data.get("action")
+            action_type: PlanActionType | str = str(action_raw or "")
+            if isinstance(action_raw, str):
+                try:
+                    action_type = PlanActionType(action_raw)
+                except ValueError:
+                    pass
 
             pre = a_data.get("preconditions", {})
             if not isinstance(pre, dict):

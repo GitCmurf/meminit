@@ -3,7 +3,7 @@
 import pytest
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.section_parser import SectionParser, SectionMarker
+from meminit.core.services.section_parser import SectionMarker, SectionParser
 
 
 class TestSectionParserBasicParsing:

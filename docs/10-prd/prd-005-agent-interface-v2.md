@@ -448,28 +448,28 @@ This PRD is considered implemented when:
 
 ## 11. Related Documents
 
-| Document ID                                                             | Title                          | Relationship                                                               |
-| ----------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
-| [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)              | Agent Interface v1             | Baseline envelope + CLI contract; v2 is explicitly out-of-scope follow-on. |
-| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)       | Agent Output Contract          | Normative schema/spec for v1 outputs; historical baseline for the v3 contract. |
-| [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)    | Agent Output Contract v2       | Normative schema/spec for v3 outputs; now includes state queue payloads.   |
-| [MEMINIT-RUNBOOK-006](../60-runbooks/runbook-006-codex-skills-setup.md) | Codex Skills Setup for Meminit | Protocol-surface guidance and maintenance practices.                       |
-| [MEMINIT-PRD-007](../10-prd/prd-007-project-state-dashboard.md)         | Project State Dashboard        | Queue/dashboard surface that consumes the state payload contract.          |
-| [MEMINIT-PLAN-013](../05-planning/plan-013-phase-4-detailed-implementation-plan.md) | Phase 4 Detailed Implementation Plan | Defines the work-queue implementation plan referenced by agent interface v2. |
-| [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md) | Project Meminit Vision         | Strategic design center and constraints.                                   |
-| [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)       | Security Practices             | Governs safe output and repo privacy constraints.                          |
+| Document ID                                                                         | Title                                | Relationship                                                                   |
+| ----------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| [MEMINIT-PRD-003](../10-prd/prd-003-agent-interface-v1.md)                          | Agent Interface v1                   | Baseline envelope + CLI contract; v2 is explicitly out-of-scope follow-on.     |
+| [MEMINIT-SPEC-004](../20-specs/spec-004-agent-output-contract.md)                   | Agent Output Contract                | Normative schema/spec for v1 outputs; historical baseline for the v3 contract. |
+| [MEMINIT-SPEC-008](../20-specs/spec-008-agent-output-contract-v2.md)                | Agent Output Contract v2             | Normative schema/spec for v3 outputs; now includes state queue payloads.       |
+| [MEMINIT-RUNBOOK-006](../60-runbooks/runbook-006-codex-skills-setup.md)             | Codex Skills Setup for Meminit       | Protocol-surface guidance and maintenance practices.                           |
+| [MEMINIT-PRD-007](../10-prd/prd-007-project-state-dashboard.md)                     | Project State Dashboard              | Queue/dashboard surface that consumes the state payload contract.              |
+| [MEMINIT-PLAN-013](../05-planning/plan-013-phase-4-detailed-implementation-plan.md) | Phase 4 Detailed Implementation Plan | Defines the work-queue implementation plan referenced by agent interface v2.   |
+| [MEMINIT-STRAT-001](../02-strategy/strat-001-project-meminit-vision.md)             | Project Meminit Vision               | Strategic design center and constraints.                                       |
+| [MEMINIT-GOV-003](../00-governance/gov-003-security-practices.md)                   | Security Practices                   | Governs safe output and repo privacy constraints.                              |
 
 ---
 
 ## 12. Document History
 
-| Version | Date       | Author    | Changes                                                                                                                     |
-| ------- | ---------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 0.1     | 2026-02-23 | System    | Created via `meminit new PRD`.                                                                                              |
-| 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry. |
-| 0.3     | 2026-04-15 | GitCmurf | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped |
-| 0.4     | 2026-04-18 | GitCmurf | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped |
-| 0.5     | 2026-04-21 | Codex     | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE_* explain coverage |
-| 0.6     | 2026-04-30 | Codex     | Updated Phase 1 status to reflect graph_index is now true per MEMINIT-IMPL-001 |
-| 0.7     | 2026-05-03 | Codex     | Clarified FR-3 streaming status after Phase 5 partial delivery |
-| 1.0     | 2026-05-06 | Codex     | Recorded Phase 5 completion for NDJSON streaming and incremental index cache surfaces |
+| Version | Date       | Author    | Changes                                                                                                                                  |
+| ------- | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2026-02-23 | System    | Created via `meminit new PRD`.                                                                                                           |
+| 0.2     | 2026-02-23 | Architect | Populated as a v1 out-of-scope backlog PRD: capabilities, correlation, streaming, protocol integration, and error registry.              |
+| 0.3     | 2026-04-15 | GitCmurf  | Recorded Phase 1 implementation status: capabilities, correlation_id, explain commands shipped                                           |
+| 0.4     | 2026-04-18 | GitCmurf  | Recorded Phase 3 implementation status: protocol check/sync (FR-6) shipped                                                               |
+| 0.5     | 2026-04-21 | Codex     | Recorded Phase 4 implementation status: work-queue query surfaces, enriched state list, queue validation, and STATE\_\* explain coverage |
+| 0.6     | 2026-04-30 | Codex     | Updated Phase 1 status to reflect graph_index is now true per MEMINIT-IMPL-001                                                           |
+| 0.7     | 2026-05-03 | Codex     | Clarified FR-3 streaming status after Phase 5 partial delivery                                                                           |
+| 1.0     | 2026-05-06 | Codex     | Recorded Phase 5 completion for NDJSON streaming and incremental index cache surfaces                                                    |

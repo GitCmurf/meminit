@@ -57,7 +57,13 @@ class TemplateInterpolator:
 
     # Single regex matching all known {{variable}} patterns.
     # Captures the variable name as group 1 for lookup-based replacement.
-    _ALL_VARIABLES_PATTERN = re.compile(r"\{\{\s*(" + "|".join(_KNOWN_VARIABLES) + r")\s*\}\}")
+    _ALL_VARIABLES_PATTERN = re.compile(r"\{\{(" + "|".join(_KNOWN_VARIABLES) + r")\}\}")
+
+    # Exact double-brace candidates used to detect unknown or malformed tokens.
+    _DOUBLE_BRACE_TOKEN_PATTERN = re.compile(r"\{\{([^{}]*?)\}\}")
+
+    # Variable names must be simple identifiers to be considered valid tokens.
+    _VARIABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
     # Legacy patterns to detect and reject - compiled on initialization
     _LEGACY_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -78,14 +84,12 @@ class TemplateInterpolator:
         re.compile(r"<AREA>"),
     )
 
-    # Pattern to find all {{...}} variables to reject unknown or malformed ones
-    _UNKNOWN_PATTERN = re.compile(r"\{\{\s*([^{}]*?)\s*\}\}")
-
     def __init__(self) -> None:
         """Initialize the interpolator with compiled patterns."""
         self._known_vars = set(self._KNOWN_VARIABLES)
         self._legacy = self._LEGACY_PATTERNS
-        self._unknown = self._UNKNOWN_PATTERN
+        self._double_brace_tokens = self._DOUBLE_BRACE_TOKEN_PATTERN
+        self._variable_name = self._VARIABLE_NAME_PATTERN
 
     def interpolate(self, template: str, **kwargs: Any) -> str:
         """Interpolate variables in a template.
@@ -204,13 +208,26 @@ class TemplateInterpolator:
     def _raise_on_unknown_variables(self, content: str) -> None:
         """Check for unknown {{variable}} placeholders and raise error if found.
 
-        Scans for any {{...}} patterns that weren't substituted.
+        Scans for exact {{variable}} tokens that were not recognized.
         """
         unknown = set()
-        for match in self._unknown.finditer(content):
-            var_name = match.group(1).strip()
+        for match in self._double_brace_tokens.finditer(content):
+            token = match.group(0)
+            var_name = match.group(1)
+
+            if var_name != var_name.strip() or not self._variable_name.fullmatch(var_name):
+                raise MeminitError(
+                    code=ErrorCode.INVALID_TEMPLATE_PLACEHOLDER,
+                    message=f"Malformed template placeholder detected: {token}",
+                    details={
+                        "malformed_syntax": token,
+                        "use_syntax": "{{variable}}",
+                        "line": self._find_line_number(content, match.start()),
+                    },
+                )
+
             if var_name not in self._known_vars:
-                unknown.add(var_name or "<empty>")
+                unknown.add(var_name)
 
         if unknown:
             raise MeminitError(

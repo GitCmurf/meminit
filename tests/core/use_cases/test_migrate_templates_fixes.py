@@ -1,8 +1,10 @@
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from meminit.core.services.repo_config import load_repo_layout
+from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
 
 
 def test_migrate_templates_empty_docs_root(tmp_path: Path):

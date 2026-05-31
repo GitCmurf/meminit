@@ -1,22 +1,22 @@
 import hashlib
+import logging
 import re
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from dataclasses import dataclass
 from typing import List, Mapping, Optional
-import logging
 
 import yaml
 
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.org_profiles import resolve_org_profile
 from meminit.core.services.protocol_assets import (
     PROTOCOL_ASSET_VERSION,
     ProtocolAssetRegistry,
-    resolve_repo_metadata,
     normalize_protocol_payload,
+    resolve_repo_metadata,
 )
 from meminit.core.services.repo_config import derive_repo_prefix
-from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.safe_fs import atomic_write, ensure_safe_write_path
 
 _FALLBACK_SCHEMA_JSON = b"""{
@@ -58,6 +58,12 @@ _FALLBACK_TEMPLATES: dict[str, bytes] = {
     "templates/adr.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## 1. Context & Problem Statement\\n\\n## 2. Decision Drivers\\n\\n## 3. Options Considered\\n\\n## 4. Decision Outcome\\n\\n## 5. Consequences\\n",
     "templates/fdd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Feature Description\\n",
     "templates/prd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Product Requirements\\n",
+    "templates/plan.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Plan Description\\n",
+    "templates/spec.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Technical Specification\\n",
+    "templates/runbook.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Operations Runbook\\n",
+    "templates/design.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## System Design\\n",
+    "templates/log.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Execution Log\\n",
+    "templates/task.template.md": b'---\\ndocument_id: {{document_id}}\\ntype: {{type}}\\ntitle: {{title}}\\nstatus: {{status}}\\nversion: "0.1"\\nlast_updated: {{date}}\\nowner: {{owner}}\\narea: PLAN\\ndocops_version: "2.0"\\ntemplate_type: task-standard\\ntemplate_version: "2.0"\\ndescription: Task implementation record.\\nkeywords:\\n  - task\\n---\\n\\n<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}} > **Owner:** {{owner}} > **Status:** {{status}} > **Version:** 0.1\\n> **Last Updated:** {{date}} > **Type:** {{type}}\\n\\n<!-- MEMINIT_SECTION: title -->\\n<!-- AGENT: The title should state the implementation objective clearly. -->\\n\\n# TASK: {{title}}\\n\\n<!-- MEMINIT_SECTION: executive_summary -->\\n<!-- AGENT: Summarize the task, why it exists, and the intended completion state. -->\\n\\n## 0. Executive Summary\\n\\n[Executive summary here]\\n\\n<!-- MEMINIT_SECTION: review_basis -->\\n<!-- AGENT: List source reports, live commands, and evidence used to scope the task. -->\\n\\n## 1. Review Basis\\n\\n[Review basis here]\\n\\n<!-- MEMINIT_SECTION: current_state -->\\n<!-- AGENT: Distinguish live defects from stale or already-corrected findings. -->\\n\\n## 2. Current State\\n\\n[Current state here]\\n\\n<!-- MEMINIT_SECTION: work_items -->\\n<!-- AGENT: Break the work into prioritized, implementable items with definitions of done. -->\\n\\n## 3. Work Items\\n\\n[Work items here]\\n\\n<!-- MEMINIT_SECTION: verification_matrix -->\\n<!-- AGENT: List the exact commands and evidence required before closure. -->\\n\\n## 4. Verification Matrix\\n\\n[Verification matrix here]\\n\\n<!-- MEMINIT_SECTION: version_history -->\\n<!-- AGENT: Track version changes with dates, authors, and change summaries. -->\\n\\n## 5. Version History\\n\\n| Version | Date     | Author    | Changes       |\\n| ------- | -------- | --------- | ------------- |\\n| 0.1     | {{date}} | {{owner}} | Initial draft |\\n',
 }
 
 
@@ -179,11 +185,20 @@ class InitRepositoryUseCase:
                         "template": "docs/00-governance/templates/prd.template.md",
                     },
                     "RESEARCH": {"directory": "10-prd"},
-                    "PLAN": {"directory": "05-planning"},
+                    "PLAN": {
+                        "directory": "05-planning",
+                        "template": "docs/00-governance/templates/plan.template.md",
+                    },
                     "TASK": {"directory": "05-planning/tasks"},
                     "NOTES": {"directory": "12-notes"},
-                    "SPEC": {"directory": "20-specs"},
-                    "DESIGN": {"directory": "30-design"},
+                    "SPEC": {
+                        "directory": "20-specs",
+                        "template": "docs/00-governance/templates/spec.template.md",
+                    },
+                    "DESIGN": {
+                        "directory": "30-design",
+                        "template": "docs/00-governance/templates/design.template.md",
+                    },
                     "DECISION": {"directory": "40-decisions"},
                     "ADR": {
                         "directory": "45-adr",
@@ -195,9 +210,15 @@ class InitRepositoryUseCase:
                     },
                     "INDEX": {"directory": "01-indices"},
                     "TESTING": {"directory": "55-testing"},
-                    "LOG": {"directory": "58-logs"},
+                    "LOG": {
+                        "directory": "58-logs",
+                        "template": "docs/00-governance/templates/log.template.md",
+                    },
                     "GUIDE": {"directory": "60-runbooks"},
-                    "RUNBOOK": {"directory": "60-runbooks"},
+                    "RUNBOOK": {
+                        "directory": "60-runbooks",
+                        "template": "docs/00-governance/templates/runbook.template.md",
+                    },
                     "REF": {"directory": "70-devex"},
                 },
             }
@@ -310,9 +331,13 @@ class InitRepositoryUseCase:
     def _ensure_gitignore_cache_entry(self, record_fn) -> None:
         gitignore_path = self.root_dir / ".gitignore"
         ensure_safe_write_path(root_dir=self.root_dir, target_path=gitignore_path)
-        entry = ".meminit/cache/"
+        required_entries = [".meminit/cache/", ".meminit.lock"]
         if not gitignore_path.exists():
-            atomic_write(gitignore_path, f"{entry}\n", encoding="utf-8")
+            atomic_write(
+                gitignore_path,
+                "\n".join(required_entries) + "\n",
+                encoding="utf-8",
+            )
             record_fn(gitignore_path, created=True)
             return
         if not gitignore_path.is_file():
@@ -323,11 +348,13 @@ class InitRepositoryUseCase:
             )
         content = gitignore_path.read_text(encoding="utf-8")
         entries = {line.strip() for line in content.splitlines()}
-        if entry in entries:
+        missing_entries = [entry for entry in required_entries if entry not in entries]
+        if not missing_entries:
             record_fn(gitignore_path, created=False)
             return
         separator = "" if content.endswith("\n") or not content else "\n"
-        atomic_write(gitignore_path, f"{content}{separator}{entry}\n", encoding="utf-8")
+        addition = "\n".join(missing_entries) + "\n"
+        atomic_write(gitignore_path, f"{content}{separator}{addition}", encoding="utf-8")
         record_fn(gitignore_path, created=True)
 
     def _install_optional_asset(

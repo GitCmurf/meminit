@@ -1,6 +1,7 @@
 """Tests for the exit_codes module."""
 
 import pytest
+
 from meminit.core.services.error_codes import ErrorCode
 from meminit.core.services.exit_codes import (
     EX_CANTCREAT,

@@ -3,14 +3,14 @@ name: Feature request
 about: Suggest an idea for Meminit
 title: "[Feature] "
 labels: enhancement
-assignees: ''
+assignees: ""
 ---
 
 ## Problem
 
 A clear, concise description of what problem this feature would solve.
 
-*Example: "I'm always frustrated when..."*
+_Example: "I'm always frustrated when..."_
 
 ## Proposed Solution
 

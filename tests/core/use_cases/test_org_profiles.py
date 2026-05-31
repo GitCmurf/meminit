@@ -78,6 +78,12 @@ def test_org_profile_resolution_prefers_global_when_present(tmp_path: Path):
     assert profile.files["metadata.schema.json"] == b'{"$schema": "GLOBAL"}'
 
 
+def test_packaged_org_profile_includes_task_template():
+    profile = resolve_org_profile(profile_name="default", prefer_global=False)
+
+    assert "templates/task.template.md" in profile.files
+
+
 def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Path):
     env = _xdg_env(tmp_path)
 
@@ -98,6 +104,7 @@ def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Pa
     )
     assert applied.dry_run is False
     assert (repo_root / "docs/00-governance/metadata.schema.json").exists()
+    assert (repo_root / "docs/00-governance/templates/task.template.md").exists()
     assert (repo_root / ".meminit/org-profile.lock.json").exists()
 
     config = yaml.safe_load((repo_root / "docops.config.yaml").read_text(encoding="utf-8"))
@@ -116,6 +123,56 @@ def test_org_vendor_writes_lock_and_refuses_overwrite_without_force(tmp_path: Pa
         profile_name="default", dry_run=False, force=True
     )
     assert forced.dry_run is False
+
+
+def test_org_vendor_falls_back_to_packaged_assets_for_stale_global_profiles(tmp_path: Path):
+    env = _xdg_env(tmp_path)
+
+    # Simulate an older global install that predates newer template assets.
+    root = global_profile_dir("default", env=env)
+    root.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "profile_name": "default",
+        "profile_version": "0.9",
+        "docops_version": "2.0",
+        "files": [
+            "metadata.schema.json",
+            "templates/adr.template.md",
+            "templates/fdd.template.md",
+            "templates/prd.template.md",
+        ],
+    }
+    (root / "profile.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (root / "metadata.schema.json").write_text(json.dumps({"$schema": "STALE"}), encoding="utf-8")
+    (root / "templates").mkdir(parents=True, exist_ok=True)
+    (root / "templates/adr.template.md").write_text("ADR TEMPLATE (GLOBAL)\n", encoding="utf-8")
+    (root / "templates/fdd.template.md").write_text("FDD TEMPLATE (GLOBAL)\n", encoding="utf-8")
+    (root / "templates/prd.template.md").write_text("PRD TEMPLATE (GLOBAL)\n", encoding="utf-8")
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True, exist_ok=True)
+
+    report = VendorOrgProfileUseCase(root_dir=str(repo_root), env=env).execute(
+        profile_name="default", dry_run=False
+    )
+
+    assert report.dry_run is False
+    assert (repo_root / "docs/00-governance/metadata.schema.json").exists()
+
+    packaged_profile = resolve_org_profile(profile_name="default", env=env, prefer_global=False)
+    expected_plan_template = packaged_profile.files["templates/plan.template.md"]
+    assert (
+        repo_root / "docs/00-governance/templates/plan.template.md"
+    ).read_bytes() == expected_plan_template
+    expected_task_template = packaged_profile.files["templates/task.template.md"]
+    assert (
+        repo_root / "docs/00-governance/templates/task.template.md"
+    ).read_bytes() == expected_task_template
+    assert (repo_root / ".meminit/org-profile.lock.json").exists()
+
+    status = OrgStatusUseCase(root_dir=str(repo_root), env=env).execute(profile_name="default")
+    assert status.repo_lock_matches_current is True
 
 
 def test_org_status_reports_lock_matches_current_profile(tmp_path: Path):
@@ -172,6 +229,7 @@ def test_init_repository_uses_global_profile_when_installed(tmp_path: Path):
 
 def test_org_vendor_refuses_symlink_escape(tmp_path: Path):
     import pytest
+
     from meminit.core.services.error_codes import ErrorCode, MeminitError
 
     env = _xdg_env(tmp_path)
