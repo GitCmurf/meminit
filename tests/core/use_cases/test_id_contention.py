@@ -9,6 +9,7 @@ import pytest
 from meminit.core.use_cases.new_document import NewDocumentParams, NewDocumentUseCase
 
 
+
 def create_doc_worker(root_dir, title, results_queue):
     """Worker process to create a document."""
     try:
