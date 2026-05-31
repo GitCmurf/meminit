@@ -6,7 +6,6 @@ from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
 
 
-
 def test_normalize_template_path_without_trailing_slash(tmp_path: Path):
     (tmp_path / "docops.config.yaml").write_text("project_name: test\n")
     use_case = MigrateTemplatesUseCase(str(tmp_path))

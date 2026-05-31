@@ -16,9 +16,8 @@ MIN_SUPPORTED_SCHEMA_VERSION = OUTPUT_SCHEMA_VERSION_V3
 
 def build_command(cmd_args, root=None):
     full_cmd = ["uv", "run", "meminit"] + cmd_args
-    is_repo_agnostic = (
-        cmd_args[0] in ("capabilities", "explain")
-        or (len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install")
+    is_repo_agnostic = cmd_args[0] in ("capabilities", "explain") or (
+        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
     )
     if root is not None and not is_repo_agnostic:
         full_cmd += ["--root", str(root)]
@@ -76,9 +75,8 @@ def check_command(cmd_args, expected_data_keys=None, root=None):
         return False
 
     # root is conditional: present for repo-aware commands, absent for repo-agnostic
-    is_repo_agnostic = (
-        cmd_args[0] in ("capabilities", "explain")
-        or (len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install")
+    is_repo_agnostic = cmd_args[0] in ("capabilities", "explain") or (
+        len(cmd_args) >= 2 and cmd_args[0] == "org" and cmd_args[1] == "install"
     )
     if is_repo_agnostic:
         if "root" in envelope:

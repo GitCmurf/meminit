@@ -7,7 +7,6 @@ from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.use_cases.migrate_templates import MigrateTemplatesUseCase
 
 
-
 def test_migrate_templates_empty_docs_root(tmp_path: Path):
     (tmp_path / "docops.config.yaml").write_text("project_name: test\n")
 

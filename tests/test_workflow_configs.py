@@ -101,9 +101,7 @@ def test_release_workflow_uses_the_correct_twine_and_testpypi_publish_commands()
     assert "uv pip install twine" not in twine_step["run"]
 
     dry_run_steps = workflow["jobs"]["dry-run-publish"]["steps"]
-    publish_step = next(
-        step for step in dry_run_steps if step["name"] == "Publish to TestPyPI"
-    )
+    publish_step = next(step for step in dry_run_steps if step["name"] == "Publish to TestPyPI")
     assert "uv publish --publish-url https://test.pypi.org/legacy/" in publish_step["run"]
     assert "--check-url https://test.pypi.org/simple/" in publish_step["run"]
     assert "--index https://test.pypi.org/simple/" not in publish_step["run"]
