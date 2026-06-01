@@ -2788,7 +2788,7 @@ def test_cli_fix_json_output(mock_use_case, tmp_path):
 
 @patch("meminit.cli.main.MigrateIdsUseCase")
 def test_cli_migrate_ids_json_output(mock_use_case, tmp_path):
-    report = SimpleNamespace(as_dict=lambda: {"actions": [], "skipped_files": []})
+    report = SimpleNamespace(as_dict=lambda: {"actions": [], "skipped_files": []}, advice=[])
     mock_use_case.return_value.execute.return_value = report
 
     runner = runner_no_mixed_stderr()

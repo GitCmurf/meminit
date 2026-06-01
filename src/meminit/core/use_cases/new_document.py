@@ -1151,11 +1151,11 @@ class NewDocumentUseCase:
         resolver = TemplateResolver(ns)
         resolution = resolver.resolve(doc_type)
 
-        # Get template content or use skeleton
+        # Get template content or use a minimal machine-fillable skeleton.
         if resolution.content:
             template_content = resolution.content
         else:
-            template_content = f"# {doc_type}: {title}\n\n## Context\n\n## Content\n"
+            template_content = self._build_skeleton_template(doc_type, title)
 
         # Parse document ID for interpolation
         parts = doc_id.split("-")
@@ -1251,6 +1251,19 @@ class NewDocumentUseCase:
         )
 
         return rendered_content, template_info
+
+    def _build_skeleton_template(self, doc_type: str, title: str) -> str:
+        """Build the fallback template used when no configured template resolves."""
+        return (
+            "<!-- MEMINIT_METADATA_BLOCK -->\n\n"
+            "<!-- MEMINIT_SECTION: title -->\n"
+            "<!-- AGENT: State the document objective clearly. -->\n\n"
+            f"# {doc_type}: {title}\n\n"
+            "<!-- MEMINIT_SECTION: content -->\n"
+            "<!-- AGENT: Fill this section with the document-specific content. -->\n\n"
+            "## Content\n\n"
+            "[Content here]\n"
+        )
 
     def _build_template_info(
         self,

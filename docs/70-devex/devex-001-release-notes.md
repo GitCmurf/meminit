@@ -119,7 +119,7 @@ After v1.0, standard semantic versioning will be strictly observed.
 ## Known Limitations
 
 1. **Protocol assets:** Only 3 standard assets are governed (AGENTS.md, SKILL.md, brownfield script). Custom protocol assets require code changes.
-2. **Templates v2:** Only ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, and TASK have Templates v2 section markers. Other types use legacy templates.
+2. **Templates v2:** ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, TASK, and STRAT have Templates v2 section markers. Other types use legacy templates.
 3. **Secret scanning:** gitleaks must be installed locally for pre-commit enforcement. CI uses the GitHub Action. Meminit runtime state (`.meminit/cache/` and `.meminit.lock`) should be git-ignored and scanner-excluded, not committed or added to scanner baselines.
 4. **State management:** `project-state.yaml` is file-based; concurrent writes from multiple agents may conflict (use agent routing).
 5. **Index caching:** Cache is invalidated on schema/config changes but may require manual clearing (`docs/01-indices/.index_cache.json`) in rare edge cases.

@@ -31,6 +31,7 @@ DEFAULT_DOCS_ROOT = "docs"
 DEFAULT_CATALOG_NAME = "catalogue.md"
 DEFAULT_TYPE_DIRECTORIES = {
     "GOV": "00-governance",
+    "STRAT": "02-strategy",
     "PLAN": "05-planning",
     "PRD": "10-prd",
     "SPEC": "20-specs",

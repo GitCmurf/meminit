@@ -323,11 +323,18 @@ meminit state list --root . --format json
 
 ### Recommended agent loop
 
-1. Run `meminit state next --root . --format json`.
-2. If `data.reason == "queue_empty"`, stop.
-3. If `data.entry` exists, do exactly that work item.
-4. Persist the mutation with `meminit state set`.
-5. Repeat until the queue is empty.
+1. Run `meminit context --root . --format json` to discover namespaces,
+   allowed document types, and template mappings.
+2. Run `meminit state next --root . --format json` to select the next queued
+   work item.
+3. If `data.reason == "queue_empty"`, stop.
+4. If `data.entry` exists, resolve and read the selected document plus linked
+   source docs with `meminit resolve <DOCUMENT_ID> --root . --format json`.
+5. Implement the atomic unit: Code + Documentation + Tests.
+6. Run `meminit check --root . --format json`, `meminit protocol check --root .
+   --format json`, and relevant project tests before reporting completion.
+7. Persist the mutation with `meminit state set`.
+8. Repeat until the queue is empty.
 
 ### Safety rules
 

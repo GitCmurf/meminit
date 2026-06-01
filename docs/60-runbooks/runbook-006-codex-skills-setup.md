@@ -354,11 +354,17 @@ full merged view.
 
 ### Safe loop pattern
 
-1. Run `meminit state next --root . --format json`.
-2. If `data.reason == "queue_empty"` or `data.reason == "state_missing"`, stop and report that the queue is empty (or missing).
-3. If `data.entry` is present, do the work deterministically.
-4. Persist the change with `meminit state set` or the appropriate writer.
-5. Re-run `meminit state next --root . --format json` and continue until the queue is empty.
+1. Run `meminit context --root . --format json` to discover repository DocOps
+   constraints.
+2. Run `meminit state next --root . --format json`.
+3. If `data.reason == "queue_empty"` or `data.reason == "state_missing"`, stop and report that the queue is empty (or missing).
+4. If `data.entry` is present, resolve and read that document and its linked
+   source docs before coding.
+5. Implement the atomic unit: Code + Documentation + Tests.
+6. Run `meminit check --root . --format json`, `meminit protocol check --root .
+   --format json`, and relevant project tests.
+7. Persist the change with `meminit state set` or the appropriate writer.
+8. Re-run `meminit state next --root . --format json` and continue until the queue is empty.
 
 ### Configuration rule
 

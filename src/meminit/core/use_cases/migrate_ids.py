@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import frontmatter
 
+from meminit.core.domain.document_ids import document_id_type_segment
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
 from meminit.core.services.repo_config import RepoConfig, RepoLayout, load_repo_layout
 from meminit.core.services.safe_fs import ensure_safe_write_path
@@ -31,6 +32,7 @@ class IdMigrationReport:
     dry_run: bool
     actions: List[IdMigrationAction]
     skipped_files: List[str]
+    advice: List[dict[str, str]]
 
     def as_dict(self) -> dict:
         return {
@@ -49,6 +51,7 @@ class IdMigrationReport:
                 for a in self.actions
             ],
             "skipped_files": self.skipped_files,
+            "advice": self.advice,
         }
 
 
@@ -71,6 +74,7 @@ class MigrateIdsUseCase:
     def execute(self, dry_run: bool = True, rewrite_references: bool = False) -> IdMigrationReport:
         actions: List[IdMigrationAction] = []
         skipped: List[str] = []
+        advice: List[dict[str, str]] = []
 
         used_numbers, canonical_id_counts = self._collect_id_metrics()
         next_numbers: Dict[Tuple[str, str], int] = {
@@ -120,8 +124,38 @@ class MigrateIdsUseCase:
                 else:
                     doc_type = doc_type.strip().upper()
 
-                # Check for canonical ID
-                if self._is_canonical_id(old_id):
+                canonical_parts = self._parse_canonical_id(old_id)
+                if canonical_parts:
+                    old_prefix, old_type_segment, _old_seq = canonical_parts
+                    expected_type_segment = document_id_type_segment(doc_type)
+                    if old_prefix != ns.repo_prefix or old_type_segment != expected_type_segment:
+                        new_id = self._allocate_next_id(
+                            ns.repo_prefix, expected_type_segment, used_numbers, next_numbers
+                        )
+                        actions.append(
+                            self._migrate_post(
+                                path=path,
+                                rel_path=rel_path,
+                                post=post,
+                                old_id=old_id,
+                                new_id=new_id,
+                                doc_type=doc_type,
+                                dry_run=dry_run,
+                                rewrite_references=rewrite_references,
+                            )
+                        )
+                        advice.append(
+                            {
+                                "code": "ID_PREFIX_MISMATCH",
+                                "message": (
+                                    f"{rel_path} uses {old_id}, but namespace "
+                                    f"{ns.namespace} expects {ns.repo_prefix}-"
+                                    f"{expected_type_segment}-SEQ."
+                                ),
+                            }
+                        )
+                        continue
+
                     # Check for duplicate canonical IDs
                     if canonical_id_counts.get(old_id, 0) > 1:
                         # This is a duplicate canonical ID situation
@@ -131,117 +165,100 @@ class MigrateIdsUseCase:
                             continue
                         # Duplicate occurrence - renumber it
                         seen_canonical_ids.add(old_id)
-                        new_id = self._allocate_next_id(
-                            ns.repo_prefix, doc_type, used_numbers, next_numbers
-                        )
-                        updated_frontmatter = False
-                        updated_metadata_block = False
-                        updated_heading = False
-                        rewritten_refs = 0
-
-                        # Update frontmatter
-                        post.metadata["document_id"] = new_id
-                        updated_frontmatter = True
-
-                        # Update visible metadata block (if present)
-                        content, md_updated = self._replace_metadata_block_id(
-                            post.content, old_id, new_id
-                        )
-                        post.content = content
-                        updated_metadata_block = md_updated
-
-                        # Update H1 if it embeds the old ID
-                        content, heading_updated = self._replace_first_heading_id(
-                            post.content, old_id, new_id
-                        )
-                        post.content = content
-                        updated_heading = heading_updated
-
-                        if rewrite_references:
-                            content, count = self._replace_id_references(
-                                post.content, old_id, new_id
-                            )
-                            post.content = content
-                            rewritten_refs = count
-
                         actions.append(
-                            IdMigrationAction(
-                                file=rel_path,
+                            self._migrate_post(
+                                path=path,
+                                rel_path=rel_path,
+                                post=post,
                                 old_id=old_id,
-                                new_id=new_id,
+                                new_id=self._allocate_next_id(
+                                    ns.repo_prefix,
+                                    expected_type_segment,
+                                    used_numbers,
+                                    next_numbers,
+                                ),
                                 doc_type=doc_type,
-                                updated_frontmatter=updated_frontmatter,
-                                updated_metadata_block=updated_metadata_block,
-                                updated_heading=updated_heading,
-                                rewritten_reference_count=rewritten_refs,
+                                dry_run=dry_run,
+                                rewrite_references=rewrite_references,
                             )
                         )
-
-                        if not dry_run:
-                            post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
-                            ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
-                            path.write_text(frontmatter.dumps(post), encoding="utf-8")
-
                         continue
                     else:
                         # Single canonical ID - already correct, skip
                         continue
 
                 # Non-canonical ID - migrate it
-                new_id = self._allocate_next_id(
-                    ns.repo_prefix, doc_type, used_numbers, next_numbers
-                )
-                updated_frontmatter = False
-                updated_metadata_block = False
-                updated_heading = False
-                rewritten_refs = 0
-
-                # Update frontmatter
-                post.metadata["document_id"] = new_id
-                updated_frontmatter = True
-
-                # Update visible metadata block (if present)
-                content, md_updated = self._replace_metadata_block_id(post.content, old_id, new_id)
-                post.content = content
-                updated_metadata_block = md_updated
-
-                # Update H1 if it embeds the old ID
-                content, heading_updated = self._replace_first_heading_id(
-                    post.content, old_id, new_id
-                )
-                post.content = content
-                updated_heading = heading_updated
-
-                if rewrite_references:
-                    content, count = self._replace_id_references(post.content, old_id, new_id)
-                    post.content = content
-                    rewritten_refs = count
-
                 actions.append(
-                    IdMigrationAction(
-                        file=rel_path,
+                    self._migrate_post(
+                        path=path,
+                        rel_path=rel_path,
+                        post=post,
                         old_id=old_id,
-                        new_id=new_id,
+                        new_id=self._allocate_next_id(
+                            ns.repo_prefix,
+                            document_id_type_segment(doc_type),
+                            used_numbers,
+                            next_numbers,
+                        ),
                         doc_type=doc_type,
-                        updated_frontmatter=updated_frontmatter,
-                        updated_metadata_block=updated_metadata_block,
-                        updated_heading=updated_heading,
-                        rewritten_reference_count=rewritten_refs,
+                        dry_run=dry_run,
+                        rewrite_references=rewrite_references,
                     )
                 )
 
-                if not dry_run:
-                    post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
-                    ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
-                    path.write_text(frontmatter.dumps(post), encoding="utf-8")
-
         return IdMigrationReport(
-            dry_run=dry_run, actions=actions, skipped_files=sorted(set(skipped))
+            dry_run=dry_run,
+            actions=actions,
+            skipped_files=sorted(set(skipped)),
+            advice=advice,
         )
 
-    def _is_canonical_id(self, document_id: str) -> bool:
-        # Keep in sync with current IdValidator default behavior.
-        return bool(re.match(r"^[A-Z]{3,10}-[A-Z]{3,10}-\d{3}$", document_id))
+    def _parse_canonical_id(self, document_id: str) -> Optional[Tuple[str, str, int]]:
+        match = re.match(r"^([A-Z]{3,10})-([A-Z]{3,10})-(\d{3})$", document_id)
+        if not match:
+            return None
+        return match.group(1), match.group(2), int(match.group(3))
+
+    def _migrate_post(
+        self,
+        *,
+        path: Path,
+        rel_path: str,
+        post: Any,
+        old_id: str,
+        new_id: str,
+        doc_type: str,
+        dry_run: bool,
+        rewrite_references: bool,
+    ) -> IdMigrationAction:
+        post.metadata["document_id"] = new_id
+
+        content, md_updated = self._replace_metadata_block_id(post.content, old_id, new_id)
+        post.content = content
+
+        content, heading_updated = self._replace_first_heading_id(post.content, old_id, new_id)
+        post.content = content
+
+        rewritten_refs = 0
+        if rewrite_references:
+            content, rewritten_refs = self._replace_id_references(post.content, old_id, new_id)
+            post.content = content
+
+        if not dry_run:
+            post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
+            ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
+            path.write_text(frontmatter.dumps(post), encoding="utf-8")
+
+        return IdMigrationAction(
+            file=rel_path,
+            old_id=old_id,
+            new_id=new_id,
+            doc_type=doc_type,
+            updated_frontmatter=True,
+            updated_metadata_block=md_updated,
+            updated_heading=heading_updated,
+            rewritten_reference_count=rewritten_refs,
+        )
 
     def _collect_id_metrics(self) -> Tuple[Dict[Tuple[str, str], List[int]], Dict[str, int]]:
         """Collect both sequence numbers and canonical ID counts in a single pass."""

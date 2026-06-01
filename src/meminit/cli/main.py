@@ -2015,6 +2015,7 @@ def migrate_ids(
                     root=str(root_path),
                     success=True,
                     data={"report": report.as_dict()},
+                    advice=report.advice,
                     include_timestamp=include_timestamp,
                     run_id=run_id,
                     correlation_id=correlation_id,

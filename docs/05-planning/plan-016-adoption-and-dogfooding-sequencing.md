@@ -72,10 +72,11 @@ launch claims.
   scanner. The full test suite is fast by default, with slow scale and benchmark
   tests explicitly opt-in.
 - Launch-critical templates are now present in repo and packaged assets for ADR,
-  PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, and TASK. Template placeholders use
-  `{{variable}}` syntax and are covered by regression tests.
+  PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, TASK, and STRAT. Template
+  placeholders use `{{variable}}` syntax and are covered by regression tests.
 - `meminit init` and protocol governance use `.agents/skills/meminit-docops` as
-  the canonical scaffolded skill path. Protocol assets are currently aligned.
+  the canonical scaffolded skill path. Protocol assets are currently aligned,
+  including `AGENTS.md` managed payload hash checks.
 - Release engineering exists through the tag-triggered workflow, package build
   checks, release-note checks, and secret scanning. Production PyPI release still
   requires maintainer approval and environment configuration.
@@ -138,6 +139,9 @@ Engineering guidance:
   parsers or filesystem rules.
 - Any behavioral hardening found through dogfooding must land as Code +
   Documentation + Tests in the same PR.
+- Agents should use the canonical DocOps work loop before coding: `context`,
+  `state next`, `resolve`/read linked docs, implement Code + Documentation +
+  Tests, then run `check`, `protocol check`, and relevant tests.
 - Do not create a new PRD/spec for every dogfooding defect. Use this plan, a
   governed LOG evidence record, and narrow implementation tasks unless the defect
   changes a cross-cutting contract.
@@ -349,7 +353,8 @@ evidence records are sufficient or must be promoted first.
       [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Draft;
       pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5).
 - [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
-      DESIGN, LOG, and TASK; malformed placeholder regressions are covered by tests.
+      DESIGN, LOG, TASK, and STRAT; malformed placeholder regressions are
+      covered by tests.
 - [x] `meminit-docops` skill docs, protocol asset registry, README, runbooks, and
       tests agree on the canonical scaffolded path
       (`.agents/skills/meminit-docops`).

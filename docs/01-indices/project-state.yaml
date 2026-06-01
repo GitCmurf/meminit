@@ -1,3 +1,4 @@
+state_schema_version: "2.0"
 documents:
   MEMINIT-PLAN-003:
     impl_state: In Progress
@@ -24,9 +25,10 @@ documents:
     updated: "2026-03-06T15:45:13.255995+00:00"
     updated_by: GitCmurf
   MEMINIT-PRD-005:
-    impl_state: Not Started
-    updated: "2026-03-06T16:27:48.224674+00:00"
-    updated_by: GitCmurf
+    impl_state: Done
+    updated: "2026-05-31T00:00:00+00:00"
+    updated_by: Codex
+    notes: "Agent interface v2 work is represented by shipped context/state/resolve command behavior; queue now tracks active TASK docs."
   MEMINIT-PRD-006:
     impl_state: Done
     updated: "2026-03-07T12:16:01.874128+00:00"
@@ -36,3 +38,30 @@ documents:
     updated: "2026-03-06T15:05:33.986303+00:00"
     updated_by: GitCmurf
     notes: Successfully implemented dashboard and kanban features
+  MEMINIT-TASK-001:
+    impl_state: Done
+    updated: "2026-05-31T00:00:00+00:00"
+    updated_by: Codex
+    notes: "Superseded by MEMINIT-TASK-004 for the remaining adoption control-plane follow-up."
+  MEMINIT-TASK-002:
+    impl_state: Not Started
+    updated: "2026-05-31T00:00:00+00:00"
+    updated_by: Codex
+    priority: P2
+    depends_on:
+      - MEMINIT-TASK-003
+    next_action: "Decompose architecture after launch/adoption and typing gates are stable."
+  MEMINIT-TASK-003:
+    impl_state: Not Started
+    updated: "2026-05-31T00:00:00+00:00"
+    updated_by: Codex
+    priority: P1
+    depends_on:
+      - MEMINIT-TASK-004
+    next_action: "Run mypy hygiene after adoption control-plane work lands."
+  MEMINIT-TASK-004:
+    impl_state: Done
+    updated: "2026-05-31T00:00:00+00:00"
+    updated_by: Codex
+    priority: P0
+    notes: "Adoption DocOps control-plane remediation implemented and verified."

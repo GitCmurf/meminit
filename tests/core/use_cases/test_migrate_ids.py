@@ -218,6 +218,45 @@ def test_migrate_ids_idempotent_apply(tmp_path: Path):
     assert len(report2.actions) == 0, "Second apply should find no documents needing migration"
 
 
+def test_migrate_ids_restamps_wrong_repo_prefix(tmp_path: Path):
+    """Canonical IDs with the wrong prefix should be brought onto the configured prefix."""
+    (tmp_path / "docs" / "45-adr").mkdir(parents=True)
+    (tmp_path / "docops.config.yaml").write_text(
+        "repo_prefix: AIDHA\ndocops_version: '2.0'\n", encoding="utf-8"
+    )
+
+    doc = tmp_path / "docs" / "45-adr" / "adr-legacy-prefix.md"
+    doc.write_text(
+        "---\n"
+        "document_id: OLDPRJ-ADR-001\n"
+        "type: ADR\n"
+        "title: Legacy Prefix\n"
+        "status: Draft\n"
+        "version: 0.1\n"
+        "last_updated: 2025-12-26\n"
+        "owner: __TBD__\n"
+        "docops_version: 2.0\n"
+        "---\n\n"
+        "<!-- MEMINIT_METADATA_BLOCK -->\n"
+        "> **Document ID:** OLDPRJ-ADR-001\n\n"
+        "# OLDPRJ-ADR-001: Legacy Prefix\n",
+        encoding="utf-8",
+    )
+
+    report = MigrateIdsUseCase(str(tmp_path)).execute(dry_run=False, rewrite_references=True)
+
+    assert len(report.actions) == 1
+    action = report.actions[0]
+    assert action.old_id == "OLDPRJ-ADR-001"
+    assert action.new_id == "AIDHA-ADR-001"
+    assert report.advice[0]["code"] == "ID_PREFIX_MISMATCH"
+
+    post = frontmatter.load(doc)
+    assert post.metadata["document_id"] == "AIDHA-ADR-001"
+    assert "OLDPRJ-ADR-001" not in post.content
+    assert "AIDHA-ADR-001" in post.content
+
+
 def test_migrate_ids_duplicate_noncanonical_collision(tmp_path: Path):
     """Test that non-canonical duplicates get different new IDs."""
     (tmp_path / "docs" / "45-adr").mkdir(parents=True)

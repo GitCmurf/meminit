@@ -56,6 +56,7 @@ _FALLBACK_SCHEMA_JSON = b"""{
 
 _FALLBACK_TEMPLATES: dict[str, bytes] = {
     "templates/adr.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## 1. Context & Problem Statement\\n\\n## 2. Decision Drivers\\n\\n## 3. Options Considered\\n\\n## 4. Decision Outcome\\n\\n## 5. Consequences\\n",
+    "templates/strat.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n<!-- MEMINIT_SECTION: title -->\\n<!-- AGENT: State the strategy title clearly. -->\\n\\n# STRAT: {{title}}\\n\\n<!-- MEMINIT_SECTION: executive_summary -->\\n<!-- AGENT: Summarize the strategic direction, decision horizon, and intended outcome. -->\\n\\n## 1. Executive Summary\\n\\n[Executive summary here]\\n",
     "templates/fdd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Feature Description\\n",
     "templates/prd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Product Requirements\\n",
     "templates/plan.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Plan Description\\n",
@@ -179,7 +180,10 @@ class InitRepositoryUseCase:
                 "document_types": {
                     "GOV": {"directory": "00-governance"},
                     "RFC": {"directory": "00-governance"},
-                    "STRAT": {"directory": "02-strategy"},
+                    "STRAT": {
+                        "directory": "02-strategy",
+                        "template": "docs/00-governance/templates/strat.template.md",
+                    },
                     "PRD": {
                         "directory": "10-prd",
                         "template": "docs/00-governance/templates/prd.template.md",
