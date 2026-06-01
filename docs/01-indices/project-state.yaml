@@ -52,13 +52,10 @@ documents:
       - MEMINIT-TASK-003
     next_action: "Decompose architecture after launch/adoption and typing gates are stable."
   MEMINIT-TASK-003:
-    impl_state: Not Started
-    updated: "2026-05-31T00:00:00+00:00"
+    impl_state: Done
+    updated: "2026-06-01T00:00:00+00:00"
     updated_by: Codex
-    priority: P1
-    depends_on:
-      - MEMINIT-TASK-004
-    next_action: "Run mypy hygiene after adoption control-plane work lands."
+    notes: "Mypy baseline clean: 0 issues in 67 source files, frontmatter.pyi stub in place, 1488 tests green."
   MEMINIT-TASK-004:
     impl_state: Done
     updated: "2026-05-31T00:00:00+00:00"

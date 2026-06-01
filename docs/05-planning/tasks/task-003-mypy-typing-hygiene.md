@@ -2,10 +2,10 @@
 document_id: MEMINIT-TASK-003
 type: TASK
 title: Mypy typing hygiene
-status: Draft
-version: "0.1"
-last_updated: "2026-05-30"
-owner: __TBD__
+status: Approved
+version: "1.0"
+last_updated: "2026-06-01"
+owner: Codex
 area: PLAN
 docops_version: "2.0"
 template_type: task-standard
@@ -16,9 +16,10 @@ keywords:
 ---
 
 > **Document ID:** MEMINIT-TASK-003
-> **Owner:** **TBD** > **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-05-30
+> **Owner:** Codex
+> **Status:** Approved
+> **Version:** 1.0
+> **Last Updated:** 2026-06-01
 > **Type:** TASK
 > **Area:** PLAN
 > **Description:** Task implementation record.
@@ -52,13 +53,16 @@ as a useful code-quality gate while removing third-party typing noise.
 
 ## 2. Current State
 
-- The mypy settings are intentionally strict enough to catch local defects:
-  `warn_return_any`, `check_untyped_defs`, and `ignore_missing_imports = false`
-  should remain enabled.
-- PyYAML and jsonschema have published stub packages and should be represented
-  in development dependencies.
-- `python-frontmatter` has no bundled typing marker, so Meminit needs a narrow
-  local stub for the API surface it uses.
+**Closure evidence (2026-06-01):**
+
+- `mypy src` reports "Success: no issues found in 67 source files"
+- `stubs/frontmatter.pyi` exists and covers the Post, load, loads, dump, and dumps APIs
+- Development dependencies include `types-PyYAML` and `types-jsonschema`
+- Full test suite passes: 1488 tests passed, 3 skipped, 0 failed
+- `meminit check --format json` reports success with 0 violations
+- `meminit protocol check --format json` reports success with 0 violations
+
+The strict mypy configuration (`warn_return_any`, `check_untyped_defs`, `ignore_missing_imports = false`) remains enabled and all 91 reported errors have been resolved. The typing hygiene baseline is now green.
 
 <!-- MEMINIT_SECTION: work_items -->
 <!-- AGENT: Break the work into prioritized, implementable items with definitions of done. -->
@@ -90,4 +94,5 @@ as a useful code-quality gate while removing third-party typing noise.
 
 | Version | Date       | Author  | Changes       |
 | ------- | ---------- | ------- | ------------- |
-| 0.1     | 2026-05-30 | **TBD** | Initial draft |
+| 1.0     | 2026-06-01 | Codex   | Closure: mypy baseline clean, all 91 errors resolved, `frontmatter.pyi` stub in place, full test suite green |
+| 0.1     | 2026-05-30 | TBD     | Initial draft |
