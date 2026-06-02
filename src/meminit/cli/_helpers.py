@@ -1,9 +1,6 @@
 import contextlib
-import json
 from pathlib import Path
-from typing import Any, Dict, Optional
-
-from rich.console import Console
+from typing import Any, Optional
 
 from meminit.cli.shared.output_helpers import (
     _md_escape,
@@ -14,9 +11,8 @@ from meminit.cli.shared.output_helpers import (
 )
 from meminit.cli.shared_flags import command_supports_ndjson
 from meminit.cli.streaming import unsupported_ndjson, write_ndjson_error
-from meminit.core.domain.entities import NewDocumentParams
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.exit_codes import EX_CANTCREAT, EX_COMPLIANCE_FAIL, exit_code_for_error
+from meminit.core.services.exit_codes import exit_code_for_error
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import (
     format_envelope,
@@ -24,7 +20,6 @@ from meminit.core.services.output_formatter import (
     normalize_correlation_id,
 )
 from meminit.core.services.path_utils import is_safe_cli_output_path, relative_path_string
-from meminit.core.services.scan_plan import MigrationPlan
 
 
 @contextlib.contextmanager
