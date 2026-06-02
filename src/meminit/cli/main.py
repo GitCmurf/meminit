@@ -64,6 +64,13 @@ from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
 
 from meminit.cli.commands.check import register as register_check
+from meminit.cli.commands.context_cmd import register as register_context_cmd
+from meminit.cli.commands.doc_lookup import register as register_doc_lookup
+from meminit.cli.commands.doctor import register as register_doctor
+from meminit.cli.commands.fix import register as register_fix
+from meminit.cli.commands.init_cmd import register as register_init_cmd
+from meminit.cli.commands.install_precommit import register as register_install_precommit
+from meminit.cli.commands.migration import register as register_migration
 from meminit.cli._helpers import (command_output_handler, validate_root_path, validate_initialized, complete_document_types, _meminit_error_for_new_document_params_validation, _write_scan_plan_artifact, _index_output_data, _validate_mutation_exclusivity, _normalize_mutation_arg, _state_set_validate_args, _state_set_execute, _state_list_validate_filters, _state_list_execute, _state_next_execute, _state_blockers_execute, _drift_violations, _DRIFT_ERROR_CODE, _DRIFT_ERROR_STATES)
 
 
@@ -99,6 +106,13 @@ def cli(ctx: click.Context, no_color: bool, verbose: bool):
 
 
 register_check(cli)
+register_doctor(cli)
+register_fix(cli)
+register_install_precommit(cli)
+register_context_cmd(cli)
+register_doc_lookup(cli)
+register_init_cmd(cli)
+register_migration(cli)
 
 
 @cli.command()
