@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import frontmatter
 
+from meminit.core.domain.document_ids import document_id_type_segment
 from meminit.core.domain.entities import FixAction, FixReport, Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.markdown_utils import DEFAULT_DOCOPS_VERSION, extract_title_from_markdown
@@ -709,10 +710,4 @@ class FixRepositoryUseCase:
             next_seq += 1
 
     def _id_type_segment(self, doc_type: str) -> str:
-        doc_type_upper = str(doc_type).upper()
-        if doc_type_upper == "GOVERNANCE":
-            return "GOV"
-        if 3 <= len(doc_type_upper) <= 10 and doc_type_upper.isalpha():
-            return doc_type_upper
-        segment = re.sub(r"[^A-Z]", "", doc_type_upper)[:10]
-        return segment if len(segment) >= 3 else "DOC"
+        return document_id_type_segment(doc_type)

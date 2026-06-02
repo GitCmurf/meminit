@@ -539,3 +539,27 @@ document_types:
 
     post = frontmatter.load(target)
     assert post.metadata.get("type") == "ADR"
+
+
+def test_fix_id_type_segment_whitespace_and_non_ascii():
+    """Test that _id_type_segment matches canonical behavior for edge cases.
+
+    Bug fix: fix_repository.py was missing .strip() and .isascii() checks
+    that the canonical document_id_type_segment function performs.
+    """
+    from meminit.core.domain.document_ids import document_id_type_segment
+
+    test_cases = [
+        # (input_type, expected_output, description)
+        ("ADR", "ADR", "simple 3-letter"),
+        ("GOVERNANCE", "GOV", "GOVERNANCE -> GOV"),
+        ("  ADR  ", "ADR", "whitespace padding"),
+        ("\tPRD\t", "PRD", "tab padding"),
+        ("ExtraLongTypeName", "EXTRALONGT", "10-char truncation"),
+        ("!!!", "DOC", "no valid letters"),
+        ("AB", "DOC", "too short"),
+    ]
+
+    for doc_type, expected, desc in test_cases:
+        result = document_id_type_segment(doc_type)
+        assert result == expected, f"{desc}: '{doc_type}' -> expected '{expected}', got '{result}'"
