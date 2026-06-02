@@ -15,7 +15,8 @@ import yaml
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.index_cache import _cache_key
-from meminit.core.use_cases.index_repository import IndexRepositoryUseCase, _safe_css_slug
+from meminit.core.services.index_view import IndexViewService
+from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -957,8 +958,8 @@ def test_index_kanban_document_id_is_sanitized(tmp_path):
 
 def test_safe_css_slug_sanitizes_attribute_breaking_chars():
     """CSS slugs must remove unsafe characters."""
-    assert _safe_css_slug('Draft" onmouseover="alert(1)') == "draft-onmouseover-alert-1"
-    assert _safe_css_slug("  ") == "unknown"
+    assert IndexViewService._safe_css_slug('Draft" onmouseover="alert(1)') == "draft-onmouseover-alert-1"
+    assert IndexViewService._safe_css_slug("  ") == "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -1635,11 +1636,11 @@ def test_index_kanban_priority_xss_is_sanitized_in_class_attribute(tmp_path):
 
     The execute() gate drops invalid priorities, so a real XSS payload never
     reaches the kanban card. We test two layers:
-    1. _safe_css_slug defence-in-depth (direct unit test).
+    1. IndexViewService._safe_css_slug defence-in-depth (direct unit test).
     2. A valid priority (P0) renders with a safe slug in the kanban output.
     """
-    assert _safe_css_slug('P0" onclick=alert(1) x="') == "p0-onclick-alert-1-x"
-    assert '"' not in _safe_css_slug('P0" onclick=alert(1) x="')
+    assert IndexViewService._safe_css_slug('P0" onclick=alert(1) x="') == "p0-onclick-alert-1-x"
+    assert '"' not in IndexViewService._safe_css_slug('P0" onclick=alert(1) x="')
 
     _setup_doc(tmp_path, "EXAMPLE-ADR-001")
     _setup_state_file(
@@ -1795,7 +1796,7 @@ def test_index_excludes_invalid_priority_entries_before_deriving_readiness(tmp_p
 
 def test_kanban_sort_key_oldest_first():
     """Older entries sort before newer ones (matches state next queue contract)."""
-    from meminit.core.use_cases.index_repository import _kanban_sort_key
+    from meminit.core.services.index_view import IndexViewService
 
     newer = {
         "priority": "P2",
@@ -1809,7 +1810,7 @@ def test_kanban_sort_key_oldest_first():
         "updated": "2026-04-19T12:00:00Z",
         "document_id": "A-002",
     }
-    assert _kanban_sort_key(older) < _kanban_sort_key(newer)
+    assert IndexViewService._kanban_sort_key(older) < IndexViewService._kanban_sort_key(newer)
 
 
 def test_index_warns_on_undefined_dependency(tmp_path):
