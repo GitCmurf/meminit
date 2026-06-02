@@ -15,6 +15,6 @@ class SafeStoragePort(Protocol):
         """Write content to a file atomically."""
         ...
 
-    def ensure_safe_write_path(self, root_dir: str, target_path: str) -> str:
+    def ensure_safe_write_path(self, root_dir: str, target_path: str) -> None:
         """Validate that a write path is safe (no path traversal)."""
         ...

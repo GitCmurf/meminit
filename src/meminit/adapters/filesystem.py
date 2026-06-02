@@ -1,6 +1,7 @@
 """Local filesystem adapter implementing FileSystemPort."""
 import pathlib
-from meminit.core.ports.filesystem import FileSystemPort
+
+from meminit.core.ports import FileSystemPort
 
 
 class LocalFileSystem:
