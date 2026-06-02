@@ -14,7 +14,7 @@ from meminit.cli.streaming import unsupported_ndjson, write_ndjson_error
 from meminit.core.domain.entities import NewDocumentParams
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import exit_code_for_error
-from meminit.core.services.index_helpers import filter_index_edges
+from meminit.core.services.index_helpers import build_index_output_data, filter_index_edges
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import (
     format_envelope,
@@ -265,23 +265,12 @@ def _index_output_data(
     status_filter: str | None = None,
     impl_state_filter: str | None = None,
 ) -> dict[str, Any]:
-    display_edges = filter_index_edges(
-        report, status_filter=status_filter, impl_state_filter=impl_state_filter
+    return build_index_output_data(
+        report,
+        root_path,
+        status_filter=status_filter,
+        impl_state_filter=impl_state_filter,
     )
-    data: dict[str, Any] = {
-        "index_path": relative_path_string(report.index_path, root_path),
-        "node_count": report.document_count,
-        "edge_count": len(display_edges),
-        "nodes": report.documents,
-        "edges": display_edges,
-        "filtered": status_filter is not None or impl_state_filter is not None,
-        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
-    }
-    if report.catalog_path:
-        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
-    if report.kanban_path:
-        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
-    return data
 
 
 def validate_root_path(

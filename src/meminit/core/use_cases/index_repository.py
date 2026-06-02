@@ -31,7 +31,7 @@ from meminit.core.domain.entities import Severity
 from meminit.core.services import graph
 from meminit.core.services.diagnostics import canonicalize_advice_list, canonicalize_warning_list
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.index_helpers import filter_index_edges
+from meminit.core.services.index_helpers import build_index_output_data, filter_index_edges
 from meminit.core.services.index_cache import CachePlan, IndexCache
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 from meminit.core.services.path_utils import relative_path_string
@@ -100,29 +100,6 @@ def _namespace_for_index_path(
     if _is_excluded_for_index(path, ns):
         return None
     return ns
-
-
-def _index_stream_data(
-    report: Any,
-    root_path: Path,
-    display_edges: list[dict[str, Any]],
-    *,
-    filtered: bool,
-) -> dict[str, Any]:
-    data: dict[str, Any] = {
-        "index_path": relative_path_string(report.index_path, root_path),
-        "node_count": report.document_count,
-        "edge_count": len(display_edges),
-        "nodes": report.documents,
-        "edges": display_edges,
-        "filtered": filtered,
-        "rebuild": getattr(report, "rebuild", {"mode": "full"}),
-    }
-    if report.catalog_path:
-        data["catalog_path"] = relative_path_string(report.catalog_path, root_path)
-    if report.kanban_path:
-        data["kanban_path"] = relative_path_string(report.kanban_path, root_path)
-    return data
 
 
 def _emit_index_stream_items(
@@ -1174,17 +1151,11 @@ class IndexRepositoryUseCase:
                     stream_item_emitter=emit_stream_item,
                 )
                 summary.data = summary_data(
-                    _index_stream_data(
+                    build_index_output_data(
                         report,
                         self._root_dir,
-                        filter_index_edges(
-                            report,
-                            status_filter=self._status_filter,
-                            impl_state_filter=self._impl_state_filter,
-                        ),
-                        filtered=(
-                            self._status_filter is not None or self._impl_state_filter is not None
-                        ),
+                        status_filter=self._status_filter,
+                        impl_state_filter=self._impl_state_filter,
                     ),
                     "nodes",
                     "edges",
