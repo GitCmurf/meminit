@@ -1,20 +1,17 @@
-import contextlib
 import json
 import os
 import shlex
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
 from meminit.cli.shared.output_helpers import (
-    _extract_envelope_metadata,
     _flatten_warning_groups,
     _md_escape,
-    _md_inline,
     _md_table,
     _render_state_blockers_json,
     _render_state_blockers_text,
@@ -24,18 +21,13 @@ from meminit.cli.shared.output_helpers import (
     _render_state_next_text,
     _render_state_set_json,
     _render_state_set_text,
-    _render_warnings_text,
-    _unexpected_error_details,
     _write_output,
-    console,
     get_console,
-    get_severity_value,
     maybe_capture,
 )
 from meminit.cli.shared_flags import (
     agent_output_options,
     agent_repo_options,
-    command_supports_ndjson,
 )
 from meminit.cli.streaming import (
     CoreStreamingProducer,
@@ -43,17 +35,15 @@ from meminit.cli.streaming import (
     unsupported_ndjson,
     write_ndjson_error,
 )
-from meminit.core.domain.entities import NewDocumentParams, Severity, Violation
+from meminit.core.domain.entities import NewDocumentParams, Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.exit_codes import EX_CANTCREAT, EX_COMPLIANCE_FAIL, exit_code_for_error
+from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL, exit_code_for_error
 from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import (
     format_envelope,
     format_error_envelope,
-    normalize_correlation_id,
 )
-from meminit.core.services.path_utils import is_safe_cli_output_path, relative_path_string
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.versioning import get_cli_version
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
