@@ -31,6 +31,7 @@ from meminit.core.domain.entities import Severity
 from meminit.core.services import graph
 from meminit.core.services.diagnostics import canonicalize_advice_list, canonicalize_warning_list
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.index_helpers import filter_index_edges
 from meminit.core.services.index_cache import CachePlan, IndexCache
 from meminit.core.services.output_contracts import OUTPUT_SCHEMA_VERSION_V2
 from meminit.core.services.path_utils import relative_path_string
@@ -99,21 +100,6 @@ def _namespace_for_index_path(
     if _is_excluded_for_index(path, ns):
         return None
     return ns
-
-
-def _filter_index_edges(
-    report: Any,
-    *,
-    status_filter: Optional[List[str]] = None,
-    impl_state_filter: Optional[List[str]] = None,
-) -> list[dict[str, Any]]:
-    has_filter = status_filter is not None or impl_state_filter is not None
-    if not has_filter:
-        return cast(list[dict[str, Any]], report.edges)
-    visible_ids = {n["document_id"] for n in report.documents}
-    return [
-        e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
-    ]
 
 
 def _index_stream_data(
@@ -1191,7 +1177,7 @@ class IndexRepositoryUseCase:
                     _index_stream_data(
                         report,
                         self._root_dir,
-                        _filter_index_edges(
+                        filter_index_edges(
                             report,
                             status_filter=self._status_filter,
                             impl_state_filter=self._impl_state_filter,

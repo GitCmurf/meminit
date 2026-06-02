@@ -62,7 +62,7 @@ from meminit.core.use_cases.org_status import OrgStatusUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
-from meminit.cli._helpers import (command_output_handler, validate_root_path, validate_initialized, complete_document_types, _meminit_error_for_new_document_params_validation, _write_scan_plan_artifact, _filter_index_edges, _index_output_data, _validate_mutation_exclusivity, _normalize_mutation_arg, _state_set_validate_args, _state_set_execute, _state_list_validate_filters, _state_list_execute, _state_next_execute, _state_blockers_execute, _drift_violations, _DRIFT_ERROR_CODE, _DRIFT_ERROR_STATES)
+from meminit.cli._helpers import (command_output_handler, validate_root_path, validate_initialized, complete_document_types, _meminit_error_for_new_document_params_validation, _write_scan_plan_artifact, _index_output_data, _validate_mutation_exclusivity, _normalize_mutation_arg, _state_set_validate_args, _state_set_execute, _state_list_validate_filters, _state_list_execute, _state_next_execute, _state_blockers_execute, _drift_violations, _DRIFT_ERROR_CODE, _DRIFT_ERROR_STATES)
 
 
 @click.group()

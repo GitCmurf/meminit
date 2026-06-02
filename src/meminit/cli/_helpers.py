@@ -11,8 +11,10 @@ from meminit.cli.shared.output_helpers import (
 )
 from meminit.cli.shared_flags import command_supports_ndjson
 from meminit.cli.streaming import unsupported_ndjson, write_ndjson_error
+from meminit.core.domain.entities import NewDocumentParams
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import exit_code_for_error
+from meminit.core.services.index_helpers import filter_index_edges
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import (
     format_envelope,
@@ -256,21 +258,6 @@ def _write_scan_plan_artifact(
         get_console().print(f"[{style}]Saved {adjective}migration plan to {plan}[/{style}]")
 
 
-def _filter_index_edges(
-    report: Any,
-    *,
-    status_filter: str | list[str] | None,
-    impl_state_filter: str | list[str] | None,
-) -> list[dict[str, Any]]:
-    has_filter = status_filter is not None or impl_state_filter is not None
-    if not has_filter:
-        return list(report.edges)
-    visible_ids = {n["document_id"] for n in report.documents}
-    return [
-        e for e in report.edges if e.get("source") in visible_ids and e.get("target") in visible_ids
-    ]
-
-
 def _index_output_data(
     report: Any,
     root_path: Path,
@@ -278,7 +265,7 @@ def _index_output_data(
     status_filter: str | None = None,
     impl_state_filter: str | None = None,
 ) -> dict[str, Any]:
-    display_edges = _filter_index_edges(
+    display_edges = filter_index_edges(
         report, status_filter=status_filter, impl_state_filter=impl_state_filter
     )
     data: dict[str, Any] = {
