@@ -5,15 +5,15 @@ from typing import Any
 import click
 
 from meminit.core.use_cases.capabilities import CapabilitiesUseCase
+from meminit.core.use_cases.explain_error import ExplainErrorUseCase
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.explain_error import get_error_explanation
-from meminit.core.services.error_explainer import get_error_explanation
 
-from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
+from meminit.cli._helpers import command_output_handler, get_console
 from meminit.cli.shared.output_helpers import _md_table, _write_output
 from meminit.cli.shared_flags import agent_output_options
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import format_envelope
+from meminit.cli.shared.output_helpers import exit_code_for_error
 
 
 def register(cli: click.Group) -> None:
