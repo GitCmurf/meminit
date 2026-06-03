@@ -2,9 +2,9 @@
 document_id: MEMINIT-TASK-002
 type: TASK
 title: Architecture Refactoring
-status: Approved
-version: "1.0"
-last_updated: "2026-06-02"
+status: Superseded
+version: "2.0"
+last_updated: "2026-06-03"
 owner: Codex
 area: ADOPT
 docops_version: "2.0"
@@ -20,12 +20,13 @@ keywords:
 
 > **Document ID:** MEMINIT-TASK-002
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
+> **Status:** Superseded
+> **Version:** 2.0
+> **Completion Date:** 2026-06-03
 
 # TASK: Architecture Refactoring
 
-## 0. Executive Summary
+## 0. Executive Summary (COMPLETED)
 
 This task consolidates the P2 architecture items from MEMINIT-TASK-001 (PLAN-016 QA Remediation) into a focused follow-up. The scope includes decomposing large files, removing dead code, and establishing explicit ports/adapters boundaries. These items were deferred from TASK-001 because they do not block launch and carry significant regression risk.
 
