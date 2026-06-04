@@ -332,7 +332,7 @@ meminit state list --root . --format json
    source docs with `meminit resolve <DOCUMENT_ID> --root . --format json`.
 5. Implement the atomic unit: Code + Documentation + Tests.
 6. Run `meminit check --root . --format json`, `meminit protocol check --root .
-   --format json`, and relevant project tests before reporting completion.
+--format json`, and relevant project tests before reporting completion.
 7. Persist the mutation with `meminit state set`.
 8. Repeat until the queue is empty.
 

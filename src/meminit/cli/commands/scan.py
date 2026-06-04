@@ -211,6 +211,7 @@ def register(cli: click.Group) -> None:
                             ns.get("repo_prefix_suggestion"),
                         ]
                         for ns in report.suggested_namespaces
+                        if isinstance(ns, dict)
                     ]
                     lines.extend(
                         [

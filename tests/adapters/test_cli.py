@@ -2729,11 +2729,12 @@ def test_cli_doctor_json_output(mock_use_case, tmp_path):
     # valid. A successfully-parsed non-error envelope already proves validation
     # passed; these assertions lock in the field placement.
     data = payload["data"]
-    assert data["status"]
+    assert data["status"] == "error"
     assert data["issues_count"] == 2
     assert data["errors_count"] == 1
+    assert data["warnings_count"] == 1
     assert len(data["issues"]) == 2
-    for extra in ("status", "issues", "issues_count", "errors_count"):
+    for extra in ("status", "issues", "issues_count", "errors_count", "warnings_count"):
         assert extra not in payload, f"{extra} must not be a top-level envelope key"
 
 

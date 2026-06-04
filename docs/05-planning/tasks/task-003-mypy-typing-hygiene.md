@@ -92,7 +92,7 @@ The strict mypy configuration (`warn_return_any`, `check_untyped_defs`, `ignore_
 
 ## 5. Version History
 
-| Version | Date       | Author  | Changes       |
-| ------- | ---------- | ------- | ------------- |
-| 1.0     | 2026-06-01 | Codex   | Closure: mypy baseline clean, all 91 errors resolved, `frontmatter.pyi` stub in place, full test suite green |
-| 0.1     | 2026-05-30 | TBD     | Initial draft |
+| Version | Date       | Author | Changes                                                                                                      |
+| ------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| 1.0     | 2026-06-01 | Codex  | Closure: mypy baseline clean, all 91 errors resolved, `frontmatter.pyi` stub in place, full test suite green |
+| 0.1     | 2026-05-30 | TBD    | Initial draft                                                                                                |

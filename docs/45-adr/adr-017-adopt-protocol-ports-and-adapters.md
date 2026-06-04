@@ -9,8 +9,7 @@ owner: Codex
 docops_version: 2.0
 template_type: adr-standard
 template_version: 2.0
-description:
-  Architectural decision to introduce typing.Protocol interfaces for
+description: Architectural decision to introduce typing.Protocol interfaces for
   filesystem, config, frontmatter, and safe storage operations.
 keywords:
   - architecture
@@ -87,6 +86,7 @@ This preserves backward compatibility (existing CLI callers pass only `root_dir`
 ### First Wave Adoption
 
 Three use cases are refactored in this sprint to demonstrate the pattern:
+
 - `CheckRepositoryUseCase`
 - `NewDocumentUseCase`
 - `IndexRepositoryUseCase`
@@ -130,6 +130,6 @@ The remaining 19 use cases retain TODO markers for progressive adoption.
 
 ## Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 0.1 | 2026-06-02 | Codex | Initial ADR: Protocol ports, adapters, progressive adoption |
+| Version | Date       | Author | Changes                                                     |
+| ------- | ---------- | ------ | ----------------------------------------------------------- |
+| 0.1     | 2026-06-02 | Codex  | Initial ADR: Protocol ports, adapters, progressive adoption |

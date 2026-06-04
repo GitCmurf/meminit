@@ -9,10 +9,10 @@ from rich.table import Table
 from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
 from meminit.cli.shared.output_helpers import _write_output, maybe_capture
 from meminit.cli.shared_flags import agent_repo_options
-from meminit.core.services.error_codes import ErrorCode
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
 from meminit.core.services.observability import get_current_run_id
-from meminit.core.services.output_formatter import format_envelope, format_error_envelope
+from meminit.core.services.output_formatter import format_envelope
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.use_cases.fix_repository import FixRepositoryUseCase
 
@@ -80,22 +80,12 @@ def register(cli: click.Group) -> None:
                     plan_data = data.get("data", {}).get("plan") or data
                     plan_obj = MigrationPlan.from_dict(plan_data)
                 except Exception as e:
-                    if format == "json":
-                        _write_output(
-                            format_error_envelope(
-                                command="fix",
-                                root=str(root_path),
-                                error_code=ErrorCode.VALIDATION_ERROR,
-                                message=f"Failed to load plan: {e}",
-                                run_id=run_id,
-                                include_timestamp=include_timestamp,
-                                correlation_id=correlation_id,
-                            ),
-                            output,
-                        )
-                    else:
-                        get_console().print(f"[bold red]Failed to load plan: {e}[/bold red]")
-                    raise SystemExit(1) from e
+                    # Let command_output_handler render the error consistently
+                    # across json/md/text/ndjson rather than printing inline.
+                    raise MeminitError(
+                        ErrorCode.VALIDATION_ERROR,
+                        f"Failed to load plan: {e}",
+                    ) from e
 
             use_case = FixRepositoryUseCase(root_dir=str(root_path))
             report = use_case.execute(dry_run=dry_run, namespace=namespace, plan=plan_obj)
@@ -156,10 +146,11 @@ def register(cli: click.Group) -> None:
                         table.add_row(action.file, action.action, action.description)
 
                     get_console().print(table)
+                    verb = "Would apply" if dry_run else "Applied"
                     get_console().print(
-                        f"\n[bold green]Applied {len(report.fixed_violations)} fixes.[/bold green]"
+                        f"\n[bold green]{verb} {len(report.fixed_violations)} fixes.[/bold green]"
                     )
-                else:
+                elif report.remaining_violations:
                     get_console().print(
                         "[yellow]No auto-fixes available for current violations.[/yellow]"
                     )

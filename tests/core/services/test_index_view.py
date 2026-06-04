@@ -157,7 +157,10 @@ def test_kanban_badge_prefix():
 
 def test_safe_css_slug_removes_unsafe_chars():
     """CSS slug sanitization removes attribute-breaking characters."""
-    assert IndexViewService._safe_css_slug('Draft" onmouseover="alert(1)') == "draft-onmouseover-alert-1"
+    assert (
+        IndexViewService._safe_css_slug('Draft" onmouseover="alert(1)')
+        == "draft-onmouseover-alert-1"
+    )
     assert IndexViewService._safe_css_slug("  ") == "unknown"
     assert IndexViewService._safe_css_slug("Not Started") == "not-started"
 

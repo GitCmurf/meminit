@@ -354,7 +354,10 @@ class MigrateIdsUseCase:
         for i, line in enumerate(lines):
             m = _DOC_ID_LINE_RE.match(line.strip())
             if m and m.group(2).strip() == old_id:
-                lines[i] = f"{m.group(1)}{new_id}{m.group(3)}"
+                # Preserve any leading indentation from the original line so
+                # indented metadata-block lines keep their formatting.
+                leading = line[: len(line) - len(line.lstrip())]
+                lines[i] = f"{leading}{m.group(1)}{new_id}{m.group(3)}"
                 updated = True
         return "\n".join(lines), updated
 

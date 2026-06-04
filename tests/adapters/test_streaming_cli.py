@@ -378,6 +378,8 @@ def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_
             "type": "ADR",
         }
     ]
+    # The CLI must forward --deep to the use case's streaming entry point.
+    instance.iter_stream.assert_called_once_with(deep=True)
 
 
 def test_index_ndjson_allows_external_output_path(tmp_path):

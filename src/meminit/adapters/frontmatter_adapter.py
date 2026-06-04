@@ -1,6 +1,7 @@
 """Python-frontmatter adapter implementing FrontmatterPort."""
-from meminit.core.ports.frontmatter_port import FrontmatterPort
 import frontmatter
+
+from meminit.core.ports.frontmatter_port import FrontmatterPort
 
 
 class PythonFrontmatterAdapter:

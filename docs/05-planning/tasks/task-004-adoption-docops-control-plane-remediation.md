@@ -3,21 +3,22 @@ document_id: MEMINIT-TASK-004
 type: TASK
 title: Adoption DocOps Control Plane Remediation
 status: Draft
-version: '0.1'
-last_updated: '2026-05-31'
+version: "0.1"
+last_updated: "2026-05-31"
 owner: GitCmurf
 area: ADOPT
-docops_version: '2.0'
+docops_version: "2.0"
 template_type: task-standard
-template_version: '2.0'
-description: Tracks protocol, state queue, template, skeleton, and migrate-ids remediation
+template_version: "2.0"
+description:
+  Tracks protocol, state queue, template, skeleton, and migrate-ids remediation
   from PLAN-016 follow-up.
 keywords:
-- adoption
-- docops
-- agent
+  - adoption
+  - docops
+  - agent
 related_ids:
-- MEMINIT-PLAN-016
+  - MEMINIT-PLAN-016
 ---
 
 > **Document ID:** MEMINIT-TASK-004
@@ -28,7 +29,6 @@ related_ids:
 > **Type:** TASK
 > **Area:** ADOPT
 > **Description:** Tracks protocol, state queue, template, skeleton, and migrate-ids remediation from PLAN-016 follow-up.
-
 
 <!-- MEMINIT_SECTION: title -->
 <!-- AGENT: The title should state the implementation objective clearly. -->
@@ -84,34 +84,34 @@ deterministic local gate.
 
 ## 3. Work Items
 
-| ID | Work item | Definition of done |
-| -- | --------- | ------------------ |
-| WI-1 | Restore protocol asset alignment | `AGENTS.md` managed payload matches the registry; `meminit protocol check --format json` passes. |
-| WI-2 | Refresh project state queue | `project-state.yaml` uses schema v2 and points agents at real remaining work, not stale PRD implementation entries. |
-| WI-3 | Promote STRAT to first-class template coverage | `meminit new STRAT ... --dry-run --format json` applies a template with section markers; init writes the STRAT template and config mapping. |
-| WI-4 | Make fallback skeletons machine-fillable | A no-template type returns parsed sections and agent prompts in JSON output. |
-| WI-5 | Repair repo-prefix ID drift | `migrate-ids` previews and applies restamping for canonical-looking IDs with wrong prefix/type segment, including reference rewrites. |
-| WI-6 | Encode the canonical agent loop | The Meminit skill/runbook tells agents to use `context`, `state next`, `resolve`, Code + Documentation + Tests, and DocOps gates as the standard workflow. |
+| ID   | Work item                                      | Definition of done                                                                                                                                         |
+| ---- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WI-1 | Restore protocol asset alignment               | `AGENTS.md` managed payload matches the registry; `meminit protocol check --format json` passes.                                                           |
+| WI-2 | Refresh project state queue                    | `project-state.yaml` uses schema v2 and points agents at real remaining work, not stale PRD implementation entries.                                        |
+| WI-3 | Promote STRAT to first-class template coverage | `meminit new STRAT ... --dry-run --format json` applies a template with section markers; init writes the STRAT template and config mapping.                |
+| WI-4 | Make fallback skeletons machine-fillable       | A no-template type returns parsed sections and agent prompts in JSON output.                                                                               |
+| WI-5 | Repair repo-prefix ID drift                    | `migrate-ids` previews and applies restamping for canonical-looking IDs with wrong prefix/type segment, including reference rewrites.                      |
+| WI-6 | Encode the canonical agent loop                | The Meminit skill/runbook tells agents to use `context`, `state next`, `resolve`, Code + Documentation + Tests, and DocOps gates as the standard workflow. |
 
 <!-- MEMINIT_SECTION: verification_matrix -->
 <!-- AGENT: List the exact commands and evidence required before closure. -->
 
 ## 4. Verification Matrix
 
-| Surface | Verification |
-| ------- | ------------ |
-| Syntax | `./.venv/bin/python -m py_compile src/meminit/core/use_cases/migrate_ids.py src/meminit/core/use_cases/new_document.py src/meminit/core/use_cases/init_repository.py src/meminit/core/services/repo_config.py` |
-| Templates | `./.venv/bin/pytest -q -s tests/core/services/test_template_resolver.py tests/core/use_cases/test_new_document.py tests/core/use_cases/test_init_repository_assets.py tests/integration/test_template_regressions.py` |
-| Migration | `./.venv/bin/pytest -q -s tests/core/use_cases/test_migrate_ids.py` |
-| STRAT smoke | `./.venv/bin/meminit new STRAT "Template Smoke" --dry-run --format json` |
-| DocOps | `./.venv/bin/meminit check --format json` and `./.venv/bin/meminit protocol check --format json` |
-| State queue | `./.venv/bin/meminit state next --root . --format json` |
+| Surface     | Verification                                                                                                                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Syntax      | `./.venv/bin/python -m py_compile src/meminit/core/use_cases/migrate_ids.py src/meminit/core/use_cases/new_document.py src/meminit/core/use_cases/init_repository.py src/meminit/core/services/repo_config.py`        |
+| Templates   | `./.venv/bin/pytest -q -s tests/core/services/test_template_resolver.py tests/core/use_cases/test_new_document.py tests/core/use_cases/test_init_repository_assets.py tests/integration/test_template_regressions.py` |
+| Migration   | `./.venv/bin/pytest -q -s tests/core/use_cases/test_migrate_ids.py`                                                                                                                                                   |
+| STRAT smoke | `./.venv/bin/meminit new STRAT "Template Smoke" --dry-run --format json`                                                                                                                                              |
+| DocOps      | `./.venv/bin/meminit check --format json` and `./.venv/bin/meminit protocol check --format json`                                                                                                                      |
+| State queue | `./.venv/bin/meminit state next --root . --format json`                                                                                                                                                               |
 
 <!-- MEMINIT_SECTION: version_history -->
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 ## 5. Version History
 
-| Version | Date     | Author    | Changes       |
-| ------- | -------- | --------- | ------------- |
+| Version | Date       | Author   | Changes       |
+| ------- | ---------- | -------- | ------------- |
 | 0.1     | 2026-05-31 | GitCmurf | Initial draft |

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from meminit.core.services.error_codes import MeminitError
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.file_lock import FileLockService
 
 pytestmark = pytest.mark.skipif(
@@ -27,10 +27,11 @@ def test_acquire_lock_rejects_symlink_escape_before_mkdir(tmp_path: Path):
     link.symlink_to(outside)
 
     service = FileLockService(repo)
-    with pytest.raises(MeminitError):
+    with pytest.raises(MeminitError) as excinfo:
         with service.acquire_lock(link / "nested"):
             pass
 
+    assert excinfo.value.code == ErrorCode.PATH_ESCAPE
     # Nothing should have been created under the escape target.
     assert not (outside / "nested").exists()
 

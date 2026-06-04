@@ -1,6 +1,6 @@
 """YAML config adapter implementing ConfigPort."""
 from meminit.core.ports.config import ConfigPort
-from meminit.core.services.repo_config import load_repo_layout, load_repo_config
+from meminit.core.services.repo_config import load_repo_config, load_repo_layout
 
 
 class YamlConfigAdapter:

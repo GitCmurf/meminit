@@ -958,7 +958,10 @@ def test_index_kanban_document_id_is_sanitized(tmp_path):
 
 def test_safe_css_slug_sanitizes_attribute_breaking_chars():
     """CSS slugs must remove unsafe characters."""
-    assert IndexViewService._safe_css_slug('Draft" onmouseover="alert(1)') == "draft-onmouseover-alert-1"
+    assert (
+        IndexViewService._safe_css_slug('Draft" onmouseover="alert(1)')
+        == "draft-onmouseover-alert-1"
+    )
     assert IndexViewService._safe_css_slug("  ") == "unknown"
 
 

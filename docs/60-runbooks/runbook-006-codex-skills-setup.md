@@ -362,7 +362,7 @@ full merged view.
    source docs before coding.
 5. Implement the atomic unit: Code + Documentation + Tests.
 6. Run `meminit check --root . --format json`, `meminit protocol check --root .
-   --format json`, and relevant project tests.
+--format json`, and relevant project tests.
 7. Persist the change with `meminit state set` or the appropriate writer.
 8. Re-run `meminit state next --root . --format json` and continue until the queue is empty.
 

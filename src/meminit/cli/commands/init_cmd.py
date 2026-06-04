@@ -94,6 +94,9 @@ def register(cli: click.Group) -> None:
                 get_console().print(
                     f"[bold green]Initialized DocOps repository at {root}[/bold green]"
                 )
-                get_console().print("- Created directory structure (docs/)")
-                get_console().print("- Created docops.config.yaml")
-                get_console().print("- Created AGENTS.md")
+                # Drive messages from the actual result so re-init (skipped paths)
+                # is reported accurately rather than via hardcoded strings.
+                for path in result.created_paths:
+                    get_console().print(f"  [green]✔[/green] Created {path}", soft_wrap=True)
+                for path in result.skipped_paths:
+                    get_console().print(f"  [yellow]⊘[/yellow] Skipped {path}", soft_wrap=True)

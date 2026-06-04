@@ -9,8 +9,8 @@ from typing import Any, Dict, Iterator, List, Optional
 import frontmatter
 import yaml
 
-from meminit.core.services.heuristics import HeuristicsService
 from meminit.core.services.frontmatter_utils import extract_document_id
+from meminit.core.services.heuristics import HeuristicsService
 from meminit.core.services.path_utils import compute_file_hash
 from meminit.core.services.repo_config import load_repo_layout
 from meminit.core.services.scan_plan import MigrationPlan
