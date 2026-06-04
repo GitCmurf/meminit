@@ -1,8 +1,9 @@
 """Utility functions for working with frontmatter documents."""
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import frontmatter
+import yaml
 
 
 def extract_document_id(path: Path) -> Optional[str]:
@@ -21,7 +22,8 @@ def extract_document_id(path: Path) -> Optional[str]:
     """
     try:
         post = frontmatter.load(str(path))
-    except Exception:
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        # Only swallow read/parse failures; let unexpected errors propagate.
         return None
 
     metadata = getattr(post, "metadata", None)

@@ -4,7 +4,7 @@ import os
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from meminit.core.services.project_state import ImplState
 from meminit.core.services.sanitization import escape_markdown_table, sanitize_field, sanitize_html
@@ -89,6 +89,15 @@ class IndexViewService:
         return max(candidates)
 
     @staticmethod
+    def activity_recency(
+        frontmatter_updated: Any,
+        state_updated: Optional[datetime],
+    ) -> datetime:
+        """Public entry point for activity-recency computation (max of state.updated
+        and frontmatter.last_updated). See ``_activity_recency`` for details."""
+        return IndexViewService._activity_recency(frontmatter_updated, state_updated)
+
+    @staticmethod
     def _format_md_table(headers: List[str], rows: List[List[str]]) -> str:
         """Format a simple, unpadded Markdown table.
 
@@ -103,7 +112,9 @@ class IndexViewService:
         return "\n".join(lines)
 
     @staticmethod
-    def _catalog_frontmatter(generated_at: str, repo_prefix: str, owner: str = "__TBD__") -> List[str]:
+    def _catalog_frontmatter(
+        generated_at: str, repo_prefix: str, owner: str = "__TBD__"
+    ) -> List[str]:
         """Return governed frontmatter for the generated catalog artifact."""
         generated_date = generated_at[:10]
         return [
@@ -131,6 +142,10 @@ class IndexViewService:
         updated_str = entry.get("updated", "")
         try:
             updated_dt = datetime.fromisoformat(updated_str)
+            # Treat naive timestamps as UTC (consistent with _activity_recency) so
+            # kanban ordering matches catalog ordering regardless of server timezone.
+            if updated_dt.tzinfo is None:
+                updated_dt = updated_dt.replace(tzinfo=timezone.utc)
             updated_ts = updated_dt.astimezone(timezone.utc).timestamp()
         except (ValueError, TypeError):
             updated_ts = 0.0
@@ -219,7 +234,9 @@ class IndexViewService:
     def _kanban_fallback_card(self, entry: Dict[str, Any]) -> List[str]:
         """Generate Markdown card for fallback kanban."""
         lines: List[str] = []
-        doc_id = sanitize_field(entry.get("document_id", ""), max_length=None, html_escape=True) or ""
+        doc_id = (
+            sanitize_field(entry.get("document_id", ""), max_length=None, html_escape=True) or ""
+        )
         title = sanitize_field(
             entry.get("_raw_title", entry.get("title", "")),
             max_length=None,
@@ -283,9 +300,11 @@ class IndexViewService:
         else:
             rel_val = ""
         title_escaped = sanitize_html(str(entry.get("_raw_title", entry.get("title", ""))))
-        status_raw = entry.get("status", "Draft")
+        # Coalesce a missing/None status to "Draft" before deriving anything so the
+        # CSS class (badge-draft) and the displayed text stay consistent.
+        status_raw = entry.get("status") or "Draft"
         status_slug = self._safe_css_slug(status_raw, default="draft")
-        status_escaped = sanitize_html(str(status_raw) if status_raw is not None else "Draft")
+        status_escaped = sanitize_html(str(status_raw))
         notes_escaped = (
             sanitize_html(str(entry.get("_raw_notes", entry.get("notes"))))
             if (entry.get("notes") or entry.get("_raw_notes"))
@@ -562,14 +581,14 @@ class IndexViewService:
 
                 row = [
                     escape_markdown_table(sanitize_html(str(entry.get("document_id", "")))),
-                    escape_markdown_table(entry.get("title", "")),
+                    escape_markdown_table(sanitize_html(str(entry.get("title", "")))),
                     escape_markdown_table(sanitize_html(str(entry.get("type", "")))),
                     escape_markdown_table(sanitize_html(str(entry.get("status", "")))),
                     escape_markdown_table(sanitize_html(str(entry.get("impl_state", "")))),
-                    priority,
+                    escape_markdown_table(sanitize_html(str(priority))),
                     ready_display,
                     last_active,
-                    escape_markdown_table(entry.get("owner", "")),
+                    escape_markdown_table(sanitize_html(str(entry.get("owner", "")))),
                 ]
                 rows.append(row)
 

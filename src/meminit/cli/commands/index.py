@@ -4,20 +4,15 @@ from pathlib import Path
 
 import click
 
-from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
+from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
+from meminit.cli.shared.output_helpers import _md_table, _write_output
+from meminit.cli.shared_flags import agent_repo_options
+from meminit.core.domain.entities import Severity
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id
-from meminit.core.domain.entities import Severity
 from meminit.core.services.output_formatter import format_envelope
-
-from meminit.cli._helpers import (
-    command_output_handler,
-    get_console,
-    validate_root_path,
-)
-from meminit.cli.shared.output_helpers import _md_table, _write_output
-from meminit.cli.shared_flags import agent_repo_options
+from meminit.core.use_cases.index_repository import IndexRepositoryUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -103,13 +98,13 @@ def register(cli: click.Group) -> None:
             root_path,
             correlation_id=correlation_id,
         ):
-            from meminit.cli.shared.output_helpers import (
-                _index_output_data,
-                exit_code_for_error,
+            from meminit.cli._helpers import _index_output_data
+            from meminit.cli.streaming import (
+                CoreStreamingProducer,
                 streaming_output_handler,
                 write_ndjson_error,
             )
-            from meminit.core.services.stream_events import CoreStreamingProducer
+            from meminit.core.services.exit_codes import exit_code_for_error
 
             validate_root_path(
                 root_path,
@@ -143,8 +138,11 @@ def register(cli: click.Group) -> None:
             # Handle --explain-cache flag (cache inspection mode)
             if explain_cache:
                 if format == "ndjson":
-                    raise click.ClickException(
-                        "meminit index --explain-cache does not support --format ndjson."
+                    from meminit.cli.streaming import unsupported_ndjson
+
+                    raise unsupported_ndjson(
+                        "index",
+                        "meminit index --explain-cache does not support --format ndjson.",
                     )
                 if format != "json":
                     raise MeminitError(
@@ -282,9 +280,7 @@ def register(cli: click.Group) -> None:
 
             # Extract warnings and determine status
             warnings_list = getattr(report, "warnings", [])
-            has_error = any(
-                w.get("severity") == Severity.ERROR.value for w in warnings_list
-            )
+            has_error = any(w.get("severity") == Severity.ERROR.value for w in warnings_list)
             status = "error" if has_error else ("warn" if warnings_list else "ok")
 
             # Build output data
@@ -350,8 +346,7 @@ def register(cli: click.Group) -> None:
                 if advice_list:
                     lines.extend(["", "## Advice", ""])
                     advice_rows = [
-                        ["INFO", str(a.get("code")), str(a.get("message"))]
-                        for a in advice_list
+                        ["INFO", str(a.get("code")), str(a.get("message"))] for a in advice_list
                     ]
                     lines.append(_md_table(["Severity", "Code", "Message"], advice_rows))
 

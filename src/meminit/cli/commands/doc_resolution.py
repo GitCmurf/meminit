@@ -4,14 +4,14 @@ from pathlib import Path
 
 import click
 
-from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
-from meminit.core.use_cases.identify_document import IdentifyDocumentUseCase
-from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.output_formatter import format_envelope
-
 from meminit.cli._helpers import command_output_handler, validate_root_path
 from meminit.cli.shared.output_helpers import _write_output, maybe_capture
 from meminit.cli.shared_flags import agent_repo_options
+from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.observability import get_current_run_id
+from meminit.core.services.output_formatter import format_envelope
+from meminit.core.use_cases.identify_document import IdentifyDocumentUseCase
+from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -191,7 +191,9 @@ def register(cli: click.Group) -> None:
                         success=True,
                         data={
                             "document_id": document_id,
-                            "link": f"[{document_id}]({normalized_path})" if normalized_path else None,
+                            "link": f"[{document_id}]({normalized_path})"
+                            if normalized_path
+                            else None,
                         },
                         include_timestamp=include_timestamp,
                         run_id=run_id,

@@ -6,11 +6,21 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import log_debug
 from meminit.core.services.safe_fs import ensure_safe_write_path
+
+# Optional POSIX file locking. Absent on Windows / unsupported platforms, in
+# which case locking degrades to a best-effort no-op (see acquire_lock).
+fcntl: Any
+try:
+    import fcntl as _fcntl_module  # type: ignore
+
+    fcntl = _fcntl_module
+except ImportError:  # pragma: no cover - Windows or unsupported platforms
+    fcntl = None
 
 
 class FileLockService:
@@ -20,12 +30,8 @@ class FileLockService:
     LOCK_RETRY_DELAY_SECONDS = 0.01
     DEFAULT_TIMEOUT_MS = 3000
 
-    fcntl: Optional[Any] = None
-    try:
-        import fcntl as fcntl_module
-        fcntl = fcntl_module
-    except ImportError:
-        pass  # Windows or unsupported platforms
+    # Class-level handle to the module-level fcntl (None when unavailable).
+    fcntl = fcntl
 
     def __init__(self, root_dir: Path):
         """Initialize file lock service.
@@ -67,8 +73,11 @@ class FileLockService:
             MeminitError: with LOCK_TIMEOUT if lock cannot be acquired
         """
         lock_path = target_dir / self.LOCK_FILENAME
-        target_dir.mkdir(parents=True, exist_ok=True)
+        # Validate before any filesystem write. mkdir is itself a write, so it
+        # must not run before we confirm the path stays within the repo root and
+        # does not traverse an existing symlink component.
         ensure_safe_write_path(root_dir=self._root_dir, target_path=lock_path)
+        target_dir.mkdir(parents=True, exist_ok=True)
 
         # Best-effort fallback for non-POSIX platforms: continue without file
         # locking rather than failing all document creation operations.
@@ -117,8 +126,6 @@ class FileLockService:
 
                 try:
                     self.fcntl.flock(lock_file.fileno(), self.fcntl.LOCK_EX | self.fcntl.LOCK_NB)
-                    yield lock_file
-                    return
                 except OSError as exc:
                     if lock_file:
                         try:
@@ -148,6 +155,14 @@ class FileLockService:
                             },
                         )
                     time.sleep(self.LOCK_RETRY_DELAY_SECONDS)
+                    continue
+
+                # Lock acquired. Yield outside the OSError-catching scope above so
+                # an OSError raised by the caller's `with` body is not misread as
+                # lock contention (which would mask it or trigger a retry loop).
+                break
+
+            yield lock_file
         finally:
             self.release_lock(lock_file)
 
@@ -167,7 +182,15 @@ class FileLockService:
                     details={"lock_path": str(lock_path)},
                 ) from exc
             raise
-        return os.fdopen(fd, "a+")
+        try:
+            return os.fdopen(fd, "a+")
+        except Exception:
+            # Avoid leaking the raw descriptor if wrapping it fails.
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            raise
 
     def _is_lock_contention_error(self, exc: OSError) -> bool:
         """Check if OSError indicates lock contention."""

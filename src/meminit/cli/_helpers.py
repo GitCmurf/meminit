@@ -116,7 +116,12 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]")
+                # soft_wrap avoids rich hard-wrapping long paths (e.g. in the
+                # message) across lines when output is captured to a file.
+                get_console().print(
+                    f"[bold red][ERROR {e.code.value}] {e.message}[/bold red]",
+                    soft_wrap=True,
+                )
         raise SystemExit(exit_code_for_error(e.code)) from e
     except Exception as e:
         # Secure error handling (Item 2): Mask raw exceptions in user-facing message
@@ -331,7 +336,9 @@ def validate_root_path(
         )
     else:
         with maybe_capture(output, format):
-            get_console().print(f"[bold red][ERROR INVALID_ROOT_PATH] {msg}[/bold red]")
+            get_console().print(
+                f"[bold red][ERROR INVALID_ROOT_PATH] {msg}[/bold red]", soft_wrap=True
+            )
     raise SystemExit(exit_code_for_error(ErrorCode.INVALID_ROOT_PATH))
 
 
@@ -441,7 +448,9 @@ def validate_initialized(
         )
     else:
         with maybe_capture(output, format):
-            get_console().print(f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]")
+            get_console().print(
+                f"[bold red][ERROR CONFIG_MISSING] {msg}[/bold red]", soft_wrap=True
+            )
     raise SystemExit(exit_code_for_error(ErrorCode.CONFIG_MISSING))
 
 

@@ -321,7 +321,7 @@ def test_context_deep_ndjson_includes_documents(tmp_path):
     assert "namespaces" not in summary
 
 
-@patch("meminit.cli.main.ContextRepositoryUseCase")
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
 def test_context_deep_ndjson_streams_documents_from_use_case(mock_use_case, tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: Example\nrepo_prefix: EXAMPLE\ndocops_version: '2.0'\n",

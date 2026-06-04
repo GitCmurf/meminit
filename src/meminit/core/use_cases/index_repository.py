@@ -31,8 +31,8 @@ from meminit.core.domain.entities import Severity
 from meminit.core.services import graph
 from meminit.core.services.diagnostics import canonicalize_advice_list, canonicalize_warning_list
 from meminit.core.services.error_codes import ErrorCode, MeminitError
-from meminit.core.services.index_helpers import build_index_output_data, filter_index_edges
 from meminit.core.services.index_cache import CachePlan, IndexCache
+from meminit.core.services.index_helpers import build_index_output_data, filter_index_edges
 from meminit.core.services.index_view import IndexViewService
 
 # Create a singleton instance for use in the module
@@ -524,11 +524,14 @@ class IndexRepositoryUseCase:
             ):
                 raise
             warning_code = exc.code.value
-            fallback_path = (
+            raw_path = (
                 exc.details.get("cache_path") or exc.details.get("lock_path")
                 if isinstance(exc.details, dict)
-                else ".meminit/cache/index/.lock"
+                else None
             ) or ".meminit/cache/index/.lock"
+            # Emit a repo-relative path so generated index artifacts stay
+            # deterministic and never leak absolute developer-local paths.
+            fallback_path = relative_path_string(Path(raw_path), self._root_dir)
             return self._execute_locked(
                 index_cache=index_cache,
                 index_path=index_path,
@@ -814,7 +817,7 @@ class IndexRepositoryUseCase:
             entry["_body"] = post.content
 
             # Compute activity recency (used for sorting, not stored in JSON) - always calculate
-            entry["_recency"] = _index_view_service._activity_recency(
+            entry["_recency"] = _index_view_service.activity_recency(
                 entry.get("last_updated"),
                 state_updated,
             )

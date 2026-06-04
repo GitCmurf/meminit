@@ -4,13 +4,12 @@ from pathlib import Path
 
 import click
 
-from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
-
-from meminit.cli._helpers import command_output_handler, validate_root_path
-from meminit.cli.shared.output_helpers import _write_output
+from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
+from meminit.cli.shared.output_helpers import _md_escape, _write_output, maybe_capture
 from meminit.cli.shared_flags import agent_repo_options
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import format_envelope
+from meminit.core.use_cases.context_repository import ContextRepositoryUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -48,6 +47,32 @@ def register(cli: click.Group) -> None:
             )
 
             use_case = ContextRepositoryUseCase(root_dir=str(root_path))
+
+            if format == "ndjson":
+                from meminit.cli.streaming import (
+                    CoreStreamingProducer,
+                    streaming_output_handler,
+                    unsupported_ndjson,
+                )
+
+                if not deep:
+                    # Shallow context is a single config blob, not a stream; only
+                    # deep mode emits per-document records over ndjson.
+                    raise unsupported_ndjson(
+                        "context",
+                        "meminit context --format ndjson requires --deep.",
+                    )
+                streaming_output_handler(
+                    command="context",
+                    producer=CoreStreamingProducer(use_case.iter_stream(deep=True)),
+                    output=output,
+                    include_timestamp=include_timestamp,
+                    run_id=run_id,
+                    root_path=root_path,
+                    correlation_id=correlation_id,
+                )
+                return
+
             result = use_case.execute(deep=deep)
 
             if format == "json":
@@ -56,14 +81,39 @@ def register(cli: click.Group) -> None:
                         command="context",
                         root=str(root_path),
                         success=True,
-                        extra_top_level=result.to_dict(),
+                        data=result.data,
+                        warnings=result.warnings,
                         include_timestamp=include_timestamp,
                         run_id=run_id,
                         correlation_id=correlation_id,
                     ),
                     output,
                 )
-            else:
-                for key, value in result.to_dict().items():
-                    if deep or key in ["docs_root", "repo_prefix", "namespaces"]:
-                        get_console().print(f"{key}: {value}")
+                return
+
+            if format == "md":
+                lines = [
+                    "# Meminit Context\n",
+                    f"- Root: `{root_path}`",
+                    f"- Project: `{result.data.get('project_name', 'N/A')}`",
+                    f"- Config: `{result.data.get('config_path', 'N/A')}`",
+                    "",
+                ]
+                if result.warnings:
+                    lines.append("## Warnings\n")
+                    for warning in result.warnings:
+                        code = warning.get("code", "WARNING")
+                        message = _md_escape(warning.get("message", ""))
+                        lines.append(f"- [{code}] {message}")
+                    lines.append("")
+                _write_output("\n".join(lines), output)
+                return
+
+            with maybe_capture(output, format):
+                get_console().print("[bold blue]Meminit Context[/bold blue]")
+                get_console().print(f"Root: {root_path}")
+                get_console().print(f"Project: {result.data.get('project_name', 'N/A')}")
+                if result.warnings:
+                    get_console().print("Warnings:")
+                    for warning in result.warnings:
+                        get_console().print(f"  - {warning.get('code')}: {warning.get('message')}")

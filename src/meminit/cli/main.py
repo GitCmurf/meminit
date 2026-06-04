@@ -9,6 +9,33 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from meminit.cli._helpers import (
+    _DRIFT_ERROR_CODE,
+    _DRIFT_ERROR_STATES,
+    _drift_violations,
+    _index_output_data,
+    _meminit_error_for_new_document_params_validation,
+    _normalize_mutation_arg,
+    _state_blockers_execute,
+    _state_list_execute,
+    _state_list_validate_filters,
+    _state_next_execute,
+    _state_set_execute,
+    _state_set_validate_args,
+    _validate_mutation_exclusivity,
+    _write_scan_plan_artifact,
+    command_output_handler,
+    complete_document_types,
+    validate_initialized,
+    validate_root_path,
+)
+from meminit.cli.commands.check import register as register_check
+from meminit.cli.commands.context_cmd import register as register_context_cmd
+from meminit.cli.commands.doctor import register as register_doctor
+from meminit.cli.commands.fix import register as register_fix
+from meminit.cli.commands.init_cmd import register as register_init_cmd
+from meminit.cli.commands.install_precommit import register as register_install_precommit
+from meminit.cli.commands.migration import register as register_migration
 from meminit.cli.shared.output_helpers import (
     _flatten_warning_groups,
     _md_escape,
@@ -25,10 +52,7 @@ from meminit.cli.shared.output_helpers import (
     get_console,
     maybe_capture,
 )
-from meminit.cli.shared_flags import (
-    agent_output_options,
-    agent_repo_options,
-)
+from meminit.cli.shared_flags import agent_output_options, agent_repo_options
 from meminit.cli.streaming import (
     CoreStreamingProducer,
     streaming_output_handler,
@@ -40,10 +64,7 @@ from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL, exit_code_for_error
 from meminit.core.services.index_cache import IndexCache
 from meminit.core.services.observability import get_current_run_id, log_operation
-from meminit.core.services.output_formatter import (
-    format_envelope,
-    format_error_envelope,
-)
+from meminit.core.services.output_formatter import format_envelope, format_error_envelope
 from meminit.core.services.scan_plan import MigrationPlan
 from meminit.core.services.versioning import get_cli_version
 from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
@@ -62,16 +83,6 @@ from meminit.core.use_cases.org_status import OrgStatusUseCase
 from meminit.core.use_cases.resolve_document import ResolveDocumentUseCase
 from meminit.core.use_cases.scan_repository import ScanRepositoryUseCase
 from meminit.core.use_cases.vendor_org_profile import VendorOrgProfileUseCase
-
-from meminit.cli.commands.check import register as register_check
-from meminit.cli.commands.context_cmd import register as register_context_cmd
-from meminit.cli.commands.doc_lookup import register as register_doc_lookup
-from meminit.cli.commands.doctor import register as register_doctor
-from meminit.cli.commands.fix import register as register_fix
-from meminit.cli.commands.init_cmd import register as register_init_cmd
-from meminit.cli.commands.install_precommit import register as register_install_precommit
-from meminit.cli.commands.migration import register as register_migration
-from meminit.cli._helpers import (command_output_handler, validate_root_path, validate_initialized, complete_document_types, _meminit_error_for_new_document_params_validation, _write_scan_plan_artifact, _index_output_data, _validate_mutation_exclusivity, _normalize_mutation_arg, _state_set_validate_args, _state_set_execute, _state_list_validate_filters, _state_list_execute, _state_next_execute, _state_blockers_execute, _drift_violations, _DRIFT_ERROR_CODE, _DRIFT_ERROR_STATES)
 
 
 @click.group()
@@ -110,7 +121,6 @@ register_doctor(cli)
 register_fix(cli)
 register_install_precommit(cli)
 register_context_cmd(cli)
-register_doc_lookup(cli)
 register_init_cmd(cli)
 register_migration(cli)
 from meminit.cli.commands.scan import register as register_scan
@@ -556,6 +566,7 @@ def adr_new(title, root, format, output, include_timestamp, correlation_id, name
         else:
             with maybe_capture(output, format):
                 get_console().print(f"[bold green]Created ADR: {result.path}[/bold green]")
+
 
 @cli.group()
 def org():

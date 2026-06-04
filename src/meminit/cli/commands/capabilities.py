@@ -4,16 +4,14 @@ from typing import Any
 
 import click
 
-from meminit.core.use_cases.capabilities import CapabilitiesUseCase
-from meminit.core.use_cases.explain_error import ExplainErrorUseCase
-from meminit.core.services.error_codes import ErrorCode, MeminitError
-
 from meminit.cli._helpers import command_output_handler, get_console
-from meminit.cli.shared.output_helpers import _md_table, _write_output
+from meminit.cli.shared.output_helpers import _md_table, _write_output, exit_code_for_error
 from meminit.cli.shared_flags import agent_output_options
+from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import format_envelope
-from meminit.cli.shared.output_helpers import exit_code_for_error
+from meminit.core.use_cases.capabilities import CapabilitiesUseCase
+from meminit.core.use_cases.explain_error import ExplainErrorUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -41,7 +39,7 @@ def register(cli: click.Group) -> None:
                     format_envelope(
                         command="capabilities",
                         success=True,
-                        extra_top_level={"capabilities": result.capabilities, "error_codes": result.error_codes},
+                        data=result,
                         include_timestamp=include_timestamp,
                         run_id=run_id,
                         correlation_id=correlation_id,
@@ -50,16 +48,11 @@ def register(cli: click.Group) -> None:
                 )
             else:
                 get_console().print("[bold blue]Capabilities:[/bold blue]")
-                rows = []
-                for cap in result.capabilities:
-                    rows.append([cap.name, cap.description])
-                get_console().print(_md_table(["Capability", "Description"], rows))
+                rows = [[c["name"], c.get("description", "")] for c in result["commands"]]
+                get_console().print(_md_table(["Command", "Description"], rows))
 
                 get_console().print("\n[bold blue]Error Codes:[/bold blue]")
-                rows = []
-                for code in result.error_codes:
-                    rows.append([code.value, code.name])
-                get_console().print(_md_table(["Code", "Name"], rows))
+                get_console().print(", ".join(result["error_codes"]))
             raise SystemExit(0)
 
     @cli.command()
@@ -81,13 +74,13 @@ def register(cli: click.Group) -> None:
             use_case = ExplainErrorUseCase()
 
             if list:
-                result = CapabilitiesUseCase().list_all()
+                codes = use_case.list_codes()
                 if format == "json":
                     _write_output(
                         format_envelope(
                             command="explain",
                             success=True,
-                            extra_top_level={"error_codes": result},
+                            data={"error_codes": codes},
                             include_timestamp=include_timestamp,
                             run_id=run_id,
                             correlation_id=correlation_id,
@@ -95,18 +88,41 @@ def register(cli: click.Group) -> None:
                         output,
                     )
                 else:
-                    rows = []
-                    for code in result:
-                        rows.append([code.value, code.name])
-                    get_console().print(_md_table(["Code", "Name"], rows))
+                    rows = [[c["code"], c["category"], c["summary"]] for c in codes]
+                    get_console().print(_md_table(["Code", "Category", "Summary"], rows))
             elif error_code:
-                result = use_case.explain_code(error_code)
+                explanation = use_case.explain(error_code)
+                if explanation is None:
+                    # Unknown code: emit an error envelope but place the requested
+                    # code under `data` (contract: requested_code lives in data,
+                    # not error.details).
+                    if format == "json":
+                        _write_output(
+                            format_envelope(
+                                command="explain",
+                                success=False,
+                                data={"requested_code": error_code},
+                                error={
+                                    "code": ErrorCode.UNKNOWN_ERROR_CODE.value,
+                                    "message": f"Unknown error code: {error_code}",
+                                },
+                                include_timestamp=include_timestamp,
+                                run_id=run_id,
+                                correlation_id=correlation_id,
+                            ),
+                            output,
+                        )
+                    else:
+                        get_console().print(
+                            f"[bold red]Unknown error code: {error_code}[/bold red]"
+                        )
+                    raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR_CODE))
                 if format == "json":
                     _write_output(
                         format_envelope(
                             command="explain",
                             success=True,
-                            extra_top_level={"code": error_code, "explanation": result},
+                            data=explanation,
                             include_timestamp=include_timestamp,
                             run_id=run_id,
                             correlation_id=correlation_id,
@@ -114,7 +130,9 @@ def register(cli: click.Group) -> None:
                         output,
                     )
                 else:
-                    get_console().print(f"{error_code}: {result}")
+                    get_console().print(f"{error_code}: {explanation.get('summary', '')}")
             else:
-                get_console().print("Error: Provide an error code or use --list")
-                raise SystemExit(1)
+                raise MeminitError(
+                    ErrorCode.INVALID_FLAG_COMBINATION,
+                    "Provide an error code or use --list",
+                )

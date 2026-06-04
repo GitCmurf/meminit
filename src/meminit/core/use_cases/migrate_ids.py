@@ -71,7 +71,12 @@ class MigrateIdsUseCase:
         self._layout: RepoLayout = load_repo_layout(root_dir)
         self._root_dir = self._layout.root_dir
 
-    def execute(self, dry_run: bool = True, rewrite_references: bool = False) -> IdMigrationReport:
+    def execute(
+        self,
+        dry_run: bool = True,
+        rewrite_references: bool = False,
+        force_restamp: bool = False,
+    ) -> IdMigrationReport:
         actions: List[IdMigrationAction] = []
         skipped: List[str] = []
         advice: List[dict[str, str]] = []
@@ -129,21 +134,12 @@ class MigrateIdsUseCase:
                     old_prefix, old_type_segment, _old_seq = canonical_parts
                     expected_type_segment = document_id_type_segment(doc_type)
                     if old_prefix != ns.repo_prefix or old_type_segment != expected_type_segment:
-                        new_id = self._allocate_next_id(
-                            ns.repo_prefix, expected_type_segment, used_numbers, next_numbers
-                        )
-                        actions.append(
-                            self._migrate_post(
-                                path=path,
-                                rel_path=rel_path,
-                                post=post,
-                                old_id=old_id,
-                                new_id=new_id,
-                                doc_type=doc_type,
-                                dry_run=dry_run,
-                                rewrite_references=rewrite_references,
-                            )
-                        )
+                        # document_id is immutable once canonical. A prefix/type-segment
+                        # mismatch is a valid, unique ID that merely disagrees with the
+                        # namespace convention, so by default we surface it as advice and
+                        # leave it untouched. Restamping is destructive (breaks external
+                        # references), so it only happens when the caller explicitly opts
+                        # in via force_restamp.
                         advice.append(
                             {
                                 "code": "ID_PREFIX_MISMATCH",
@@ -154,6 +150,22 @@ class MigrateIdsUseCase:
                                 ),
                             }
                         )
+                        if force_restamp:
+                            new_id = self._allocate_next_id(
+                                ns.repo_prefix, expected_type_segment, used_numbers, next_numbers
+                            )
+                            actions.append(
+                                self._migrate_post(
+                                    path=path,
+                                    rel_path=rel_path,
+                                    post=post,
+                                    old_id=old_id,
+                                    new_id=new_id,
+                                    doc_type=doc_type,
+                                    dry_run=dry_run,
+                                    rewrite_references=rewrite_references,
+                                )
+                            )
                         continue
 
                     # Check for duplicate canonical IDs

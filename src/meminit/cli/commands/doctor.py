@@ -4,14 +4,13 @@ from pathlib import Path
 
 import click
 
-from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
-from meminit.core.services.observability import get_current_run_id
-from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
-
 from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
 from meminit.cli.shared.output_helpers import _md_table, _write_output
 from meminit.cli.shared_flags import agent_repo_options
+from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
+from meminit.core.services.observability import get_current_run_id
 from meminit.core.services.output_formatter import format_envelope
+from meminit.core.use_cases.doctor_repository import DoctorRepositoryUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -54,12 +53,14 @@ def register(cli: click.Group) -> None:
             errors = [
                 i
                 for i in issues
-                if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "error"
+                if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+                == "error"
             ]
             warnings = [
                 i
                 for i in issues
-                if (i.severity.value if hasattr(i.severity, "value") else str(i.severity)) == "warning"
+                if (i.severity.value if hasattr(i.severity, "value") else str(i.severity))
+                == "warning"
             ]
 
             status = "ok"
@@ -123,12 +124,13 @@ def register(cli: click.Group) -> None:
                         success=not has_failure,
                         violations=v2_violations,
                         warnings=v2_warnings,
-                        extra_top_level={
+                        data={
+                            "strict": strict,
                             "status": status,
+                            "issues": issues_payload,
                             "issues_count": len(issues),
                             "errors_count": len(errors),
                             "warnings_count": len(warnings),
-                            "issues": issues_payload,
                         },
                         include_timestamp=include_timestamp,
                         run_id=run_id,
@@ -149,7 +151,9 @@ def register(cli: click.Group) -> None:
                 rows = []
                 for issue in issues:
                     sev = (
-                        issue.severity.value if hasattr(issue.severity, "value") else str(issue.severity)
+                        issue.severity.value
+                        if hasattr(issue.severity, "value")
+                        else str(issue.severity)
                     )
                     rows.append(
                         [
@@ -169,10 +173,14 @@ def register(cli: click.Group) -> None:
                 get_console().print(f"\n[bold red]Errors ({len(errors)}):[/bold red]")
                 for issue in errors:
                     line_info = f" (line {issue.line})" if issue.line is not None else ""
-                    get_console().print(f"  [red]ERR[/red] [{issue.rule}] {issue.file}{line_info}: {issue.message}")
+                    get_console().print(
+                        f"  [red]ERR[/red] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
+                    )
             if warnings:
                 get_console().print(f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]")
                 for issue in warnings:
                     line_info = f" (line {issue.line})" if issue.line is not None else ""
-                    get_console().print(f"  [yellow]WARN[/yellow] [{issue.rule}] {issue.file}{line_info}: {issue.message}")
+                    get_console().print(
+                        f"  [yellow]WARN[/yellow] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
+                    )
             raise SystemExit(exit_code)

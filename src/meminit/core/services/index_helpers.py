@@ -3,8 +3,8 @@
 This module provides helper functions used by both the index_repository use case
 and CLI output formatting. Extracted to reduce duplication across the codebase.
 """
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from meminit.core.services.path_utils import relative_path_string
 
@@ -61,13 +61,14 @@ def build_index_output_data(
         Dictionary with index_path, node_count, edge_count, nodes, edges,
         filtered flag, rebuild mode, and optional catalog_path and kanban_path.
     """
+    # Always prune edges according to the filters so an explicit `filtered`
+    # override only affects the reported flag, never leaks unpruned edges.
+    display_edges = filter_index_edges(
+        report, status_filter=status_filter, impl_state_filter=impl_state_filter
+    )
     if filtered is None:
-        display_edges = filter_index_edges(
-            report, status_filter=status_filter, impl_state_filter=impl_state_filter
-        )
         is_filtered = status_filter is not None or impl_state_filter is not None
     else:
-        display_edges = report.edges
         is_filtered = filtered
 
     data: dict[str, Any] = {

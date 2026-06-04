@@ -5,10 +5,6 @@ from pathlib import Path
 import click
 from rich.table import Table
 
-from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
-from meminit.core.services.observability import get_current_run_id, log_operation
-from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
-
 from meminit.cli._helpers import (
     command_output_handler,
     get_console,
@@ -16,13 +12,12 @@ from meminit.cli._helpers import (
     validate_initialized,
     validate_root_path,
 )
-from meminit.cli.shared.output_helpers import (
-    _flatten_warning_groups,
-    _md_table,
-    _write_output,
-)
+from meminit.cli.shared.output_helpers import _flatten_warning_groups, _md_table, _write_output
 from meminit.cli.shared_flags import agent_repo_options
+from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
+from meminit.core.services.observability import get_current_run_id, log_operation
 from meminit.core.services.output_formatter import format_envelope
+from meminit.core.use_cases.check_repository import CheckRepositoryUseCase
 
 
 def register(cli: click.Group) -> None:
@@ -95,7 +90,9 @@ def register(cli: click.Group) -> None:
             else:
                 if format == "text" and not quiet:
                     with maybe_capture(output, format):
-                        get_console().print(f"Scanning root: {root_path}")
+                        # soft_wrap keeps the (long) root path on one line when
+                        # output is captured to a file.
+                        get_console().print(f"Scanning root: {root_path}", soft_wrap=True)
 
                 with log_operation(
                     operation="check_full",
@@ -173,14 +170,18 @@ def register(cli: click.Group) -> None:
                 raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
             with maybe_capture(output, format):
-                violations_by_path = {item["path"]: item["violations"] for item in result.violations}
+                violations_by_path = {
+                    item["path"]: item["violations"] for item in result.violations
+                }
                 warnings_by_path = {item["path"]: item["warnings"] for item in result.warnings}
 
                 if quiet:
                     for path in sorted(violations_by_path.keys()):
                         for v in violations_by_path[path]:
                             line_info = f" (line {v['line']})" if v.get("line") is not None else ""
-                            get_console().print(f"FAIL {path}: [{v['code']}] {v['message']}{line_info}")
+                            get_console().print(
+                                f"FAIL {path}: [{v['code']}] {v['message']}{line_info}"
+                            )
                     raise SystemExit(0 if result.success else EX_COMPLIANCE_FAIL)
 
                 if paths:
@@ -190,19 +191,25 @@ def register(cli: click.Group) -> None:
                         if path in violations_by_path:
                             get_console().print(f"FAIL {path}")
                             for v in violations_by_path[path]:
-                                line_info = f" (line {v['line']})" if v.get("line") is not None else ""
+                                line_info = (
+                                    f" (line {v['line']})" if v.get("line") is not None else ""
+                                )
                                 get_console().print(f"  - [{v['code']}] {v['message']}{line_info}")
                             continue
                         if path in warnings_by_path:
                             get_console().print(f"WARN {path}")
                             for w in warnings_by_path[path]:
-                                line_info = f" (line {w['line']})" if w.get("line") is not None else ""
+                                line_info = (
+                                    f" (line {w['line']})" if w.get("line") is not None else ""
+                                )
                                 get_console().print(f"  - [{w['code']}] {w['message']}{line_info}")
                             continue
                         get_console().print(f"OK {path}")
                 else:
                     table_title = (
-                        "Compliance Violations" if result.violations_count else "Compliance Warnings"
+                        "Compliance Violations"
+                        if result.violations_count
+                        else "Compliance Warnings"
                     )
                     result_table = Table(title=table_title)
                     result_table.add_column("Severity")
@@ -215,7 +222,7 @@ def register(cli: click.Group) -> None:
                             result_table.add_row(
                                 "[red]error[/red]",
                                 str(v.get("code")),
-                                f"{item.get('path')}:{v.get('line', 0)}",
+                                f"{item.get('path')}:{v.get('line') or 0}",
                                 str(v.get("message")),
                             )
                     for item in result.warnings:
@@ -223,7 +230,7 @@ def register(cli: click.Group) -> None:
                             result_table.add_row(
                                 "[yellow]warning[/yellow]",
                                 str(w.get("code")),
-                                f"{item.get('path')}:{w.get('line', 0)}",
+                                f"{item.get('path')}:{w.get('line') or 0}",
                                 str(w.get("message")),
                             )
                     get_console().print(result_table)

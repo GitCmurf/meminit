@@ -218,7 +218,7 @@ def test_migrate_ids_idempotent_apply(tmp_path: Path):
     assert len(report2.actions) == 0, "Second apply should find no documents needing migration"
 
 
-def test_migrate_ids_restamps_wrong_repo_prefix(tmp_path: Path):
+def test_migrate_ids_wrong_repo_prefix_advice_then_force(tmp_path: Path):
     """Canonical IDs with the wrong prefix should be brought onto the configured prefix."""
     (tmp_path / "docs" / "45-adr").mkdir(parents=True)
     (tmp_path / "docops.config.yaml").write_text(
@@ -243,13 +243,26 @@ def test_migrate_ids_restamps_wrong_repo_prefix(tmp_path: Path):
         encoding="utf-8",
     )
 
+    # Default: document_id is immutable, so a wrong-prefix canonical ID is reported
+    # as advice only — no restamp action, and the file is left untouched.
     report = MigrateIdsUseCase(str(tmp_path)).execute(dry_run=False, rewrite_references=True)
 
-    assert len(report.actions) == 1
-    action = report.actions[0]
+    assert len(report.actions) == 0
+    assert any(item["code"] == "ID_PREFIX_MISMATCH" for item in report.advice)
+
+    post = frontmatter.load(doc)
+    assert post.metadata["document_id"] == "OLDPRJ-ADR-001"  # unchanged
+
+    # Opt-in: --force-restamp reassigns the ID onto the configured prefix.
+    report2 = MigrateIdsUseCase(str(tmp_path)).execute(
+        dry_run=False, rewrite_references=True, force_restamp=True
+    )
+
+    assert len(report2.actions) == 1
+    action = report2.actions[0]
     assert action.old_id == "OLDPRJ-ADR-001"
     assert action.new_id == "AIDHA-ADR-001"
-    assert report.advice[0]["code"] == "ID_PREFIX_MISMATCH"
+    assert any(item["code"] == "ID_PREFIX_MISMATCH" for item in report2.advice)
 
     post = frontmatter.load(doc)
     assert post.metadata["document_id"] == "AIDHA-ADR-001"

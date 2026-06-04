@@ -19,7 +19,7 @@ keywords:
 ---
 
 > **Document ID:** MEMINIT-TASK-002
-> **Owner:** GitCmurf
+> **Owner:** Codex
 > **Status:** Superseded
 > **Version:** 2.0
 > **Completion Date:** 2026-06-03
@@ -392,6 +392,7 @@ rg "_filter_index_edges" src/ --count-matches
 
 ## 5. Version History
 
-| Version | Date | Author | Changes |
-| ------- | ---- | ------ | ------- |
-| 1.0 | 2026-06-02 | Codex | Partial closure: Protocol ports + adapters (ADR-017) ✓, _helpers.py foundation ✓. CLI command modules, service extractions, and helper deduplication deferred to follow-up sprint. High-value architectural foundation is in place. |
+| Version | Date       | Author | Changes                                                                                                                                                                                                                              |
+| ------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.0     | 2026-06-02 | Codex  | Partial closure: Protocol ports + adapters (ADR-017) ✓, \_helpers.py foundation ✓. CLI command modules, service extractions, and helper deduplication deferred to follow-up sprint. High-value architectural foundation is in place. |
+| 2.0     | 2026-06-03 | Codex  | Superseded-state closure: CLI command modules extracted, stale dataclass contracts and missing imports repaired, FileLockService hardened, migrate-ids ID immutability enforced.                                                     |

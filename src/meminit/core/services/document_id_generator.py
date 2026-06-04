@@ -8,8 +8,8 @@ import frontmatter
 import yaml
 
 from meminit.core.domain.document_ids import document_id_type_segment
-from meminit.core.services.repo_config import RepoConfig
 from meminit.core.services.observability import log_debug
+from meminit.core.services.repo_config import RepoConfig
 
 
 class DocumentIdGenerator:
@@ -33,8 +33,10 @@ class DocumentIdGenerator:
         max_id = 0
         scanned_files = 0
         regex = re.compile(rf"^{re.escape(id_type.lower())}-(\d{{3}})-", re.IGNORECASE)
+        # Anchor to this namespace's repo_prefix so IDs from other namespaces
+        # (e.g. "OTHER-ADR-007") are not counted toward this namespace's sequence.
         frontmatter_regex = re.compile(
-            rf"^[A-Z]{{3,10}}-{re.escape(id_type)}-(\d{{3}})$", re.IGNORECASE
+            rf"^{re.escape(repo_prefix)}-{re.escape(id_type)}-(\d{{3}})$", re.IGNORECASE
         )
 
         for p in target_dir.glob("*.md"):
