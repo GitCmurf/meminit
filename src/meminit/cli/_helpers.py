@@ -161,7 +161,9 @@ def command_output_handler(
             )
         else:
             with maybe_capture(output, format):
-                get_console().print(f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]")
+                get_console().print(
+                    f"[bold red][ERROR UNKNOWN_ERROR] {safe_msg}[/bold red]", soft_wrap=True
+                )
 
         # Always log the real error to stderr for operators
         import click
