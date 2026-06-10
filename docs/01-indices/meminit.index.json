@@ -4794,7 +4794,7 @@
         ],
         "last_updated": "2026-06-10",
         "namespace": "meminit",
-        "next_action": "Maintainer/release: run release.yml for v0.3.0a1 through TestPyPI, approve production PyPI environment, verify public install, then close MEMINIT-TASK-005.",
+        "next_action": "Maintainer/release: run release.yml for v0.3.0a2 through TestPyPI, approve production PyPI environment, verify public install, then close MEMINIT-TASK-005.",
         "notes": "PLAN-016 launch-gate closure: WI-1..3 done (LOG-002/003/005, DEVEX-001, and PLAN-016 Approved); WI-5 done; WI-4 remains production PyPI publish and public promotion.",
         "open_blockers": [],
         "owner": "GitCmurf",

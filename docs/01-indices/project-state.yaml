@@ -78,6 +78,6 @@ documents:
       PyPI publish and public promotion."
     priority: P0
     next_action:
-      "Maintainer/release: run release.yml for v0.3.0a1 through TestPyPI,
+      "Maintainer/release: run release.yml for v0.3.0a2 through TestPyPI,
       approve production PyPI environment, verify public install, then close
       MEMINIT-TASK-005."

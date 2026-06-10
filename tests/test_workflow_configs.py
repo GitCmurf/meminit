@@ -152,8 +152,9 @@ def test_release_workflow_verifies_the_built_wheel_without_checkout_shadowing():
     assert 'uv pip install "${GITHUB_WORKSPACE}"/dist/*.whl' in run_script
     assert 'meminit doctor --root "$GITHUB_WORKSPACE" --format json' in run_script
     assert 'meminit check --root "$GITHUB_WORKSPACE" --format json' in run_script
-    assert 'pytest -c /dev/null "${GITHUB_WORKSPACE}/tests"' in run_script
-    assert 'cd "$tmpdir"' in run_script
+    assert "pytest -c /dev/null tests" in run_script
+    assert 'cd "$GITHUB_WORKSPACE"' in run_script
+    assert 'cd "$tmpdir"' not in run_script
 
 
 def test_root_license_remains_apache_2_0():

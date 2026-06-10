@@ -3,7 +3,7 @@ document_id: MEMINIT-TASK-005
 type: TASK
 title: PLAN-016 launch-gate closure
 status: Draft
-version: "0.2"
+version: "0.3"
 last_updated: "2026-06-10"
 owner: GitCmurf
 area: PLAN
@@ -22,7 +22,7 @@ related_ids:
 > **Document ID:** MEMINIT-TASK-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.2
+> **Version:** 0.3
 > **Last Updated:** 2026-06-10
 > **Type:** TASK
 > **Area:** PLAN
@@ -43,6 +43,8 @@ launch gate as having implementation evidence, but explicitly conditions publish
 peer-review acceptance. Evidence and plan promotion are now accepted; the remaining closure
 action is the production PyPI publish. This task captures the release handoff, plus records
 the completed formatter/managed-artifact and `.codex`-lint remediation as closed evidence.
+The first `v0.3.0a1` release trigger exposed installed-package verification bugs; this task
+now also records the release workflow and version-discovery remediation.
 **Definition of done:** production PyPI publish completes, public installation guidance is
 updated if needed, and this task no longer surfaces from `meminit state next`.
 
@@ -84,6 +86,15 @@ updated if needed, and this task no longer surfaces from `meminit state next`.
 **Remaining (release execution):**
 
 - Production PyPI publish + public promotion not done (gated on maintainer approval; §2/§8).
+- First `v0.3.0a1` release workflow run failed before TestPyPI because it ran the
+  installed-package pytest suite from a temp directory, breaking repo-relative fixture
+  tests. The workflow now runs pytest from `GITHUB_WORKSPACE` with `-c /dev/null` so
+  repo fixtures exist while the checkout `pythonpath` setting remains disabled.
+- The same installed-package path also proved the source-tree version fallback should
+  consider the current working tree when package metadata is unavailable, while rejecting
+  unrelated `pyproject.toml` files whose `project.name` is not `meminit`.
+- Because the `v0.3.0a1` tag has already triggered a failed GitHub Actions run, release
+  execution should continue with `v0.3.0a2` rather than rewriting the pushed tag.
 
 <!-- MEMINIT_SECTION: work_items -->
 <!-- AGENT: Break the work into prioritized, implementable items with definitions of done. -->
@@ -132,5 +143,6 @@ maintainer/release owner and must close only after the release workflow complete
 
 | Version | Date       | Author   | Changes                                                                                                          |
 | ------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| 0.3     | 2026-06-10 | GitCmurf | Recorded failed release trigger and fixed installed-package workflow/version fallback verification               |
 | 0.2     | 2026-06-10 | GitCmurf | Closed WI-1..WI-3 through evidence, release notes, and PLAN-016 approval; WI-4 remains pending release execution |
 | 0.1     | 2026-06-04 | GitCmurf | Initial draft                                                                                                    |
