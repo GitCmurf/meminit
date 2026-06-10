@@ -3,8 +3,8 @@ document_id: MEMINIT-PLAN-016
 type: PLAN
 title: Adoption and Dogfooding Sequencing
 status: Draft
-version: "0.4"
-last_updated: "2026-05-29"
+version: "0.5"
+last_updated: "2026-06-05"
 owner: GitCmurf
 docops_version: "2.0"
 area: ADOPT
@@ -22,13 +22,14 @@ keywords:
 related_ids:
   - MEMINIT-PLAN-003
   - MEMINIT-STRAT-001
+  - MEMINIT-TASK-005
 ---
 
 > **Document ID:** MEMINIT-PLAN-016
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.4
-> **Last Updated:** 2026-05-29
+> **Version:** 0.5
+> **Last Updated:** 2026-06-05
 > **Type:** PLAN
 > **Area:** ADOPT
 > **Description:** Defines the dogfood-first adoption sequence, engineering workstreams, verification gates, and release-readiness criteria for Meminit's first public package launch.
@@ -87,6 +88,15 @@ launch claims.
   triggered detect-secrets false positives when staged. The product and AIDHA
   test repo now treat `.meminit/cache/` and `.meminit.lock` as ignored runtime
   state.
+- Dogfooding surfaced a formatter conflict: Prettier reformatted Meminit-managed
+  artifacts (the hash-locked `AGENTS.md` `MEMINIT_PROTOCOL` block; regenerated
+  index artifacts), breaking `meminit protocol check` and causing index churn.
+  Decision: formatters own hand-authored source, Meminit owns generated/managed
+  artifacts — resolved by disjoint ownership via `.prettierignore`, not by making
+  the two tools agree on shared bytes (aligning is brittle: a future Prettier
+  version would re-break a payload hash). This repo now ships a `.prettierignore`,
+  and `meminit init` scaffolds one into adopter repos so the conflict cannot occur
+  out of the box. Black is unaffected (Meminit generates no Python).
 - P2 architecture refactoring is intentionally deferred to MEMINIT-TASK-002. It
   remains important for maintainability, but it is not a launch gate for this
   adoption sequence.
@@ -331,7 +341,11 @@ rerunning everything.
 
 Implementation evidence is captured for every launch gate below. Publish and
 promote only after peer reviewers accept the evidence, including whether Draft
-evidence records are sufficient or must be promoted first.
+evidence records are sufficient or must be promoted first. This plan therefore
+remains **Draft / not complete**: its remaining closure actions — peer-review
+promotion of the Draft evidence records and this plan, and the production PyPI
+publish — are tracked by [MEMINIT-TASK-005](tasks/task-005-plan-016-launch-gate-closure.md)
+and surfaced by `meminit state next`.
 
 - [x] This repo passes `uv run meminit doctor --format json`,
       `uv run meminit check --format json`,
@@ -418,14 +432,14 @@ Test design requirements:
 
 ## 10. Risks and Mitigations
 
-| Risk                                                 | Impact                                            | Mitigation                                                                                                                      |
-| ---------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Dogfooding only maintainer repos overfits the UX     | Launch looks good locally but fails for strangers | Use greenfield, messy brownfield, Architext, and README-only stranger simulation                                                |
-| Template breadth expands into a large design project | Launch slips into open-ended polish               | Define launch-critical types and defer non-critical archetype refinement                                                        |
-| Skill path drift confuses agents                     | Generated instructions become untrustworthy       | Make protocol assets and tests the source of truth; reconcile docs before launch, add CI linting for legacy `.codex` references |
-| PyPI publish happens without promotion readiness     | Weak storefront creates early bounce              | Couple production PyPI with release notes, README, and evidence gate                                                            |
-| Release automation adds supply-chain risk            | Bad package or accidental secret exposure         | Use least-privilege workflow permissions, build validation (`uv`), exact tags, and security scan                                |
-| Spec writing resumes instead of adoption fixes       | Product remains impressive but unused             | Freeze net-new specs unless a dogfood defect changes a cross-cutting contract                                                   |
+| Risk                                                 | Impact                                            | Mitigation                                                                                                                                                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dogfooding only maintainer repos overfits the UX     | Launch looks good locally but fails for strangers | Use greenfield, messy brownfield, Architext, and README-only stranger simulation                                                                                                                                         |
+| Template breadth expands into a large design project | Launch slips into open-ended polish               | Define launch-critical types and defer non-critical archetype refinement                                                                                                                                                 |
+| Skill path drift confuses agents                     | Generated instructions become untrustworthy       | Make protocol assets and tests the source of truth; reconcile docs before launch. A CI lint for legacy `.codex` references exists (`tests/test_legacy_path_lint.py`) and now also scans root Markdown (e.g. `README.md`) |
+| PyPI publish happens without promotion readiness     | Weak storefront creates early bounce              | Couple production PyPI with release notes, README, and evidence gate                                                                                                                                                     |
+| Release automation adds supply-chain risk            | Bad package or accidental secret exposure         | Use least-privilege workflow permissions, build validation (`uv`), exact tags, and security scan                                                                                                                         |
+| Spec writing resumes instead of adoption fixes       | Product remains impressive but unused             | Freeze net-new specs unless a dogfood defect changes a cross-cutting contract                                                                                                                                            |
 
 <!-- MEMINIT_SECTION: deferred -->
 

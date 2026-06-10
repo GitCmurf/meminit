@@ -1,5 +1,4 @@
 <!-- MEMINIT_PROTOCOL: begin id=agents-md version=1.0 sha256=17d7a67d712b37ea00567bf7e7cf27e1ff932da01ae0212cb514b92ac8c09488 -->
-
 # Agentic Coding Rules
 
 This repository (**Meminit**) uses **Meminit DocOps** for governance.

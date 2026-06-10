@@ -59,7 +59,24 @@ def test_gitleaks_scans_have_full_history_available():
     )
 
 
-def test_prettier_hook_excludes_governed_template_trees():
+def test_prettierignore_covers_managed_and_generated_artifacts():
+    """Prettier exclusions live in .prettierignore (single source of truth, honored by
+    every Prettier invocation), covering Meminit's hash-locked/managed and generated
+    artifacts plus governed template trees."""
+    prettierignore = (REPO_ROOT / ".prettierignore").read_text(encoding="utf-8")
+    # Hash-locked / managed protocol assets and their canonical sources.
+    assert "/AGENTS.md" in prettierignore
+    assert "/.agents/skills/meminit-docops/" in prettierignore
+    assert "/src/meminit/core/assets/" in prettierignore
+    # Generated index artifacts (regenerated verbatim by `meminit index`).
+    assert "/docs/01-indices/meminit.index.json" in prettierignore
+    # Governed template trees (Meminit {{placeholder}} syntax).
+    assert "/docs/00-governance/templates/" in prettierignore
+
+
+def test_prettier_hook_defers_exclusions_to_prettierignore():
+    """The pre-commit prettier hook must not carry its own exclude regex; exclusions are
+    centralized in .prettierignore so editor/CLI Prettier runs honor them too."""
     config = yaml.safe_load(PRE_COMMIT_PATH.read_text(encoding="utf-8"))
     prettier_hook = next(
         hook
@@ -68,10 +85,7 @@ def test_prettier_hook_excludes_governed_template_trees():
         for hook in repo["hooks"]
         if hook["id"] == "prettier"
     )
-
-    exclude = prettier_hook.get("exclude", "")
-    assert "docs/00-governance/templates/" in exclude
-    assert "src/meminit/core/assets/org_profiles/default/templates/" in exclude
+    assert "exclude" not in prettier_hook
 
 
 def test_gitleaks_config_extends_default_rules():

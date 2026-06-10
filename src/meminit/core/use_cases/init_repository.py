@@ -237,6 +237,12 @@ class InitRepositoryUseCase:
         # 3. Ensure generated local cache artifacts stay out of version control.
         self._ensure_gitignore_cache_entry(record)
 
+        # 3b. Shield Meminit-managed/generated artifacts from Prettier. The protocol
+        # assets are hash-locked (MEMINIT_PROTOCOL blocks) and index artifacts are
+        # regenerated verbatim; if an adopter's Prettier reformats them it breaks
+        # `meminit protocol check` / causes regeneration churn.
+        self._ensure_prettierignore_entries(record)
+
         # 4. Create Templates & Schema
         gov_dir = self.docs_dir / "00-governance"
         template_dir = gov_dir / "templates"
@@ -331,6 +337,56 @@ class InitRepositoryUseCase:
             created_paths=created_paths_sorted,
             skipped_paths=skipped_paths_sorted,
         )
+
+    @staticmethod
+    def _prettierignore_entries() -> List[str]:
+        """Paths Prettier must not touch: Meminit-managed (hash-locked) protocol
+        assets — derived from the registry so the list tracks the assets — plus the
+        regenerated index artifacts and governed template trees."""
+        registry = ProtocolAssetRegistry.default()
+        entries = [f"/{asset.target_path}" for asset in registry.assets]
+        entries += [
+            "/docs/01-indices/*.index.json",
+            "/docs/01-indices/catalogue.md",
+            "/docs/01-indices/kanban.md",
+            "/docs/01-indices/kanban.css",
+            "/docs/00-governance/templates/",
+        ]
+        return entries
+
+    def _ensure_prettierignore_entries(self, record_fn) -> None:
+        prettierignore_path = self.root_dir / ".prettierignore"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=prettierignore_path)
+        header = (
+            "# Meminit owns these bytes; Prettier must not reformat them "
+            "(hash-locked protocol\n"
+            "# assets and regenerated index artifacts). See `meminit protocol check`.\n"
+        )
+        required_entries = self._prettierignore_entries()
+        if not prettierignore_path.exists():
+            atomic_write(
+                prettierignore_path,
+                header + "\n".join(required_entries) + "\n",
+                encoding="utf-8",
+            )
+            record_fn(prettierignore_path, created=True)
+            return
+        if not prettierignore_path.is_file():
+            raise MeminitError(
+                ErrorCode.NOT_A_REGULAR_FILE,
+                "Cannot update .prettierignore: path exists but is not a regular file.",
+                details={"path": str(prettierignore_path)},
+            )
+        content = prettierignore_path.read_text(encoding="utf-8")
+        entries = {line.strip() for line in content.splitlines()}
+        missing_entries = [entry for entry in required_entries if entry not in entries]
+        if not missing_entries:
+            record_fn(prettierignore_path, created=False)
+            return
+        separator = "" if content.endswith("\n") or not content else "\n"
+        addition = "\n".join(missing_entries) + "\n"
+        atomic_write(prettierignore_path, f"{content}{separator}{addition}", encoding="utf-8")
+        record_fn(prettierignore_path, created=True)
 
     def _ensure_gitignore_cache_entry(self, record_fn) -> None:
         gitignore_path = self.root_dir / ".gitignore"

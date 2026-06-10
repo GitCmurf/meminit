@@ -28,7 +28,9 @@ documents:
     impl_state: Done
     updated: "2026-05-31T00:00:00+00:00"
     updated_by: Codex
-    notes: "Agent interface v2 work is represented by shipped context/state/resolve command behavior; queue now tracks active TASK docs."
+    notes:
+      Agent interface v2 work is represented by shipped context/state/resolve
+      command behavior; queue now tracks active TASK docs.
   MEMINIT-PRD-006:
     impl_state: Done
     updated: "2026-03-07T12:16:01.874128+00:00"
@@ -42,21 +44,40 @@ documents:
     impl_state: Done
     updated: "2026-05-31T00:00:00+00:00"
     updated_by: Codex
-    notes: "Superseded by MEMINIT-TASK-004 for the remaining adoption control-plane follow-up."
+    notes:
+      Superseded by MEMINIT-TASK-004 for the remaining adoption control-plane
+      follow-up.
   MEMINIT-TASK-002:
     impl_state: Done
     updated: "2026-06-02T00:00:00+00:00"
     updated_by: Codex
-    priority: P2
-    notes: "Partial closure: Protocol ports + adapters (ADR-017) ✓, _helpers.py foundation for CLI decomposition ✓. CLI command modules, service extractions, and helper deduplication deferred to follow-up sprint. High-value architectural foundation is in place."
+    notes:
+      "Partial closure: Protocol ports + adapters (ADR-017) ✓, _helpers.py foundation
+      for CLI decomposition ✓. CLI command modules, service extractions, and helper
+      deduplication deferred to follow-up sprint. High-value architectural foundation
+      is in place."
   MEMINIT-TASK-003:
     impl_state: Done
     updated: "2026-06-01T00:00:00+00:00"
     updated_by: Codex
-    notes: "Mypy baseline clean: 0 issues in 67 source files, frontmatter.pyi stub in place, 1488 tests green."
+    notes:
+      "Mypy baseline clean: 0 issues in 67 source files, frontmatter.pyi stub
+      in place, 1488 tests green."
   MEMINIT-TASK-004:
     impl_state: Done
     updated: "2026-05-31T00:00:00+00:00"
     updated_by: Codex
+    notes: Adoption DocOps control-plane remediation implemented and verified.
     priority: P0
-    notes: "Adoption DocOps control-plane remediation implemented and verified."
+  MEMINIT-TASK-005:
+    impl_state: Not Started
+    updated: "2026-06-04T22:41:49.449274+00:00"
+    updated_by: GitCmurf
+    notes:
+      "PLAN-016 launch-gate closure: WI-5 (formatter/lint remediation) done;
+      WI-1..4 await maintainer/reviewer (promote LOG-002/003/005 + DEVEX-001 + PLAN-016;
+      production PyPI publish)."
+    priority: P0
+    next_action:
+      "Maintainer: peer-review and promote the 4 Draft evidence records
+      and PLAN-016; then production PyPI publish per release.yml."
