@@ -74,10 +74,12 @@ documents:
     updated: "2026-06-10T00:00:00+01:00"
     updated_by: GitCmurf
     notes: "PLAN-016 launch-gate closure: WI-1..3 done (LOG-002/003/005,
-      DEVEX-001, and PLAN-016 Approved); WI-5 done; WI-4 remains production
-      PyPI publish and public promotion."
+      DEVEX-001, and PLAN-016 Approved); WI-5 done; WI-4 remains blocked on
+      TestPyPI trusted publisher configuration after v0.3.0a2 run 27285356168
+      passed build/verify but failed staging publish with invalid-publisher."
     priority: P0
     next_action:
-      "Maintainer/release: run release.yml for v0.3.0a2 through TestPyPI,
-      approve production PyPI environment, verify public install, then close
-      MEMINIT-TASK-005."
+      "Maintainer/release: configure TestPyPI trusted publishing for repo
+      GitCmurf/meminit, workflow release.yml, environment testpypi; rerun
+      release run 27285356168 or push a fresh prerelease tag, approve production
+      PyPI environment, verify public install, then close MEMINIT-TASK-005."

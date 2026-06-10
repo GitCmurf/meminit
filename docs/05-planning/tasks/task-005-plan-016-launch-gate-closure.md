@@ -3,7 +3,7 @@ document_id: MEMINIT-TASK-005
 type: TASK
 title: PLAN-016 launch-gate closure
 status: Draft
-version: "0.3"
+version: "0.4"
 last_updated: "2026-06-10"
 owner: GitCmurf
 area: PLAN
@@ -22,7 +22,7 @@ related_ids:
 > **Document ID:** MEMINIT-TASK-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.3
+> **Version:** 0.4
 > **Last Updated:** 2026-06-10
 > **Type:** TASK
 > **Area:** PLAN
@@ -45,6 +45,8 @@ action is the production PyPI publish. This task captures the release handoff, p
 the completed formatter/managed-artifact and `.codex`-lint remediation as closed evidence.
 The first `v0.3.0a1` release trigger exposed installed-package verification bugs; this task
 now also records the release workflow and version-discovery remediation.
+The follow-up `v0.3.0a2` release trigger passed build and installed-wheel verification, then
+stopped at TestPyPI trusted-publisher configuration.
 **Definition of done:** production PyPI publish completes, public installation guidance is
 updated if needed, and this task no longer surfaces from `meminit state next`.
 
@@ -95,6 +97,10 @@ updated if needed, and this task no longer surfaces from `meminit state next`.
   unrelated `pyproject.toml` files whose `project.name` is not `meminit`.
 - Because the `v0.3.0a1` tag has already triggered a failed GitHub Actions run, release
   execution should continue with `v0.3.0a2` rather than rewriting the pushed tag.
+- `v0.3.0a2` release run 27285356168 passed Build and Verify Packages, including package
+  metadata validation and installed-wheel pytest. It failed in Publish to TestPyPI (Staging)
+  because TestPyPI returned `invalid-publisher`: no trusted publisher matches the GitHub OIDC
+  claims for repo `GitCmurf/meminit`, workflow `release.yml`, environment `testpypi`.
 
 <!-- MEMINIT_SECTION: work_items -->
 <!-- AGENT: Break the work into prioritized, implementable items with definitions of done. -->
@@ -143,6 +149,7 @@ maintainer/release owner and must close only after the release workflow complete
 
 | Version | Date       | Author   | Changes                                                                                                          |
 | ------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| 0.4     | 2026-06-10 | GitCmurf | Recorded v0.3.0a2 build/verify success and TestPyPI trusted-publisher blocker                                    |
 | 0.3     | 2026-06-10 | GitCmurf | Recorded failed release trigger and fixed installed-package workflow/version fallback verification               |
 | 0.2     | 2026-06-10 | GitCmurf | Closed WI-1..WI-3 through evidence, release notes, and PLAN-016 approval; WI-4 remains pending release execution |
 | 0.1     | 2026-06-04 | GitCmurf | Initial draft                                                                                                    |
