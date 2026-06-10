@@ -3,8 +3,8 @@ document_id: MEMINIT-SPEC-011
 type: SPEC
 title: NDJSON Streaming Contract
 status: Draft
-version: "0.4"
-last_updated: 2026-05-09
+version: "0.5"
+last_updated: 2026-06-10
 owner: GitCmurf
 docops_version: "2.0"
 area: AGENT
@@ -128,8 +128,10 @@ The current guarantees are:
 `STREAM_UNSUPPORTED_FORMAT`; the cache-explanation submode remains
 JSON-only.
 
-`meminit context --format ndjson` without `--deep` MUST fail with
-`STREAM_UNSUPPORTED_FORMAT`.
+For an initialized repository, `meminit context --format ndjson` without
+`--deep` MUST fail with `STREAM_UNSUPPORTED_FORMAT`. If the repository is
+uninitialized or has an invalid `docops.config.yaml`, the command MUST fail
+with the normal initialization error before evaluating streaming-mode support.
 
 Commands that do not advertise `supports_ndjson: true` in
 `meminit capabilities --format json` MUST fail with
@@ -170,3 +172,4 @@ definition so agents can reject drift early.
 | 0.2     | 2026-05-03 | Codex  | Added deterministic serialization, progress boundaries, and command item ordering rules                                          |
 | 0.3     | 2026-05-09 | Codex  | Documented command-level producer laziness guarantees for scan, deep context, and the remaining index limitation.                |
 | 0.4     | 2026-05-09 | Codex  | Updated the index producer guarantee after routing NDJSON through shared internal build artifacts before public report assembly. |
+| 0.5     | 2026-06-10 | Codex  | Clarified that `context` validates repository initialization before NDJSON mode support.                                         |

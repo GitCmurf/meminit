@@ -4,7 +4,12 @@ from pathlib import Path
 
 import click
 
-from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
+from meminit.cli._helpers import (
+    command_output_handler,
+    get_console,
+    validate_initialized,
+    validate_root_path,
+)
 from meminit.cli.shared.output_helpers import _md_escape, _write_output, maybe_capture
 from meminit.cli.shared_flags import agent_repo_options
 from meminit.core.services.observability import get_current_run_id
@@ -37,6 +42,15 @@ def register(cli: click.Group) -> None:
             correlation_id=correlation_id,
         ):
             validate_root_path(
+                root_path,
+                format=format,
+                command="context",
+                include_timestamp=include_timestamp,
+                run_id=run_id,
+                output=output,
+                correlation_id=correlation_id,
+            )
+            validate_initialized(
                 root_path,
                 format=format,
                 command="context",

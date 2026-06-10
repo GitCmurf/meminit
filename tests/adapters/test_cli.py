@@ -780,6 +780,67 @@ def test_cli_context_json_output(tmp_path):
     assert data["data"]["default_owner"] == "TeamA"
 
 
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_requires_initialized_repo(mock_use_case, tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "test.md").write_text("# Test\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "missing"
+    mock_use_case.assert_not_called()
+
+
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_rejects_symlink_config(mock_use_case, tmp_path):
+    if not hasattr(os, "symlink"):
+        pytest.skip("Symlinks are not supported on this platform")
+
+    target = tmp_path / "real-config.yaml"
+    target.write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    link_path = tmp_path / "docops.config.yaml"
+    try:
+        os.symlink(target, link_path)
+    except OSError as exc:
+        pytest.skip(f"Unable to create symlink on this platform: {exc}")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "not_regular_file"
+    mock_use_case.assert_not_called()
+
+
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_rejects_malformed_config(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version:\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "missing_version"
+    mock_use_case.assert_not_called()
+
+
 def test_cli_context_deep_counts_documents(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
