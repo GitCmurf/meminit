@@ -2,9 +2,9 @@
 document_id: MEMINIT-DEVEX-001
 type: DEVEX
 title: Release Notes v0.3.0-alpha
-status: Draft
-version: "0.1"
-last_updated: 2026-05-25
+status: Approved
+version: "0.2"
+last_updated: 2026-06-10
 owner: GitCmurf
 area: ADOPT
 docops_version: "2.0"
@@ -22,8 +22,9 @@ keywords:
 
 > **Document ID:** MEMINIT-DEVEX-001
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
+> **Status:** Approved
+> **Version:** 0.2
+> **Last Updated:** 2026-06-10
 
 # DEVEX: Release Notes v0.3.0-alpha
 
@@ -144,6 +145,7 @@ See [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md), [ME
 
 ## Version History
 
-| Version | Date       | Author   | Changes                                |
-| ------- | ---------- | -------- | -------------------------------------- |
-| 0.1     | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha |
+| Version | Date       | Author   | Changes                                                              |
+| ------- | ---------- | -------- | -------------------------------------------------------------------- |
+| 0.2     | 2026-06-10 | GitCmurf | Approved v0.3.0-alpha release notes for PLAN-016 launch gate closure |
+| 0.1     | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha                               |

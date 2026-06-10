@@ -3,30 +3,30 @@ document_id: MEMINIT-TASK-005
 type: TASK
 title: PLAN-016 launch-gate closure
 status: Draft
-version: '0.1'
-last_updated: '2026-06-04'
+version: "0.2"
+last_updated: "2026-06-10"
 owner: GitCmurf
 area: PLAN
-docops_version: '2.0'
+docops_version: "2.0"
 template_type: task-standard
-template_version: '2.0'
-description: 'Track remaining PLAN-016 launch-gate actions: maintainer promotions
-  (evidence LOGs, plan, PyPI) and record completed formatter/lint remediation.'
+template_version: "2.0"
+description:
+  "Track remaining PLAN-016 launch-gate actions: maintainer promotions
+  (evidence LOGs, plan, PyPI) and record completed formatter/lint remediation."
 keywords:
-- task
+  - task
 related_ids:
-- MEMINIT-PLAN-016
+  - MEMINIT-PLAN-016
 ---
 
 > **Document ID:** MEMINIT-TASK-005
 > **Owner:** GitCmurf
 > **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-06-04
+> **Version:** 0.2
+> **Last Updated:** 2026-06-10
 > **Type:** TASK
 > **Area:** PLAN
 > **Description:** Track remaining PLAN-016 launch-gate actions: maintainer promotions (evidence LOGs, plan, PyPI) and record completed formatter/lint remediation.
-
 
 <!-- MEMINIT_SECTION: title -->
 <!-- AGENT: The title should state the implementation objective clearly. -->
@@ -40,13 +40,11 @@ related_ids:
 
 [MEMINIT-PLAN-016](../plan-016-adoption-and-dogfooding-sequencing.md) §8 marks every
 launch gate as having implementation evidence, but explicitly conditions publish/promote on
-peer-review acceptance. Those remaining actions (promoting Draft evidence and the plan,
-the production PyPI publish) are **maintainer/reviewer** decisions that were not, until this
-task, tracked anywhere durable — the work queue (`meminit state next`) was `queue_empty`, so
-they risked being forgotten. This task captures them, plus records the now-completed
-formatter/managed-artifact and `.codex`-lint remediation as closed evidence. **Definition of
-done:** every item below is either Done-with-evidence or has an explicit maintainer owner and
-acceptance criterion, and this task is surfaced by `meminit state next` until closed.
+peer-review acceptance. Evidence and plan promotion are now accepted; the remaining closure
+action is the production PyPI publish. This task captures the release handoff, plus records
+the completed formatter/managed-artifact and `.codex`-lint remediation as closed evidence.
+**Definition of done:** production PyPI publish completes, public installation guidance is
+updated if needed, and this task no longer surfaces from `meminit state next`.
 
 <!-- MEMINIT_SECTION: review_basis -->
 <!-- AGENT: List source reports, live commands, and evidence used to scope the task. -->
@@ -54,10 +52,10 @@ acceptance criterion, and this task is surfaced by `meminit state next` until cl
 ## 1. Review Basis
 
 - [MEMINIT-PLAN-016](../plan-016-adoption-and-dogfooding-sequencing.md) §8 (Launch Gate
-  Checklist) and §12 (Handover) — gates are engineering-complete but gated on peer review.
+  Checklist) and §12 (Handover) — gates are engineering-complete and peer-reviewed.
 - A completeness review of PLAN-016 against the live repo (2026-06-04) that found: the
   `meminit protocol check` regression (Prettier reformatting the hash-locked `AGENTS.md`
-  managed block), the `README.md` `.codex/skills/` stale path, and 4 evidence records plus
+  managed block), the `README.md` legacy skill-path reference, and 4 evidence records plus
   the plan still in Draft.
 - The formatter/managed-artifact remediation landed in the same session (`.prettierignore`,
   `meminit init` scaffolding, `.codex`-lint extension); recorded here as closure evidence.
@@ -74,14 +72,17 @@ acceptance criterion, and this task is surfaced by `meminit state next` until cl
   adopter repos (reusing the protocol-asset registry). `AGENTS.md` restored →
   `meminit protocol check` 3/3 aligned; `meminit.index.json` regenerated to the deterministic
   generator form.
-- `README.md` `.codex/skills/meminit-docops/` → `.agents/skills/meminit-docops/`.
+- `README.md` legacy skill path → `.agents/skills/meminit-docops/`.
 - `.codex` lint (`tests/test_legacy_path_lint.py`) extended to scan root Markdown (it
   previously covered only `src/` and `docs/`, so `README` escaped it).
 
-**Remaining (maintainer/reviewer — NOT engineering tasks):**
+**Done (maintainer/reviewer):**
 
-- 4 evidence records still Draft (LOG-002, LOG-003, LOG-005, DEVEX-001) and PLAN-016 still
-  Draft, pending peer-review acceptance (PLAN-016 §8/§13).
+- Evidence records LOG-002, LOG-003, LOG-005, DEVEX-001 and PLAN-016 are promoted to
+  Approved after launch-gate review.
+
+**Remaining (release execution):**
+
 - Production PyPI publish + public promotion not done (gated on maintainer approval; §2/§8).
 
 <!-- MEMINIT_SECTION: work_items -->
@@ -89,14 +90,14 @@ acceptance criterion, and this task is surfaced by `meminit state next` until cl
 
 ## 3. Work Items
 
-| ID   | Owner            | Work item                                                                                 | Definition of done                                                                                          |
-| ---- | ---------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| WI-1 | Maintainer/QA    | Peer-review and promote evidence LOGs LOG-002 (greenfield), LOG-003 (Architext), LOG-005 (stranger) Draft → Approved | Each LOG reviewed; `status: Approved` or an explicit "Draft is sufficient for launch" decision recorded     |
-| WI-2 | Maintainer/Docs  | Peer-review and promote DEVEX-001 (release notes) Draft → Approved                          | Release notes confirmed to match supported commands/limitations; `status: Approved`                          |
-| WI-3 | Maintainer       | Promote PLAN-016 Draft → Approved                                                          | All §8 gates accepted; `status: Approved` set by maintainer (self-promotion forbidden per §13)              |
-| WI-4 | Maintainer/Release | Production PyPI publish + public promotion as one gated event                            | `release.yml` run to production after TestPyPI rehearsal; README/promotion point only to tested workflows    |
-| WI-5 | Done (evidence)  | Formatter/managed-artifact disjoint ownership (`.prettierignore` repo + `init` scaffolding); `README` `.codex` fix; `.codex` lint extended to root Markdown | Triple-green verified (see §4); adopter simulation passes; recorded as closed                              |
-| WI-6 | Optional (recommend) | ADR for the disjoint-ownership decision ("formatter-managed vs Meminit-managed files"), consistent with ADR-017 | ADR authored and accepted, or explicitly declined with rationale                                            |
+| ID   | Owner                | Work item                                                                                                                                                   | Definition of done                                                                                        |
+| ---- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| WI-1 | Done                 | Peer-review and promote evidence LOGs LOG-002 (greenfield), LOG-003 (Architext), LOG-005 (stranger) Draft → Approved                                        | LOG-002, LOG-003, and LOG-005 are Approved                                                                |
+| WI-2 | Done                 | Peer-review and promote DEVEX-001 (release notes) Draft → Approved                                                                                          | DEVEX-001 is Approved and matches supported commands/limitations                                          |
+| WI-3 | Done                 | Promote PLAN-016 Draft → Approved                                                                                                                           | PLAN-016 §8 gates accepted; `status: Approved` set under maintainer instruction                           |
+| WI-4 | Maintainer/Release   | Production PyPI publish + public promotion as one gated event                                                                                               | `release.yml` run to production after TestPyPI rehearsal; README/promotion point only to tested workflows |
+| WI-5 | Done (evidence)      | Formatter/managed-artifact disjoint ownership (`.prettierignore` repo + `init` scaffolding); `README` `.codex` fix; `.codex` lint extended to root Markdown | Triple-green verified (see §4); adopter simulation passes; recorded as closed                             |
+| WI-6 | Optional (recommend) | ADR for the disjoint-ownership decision ("formatter-managed vs Meminit-managed files"), consistent with ADR-017                                             | ADR authored and accepted, or explicitly declined with rationale                                          |
 
 <!-- MEMINIT_SECTION: verification_matrix -->
 <!-- AGENT: List the exact commands and evidence required before closure. -->
@@ -121,14 +122,15 @@ TMP=$(mktemp -d); uv run meminit init --root "$TMP" --format json
 uv run meminit protocol check --root "$TMP" --format json   # 3/3 aligned
 ```
 
-WI-1..WI-4 are accepted by the named maintainer/reviewer owners (no automated gate); WI-3/WI-4
-require explicit maintainer action and must not be self-promoted.
+WI-1..WI-3 are closed by governed document promotion. WI-4 remains accepted by the named
+maintainer/release owner and must close only after the release workflow completes.
 
 <!-- MEMINIT_SECTION: version_history -->
 <!-- AGENT: Track version changes with dates, authors, and change summaries. -->
 
 ## 5. Version History
 
-| Version | Date     | Author    | Changes       |
-| ------- | -------- | --------- | ------------- |
-| 0.1     | 2026-06-04 | GitCmurf | Initial draft |
+| Version | Date       | Author   | Changes                                                                                                          |
+| ------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| 0.2     | 2026-06-10 | GitCmurf | Closed WI-1..WI-3 through evidence, release notes, and PLAN-016 approval; WI-4 remains pending release execution |
+| 0.1     | 2026-06-04 | GitCmurf | Initial draft                                                                                                    |

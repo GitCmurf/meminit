@@ -2985,7 +2985,7 @@
           "state",
           "release-workflow"
         ],
-        "last_updated": "2026-05-25",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -2993,7 +2993,7 @@
         "ready": false,
         "related_ids": null,
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Release Notes v0.3.0-alpha",
         "type": "DEVEX",
@@ -3424,7 +3424,7 @@
         "description": null,
         "document_id": "MEMINIT-LOG-002",
         "keywords": null,
-        "last_updated": "2026-05-22",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3432,7 +3432,7 @@
         "ready": false,
         "related_ids": null,
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Dogfooding Sequencing Evidence",
         "type": "LOG",
@@ -3450,7 +3450,7 @@
           "init",
           "new"
         ],
-        "last_updated": "2026-05-25",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3458,7 +3458,7 @@
         "ready": false,
         "related_ids": null,
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Architext Pilot Evidence",
         "type": "LOG",
@@ -3499,7 +3499,7 @@
           "evidence",
           "adoption"
         ],
-        "last_updated": "2026-05-26",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3509,7 +3509,7 @@
           "MEMINIT-PLAN-016"
         ],
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Stranger Simulation Evidence",
         "type": "LOG",
@@ -3930,7 +3930,7 @@
           "agent-skill",
           "brownfield"
         ],
-        "last_updated": "2026-06-05",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
         "open_blockers": [],
         "owner": "GitCmurf",
@@ -3942,7 +3942,7 @@
           "MEMINIT-TASK-005"
         ],
         "repo_prefix": "MEMINIT",
-        "status": "Draft",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Adoption and Dogfooding Sequencing",
         "type": "PLAN",
@@ -4792,10 +4792,10 @@
         "keywords": [
           "task"
         ],
-        "last_updated": "2026-06-04",
+        "last_updated": "2026-06-10",
         "namespace": "meminit",
-        "next_action": "Maintainer: peer-review and promote the 4 Draft evidence records and PLAN-016; then production PyPI publish per release.yml.",
-        "notes": "PLAN-016 launch-gate closure: WI-5 (formatter/lint remediation) done; WI-1..4 await maintainer/reviewer (promote LOG-002/003/005 + DEVEX-001 + PLAN-016; production PyPI publish).",
+        "next_action": "Maintainer/release: run release.yml for v0.3.0a1 through TestPyPI, approve production PyPI environment, verify public install, then close MEMINIT-TASK-005.",
+        "notes": "PLAN-016 launch-gate closure: WI-1..3 done (LOG-002/003/005, DEVEX-001, and PLAN-016 Approved); WI-5 done; WI-4 remains production PyPI publish and public promotion.",
         "open_blockers": [],
         "owner": "GitCmurf",
         "path": "docs/05-planning/tasks/task-005-plan-016-launch-gate-closure.md",
@@ -4810,7 +4810,7 @@
         "title": "PLAN-016 launch-gate closure",
         "type": "TASK",
         "unblocks": [],
-        "updated": "2026-06-04T22:41:49.449274+00:00",
+        "updated": "2026-06-09T23:00:00+00:00",
         "updated_by": "GitCmurf"
       },
       {

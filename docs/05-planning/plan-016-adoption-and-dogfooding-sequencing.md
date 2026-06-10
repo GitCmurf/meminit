@@ -2,9 +2,9 @@
 document_id: MEMINIT-PLAN-016
 type: PLAN
 title: Adoption and Dogfooding Sequencing
-status: Draft
-version: "0.5"
-last_updated: "2026-06-05"
+status: Approved
+version: "0.6"
+last_updated: "2026-06-10"
 owner: GitCmurf
 docops_version: "2.0"
 area: ADOPT
@@ -27,9 +27,9 @@ related_ids:
 
 > **Document ID:** MEMINIT-PLAN-016
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.5
-> **Last Updated:** 2026-06-05
+> **Status:** Approved
+> **Version:** 0.6
+> **Last Updated:** 2026-06-10
 > **Type:** PLAN
 > **Area:** ADOPT
 > **Description:** Defines the dogfood-first adoption sequence, engineering workstreams, verification gates, and release-readiness criteria for Meminit's first public package launch.
@@ -61,9 +61,9 @@ surface, a validation command or artifact, and an explicit evidence requirement.
 ## 1. Current Verification Snapshot
 
 These findings were verified against the repository and dogfooding records on
-2026-05-29. This document remains Draft pending peer review; the implementation
-evidence is complete enough for review/handover, not for unreviewed external
-launch claims.
+2026-05-29 and peer-reviewed for launch-gate acceptance on 2026-06-10. This
+document is Approved as the launch-gate decision record; production PyPI release
+execution remains tracked separately by MEMINIT-TASK-005.
 
 - The core agent interface has the v3 JSON envelope and NDJSON streaming support.
   Adoption workflows should use `--format json` by default and opt into NDJSON
@@ -81,9 +81,8 @@ launch claims.
 - Release engineering exists through the tag-triggered workflow, package build
   checks, release-note checks, and secret scanning. Production PyPI release still
   requires maintainer approval and environment configuration.
-- Adoption evidence exists for greenfield, brownfield, Architext, security scan,
-  and README-only stranger simulation. Most evidence records remain Draft and
-  require reviewer acceptance or status promotion before public launch claims.
+- Adoption evidence exists and is Approved for greenfield, brownfield,
+  Architext, security scan, README-only stranger simulation, and release notes.
 - AIDHA exposed a dogfooding hygiene issue: rebuildable `.meminit/cache/` data
   triggered detect-secrets false positives when staged. The product and AIDHA
   test repo now treat `.meminit/cache/` and `.meminit.lock` as ignored runtime
@@ -339,13 +338,11 @@ rerunning everything.
 
 ## 8. Launch Gate Checklist
 
-Implementation evidence is captured for every launch gate below. Publish and
-promote only after peer reviewers accept the evidence, including whether Draft
-evidence records are sufficient or must be promoted first. This plan therefore
-remains **Draft / not complete**: its remaining closure actions — peer-review
-promotion of the Draft evidence records and this plan, and the production PyPI
-publish — are tracked by [MEMINIT-TASK-005](tasks/task-005-plan-016-launch-gate-closure.md)
-and surfaced by `meminit state next`.
+Implementation evidence is captured for every launch gate below. Peer review
+has accepted and promoted the launch evidence records and this plan. The
+remaining release execution action — production PyPI publish — is tracked by
+[MEMINIT-TASK-005](tasks/task-005-plan-016-launch-gate-closure.md) and remains
+surfaced by `meminit state next` until the release workflow completes.
 
 - [x] This repo passes `uv run meminit doctor --format json`,
       `uv run meminit check --format json`,
@@ -357,14 +354,14 @@ and surfaced by `meminit state next`.
       [MEMINIT-TASK-001](tasks/task-001-plan-016-qa-remediation.md).
 - [x] Greenfield adoption reaches first green from documented commands.
       Evidence: [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
-      (Draft).
+      (Approved).
 - [x] Brownfield adoption validates `scan -> plan -> dry-run -> apply -> check`
       on one messy repo. Evidence:
       [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md)
-      (Draft).
+      (Approved).
 - [x] Architext pilot validates the orchestrator-facing contract with Meminit
       pinned to an exact tag or commit. Evidence:
-      [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Draft;
+      [MEMINIT-LOG-003](../58-logs/log-003-architext-pilot-evidence.md) (Approved;
       pinned to f2dee7ba51696470d2c9c224ef244bcf9b72e5a5).
 - [x] Launch-critical templates exist for ADR, PRD, FDD, PLAN, SPEC, RUNBOOK,
       DESIGN, LOG, TASK, and STRAT; malformed placeholder regressions are
@@ -375,7 +372,7 @@ and surfaced by `meminit state next`.
 - [x] README quickstart passes the stranger simulation from a clean checkout.
       Evidence:
       [MEMINIT-LOG-005](../58-logs/log-005-stranger-simulation-evidence.md)
-      (Draft).
+      (Approved).
 - [x] Tag-triggered release workflow builds sdist/wheel using `uv build`, runs
       tests, validates metadata, and supports a dry-run publish path before
       production PyPI.
@@ -386,7 +383,7 @@ and surfaced by `meminit state next`.
       gitleaks v8.18.4 verified).
 - [x] Release notes state supported commands, known limitations, and the pre-1.0
       compatibility policy. Evidence:
-      [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md) (Draft).
+      [MEMINIT-DEVEX-001](../70-devex/devex-001-release-notes.md) (Approved).
 
 Additional dogfooding hygiene: AIDHA now ignores `.meminit/cache/` and
 `.meminit.lock`, removes generated cache files from the git index, and passes
@@ -488,8 +485,8 @@ sign-off or accepted-risk notes.
 ## 13. Notes for Agents
 
 - Preserve `document_id: MEMINIT-PLAN-016`. The ID is immutable.
-- Do not promote this document to `Approved` without explicit maintainer
-  instruction.
+- Further lifecycle changes to this Approved document require explicit
+  maintainer instruction.
 - Reference governed docs by document ID in prose and use relative links only
   when the target exists.
 - Start a session with `uv run meminit context --format json`; do not hardcode type
