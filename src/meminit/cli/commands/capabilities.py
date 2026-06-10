@@ -1,11 +1,14 @@
 """Capabilities and explain commands implementation."""
 
-from typing import Any
-
 import click
 
 from meminit.cli._helpers import command_output_handler, get_console
-from meminit.cli.shared.output_helpers import _md_table, _write_output, exit_code_for_error
+from meminit.cli.shared.output_helpers import (
+    _md_table,
+    _write_output,
+    exit_code_for_error,
+    maybe_capture,
+)
 from meminit.cli.shared_flags import agent_output_options
 from meminit.core.services.error_codes import ErrorCode, MeminitError
 from meminit.core.services.observability import get_current_run_id
@@ -46,13 +49,32 @@ def register(cli: click.Group) -> None:
                     ),
                     output,
                 )
+            elif format == "md":
+                markdown = "\n".join(
+                    [
+                        "# Meminit Capabilities",
+                        "",
+                        "## Commands",
+                        "",
+                        _md_table(
+                            ["Command", "Description"],
+                            [[c["name"], c.get("description", "")] for c in result["commands"]],
+                        ),
+                        "",
+                        "## Error Codes",
+                        "",
+                        _md_table(["Code"], [[code] for code in result["error_codes"]]),
+                        "",
+                    ]
+                )
+                _write_output(markdown, output)
             else:
-                get_console().print("[bold blue]Capabilities:[/bold blue]")
-                rows = [[c["name"], c.get("description", "")] for c in result["commands"]]
-                get_console().print(_md_table(["Command", "Description"], rows))
-
-                get_console().print("\n[bold blue]Error Codes:[/bold blue]")
-                get_console().print(", ".join(result["error_codes"]))
+                with maybe_capture(output, format):
+                    get_console().print("[bold blue]Capabilities:[/bold blue]")
+                    rows = [[c["name"], c.get("description", "")] for c in result["commands"]]
+                    get_console().print(_md_table(["Command", "Description"], rows))
+                    get_console().print("\n[bold blue]Error Codes:[/bold blue]")
+                    get_console().print(", ".join(result["error_codes"]))
             raise SystemExit(0)
 
     @cli.command()
@@ -87,9 +109,25 @@ def register(cli: click.Group) -> None:
                         ),
                         output,
                     )
+                elif format == "md":
+                    markdown = "\n".join(
+                        [
+                            "# Meminit Explain",
+                            "",
+                            "## Error Codes",
+                            "",
+                            _md_table(
+                                ["Code", "Category", "Summary"],
+                                [[c["code"], c["category"], c["summary"]] for c in codes],
+                            ),
+                            "",
+                        ]
+                    )
+                    _write_output(markdown, output)
                 else:
-                    rows = [[c["code"], c["category"], c["summary"]] for c in codes]
-                    get_console().print(_md_table(["Code", "Category", "Summary"], rows))
+                    with maybe_capture(output, format):
+                        rows = [[c["code"], c["category"], c["summary"]] for c in codes]
+                        get_console().print(_md_table(["Code", "Category", "Summary"], rows))
             elif error_code:
                 explanation = use_case.explain(error_code)
                 if explanation is None:
@@ -112,10 +150,23 @@ def register(cli: click.Group) -> None:
                             ),
                             output,
                         )
-                    else:
-                        get_console().print(
-                            f"[bold red]Unknown error code: {error_code}[/bold red]"
+                    elif format == "md":
+                        _write_output(
+                            "\n".join(
+                                [
+                                    "# Meminit Explain",
+                                    "",
+                                    f"Unknown error code: {error_code}",
+                                    "",
+                                ]
+                            ),
+                            output,
                         )
+                    else:
+                        with maybe_capture(output, format):
+                            get_console().print(
+                                f"[bold red]Unknown error code: {error_code}[/bold red]"
+                            )
                     raise SystemExit(exit_code_for_error(ErrorCode.UNKNOWN_ERROR_CODE))
                 if format == "json":
                     _write_output(
@@ -129,8 +180,40 @@ def register(cli: click.Group) -> None:
                         ),
                         output,
                     )
+                elif format == "md":
+                    remediation = explanation.get("remediation", {})
+                    relevant_commands = ", ".join(remediation.get("relevant_commands", [])) or "—"
+                    markdown = "\n".join(
+                        [
+                            "# Meminit Explain",
+                            "",
+                            _md_table(
+                                ["Field", "Value"],
+                                [
+                                    ["Code", explanation.get("code", "")],
+                                    ["Category", explanation.get("category", "")],
+                                    ["Summary", explanation.get("summary", "")],
+                                    ["Cause", explanation.get("cause", "")],
+                                    ["Remediation Action", remediation.get("action", "")],
+                                    [
+                                        "Resolution Type",
+                                        remediation.get("resolution_type", ""),
+                                    ],
+                                    [
+                                        "Automatable",
+                                        "yes" if remediation.get("automatable") else "no",
+                                    ],
+                                    ["Relevant Commands", relevant_commands],
+                                    ["Spec Reference", explanation.get("spec_reference", "")],
+                                ],
+                            ),
+                            "",
+                        ]
+                    )
+                    _write_output(markdown, output)
                 else:
-                    get_console().print(f"{error_code}: {explanation.get('summary', '')}")
+                    with maybe_capture(output, format):
+                        get_console().print(f"{error_code}: {explanation.get('summary', '')}")
             else:
                 raise MeminitError(
                     ErrorCode.INVALID_FLAG_COMBINATION,

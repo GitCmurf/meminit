@@ -1044,6 +1044,24 @@ def test_index_sanitizes_html_in_catalog(tmp_path):
     assert "<script>" not in content
 
 
+def test_index_does_not_double_escape_catalog_html_entities(tmp_path):
+    """Already-escaped title and owner values stay escaped exactly once."""
+    _setup_doc(
+        tmp_path,
+        "EXAMPLE-ADR-001",
+        title="Research & Development <draft>",
+        owner="Ops & Team",
+    )
+
+    use_case = IndexRepositoryUseCase(str(tmp_path), output_catalog=True)
+    report = use_case.execute()
+
+    content = report.catalog_path.read_text(encoding="utf-8")
+    assert "Research &amp; Development &lt;draft&gt;" in content
+    assert "Ops &amp; Team" in content
+    assert "&amp;amp;" not in content
+
+
 # ---------------------------------------------------------------------------
 # Backward compatibility: resolve/identify/link still work
 # ---------------------------------------------------------------------------

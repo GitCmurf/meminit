@@ -2826,6 +2826,98 @@ def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
     assert len(payload["violations"]) == 1
 
 
+def test_cli_capabilities_md_output_writes_file(tmp_path):
+    output_path = tmp_path / "capabilities.md"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["capabilities", "--format", "md", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "# Meminit Capabilities" in content
+    assert "## Commands" in content
+    assert "| Command | Description |" in content
+    assert "## Error Codes" in content
+    assert "| Code |" in content
+
+
+@pytest.mark.parametrize(
+    "cli_args, expected_snippets",
+    [
+        (
+            ["explain", "--list"],
+            ["# Meminit Explain", "## Error Codes", "| Code | Category | Summary |"],
+        ),
+        (
+            ["explain", "DUPLICATE_ID"],
+            ["# Meminit Explain", "| Field | Value |", "DUPLICATE_ID"],
+        ),
+    ],
+)
+def test_cli_explain_md_output_writes_file(tmp_path, cli_args, expected_snippets):
+    output_path = tmp_path / ("explain-list.md" if "--list" in cli_args else "explain-single.md")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        cli_args + ["--format", "md", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    for snippet in expected_snippets:
+        assert snippet in content
+
+
+@patch("meminit.cli.commands.doctor.DoctorRepositoryUseCase")
+def test_cli_doctor_text_output_writes_file_and_not_stdout(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = [
+        SimpleNamespace(
+            severity=SimpleNamespace(value="warning"),
+            rule="DOCOPS_WARN",
+            file="docs/a.md",
+            line=1,
+            message="Warning message",
+        ),
+        SimpleNamespace(
+            severity=SimpleNamespace(value="error"),
+            rule="DOCOPS_ERR",
+            file="docs/b.md",
+            line=2,
+            message="Error message",
+        ),
+    ]
+    output_path = tmp_path / "doctor.txt"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "doctor",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "Status: ERROR" in content
+    assert "Errors (1)" in content
+    assert "Warnings (1)" in content
+    assert "docs/a.md" in content
+    assert "docs/b.md" in content
+
+
 @patch("meminit.cli.commands.fix.FixRepositoryUseCase")
 def test_cli_fix_json_output(mock_use_case, tmp_path):
     report = SimpleNamespace(

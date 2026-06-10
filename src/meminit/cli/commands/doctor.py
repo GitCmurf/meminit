@@ -4,7 +4,12 @@ from pathlib import Path
 
 import click
 
-from meminit.cli._helpers import command_output_handler, get_console, validate_root_path
+from meminit.cli._helpers import (
+    command_output_handler,
+    get_console,
+    maybe_capture,
+    validate_root_path,
+)
 from meminit.cli.shared.output_helpers import _md_table, _write_output
 from meminit.cli.shared_flags import agent_repo_options
 from meminit.core.services.exit_codes import EX_COMPLIANCE_FAIL
@@ -168,19 +173,22 @@ def register(cli: click.Group) -> None:
                 _write_output(f"{title}{table}\n", output)
                 raise SystemExit(exit_code)
 
-            get_console().print(f"Status: {status.upper()}")
-            if errors:
-                get_console().print(f"\n[bold red]Errors ({len(errors)}):[/bold red]")
-                for issue in errors:
-                    line_info = f" (line {issue.line})" if issue.line is not None else ""
+            with maybe_capture(output, format):
+                get_console().print(f"Status: {status.upper()}")
+                if errors:
+                    get_console().print(f"\n[bold red]Errors ({len(errors)}):[/bold red]")
+                    for issue in errors:
+                        line_info = f" (line {issue.line})" if issue.line is not None else ""
+                        get_console().print(
+                            f"  [red]ERR[/red] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
+                        )
+                if warnings:
                     get_console().print(
-                        f"  [red]ERR[/red] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
+                        f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]"
                     )
-            if warnings:
-                get_console().print(f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]")
-                for issue in warnings:
-                    line_info = f" (line {issue.line})" if issue.line is not None else ""
-                    get_console().print(
-                        f"  [yellow]WARN[/yellow] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
-                    )
+                    for issue in warnings:
+                        line_info = f" (line {issue.line})" if issue.line is not None else ""
+                        get_console().print(
+                            f"  [yellow]WARN[/yellow] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
+                        )
             raise SystemExit(exit_code)

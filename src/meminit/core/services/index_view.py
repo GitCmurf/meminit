@@ -580,15 +580,15 @@ class IndexViewService:
                     ready_display = "\u2014"
 
                 row = [
-                    escape_markdown_table(sanitize_html(str(entry.get("document_id", "")))),
-                    escape_markdown_table(sanitize_html(str(entry.get("title", "")))),
-                    escape_markdown_table(sanitize_html(str(entry.get("type", "")))),
-                    escape_markdown_table(sanitize_html(str(entry.get("status", "")))),
-                    escape_markdown_table(sanitize_html(str(entry.get("impl_state", "")))),
-                    escape_markdown_table(sanitize_html(str(priority))),
+                    escape_markdown_table(str(entry.get("document_id") or "")),
+                    escape_markdown_table(str(entry.get("title") or "")),
+                    escape_markdown_table(str(entry.get("type") or "")),
+                    escape_markdown_table(str(entry.get("status") or "")),
+                    escape_markdown_table(str(entry.get("impl_state") or "")),
+                    escape_markdown_table(str(priority)),
                     ready_display,
                     last_active,
-                    escape_markdown_table(sanitize_html(str(entry.get("owner", "")))),
+                    escape_markdown_table(str(entry.get("owner") or "")),
                 ]
                 rows.append(row)
 
