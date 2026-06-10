@@ -29,7 +29,7 @@ Provide a safe, deterministic assistant to migrate legacy `document_id` values i
   - rewrites frontmatter `document_id`
   - rewrites visible metadata block “Document ID” line when the `<!-- MEMINIT_METADATA_BLOCK -->` marker is present
   - updates the first H1 if it contains the old ID
-- Optional: `--rewrite-references` to replace old IDs in the body text (conservative word-boundary replacement).
+- Optional: `--rewrite-references` to replace old IDs in the body text and reference-bearing frontmatter fields (`related_ids`, `superseded_by`) across governed documents, using conservative word-boundary replacement.
 
 ## Safety Guarantees
 

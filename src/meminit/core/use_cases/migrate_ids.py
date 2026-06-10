@@ -64,7 +64,7 @@ class MigrateIdsUseCase:
     - dry-run by default (caller decides whether to write)
     - only rewrites governed docs under docs_root
     - only rewrites frontmatter and known visible metadata block lines
-    - optional reference rewriting (disabled by default)
+    - optional repository-wide reference rewriting (disabled by default)
     """
 
     def __init__(self, root_dir: str):
@@ -218,6 +218,34 @@ class MigrateIdsUseCase:
                     )
                 )
 
+        rewrite_targets: Dict[str, str] = {}
+        ambiguous_rewrite_targets: Set[str] = set()
+        if rewrite_references:
+            for action in actions:
+                if action.old_id in ambiguous_rewrite_targets:
+                    continue
+                existing = rewrite_targets.get(action.old_id)
+                if existing is None:
+                    rewrite_targets[action.old_id] = action.new_id
+                elif existing != action.new_id:
+                    ambiguous_rewrite_targets.add(action.old_id)
+                    rewrite_targets.pop(action.old_id, None)
+
+        if rewrite_references and ambiguous_rewrite_targets:
+            for old_id in sorted(ambiguous_rewrite_targets):
+                advice.append(
+                    {
+                        "code": "ID_REFERENCE_REWRITE_AMBIGUOUS",
+                        "message": (
+                            f"Skipped repository-wide reference rewriting for {old_id} "
+                            "because multiple migrated documents shared that source ID."
+                        ),
+                    }
+                )
+
+        if rewrite_references and rewrite_targets:
+            self._rewrite_references_across_repo(rewrite_targets, dry_run=dry_run)
+
         return IdMigrationReport(
             dry_run=dry_run,
             actions=actions,
@@ -253,8 +281,14 @@ class MigrateIdsUseCase:
 
         rewritten_refs = 0
         if rewrite_references:
-            content, rewritten_refs = self._replace_id_references(post.content, old_id, new_id)
+            content, content_refs = self._replace_id_references(post.content, {old_id: new_id})
             post.content = content
+
+            metadata, metadata_refs = self._replace_reference_fields(
+                post.metadata or {}, {old_id: new_id}
+            )
+            post.metadata = metadata
+            rewritten_refs = content_refs + metadata_refs
 
         if not dry_run:
             post.metadata = normalize_yaml_scalar_footguns(post.metadata or {})
@@ -371,8 +405,91 @@ class MigrateIdsUseCase:
                 return text, False
         return text, False
 
-    def _replace_id_references(self, text: str, old_id: str, new_id: str) -> Tuple[str, int]:
-        # Conservative word-boundary replacement.
-        pattern = re.compile(rf"(?<![A-Z0-9-]){re.escape(old_id)}(?![A-Z0-9-])")
-        new_text, n = pattern.subn(new_id, text)
+    def _rewrite_references_across_repo(
+        self, replacements: Dict[str, str], *, dry_run: bool
+    ) -> None:
+        for ns in self._layout.namespaces:
+            if not ns.docs_dir.exists():
+                continue
+
+            for path in sorted(ns.docs_dir.rglob("*.md")):
+                owner = self._layout.namespace_for_path(path)
+                if owner is None or owner.namespace.lower() != ns.namespace.lower():
+                    continue
+                if ns.is_excluded(path):
+                    continue
+
+                try:
+                    post = frontmatter.load(path)
+                except Exception:
+                    continue
+
+                if not post.metadata:
+                    continue
+
+                content, content_refs = self._replace_id_references(post.content, replacements)
+                metadata, metadata_refs = self._replace_reference_fields(
+                    post.metadata, replacements
+                )
+                if not content_refs and not metadata_refs:
+                    continue
+
+                post.content = content
+                post.metadata = normalize_yaml_scalar_footguns(metadata or {})
+                if not dry_run:
+                    ensure_safe_write_path(root_dir=self._root_dir, target_path=path)
+                    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+
+    def _replace_reference_fields(
+        self, metadata: Dict[str, Any], replacements: Dict[str, str]
+    ) -> Tuple[Dict[str, Any], int]:
+        updated = dict(metadata)
+        total = 0
+
+        if "related_ids" in updated:
+            updated_related_ids, count = self._replace_reference_value(
+                updated["related_ids"], replacements
+            )
+            updated["related_ids"] = updated_related_ids
+            total += count
+
+        if "superseded_by" in updated:
+            updated_superseded_by, count = self._replace_reference_value(
+                updated["superseded_by"], replacements
+            )
+            updated["superseded_by"] = updated_superseded_by
+            total += count
+
+        return updated, total
+
+    def _replace_reference_value(
+        self, value: Any, replacements: Dict[str, str]
+    ) -> Tuple[Any, int]:
+        if isinstance(value, str):
+            return self._replace_id_references(value, replacements)
+
+        if isinstance(value, list):
+            updated: List[Any] = []
+            total = 0
+            for item in value:
+                updated_item, count = self._replace_reference_value(item, replacements)
+                updated.append(updated_item)
+                total += count
+            return updated, total
+
+        return value, 0
+
+    def _replace_id_references(self, text: str, replacements: Dict[str, str]) -> Tuple[str, int]:
+        if not replacements:
+            return text, 0
+
+        old_ids = sorted(replacements.keys(), key=len, reverse=True)
+        pattern = re.compile(
+            rf"(?<![A-Z0-9-])(?:{'|'.join(re.escape(old_id) for old_id in old_ids)})(?![A-Z0-9-])"
+        )
+
+        def _repl(match: re.Match[str]) -> str:
+            return replacements[match.group(0)]
+
+        new_text, n = pattern.subn(_repl, text)
         return new_text, n
