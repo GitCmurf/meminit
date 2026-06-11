@@ -53,7 +53,7 @@ def test_no_legacy_codex_paths():
                 for line_idx, line in enumerate(lines, 1):
                     if pattern in line:
                         violations.append(f"{rel_path}:{line_idx}: {line.strip()}")
-        except Exception:
+        except UnicodeDecodeError:
             # Ignore decode errors for binary/unknown formats
             pass
 

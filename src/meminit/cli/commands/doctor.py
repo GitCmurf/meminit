@@ -183,9 +183,7 @@ def register(cli: click.Group) -> None:
                             f"  [red]ERR[/red] [{issue.rule}] {issue.file or ''}{line_info}: {issue.message}"
                         )
                 if warnings:
-                    get_console().print(
-                        f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]"
-                    )
+                    get_console().print(f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]")
                     for issue in warnings:
                         line_info = f" (line {issue.line})" if issue.line is not None else ""
                         get_console().print(

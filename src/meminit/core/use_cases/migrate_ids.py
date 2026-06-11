@@ -462,9 +462,7 @@ class MigrateIdsUseCase:
 
         return updated, total
 
-    def _replace_reference_value(
-        self, value: Any, replacements: Dict[str, str]
-    ) -> Tuple[Any, int]:
+    def _replace_reference_value(self, value: Any, replacements: Dict[str, str]) -> Tuple[Any, int]:
         if isinstance(value, str):
             return self._replace_id_references(value, replacements)
 

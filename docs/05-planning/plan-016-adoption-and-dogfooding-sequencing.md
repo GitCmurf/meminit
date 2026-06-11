@@ -22,6 +22,7 @@ keywords:
 related_ids:
   - MEMINIT-PLAN-003
   - MEMINIT-STRAT-001
+  - MEMINIT-TASK-004
   - MEMINIT-TASK-005
 ---
 

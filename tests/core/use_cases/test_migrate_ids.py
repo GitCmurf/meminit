@@ -365,9 +365,7 @@ docops_version: 2.0
     report = MigrateIdsUseCase(str(tmp_path)).execute(dry_run=False, rewrite_references=False)
 
     assert len(report.actions) == 2, "Both files should be migrated"
-    assert (
-        report.actions[0].new_id != report.actions[1].new_id
-    ), "Should allocate different new IDs"
+    assert report.actions[0].new_id != report.actions[1].new_id, "Should allocate different new IDs"
     assert report.actions[0].old_id == report.actions[1].old_id == "DUP-ADR"
 
     post1 = frontmatter.load(tmp_path / "docs" / "45-adr" / f"adr-001.md")

@@ -2,7 +2,7 @@
 document_id: MEMINIT-TASK-002
 type: TASK
 title: Architecture Refactoring
-status: Superseded
+status: Approved
 version: "2.0"
 last_updated: "2026-06-03"
 owner: Codex
@@ -20,7 +20,7 @@ keywords:
 
 > **Document ID:** MEMINIT-TASK-002
 > **Owner:** Codex
-> **Status:** Superseded
+> **Status:** Approved
 > **Version:** 2.0
 > **Completion Date:** 2026-06-03
 

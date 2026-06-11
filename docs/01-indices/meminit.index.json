@@ -743,18 +743,12 @@
       "message": "'MEMINIT-SPEC-011' lists 'MEMINIT-PLAN-014' in related_ids but 'MEMINIT-PLAN-014' does not list 'MEMINIT-SPEC-011'",
       "source": "MEMINIT-SPEC-011",
       "target": "MEMINIT-PLAN-014"
-    },
-    {
-      "code": "GRAPH_RELATED_ID_ASYMMETRY",
-      "message": "'MEMINIT-TASK-004' lists 'MEMINIT-PLAN-016' in related_ids but 'MEMINIT-PLAN-016' does not list 'MEMINIT-TASK-004'",
-      "source": "MEMINIT-TASK-004",
-      "target": "MEMINIT-PLAN-016"
     }
   ],
   "command": "index",
   "data": {
     "document_count": 91,
-    "edge_count": 264,
+    "edge_count": 265,
     "edges": [
       {
         "context": "frontmatter.related_ids",
@@ -1546,6 +1540,13 @@
         "guaranteed": false,
         "source": "MEMINIT-PLAN-016",
         "target": "MEMINIT-TASK-001"
+      },
+      {
+        "context": "frontmatter.related_ids",
+        "edge_type": "related",
+        "guaranteed": true,
+        "source": "MEMINIT-PLAN-016",
+        "target": "MEMINIT-TASK-004"
       },
       {
         "context": "body.markdown_link",
@@ -3939,6 +3940,7 @@
         "related_ids": [
           "MEMINIT-PLAN-003",
           "MEMINIT-STRAT-001",
+          "MEMINIT-TASK-004",
           "MEMINIT-TASK-005"
         ],
         "repo_prefix": "MEMINIT",
@@ -4721,7 +4723,7 @@
         "ready": false,
         "related_ids": null,
         "repo_prefix": "MEMINIT",
-        "status": "Superseded",
+        "status": "Approved",
         "superseded_by": null,
         "title": "Architecture Refactoring",
         "type": "TASK",
@@ -4861,13 +4863,6 @@
       "code": "CACHE_LOCK_HELD",
       "message": "Index cache is unavailable; using a full rebuild without cache.",
       "path": ".meminit/cache/index/.lock",
-      "severity": "warning"
-    },
-    {
-      "code": "GRAPH_SUPERSESSION_STATUS_MISMATCH",
-      "line": 0,
-      "message": "Document 'MEMINIT-TASK-002' has status 'Superseded' but no superseded_by field",
-      "path": "docs/05-planning/tasks/task-002-architecture-refactoring.md",
       "severity": "warning"
     }
   ]
