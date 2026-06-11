@@ -9,6 +9,7 @@ from meminit.core.domain.entities import CheckResult, Document
 from meminit.core.domain.entities import Frontmatter as FM
 from meminit.core.domain.entities import Severity, Violation
 from meminit.core.services.error_codes import ErrorCode, MeminitError
+from meminit.core.services.frontmatter_utils import extract_document_id
 from meminit.core.services.metadata_normalization import normalize_yaml_scalar_footguns
 from meminit.core.services.repo_config import RepoConfig, load_repo_layout
 from meminit.core.services.validators import IdValidator, LinkChecker, SchemaValidator
@@ -532,12 +533,7 @@ class CheckRepositoryUseCase:
         Returns:
             The document_id string if present, None otherwise.
         """
-        try:
-            post = frontmatter.load(str(path))
-            return self._document_id_from_post(post)
-        except Exception:
-            pass
-        return None
+        return extract_document_id(path)
 
     def _resolve_validation_namespace(
         self,

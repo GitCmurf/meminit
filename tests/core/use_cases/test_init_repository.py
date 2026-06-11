@@ -92,6 +92,44 @@ def test_init_does_not_rewrite_complete_meminit_runtime_gitignore(empty_repo):
     assert ".gitignore" in report.skipped_paths
 
 
+def test_init_creates_prettierignore_shielding_managed_assets(empty_repo):
+    """init scaffolds a .prettierignore so an adopter's Prettier cannot reformat the
+    hash-locked managed assets (which would break `meminit protocol check`)."""
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    prettierignore_path = empty_repo / ".prettierignore"
+    assert prettierignore_path.exists()
+    assert ".prettierignore" in report.created_paths
+    content = prettierignore_path.read_text(encoding="utf-8")
+    # The hash-locked AGENTS.md is the highest-stakes asset and must be shielded.
+    assert "/AGENTS.md" in content
+    assert "/.agents/skills/meminit-docops/SKILL.md" in content
+    # Generated index artifacts + governed templates are also covered.
+    assert "/docs/01-indices/*.index.json" in content
+    assert "/docs/00-governance/templates/" in content
+
+
+def test_init_appends_to_existing_prettierignore(empty_repo):
+    (empty_repo / ".prettierignore").write_text("dist/\n", encoding="utf-8")
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    content = (empty_repo / ".prettierignore").read_text(encoding="utf-8")
+    assert "dist/" in content  # user entry preserved
+    assert "/AGENTS.md" in content
+    assert ".prettierignore" in report.created_paths
+
+
+def test_init_does_not_rewrite_complete_prettierignore(empty_repo):
+    # Pre-seed with exactly the entries init would add.
+    entries = InitRepositoryUseCase._prettierignore_entries()
+    (empty_repo / ".prettierignore").write_text("\n".join(entries) + "\n", encoding="utf-8")
+    report = InitRepositoryUseCase(str(empty_repo)).execute()
+
+    lines = (empty_repo / ".prettierignore").read_text(encoding="utf-8").splitlines()
+    assert lines.count("/AGENTS.md") == 1  # not duplicated
+    assert ".prettierignore" in report.skipped_paths
+
+
 def test_init_creates_12_notes_directory(empty_repo):
     use_case = InitRepositoryUseCase(str(empty_repo))
     report = use_case.execute()

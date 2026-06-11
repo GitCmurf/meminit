@@ -55,6 +55,40 @@ def test_capabilities_use_case_falls_back_to_pyproject_version(monkeypatch):
     versioning.get_cli_version.cache_clear()
 
 
+def test_pyproject_version_fallback_ignores_other_projects(tmp_path):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "not-meminit"\nversion = "9.9.9"\n',
+        encoding="utf-8",
+    )
+
+    assert versioning._version_from_pyproject(pyproject) is None
+
+
+def test_pyproject_version_fallback_reads_meminit_project(tmp_path):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "meminit"\nversion = "1.2.3"\n',
+        encoding="utf-8",
+    )
+
+    assert versioning._version_from_pyproject(pyproject) == "1.2.3"
+
+
+def test_pyproject_version_fallback_checks_current_directory(monkeypatch, tmp_path):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "meminit"\nversion = "4.5.6"\n',
+        encoding="utf-8",
+    )
+    installed_module = tmp_path / "venv" / "site-packages" / "meminit" / "core" / "services"
+    installed_module.mkdir(parents=True)
+    monkeypatch.setattr(versioning, "__file__", str(installed_module / "versioning.py"))
+    monkeypatch.chdir(tmp_path)
+
+    assert versioning._read_pyproject_version() == "4.5.6"
+
+
 def _parse_pyproject_version() -> str:
     import tomllib
 

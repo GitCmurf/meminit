@@ -33,6 +33,10 @@ document_types:
     directory: "45-adr"
     template: "docs/00-governance/templates/adr.template.md"
     description: "Architecture Decision Record"
+  STRAT:
+    directory: "02-strategy"
+    template: "docs/00-governance/templates/strat.template.md"
+    description: "Strategy Document"
   PRD:
     directory: "10-prd"
     template: "docs/00-governance/templates/prd.template.md"

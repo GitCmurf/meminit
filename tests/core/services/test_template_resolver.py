@@ -132,6 +132,30 @@ document_types:
         assert resolution.content is not None
         assert "# PRD:" in resolution.content
 
+    def test_strat_resolution_fallback_to_builtin(self, tmp_path):
+        """STRAT is a first-class built-in type for greenfield strategy docs."""
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+
+        (tmp_path / "docops.config.yaml").write_text(
+            """
+project_name: Test
+repo_prefix: TEST
+docops_version: "2.0"
+document_types:
+  STRAT:
+    directory: "02-strategy"
+"""
+        )
+
+        repo_config = load_repo_config(str(tmp_path))
+        resolution = TemplateResolver(repo_config).resolve("STRAT")
+
+        assert resolution.source == SOURCE_BUILTIN
+        assert resolution.content is not None
+        assert "# STRAT:" in resolution.content
+        assert "<!-- MEMINIT_SECTION: executive_summary -->" in resolution.content
+
     def test_resolution_fallback_to_skeleton(self, tmp_path):
         """Skeleton used when no template found."""
         docs_dir = tmp_path / "docs"

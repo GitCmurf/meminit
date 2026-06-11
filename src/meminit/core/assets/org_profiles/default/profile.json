@@ -5,6 +5,7 @@
   "files": [
     "metadata.schema.json",
     "templates/adr.template.md",
+    "templates/strat.template.md",
     "templates/fdd.template.md",
     "templates/prd.template.md",
     "templates/plan.template.md",

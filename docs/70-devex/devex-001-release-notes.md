@@ -2,9 +2,9 @@
 document_id: MEMINIT-DEVEX-001
 type: DEVEX
 title: Release Notes v0.3.0-alpha
-status: Draft
-version: "0.1"
-last_updated: 2026-05-25
+status: Approved
+version: "0.2"
+last_updated: 2026-06-10
 owner: GitCmurf
 area: ADOPT
 docops_version: "2.0"
@@ -22,8 +22,9 @@ keywords:
 
 > **Document ID:** MEMINIT-DEVEX-001
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
+> **Status:** Approved
+> **Version:** 0.2
+> **Last Updated:** 2026-06-10
 
 # DEVEX: Release Notes v0.3.0-alpha
 
@@ -119,7 +120,7 @@ After v1.0, standard semantic versioning will be strictly observed.
 ## Known Limitations
 
 1. **Protocol assets:** Only 3 standard assets are governed (AGENTS.md, SKILL.md, brownfield script). Custom protocol assets require code changes.
-2. **Templates v2:** Only ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, and TASK have Templates v2 section markers. Other types use legacy templates.
+2. **Templates v2:** ADR, PRD, FDD, PLAN, SPEC, RUNBOOK, DESIGN, LOG, TASK, and STRAT have Templates v2 section markers. Other types use legacy templates.
 3. **Secret scanning:** gitleaks must be installed locally for pre-commit enforcement. CI uses the GitHub Action. Meminit runtime state (`.meminit/cache/` and `.meminit.lock`) should be git-ignored and scanner-excluded, not committed or added to scanner baselines.
 4. **State management:** `project-state.yaml` is file-based; concurrent writes from multiple agents may conflict (use agent routing).
 5. **Index caching:** Cache is invalidated on schema/config changes but may require manual clearing (`docs/01-indices/.index_cache.json`) in rare edge cases.
@@ -144,6 +145,7 @@ See [MEMINIT-LOG-002](../58-logs/log-002-dogfooding-sequencing-evidence.md), [ME
 
 ## Version History
 
-| Version | Date       | Author   | Changes                                |
-| ------- | ---------- | -------- | -------------------------------------- |
-| 0.1     | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha |
+| Version | Date       | Author   | Changes                                                              |
+| ------- | ---------- | -------- | -------------------------------------------------------------------- |
+| 0.2     | 2026-06-10 | GitCmurf | Approved v0.3.0-alpha release notes for PLAN-016 launch gate closure |
+| 0.1     | 2026-05-25 | GitCmurf | Initial release notes for v0.3.0-alpha                               |

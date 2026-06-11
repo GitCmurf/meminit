@@ -21,6 +21,20 @@ def test_init_repository_writes_task_template_from_bundled_profile(tmp_path: Pat
     assert "# TASK:" in content
 
 
+def test_init_repository_writes_strat_template_and_config(tmp_path: Path):
+    InitRepositoryUseCase(root_dir=str(tmp_path)).execute()
+
+    strat_template = tmp_path / "docs/00-governance/templates/strat.template.md"
+    assert strat_template.exists()
+    content = strat_template.read_text(encoding="utf-8")
+    assert "# STRAT:" in content
+    assert "<!-- MEMINIT_SECTION: executive_summary -->" in content
+
+    config = (tmp_path / "docops.config.yaml").read_text(encoding="utf-8")
+    assert "STRAT:" in config
+    assert "strat.template.md" in config
+
+
 def test_init_repository_falls_back_if_template_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

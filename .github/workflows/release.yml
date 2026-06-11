@@ -76,9 +76,10 @@ jobs:
           meminit --version
           meminit doctor --root "$GITHUB_WORKSPACE" --format json
           meminit check --root "$GITHUB_WORKSPACE" --format json
-          cd "$tmpdir"
-          # Run tests against the installed package, not the checkout.
-          pytest -c /dev/null "${GITHUB_WORKSPACE}/tests"
+          cd "$GITHUB_WORKSPACE"
+          # Run tests from the repo root so repo-relative fixtures exist, while
+          # ignoring pyproject pytest config to avoid src/ shadowing the wheel.
+          pytest -c /dev/null tests
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

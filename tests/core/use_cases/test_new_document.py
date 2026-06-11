@@ -793,6 +793,27 @@ def test_unknown_type_fails(repo_with_init):
         use_case.execute("UNKNOWN", "Fail")
 
 
+def test_no_template_skeleton_is_machine_fillable(repo_with_init):
+    config_path = repo_with_init / "docops.config.yaml"
+    config = yaml.safe_load(config_path.read_text())
+    config["document_types"]["EXPERIMENT"] = {"directory": "75-experiments"}
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    use_case = NewDocumentUseCase(str(repo_with_init))
+    result = use_case.execute_with_params(
+        NewDocumentParams(doc_type="EXPERIMENT", title="Fallback Sections", dry_run=True)
+    )
+
+    assert result.success is True
+    assert result.template_info is not None
+    assert result.template_info["applied"] is False
+    assert result.template_info["source"] == "none"
+    section_ids = [section["id"] for section in result.template_info["sections"]]
+    assert section_ids == ["title", "content"]
+    assert result.template_info["sections"][1]["agent_prompt"]
+    assert result.template_info["sections"][1]["initial_content"]
+
+
 def test_new_adr_template_mustache_placeholders(tmp_path):
     (tmp_path / "docs" / "00-governance" / "templates").mkdir(parents=True)
     template = tmp_path / "docs" / "00-governance" / "templates" / "custom-adr.md"

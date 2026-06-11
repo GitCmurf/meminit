@@ -2,9 +2,9 @@
 document_id: MEMINIT-LOG-003
 type: LOG
 title: Architext Pilot Evidence
-status: Draft
-version: "0.1"
-last_updated: "2026-05-25"
+status: Approved
+version: "0.3"
+last_updated: "2026-06-10"
 owner: GitCmurf
 area: ADOPT
 docops_version: "2.0"
@@ -22,9 +22,9 @@ keywords:
 
 > **Document ID:** MEMINIT-LOG-003
 > **Owner:** GitCmurf
-> **Status:** Draft
-> **Version:** 0.1
-> **Last Updated:** 2026-05-25
+> **Status:** Approved
+> **Version:** 0.3
+> **Last Updated:** 2026-06-10
 > **Type:** LOG
 
 # LOG: Architext Pilot Evidence
@@ -159,7 +159,8 @@ Initialized DocOps repository at .
 
 ## 5. Version History
 
-| Version | Date       | Author   | Changes                                                           |
-| ------- | ---------- | -------- | ----------------------------------------------------------------- |
-| 0.2     | 2026-05-26 | AI Agent | Added Phase 3 full pilot with pinned SHAs, context/check evidence |
-| 0.1     | 2026-05-25 | GitCmurf | Initial Architext pilot evidence recording                        |
+| Version | Date       | Author   | Changes                                                            |
+| ------- | ---------- | -------- | ------------------------------------------------------------------ |
+| 0.3     | 2026-06-10 | GitCmurf | Approved Architext pilot evidence for PLAN-016 launch gate closure |
+| 0.2     | 2026-05-26 | AI Agent | Added Phase 3 full pilot with pinned SHAs, context/check evidence  |
+| 0.1     | 2026-05-25 | GitCmurf | Initial Architext pilot evidence recording                         |

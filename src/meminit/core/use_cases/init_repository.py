@@ -56,6 +56,7 @@ _FALLBACK_SCHEMA_JSON = b"""{
 
 _FALLBACK_TEMPLATES: dict[str, bytes] = {
     "templates/adr.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## 1. Context & Problem Statement\\n\\n## 2. Decision Drivers\\n\\n## 3. Options Considered\\n\\n## 4. Decision Outcome\\n\\n## 5. Consequences\\n",
+    "templates/strat.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n<!-- MEMINIT_SECTION: title -->\\n<!-- AGENT: State the strategy title clearly. -->\\n\\n# STRAT: {{title}}\\n\\n<!-- MEMINIT_SECTION: executive_summary -->\\n<!-- AGENT: Summarize the strategic direction, decision horizon, and intended outcome. -->\\n\\n## 1. Executive Summary\\n\\n[Executive summary here]\\n",
     "templates/fdd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Feature Description\\n",
     "templates/prd.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Product Requirements\\n",
     "templates/plan.template.md": b"<!-- MEMINIT_METADATA_BLOCK -->\\n\\n> **Document ID:** {{document_id}}\\n> **Owner:** {{owner}}\\n> **Status:** {{status}}\\n> **Version:** 0.1\\n> **Last Updated:** {{date}}\\n> **Type:** {{type}}\\n\\n# {{document_id}}: {{title}}\\n\\n## Plan Description\\n",
@@ -179,7 +180,10 @@ class InitRepositoryUseCase:
                 "document_types": {
                     "GOV": {"directory": "00-governance"},
                     "RFC": {"directory": "00-governance"},
-                    "STRAT": {"directory": "02-strategy"},
+                    "STRAT": {
+                        "directory": "02-strategy",
+                        "template": "docs/00-governance/templates/strat.template.md",
+                    },
                     "PRD": {
                         "directory": "10-prd",
                         "template": "docs/00-governance/templates/prd.template.md",
@@ -232,6 +236,12 @@ class InitRepositoryUseCase:
 
         # 3. Ensure generated local cache artifacts stay out of version control.
         self._ensure_gitignore_cache_entry(record)
+
+        # 3b. Shield Meminit-managed/generated artifacts from Prettier. The protocol
+        # assets are hash-locked (MEMINIT_PROTOCOL blocks) and index artifacts are
+        # regenerated verbatim; if an adopter's Prettier reformats them it breaks
+        # `meminit protocol check` / causes regeneration churn.
+        self._ensure_prettierignore_entries(record)
 
         # 4. Create Templates & Schema
         gov_dir = self.docs_dir / "00-governance"
@@ -327,6 +337,56 @@ class InitRepositoryUseCase:
             created_paths=created_paths_sorted,
             skipped_paths=skipped_paths_sorted,
         )
+
+    @staticmethod
+    def _prettierignore_entries() -> List[str]:
+        """Paths Prettier must not touch: Meminit-managed (hash-locked) protocol
+        assets — derived from the registry so the list tracks the assets — plus the
+        regenerated index artifacts and governed template trees."""
+        registry = ProtocolAssetRegistry.default()
+        entries = [f"/{asset.target_path}" for asset in registry.assets]
+        entries += [
+            "/docs/01-indices/*.index.json",
+            "/docs/01-indices/catalogue.md",
+            "/docs/01-indices/kanban.md",
+            "/docs/01-indices/kanban.css",
+            "/docs/00-governance/templates/",
+        ]
+        return entries
+
+    def _ensure_prettierignore_entries(self, record_fn) -> None:
+        prettierignore_path = self.root_dir / ".prettierignore"
+        ensure_safe_write_path(root_dir=self.root_dir, target_path=prettierignore_path)
+        header = (
+            "# Meminit owns these bytes; Prettier must not reformat them "
+            "(hash-locked protocol\n"
+            "# assets and regenerated index artifacts). See `meminit protocol check`.\n"
+        )
+        required_entries = self._prettierignore_entries()
+        if not prettierignore_path.exists():
+            atomic_write(
+                prettierignore_path,
+                header + "\n".join(required_entries) + "\n",
+                encoding="utf-8",
+            )
+            record_fn(prettierignore_path, created=True)
+            return
+        if not prettierignore_path.is_file():
+            raise MeminitError(
+                ErrorCode.NOT_A_REGULAR_FILE,
+                "Cannot update .prettierignore: path exists but is not a regular file.",
+                details={"path": str(prettierignore_path)},
+            )
+        content = prettierignore_path.read_text(encoding="utf-8")
+        entries = {line.strip() for line in content.splitlines()}
+        missing_entries = [entry for entry in required_entries if entry not in entries]
+        if not missing_entries:
+            record_fn(prettierignore_path, created=False)
+            return
+        separator = "" if content.endswith("\n") or not content else "\n"
+        addition = "\n".join(missing_entries) + "\n"
+        atomic_write(prettierignore_path, f"{content}{separator}{addition}", encoding="utf-8")
+        record_fn(prettierignore_path, created=True)
 
     def _ensure_gitignore_cache_entry(self, record_fn) -> None:
         gitignore_path = self.root_dir / ".gitignore"

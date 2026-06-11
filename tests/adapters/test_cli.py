@@ -88,7 +88,7 @@ def test_cli_init_md_outputs_created_and_skipped_paths(tmp_path):
     assert "AGENTS.md" in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_clean(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -108,7 +108,7 @@ def test_cli_check_clean(mock_use_case):
     assert "No violations found" in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_clean_quiet_is_silent(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -133,7 +133,7 @@ def test_cli_check_clean_quiet_is_silent(mock_use_case, tmp_path):
     assert "Meminit Compliance Check" not in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_violations_text(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -162,7 +162,7 @@ def test_cli_check_violations_text(mock_use_case):
     assert "Severity.ERROR" not in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_violations_json(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -199,7 +199,7 @@ def test_cli_check_violations_json(mock_use_case):
     assert data["violations"][0]["violations"][0]["code"] == "TEST_RULE"
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -240,7 +240,7 @@ def test_cli_check_json_output_write_failure_returns_json_error(mock_use_case, t
     assert payload["error"]["details"]["output_path"] == str(output_dir)
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_json_output_write_failure_preserves_correlation_id(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -281,7 +281,7 @@ def test_cli_check_json_output_write_failure_preserves_correlation_id(mock_use_c
     assert payload["error"]["code"] == ErrorCode.UNKNOWN_ERROR.value
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -322,7 +322,7 @@ def test_cli_check_json_unsafe_output_path_returns_json_error(mock_use_case, tmp
     assert payload["error"]["details"]["output_path"] == "/etc/report.json"
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_json_unsafe_output_path_preserves_correlation_id(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -363,7 +363,7 @@ def test_cli_check_json_unsafe_output_path_preserves_correlation_id(mock_use_cas
     assert payload["error"]["code"] == ErrorCode.PATH_ESCAPE.value
 
 
-@patch("meminit.cli.main.ContextRepositoryUseCase")
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
 def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp_path):
     probe_text = "probe-token=XXXX path=/private/repo/file"
     instance = mock_use_case.return_value
@@ -396,7 +396,7 @@ def test_unexpected_json_exception_redacts_raw_exception_text(mock_use_case, tmp
     assert payload["error"]["details"] == {"exception": "RuntimeError"}
 
 
-@patch("meminit.cli.main.ContextRepositoryUseCase")
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
 def test_unexpected_ndjson_exception_redacts_raw_exception_text(mock_use_case, tmp_path):
     probe_text = "probe-token=XXXX path=/private/repo/file"
     mock_use_case.side_effect = RuntimeError(probe_text)
@@ -457,7 +457,7 @@ def test_cli_new_text_output_invalid_root_writes_error_file(tmp_path):
     assert str(missing_root) in content
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_text_output_writes_file_and_not_stdout(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -499,7 +499,7 @@ def test_cli_check_text_output_writes_file_and_not_stdout(mock_use_case, tmp_pat
     assert "Success! No violations found." in content
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_violations_md(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -528,7 +528,7 @@ def test_cli_check_violations_md(mock_use_case):
     assert "docs/bad.md" in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_warnings_non_strict(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -556,7 +556,7 @@ def test_cli_check_warnings_non_strict(mock_use_case):
     assert "warning" in result.output.lower()
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_warnings_quiet_is_silent(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -589,7 +589,7 @@ def test_cli_check_warnings_quiet_is_silent(mock_use_case, tmp_path):
     assert "Found 1 warning" not in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -627,7 +627,7 @@ def test_cli_check_quiet_outputs_failures_only(mock_use_case, tmp_path):
     assert "WARN_RULE" not in result.output
 
 
-@patch("meminit.cli.main.CheckRepositoryUseCase")
+@patch("meminit.cli.commands.check.CheckRepositoryUseCase")
 def test_cli_check_warnings_strict(mock_use_case):
     instance = mock_use_case.return_value
     instance.execute_full_summary.return_value = CheckResult(
@@ -665,7 +665,7 @@ def test_cli_scan_invalid_root_json_contract(tmp_path):
     assert data["output_schema_version"] == "3.0"
 
 
-@patch("meminit.cli.main.InstallPrecommitUseCase")
+@patch("meminit.cli.commands.install_precommit.InstallPrecommitUseCase")
 def test_cli_install_precommit_md_output(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     report = MagicMock()
@@ -681,7 +681,7 @@ def test_cli_install_precommit_md_output(mock_use_case, tmp_path):
     assert "Hook path" in result.output
 
 
-@patch("meminit.cli.main.ScanRepositoryUseCase")
+@patch("meminit.cli.commands.scan.ScanRepositoryUseCase")
 def test_cli_scan_text_does_not_crash_on_ambiguous_types(mock_use_case, tmp_path):
     # Regression: text scan previously crashed with UnboundLocalError when ambiguous types existed.
     instance = mock_use_case.return_value
@@ -716,7 +716,7 @@ def test_cli_scan_text_does_not_crash_on_ambiguous_types(mock_use_case, tmp_path
     assert "Ambiguous" in result.output
 
 
-@patch("meminit.cli.main.ScanRepositoryUseCase")
+@patch("meminit.cli.commands.scan.ScanRepositoryUseCase")
 def test_cli_scan_md_includes_ambiguous_types_and_namespaces(mock_use_case, tmp_path):
     instance = mock_use_case.return_value
     report = MagicMock()
@@ -780,6 +780,67 @@ def test_cli_context_json_output(tmp_path):
     assert data["data"]["default_owner"] == "TeamA"
 
 
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_requires_initialized_repo(mock_use_case, tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "test.md").write_text("# Test\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "missing"
+    mock_use_case.assert_not_called()
+
+
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_rejects_symlink_config(mock_use_case, tmp_path):
+    if not hasattr(os, "symlink"):
+        pytest.skip("Symlinks are not supported on this platform")
+
+    target = tmp_path / "real-config.yaml"
+    target.write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
+        encoding="utf-8",
+    )
+    link_path = tmp_path / "docops.config.yaml"
+    try:
+        os.symlink(target, link_path)
+    except OSError as exc:
+        pytest.skip(f"Unable to create symlink on this platform: {exc}")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "not_regular_file"
+    mock_use_case.assert_not_called()
+
+
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
+def test_cli_context_rejects_malformed_config(mock_use_case, tmp_path):
+    (tmp_path / "docops.config.yaml").write_text(
+        "project_name: TestProject\nrepo_prefix: TEST\ndocops_version:\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["context", "--root", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == getattr(os, "EX_NOINPUT", 66)
+    data = parse_json_envelope(result.output)
+    assert data["success"] is False
+    assert data["error"]["code"] == ErrorCode.CONFIG_MISSING.value
+    assert data["error"]["details"]["reason"] == "missing_version"
+    mock_use_case.assert_not_called()
+
+
 def test_cli_context_deep_counts_documents(tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
@@ -817,7 +878,7 @@ def test_cli_context_md_output(tmp_path):
     assert "- Project: `TestProject`" in result.output
 
 
-@patch("meminit.cli.main.ContextRepositoryUseCase")
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
 def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
@@ -848,7 +909,7 @@ def test_cli_context_md_emits_warnings(mock_use_case, tmp_path):
     assert "DEEP_BUDGET_EXCEEDED" in result.output
 
 
-@patch("meminit.cli.main.ContextRepositoryUseCase")
+@patch("meminit.cli.commands.context_cmd.ContextRepositoryUseCase")
 def test_cli_context_text_emits_warnings(mock_use_case, tmp_path):
     (tmp_path / "docops.config.yaml").write_text(
         "project_name: TestProject\nrepo_prefix: TEST\ndocops_version: '2.0'\n",
@@ -2693,7 +2754,7 @@ def test_adr_new_requires_initialized_repo(tmp_path):
     assert "CONFIG_MISSING" in result.output
 
 
-@patch("meminit.cli.main.DoctorRepositoryUseCase")
+@patch("meminit.cli.commands.doctor.DoctorRepositoryUseCase")
 def test_cli_doctor_json_output(mock_use_case, tmp_path):
     issues = [
         SimpleNamespace(
@@ -2724,9 +2785,21 @@ def test_cli_doctor_json_output(mock_use_case, tmp_path):
     assert len(payload["violations"]) == 1
     assert payload["warnings"][0]["code"] == "DOCOPS_WARN"
     assert payload["violations"][0]["code"] == "DOCOPS_ERR"
+    # Doctor-specific summary fields must live under `data` (not as top-level
+    # envelope keys) so the shared v3 schema (additionalProperties: false) stays
+    # valid. A successfully-parsed non-error envelope already proves validation
+    # passed; these assertions lock in the field placement.
+    data = payload["data"]
+    assert data["status"] == "error"
+    assert data["issues_count"] == 2
+    assert data["errors_count"] == 1
+    assert data["warnings_count"] == 1
+    assert len(data["issues"]) == 2
+    for extra in ("status", "issues", "issues_count", "errors_count", "warnings_count"):
+        assert extra not in payload, f"{extra} must not be a top-level envelope key"
 
 
-@patch("meminit.cli.main.DoctorRepositoryUseCase")
+@patch("meminit.cli.commands.doctor.DoctorRepositoryUseCase")
 def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
     mock_use_case.return_value.execute.return_value = [
         SimpleNamespace(
@@ -2753,7 +2826,99 @@ def test_cli_doctor_json_strict_warnings_fail(mock_use_case, tmp_path):
     assert len(payload["violations"]) == 1
 
 
-@patch("meminit.cli.main.FixRepositoryUseCase")
+def test_cli_capabilities_md_output_writes_file(tmp_path):
+    output_path = tmp_path / "capabilities.md"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["capabilities", "--format", "md", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "# Meminit Capabilities" in content
+    assert "## Commands" in content
+    assert "| Command | Description |" in content
+    assert "## Error Codes" in content
+    assert "| Code |" in content
+
+
+@pytest.mark.parametrize(
+    "cli_args, expected_snippets",
+    [
+        (
+            ["explain", "--list"],
+            ["# Meminit Explain", "## Error Codes", "| Code | Category | Summary |"],
+        ),
+        (
+            ["explain", "DUPLICATE_ID"],
+            ["# Meminit Explain", "| Field | Value |", "DUPLICATE_ID"],
+        ),
+    ],
+)
+def test_cli_explain_md_output_writes_file(tmp_path, cli_args, expected_snippets):
+    output_path = tmp_path / ("explain-list.md" if "--list" in cli_args else "explain-single.md")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        cli_args + ["--format", "md", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    for snippet in expected_snippets:
+        assert snippet in content
+
+
+@patch("meminit.cli.commands.doctor.DoctorRepositoryUseCase")
+def test_cli_doctor_text_output_writes_file_and_not_stdout(mock_use_case, tmp_path):
+    mock_use_case.return_value.execute.return_value = [
+        SimpleNamespace(
+            severity=SimpleNamespace(value="warning"),
+            rule="DOCOPS_WARN",
+            file="docs/a.md",
+            line=1,
+            message="Warning message",
+        ),
+        SimpleNamespace(
+            severity=SimpleNamespace(value="error"),
+            rule="DOCOPS_ERR",
+            file="docs/b.md",
+            line=2,
+            message="Error message",
+        ),
+    ]
+    output_path = tmp_path / "doctor.txt"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "doctor",
+            "--root",
+            str(tmp_path),
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == ""
+    content = output_path.read_text(encoding="utf-8")
+    assert "Status: ERROR" in content
+    assert "Errors (1)" in content
+    assert "Warnings (1)" in content
+    assert "docs/a.md" in content
+    assert "docs/b.md" in content
+
+
+@patch("meminit.cli.commands.fix.FixRepositoryUseCase")
 def test_cli_fix_json_output(mock_use_case, tmp_path):
     report = SimpleNamespace(
         fixed_violations=[1, 2],
@@ -2786,9 +2951,9 @@ def test_cli_fix_json_output(mock_use_case, tmp_path):
     assert payload["violations"][0]["path"] == "docs/bad.md"
 
 
-@patch("meminit.cli.main.MigrateIdsUseCase")
+@patch("meminit.cli.commands.migration.MigrateIdsUseCase")
 def test_cli_migrate_ids_json_output(mock_use_case, tmp_path):
-    report = SimpleNamespace(as_dict=lambda: {"actions": [], "skipped_files": []})
+    report = SimpleNamespace(as_dict=lambda: {"actions": [], "skipped_files": []}, advice=[])
     mock_use_case.return_value.execute.return_value = report
 
     runner = runner_no_mixed_stderr()
@@ -2803,7 +2968,7 @@ def test_cli_migrate_ids_json_output(mock_use_case, tmp_path):
     assert payload["data"]["report"]["actions"] == []
 
 
-@patch("meminit.cli.main.IdentifyDocumentUseCase")
+@patch("meminit.cli.commands.doc_resolution.IdentifyDocumentUseCase")
 def test_cli_identify_json_output(mock_use_case, tmp_path):
     mock_use_case.return_value.execute.return_value = SimpleNamespace(
         document_id="TEST-ADR-001",
@@ -2829,7 +2994,7 @@ def test_cli_identify_json_output(mock_use_case, tmp_path):
     assert payload["data"]["document_id"] == "TEST-ADR-001"
 
 
-@patch("meminit.cli.main.ResolveDocumentUseCase")
+@patch("meminit.cli.commands.doc_resolution.ResolveDocumentUseCase")
 def test_cli_resolve_json_output(mock_use_case, tmp_path):
     mock_use_case.return_value.execute.return_value = SimpleNamespace(path="docs/45-adr/adr-001.md")
 
@@ -2845,7 +3010,7 @@ def test_cli_resolve_json_output(mock_use_case, tmp_path):
     assert payload["data"]["document_id"] == "TEST-ADR-001"
 
 
-@patch("meminit.cli.main.ResolveDocumentUseCase")
+@patch("meminit.cli.commands.doc_resolution.ResolveDocumentUseCase")
 def test_cli_link_json_output(mock_use_case, tmp_path):
     mock_use_case.return_value.execute.return_value = SimpleNamespace(path="docs/45-adr/adr-001.md")
 
@@ -3098,7 +3263,7 @@ document_types:
         assert data["success"] is False
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
     """Test that migrate-templates command is registered with the CLI."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3154,7 +3319,7 @@ def test_cli_migrate_templates_command_exists(mock_use_case, tmp_path):
     assert "migrate-templates" in result.output or "DRY RUN" in result.output
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     """Test that --dry-run is the default behavior."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3206,7 +3371,7 @@ def test_cli_migrate_templates_dry_run_default(mock_use_case, tmp_path):
     assert data["data"]["dry_run"] is True
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     """Test that --format json outputs correct JSON structure."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3275,7 +3440,7 @@ def test_cli_migrate_templates_json_output(mock_use_case, tmp_path):
     assert len(payload["warnings"]) == 1
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_no_dry_run_applies_changes(mock_use_case, tmp_path):
     """Test that --no-dry-run flag actually applies changes."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3332,7 +3497,7 @@ def test_cli_migrate_templates_missing_config_json(tmp_path):
     assert data["error"]["code"] == "CONFIG_MISSING"
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     """Test that --format md outputs markdown format."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3377,7 +3542,7 @@ def test_cli_migrate_templates_md_output(mock_use_case, tmp_path):
     assert "Rename docs/00-governance/templates/template-001-adr.md" in result.output
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_json_failure_returns_error_envelope(mock_use_case, tmp_path):
     """JSON migrate-templates failures must remain schema-valid and machine-readable."""
     (tmp_path / "docops.config.yaml").write_text(
@@ -3430,7 +3595,7 @@ def test_cli_migrate_templates_json_failure_returns_error_envelope(mock_use_case
     assert payload["warnings"][0]["message"] == "Failed to parse config: malformed yaml"
 
 
-@patch("meminit.cli.main.MigrateTemplatesUseCase")
+@patch("meminit.cli.commands.migration.MigrateTemplatesUseCase")
 def test_cli_migrate_templates_md_failure_exits_non_zero(mock_use_case, tmp_path):
     """Markdown migrate-templates failures must propagate a failing exit code."""
     (tmp_path / "docops.config.yaml").write_text(
